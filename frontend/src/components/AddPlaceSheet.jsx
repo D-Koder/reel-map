@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { categories, feelings } from '../lib/constants';
 
-// Manual add for now; pasting a reel link that fills this in automatically comes in phase 3.
 export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [reelUrl, setReelUrl] = useState('');
   const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
   const [category, setCategory] = useState('food');
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [scrapedData, setScrapedData] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -16,11 +19,52 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const scrapeReel = async (url) => {
+    if (!url.includes('instagram.com/reel/')) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('scrape-reel', {
+        body: { reelUrl: url }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setScrapedData(data);
+        if (data.caption && !name.trim()) {
+          setName(data.caption.split('\n')[0].substring(0, 80));
+        }
+        if (data.location) {
+          setLocation(data.location);
+        }
+      }
+    } catch (error) {
+      console.error('Scrape failed:', error.message);
+    }
+    setLoading(false);
+  };
+
+  const handleReelUrlChange = (e) => {
+    const url = e.target.value;
+    setReelUrl(url);
+    if (url.includes('instagram.com/reel/')) {
+      scrapeReel(url);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !collectionId) return;
     setSaving(true);
-    await onAdd({ name: name.trim(), category, collectionId, reelUrl: reelUrl.trim(), feeling });
+    await onAdd({
+      name: name.trim(),
+      location: location.trim(),
+      category,
+      collectionId,
+      reelUrl: reelUrl.trim(),
+      feeling
+    });
     setSaving(false);
   };
 
@@ -48,13 +92,16 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
             type="url"
             inputMode="url"
             value={reelUrl}
-            onChange={(e) => setReelUrl(e.target.value)}
+            onChange={handleReelUrlChange}
             placeholder="https://www.instagram.com/reel/…"
+            disabled={loading}
           />
+          {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>🔄 Fetching reel info…</span>}
+          {scrapedData && <span style={{ fontSize: '12px', color: '#2ecc71', marginTop: '4px' }}>✅ Reel info loaded</span>}
         </label>
 
         <label className="field">
-          <span className="modal-label">Name</span>
+          <span className="modal-label">Name *</span>
           <input
             className="step-input"
             value={name}
@@ -62,6 +109,19 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
             placeholder="e.g. Wine & Wild"
             maxLength={80}
             required
+            disabled={loading}
+          />
+        </label>
+
+        <label className="field">
+          <span className="modal-label">Location</span>
+          <input
+            className="step-input"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. San Francisco, CA"
+            maxLength={100}
+            disabled={loading}
           />
         </label>
 
@@ -106,8 +166,8 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
           </div>
         </div>
 
-        <button type="submit" className="step-btn primary full-width" disabled={saving}>
-          {saving ? 'Adding…' : 'Add place'}
+        <button type="submit" className="step-btn primary full-width" disabled={saving || loading}>
+          {saving ? 'Adding…' : loading ? 'Loading…' : 'Add place'}
         </button>
       </form>
     </div>
