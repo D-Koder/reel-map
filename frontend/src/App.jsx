@@ -5,6 +5,7 @@ import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
 import AddPlaceSheet from './components/AddPlaceSheet';
 import SettingsDrawer from './components/SettingsDrawer';
+import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
@@ -35,6 +36,8 @@ function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [openPinId, setOpenPinId] = useState(null);
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -53,8 +56,22 @@ function MainApp({ userId, showToast }) {
     }).length;
   }, [data.places]);
 
+  const addNotification = useCallback((type, message, icon) => {
+    const id = Date.now();
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const time = `${hours}:${minutes}`;
+
+    setNotifications((prev) => [
+      { id, type, message, icon, time },
+      ...prev,
+    ]);
+  }, []);
+
   const deletePlace = async (place) => {
     if (!(await data.deletePlace(place.id))) return;
+    addNotification('deleted', `Deleted "${place.name}"`, '🗑️');
     setOpenPinId(null);
     showToast(`🗑️ Deleted "${place.name}"`, {
       label: 'Undo',
@@ -91,9 +108,14 @@ function MainApp({ userId, showToast }) {
     <div className="app">
       <header className="header">
         <span className="header-title">🗺️ Reel Map</span>
-        <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
-          ⚙️
-        </button>
+        <div className="header-buttons">
+          <button className="header-btn" onClick={() => setNotificationsOpen(true)} aria-label="Notifications">
+            🔔
+          </button>
+          <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+            ⚙️
+          </button>
+        </div>
       </header>
 
       {/* Both panels stay mounted: on mobile only the active tab shows, on wide screens they sit side by side. */}
@@ -151,6 +173,13 @@ function MainApp({ userId, showToast }) {
         showToast={showToast}
       />
 
+      <NotificationPanel
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        notifications={notifications}
+        onClear={() => setNotifications([])}
+      />
+
       {openPin && !editPin && (
         <PinModal
           key={openPin.id}
@@ -187,6 +216,7 @@ function MainApp({ userId, showToast }) {
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {
+              addNotification('added', `Added "${fields.name}" to a collection`, '📍');
               showToast(`📍 Added "${fields.name}"`);
               setAdding(false);
             }
