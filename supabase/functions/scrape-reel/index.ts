@@ -1,26 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const APIFY_API_KEY = Deno.env.get('APIFY_API_KEY');
+const ACTOR_ID = 'apify~instagram-reel-scraper';
 
 async function callApify(reelUrl: string) {
-  const response = await fetch('https://api.apify.com/v2/acts/junglee~instagram-reel-scraper/run', {
+  // Step 1: Start the actor run
+  const runResponse = await fetch(`https://api.apify.com/v2/actors/${ACTOR_ID}/runs`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${APIFY_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      startUrls: [{ url: reelUrl }],
-      maxPostsPerPage: 1
+      username: [reelUrl]
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Apify API error: ${response.status}`);
+  if (!runResponse.ok) {
+    throw new Error(`Apify API error: ${runResponse.status}`);
   }
 
-  const data = await response.json();
-  return data;
+  const runData = await runResponse.json();
+  const datasetId = runData.data?.defaultDatasetId;
+
+  if (!datasetId) {
+    throw new Error('No dataset ID returned from Apify');
+  }
+
+  // Step 2: Poll for dataset results (wait up to 60 seconds)
+  let items = [];
+  for (let i = 0; i < 60; i++) {
+    const datasetResponse = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${APIFY_API_KEY}`
+      }
+    });
+
+    if (datasetResponse.ok) {
+      items = await datasetResponse.json();
+      if (items.length > 0) {
+        break;
+      }
+    }
+
+    // Wait 1 second before retrying
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  return {
+    data: {
+      output: {
+        items: items
+      }
+    }
+  };
 }
 
 serve(async (req) => {

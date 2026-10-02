@@ -2,8 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { categories, feelings } from '../lib/constants';
 
+const isValidInstagramReelUrl = (url) => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.includes('instagram.com') && urlObj.pathname.includes('/reel/');
+  } catch {
+    return false;
+  }
+};
+
 export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [reelUrl, setReelUrl] = useState('');
+  const [reelUrlInput, setReelUrlInput] = useState('');
+  const [urlError, setUrlError] = useState('');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('food');
@@ -12,6 +23,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scrapedData, setScrapedData] = useState(null);
+  const [urlValidated, setUrlValidated] = useState(false);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -19,9 +31,27 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const scrapeReel = async (url) => {
-    if (!url.includes('instagram.com/reel/')) return;
+  const validateAndConfirmUrl = () => {
+    const trimmedUrl = reelUrlInput.trim();
+    setUrlError('');
 
+    if (!trimmedUrl) {
+      setUrlError('Please paste an Instagram reel link');
+      return;
+    }
+
+    if (!isValidInstagramReelUrl(trimmedUrl)) {
+      setUrlError('Invalid Instagram reel link. Make sure it contains instagram.com/reel/');
+      return;
+    }
+
+    // URL is valid, proceed to fetch
+    setReelUrl(trimmedUrl);
+    setUrlValidated(true);
+    scrapeReel(trimmedUrl);
+  };
+
+  const scrapeReel = async (url) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('scrape-reel', {
@@ -41,16 +71,19 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
     } catch (error) {
       console.error('Scrape failed:', error.message);
+      setUrlError('Failed to load reel. Check the link and try again.');
+      setUrlValidated(false);
+      setReelUrl('');
     }
     setLoading(false);
   };
 
-  const handleReelUrlChange = (e) => {
-    const url = e.target.value;
-    setReelUrl(url);
-    if (url.includes('instagram.com/reel/')) {
-      scrapeReel(url);
-    }
+  const handleResetReel = () => {
+    setReelUrl('');
+    setReelUrlInput('');
+    setUrlError('');
+    setUrlValidated(false);
+    setScrapedData(null);
   };
 
   const submit = async (e) => {
@@ -85,20 +118,140 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
           </button>
         </div>
 
-        <label className="field">
+        {/* STEP 1: Reel URL Input & Validation */}
+        <div className="field">
           <span className="modal-label">Reel link (optional)</span>
-          <input
-            className="step-input"
-            type="url"
-            inputMode="url"
-            value={reelUrl}
-            onChange={handleReelUrlChange}
-            placeholder="https://www.instagram.com/reel/…"
-            disabled={loading}
-          />
-          {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>🔄 Fetching reel info…</span>}
-          {scrapedData && <span style={{ fontSize: '12px', color: '#2ecc71', marginTop: '4px' }}>✅ Reel info loaded</span>}
-        </label>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: urlError ? '4px' : '0' }}>
+            <input
+              className="step-input"
+              type="url"
+              inputMode="url"
+              value={reelUrlInput}
+              onChange={(e) => {
+                setReelUrlInput(e.target.value);
+                setUrlError('');
+              }}
+              placeholder="https://www.instagram.com/reel/…"
+              disabled={loading || urlValidated}
+              style={{ flex: 1 }}
+            />
+            {!urlValidated ? (
+              <button
+                type="button"
+                className="step-btn primary"
+                onClick={validateAndConfirmUrl}
+                disabled={loading || !reelUrlInput.trim()}
+              >
+                {loading ? 'Loading…' : 'Confirm'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="step-btn"
+                onClick={handleResetReel}
+                disabled={loading}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          {urlError && (
+            <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
+              ⚠️ {urlError}
+            </span>
+          )}
+          {loading && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+              🔄 Fetching reel info…
+            </span>
+          )}
+        </div>
+
+        {/* STEP 2: Reel Preview with Skeleton Loading */}
+        {urlValidated && (
+          <div className="reel-preview" style={{
+            padding: '12px',
+            backgroundColor: 'var(--surface-muted)',
+            borderRadius: '8px',
+            marginBottom: '16px'
+          }}>
+            {loading ? (
+              // Skeleton Loading
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  backgroundColor: 'var(--border)',
+                  borderRadius: '6px',
+                  animation: 'pulse 2s infinite'
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    height: '12px',
+                    backgroundColor: 'var(--border)',
+                    borderRadius: '4px',
+                    marginBottom: '8px',
+                    width: '80%',
+                    animation: 'pulse 2s infinite'
+                  }} />
+                  <div style={{
+                    height: '10px',
+                    backgroundColor: 'var(--border)',
+                    borderRadius: '4px',
+                    width: '60%',
+                    animation: 'pulse 2s infinite'
+                  }} />
+                </div>
+              </div>
+            ) : scrapedData ? (
+              // Loaded Data
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  backgroundColor: 'var(--border)',
+                  borderRadius: '6px',
+                  flexShrink: 0,
+                  backgroundImage: scrapedData.thumbnailUrl ? `url(${scrapedData.thumbnailUrl})` : 'none',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: 'var(--text)',
+                    marginBottom: '4px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {scrapedData.location || 'Location not found'}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    gap: '12px'
+                  }}>
+                    <span>❤️ {(scrapedData.likes || 0).toLocaleString()}</span>
+                    <span>💬 {(scrapedData.comments || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Error/Empty State
+              <div style={{
+                textAlign: 'center',
+                padding: '12px',
+                color: 'var(--text-muted)',
+                fontSize: '12px'
+              }}>
+                Failed to load reel data
+              </div>
+            )}
+          </div>
+        )}
 
         <label className="field">
           <span className="modal-label">Name *</span>
