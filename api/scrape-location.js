@@ -43,6 +43,20 @@ module.exports = async function handler(req, res) {
       return results.length > 0;
     }, { timeout: 10000 }).catch(() => {});
 
+    // Click the hours dropdown to expand full hours if it exists
+    await page.evaluate(() => {
+      // Look for the hours/opening times section with expand button
+      const hoursButtons = Array.from(document.querySelectorAll('[role="button"]')).filter(btn =>
+        btn.textContent?.match(/closed|open|am|pm/i)
+      );
+      if (hoursButtons.length > 0) {
+        hoursButtons[0].click();
+      }
+    }).catch(() => {});
+
+    // Wait a bit for hours to expand
+    await page.waitForTimeout(500);
+
     const result = await page.evaluate(() => {
       // Find the first result card
       const resultCard = document.querySelector('[role="region"] [role="button"]');
@@ -80,12 +94,29 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // Hours: look for "Closed", "Open" patterns, typically after address
-      for (let i = lines.length - 1; i >= 0; i--) {
+      // Hours: collect all lines with day names and times
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Closed', 'Open'];
+      const hoursLines = [];
+
+      for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (line.match(/closed|open|am|pm/i) && line !== name && line !== address) {
-          hours = line;
-          break;
+        // Collect lines that contain day names or time patterns
+        if (dayNames.some(day => line.includes(day)) || line.match(/\d{1,2}:\d{2}\s*(am|pm|–|-)/) || line.match(/^(Closed|Open)/i)) {
+          hoursLines.push(line);
+        }
+      }
+
+      // Join all hours lines, or use first hours line if not expanded
+      if (hoursLines.length > 0) {
+        hours = hoursLines.join(' | ');
+      } else {
+        // Fallback: look for "Closed", "Open" patterns if no full hours found
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const line = lines[i];
+          if (line.match(/closed|open/i) && line !== name && line !== address) {
+            hours = line;
+            break;
+          }
         }
       }
 
