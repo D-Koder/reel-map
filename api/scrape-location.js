@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
     }).catch(() => {});
 
     // Wait a bit for hours to expand
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     const result = await page.evaluate(() => {
       // Find the first result card
