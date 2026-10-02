@@ -52,13 +52,8 @@ function MainApp({ userId, showToast }) {
   );
 
   const streak = useMemo(() => {
-    const now = new Date();
-    return data.places.filter((p) => {
-      if (!p.visit) return false;
-      const d = new Date(p.visit.done_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-  }, [data.places]);
+    return data.profile?.current_streak ?? 0;
+  }, [data.profile]);
 
   // Handle invite codes from URL
   useEffect(() => {

@@ -51,7 +51,7 @@ export default function HomeScreen({
           const handleDragEnd = ({ active, over }) => {
             if (!over || active.id === over.id) return;
             const ids = pins.map((p) => p.id);
-            onReorder(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id)));
+            onReorder(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id)), collection.id);
           };
 
           return (

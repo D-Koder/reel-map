@@ -42,10 +42,9 @@ export default function PinModal({
   onClose,
   showToast,
 }) {
-  const venue = place.venue;
   const booking = place.booking;
   const nameOf = (id) => (id === userId ? 'you' : members.find((m) => m.id === id)?.display_name ?? 'someone else');
-  const sharerName = place.shared_by === userId ? 'you' : place.sharer?.display_name ?? 'someone';
+  const adderName = place.added_by === userId ? 'you' : members.find((m) => m.id === place.added_by)?.display_name ?? 'someone';
 
   // Whoever added the place edits it. Delete: the booker if booked, otherwise whoever added it.
   const canEdit = place.added_by === userId;
@@ -95,12 +94,12 @@ export default function PinModal({
   };
 
   const openBooking = () => {
-    showToast(`🔗 Opening ${bookingLabel(venue.booking_url)}...`);
-    window.open(venue.booking_url, '_blank', 'noopener');
+    showToast(`🔗 Opening ${bookingLabel(place.booking_url)}...`);
+    window.open(place.booking_url, '_blank', 'noopener');
   };
 
   const callVenue = () => {
-    if (venue?.phone) window.location.href = `tel:${venue.phone.replace(/[^\d+]/g, '')}`;
+    if (place?.phone) window.location.href = `tel:${place.phone.replace(/[^\d+]/g, '')}`;
     else showToast('📞 No phone number listed');
   };
 
@@ -109,7 +108,7 @@ export default function PinModal({
     completeStep(3);
   };
 
-  const hours = Array.isArray(venue?.hours) ? venue.hours : [];
+  const hours = Array.isArray(place?.hours) ? place.hours : [];
   const satHours = hours.find((h) => /sat/i.test(h.days));
   const hoursSummary = hours.length
     ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
@@ -151,14 +150,14 @@ export default function PinModal({
           </div>
         </div>
 
-        {venue?.subtitle && <div className="venue-subtitle">{venue.subtitle}</div>}
+        {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
 
         <div className="reel-context">
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             <PlaceThumb place={place} className="reel-thumbnail-small" />
           </button>
           <div className="reel-info-small">
-            <div className="reel-sender">Sent by {sharerName}</div>
+            <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
             {booking && <div className="reel-booked">🟢 Booked by {nameOf(booking.booked_by)}</div>}
             {place.reel_url && (
@@ -218,55 +217,55 @@ export default function PinModal({
           </div>
         )}
 
-        {venue?.address && (
+        {place?.address && (
           <div className="modal-section">
             <div className="modal-label">Address</div>
-            <div className="venue-address">{venue.address}</div>
-            {venue.source_id?.startsWith('https://www.google.com/maps/') && (
-              <a className="step-btn secondary full-width" href={venue.source_id} target="_blank" rel="noreferrer">
+            <div className="venue-address">{place.address}</div>
+            {place.source_id?.startsWith('https://www.google.com/maps/') && (
+              <a className="step-btn secondary full-width" href={place.source_id} target="_blank" rel="noreferrer">
                 📍 Open Google Maps ↗
               </a>
             )}
           </div>
         )}
 
-        {(venue?.website_url || venue?.booking_url) && (
+        {(place?.website_url || place?.booking_url) && (
           <div className="modal-section">
-            {venue.website_url && (
-              <a className="step-btn secondary full-width" href={venue.website_url} target="_blank" rel="noreferrer">
+            {place.website_url && (
+              <a className="step-btn secondary full-width" href={place.website_url} target="_blank" rel="noreferrer">
                 🌐 Open website ↗
               </a>
             )}
-            {venue.booking_url && (
-              <a className="step-btn primary full-width" href={venue.booking_url} target="_blank" rel="noreferrer">
+            {place.booking_url && (
+              <a className="step-btn primary full-width" href={place.booking_url} target="_blank" rel="noreferrer">
                 🍽️ Reserve a table ↗
               </a>
             )}
           </div>
         )}
 
-        {venue?.phone && (
+        {place?.phone && (
           <div className="modal-section">
             <div className="modal-label">Phone</div>
-            <a className="venue-address" href={`tel:${venue.phone.replace(/[^\d+]/g, '')}`}>
-              {venue.phone}
+            <a className="venue-address" href={`tel:${place.phone.replace(/[^\d+]/g, '')}`}>
+              {place.phone}
             </a>
           </div>
         )}
 
-        {venue?.menu_url && (
+        {place?.menu_url && (
           <div className="modal-section">
-            <a className="step-btn secondary full-width" href={venue.menu_url} target="_blank" rel="noreferrer">
+            <a className="step-btn secondary full-width" href={place.menu_url} target="_blank" rel="noreferrer">
               🍽️ View menu ↗
             </a>
           </div>
         )}
 
-        {venue?.menu?.text && (
+        {place?.menu?.text && (
           <div className="modal-section">
             <details>
               <summary className="modal-label">Menu details</summary>
-              <div className="venue-menu-text">{venue.menu.text}</div>
+              <div className="venue-menu-text">{place.menu.text}</div>
             </details>
           </div>
         )}
@@ -287,8 +286,8 @@ export default function PinModal({
           </div>
         )}
 
-        {place.visit ? (
-          <div className="step-complete">✅ Done — marked by {nameOf(place.visit.marked_by)}</div>
+        {booking?.done_at ? (
+          <div className="step-complete">✅ Done — marked by {nameOf(booking.marked_by)}</div>
         ) : wasBooked ? (
           <button className="step-btn primary full-width" disabled={doneLocked} onClick={onMarkDone}>
             {doneLocked ? `⏳ Mark as Done in ${formatWait(unlockAt - now)}` : '✅ Mark as Done'}
@@ -323,9 +322,9 @@ export default function PinModal({
                   onChange={(e) => setReservationDate(e.target.value)}
                 />
                 <div className="step-buttons">
-                  {venue?.booking_url && (
+                  {place?.booking_url && (
                     <button className="step-btn primary" onClick={openBooking}>
-                      🔗 {bookingLabel(venue.booking_url)}
+                      🔗 {bookingLabel(place.booking_url)}
                     </button>
                   )}
                   <button className="step-btn secondary" onClick={callVenue}>

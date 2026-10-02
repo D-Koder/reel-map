@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'place_visits'];
+const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
 
 const PLACE_SELECT = `
-  id, collection_id, name, category, reel_url, reel_thumbnail_url, shared_by, added_by, created_at,
-  venue:venues(id, name, subtitle, address, lat, lng, hours, phone, website_url, booking_url, menu_url, menu, source_id),
+  id, name, category, reel_url, reel_thumbnail_url, created_at,
+  address, lat, lng, hours, phone, booking_url, website_url, subtitle, menu_url, menu, source, source_id,
   reactions(user_id, feeling),
-  booking:bookings(booked_by, planned_at),
-  visit:place_visits(marked_by, done_at),
-  sharer:profiles!places_shared_by_fkey(id, display_name, avatar)
+  booking:bookings(booked_by, planned_at, done_at, marked_by),
+  collection_places!collection_places_place_id_fkey(collection_id, added_by, added_at, position)
 `;
 
 const COLLECTION_SELECT = `
   id, name, emoji, is_private, owner_id, created_at,
   collection_members(user_id, role, profile:profiles(id, display_name, avatar))
+`;
+
+const PROFILE_SELECT = `
+  id, display_name, avatar, current_streak, best_streak, last_activity_at
 `;
 
 // Turn database errors into something a person can act on.
@@ -27,10 +30,29 @@ function friendlyError(error) {
 }
 
 function normalisePlace(row) {
-  return {
+  // Create one entry per collection this place belongs to
+  const collections = row.collection_places ?? [];
+  if (collections.length === 0) {
+    // Place with no collections (shouldn't happen, but handle it)
+    return [{
+      ...row,
+      collection_id: null,
+      added_by: null,
+      added_at: null,
+      position: null,
+      booking: row.booking?.[0] || null,
+      reactions: Object.fromEntries((row.reactions ?? []).map((r) => [r.user_id, r.feeling])),
+    }];
+  }
+  return collections.map((cp) => ({
     ...row,
+    collection_id: cp.collection_id,
+    added_by: cp.added_by,
+    added_at: cp.added_at,
+    position: cp.position,
+    booking: row.booking?.[0] || null,
     reactions: Object.fromEntries((row.reactions ?? []).map((r) => [r.user_id, r.feeling])),
-  };
+  }));
 }
 
 function normaliseCollection(row) {
@@ -54,23 +76,24 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     const [profileRes, collectionsRes, placesRes, orderRes] = await Promise.all([
-      supabase.from('profiles').select('id, display_name, avatar').eq('id', userId).single(),
+      supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.from('collections').select(COLLECTION_SELECT).order('created_at'),
       supabase.from('places').select(PLACE_SELECT).order('created_at'),
-      supabase.from('place_order').select('place_id, position'),
+      supabase.from('place_order').select('place_id, collection_id, position'),
     ]);
     const failed = [profileRes, collectionsRes, placesRes, orderRes].find((r) => r.error);
     if (failed) {
       setState((s) => ({ ...s, loading: false, error: friendlyError(failed.error) }));
       return;
     }
-    setOrder(Object.fromEntries(orderRes.data.map((o) => [o.place_id, o.position])));
+    // Build order map by (collection_id, place_id)
+    setOrder(Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position])));
     setState({
       loading: false,
       error: null,
       profile: profileRes.data,
       collections: collectionsRes.data.map(normaliseCollection),
-      places: placesRes.data.map(normalisePlace),
+      places: placesRes.data.flatMap(normalisePlace),
     });
   }, [userId]);
 
@@ -111,10 +134,12 @@ export function useAppData(userId, showToast) {
   const patchPlace = (id, patch) =>
     setState((s) => ({ ...s, places: s.places.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
 
-  // My order first, then oldest first for places I've never sorted.
+  // My order first (per collection), then oldest first for places I've never sorted.
   const places = [...state.places].sort((a, b) => {
-    const pa = order[a.id] ?? Number.POSITIVE_INFINITY;
-    const pb = order[b.id] ?? Number.POSITIVE_INFINITY;
+    const key_a = `${a.collection_id}:${a.id}`;
+    const key_b = `${b.collection_id}:${b.id}`;
+    const pa = order[key_a] ?? Number.POSITIVE_INFINITY;
+    const pb = order[key_b] ?? Number.POSITIVE_INFINITY;
     return pa - pb || a.created_at.localeCompare(b.created_at);
   });
 
@@ -131,54 +156,30 @@ export function useAppData(userId, showToast) {
     },
 
     addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling }) => {
-      let venueId = null;
-      if (location?.trim()) {
-        const { data: venue, error: venueError } = await supabase
-          .from('venues')
-          .insert({
-            name: venueDetails?.name || name,
-            subtitle: venueDetails?.subtitle || null,
-            address: venueDetails?.address || location.trim(),
-            lat: venueDetails?.latitude ?? null,
-            lng: venueDetails?.longitude ?? null,
-            hours: venueDetails?.hours?.length ? venueDetails.hours : null,
-            phone: venueDetails?.phone || null,
-            website_url: venueDetails?.websiteUrl || null,
-            booking_url: venueDetails?.bookingUrl || null,
-            menu_url: venueDetails?.menuUrl || null,
-            menu: venueDetails?.menuText ? { text: venueDetails.menuText } : null,
-            source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
-            source_id: venueDetails?.mapsUrl || null,
-          })
-          .select('id')
-          .single();
-        if (venueError) {
-          showToast(`⚠️ ${friendlyError(venueError)}`);
-          return null;
-        }
-        venueId = venue.id;
-      }
-
-      const { data, error } = await supabase
-        .from('places')
-        .insert({
-          name,
-          category,
-          collection_id: collectionId,
-          venue_id: venueId,
-          reel_url: reelUrl || null,
-          reel_thumbnail_url: reelThumbnailUrl || null,
-          shared_by: userId,
-        })
-        .select('id')
-        .single();
+      // Call the add_place_to_collection() function which handles deduplication and linking
+      const { data, error } = await supabase.rpc('add_place_to_collection', {
+        p_collection_id: collectionId,
+        p_name: name,
+        p_category: category,
+        p_lat: venueDetails?.latitude ?? null,
+        p_lng: venueDetails?.longitude ?? null,
+        p_address: venueDetails?.address || location.trim() || null,
+        p_hours: venueDetails?.hours?.length ? venueDetails.hours : null,
+        p_phone: venueDetails?.phone || null,
+        p_booking_url: venueDetails?.bookingUrl || null,
+        p_reel_url: reelUrl || null,
+        p_reel_thumbnail_url: reelThumbnailUrl || null,
+        p_source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
+        p_source_id: venueDetails?.mapsUrl || null,
+      });
       if (error) {
         showToast(`⚠️ ${friendlyError(error)}`);
         return null;
       }
-      if (feeling) await supabase.from('reactions').insert({ place_id: data.id, feeling });
+      const placeId = data;
+      if (feeling) await supabase.from('reactions').insert({ place_id: placeId, feeling });
       await refresh();
-      return data;
+      return { id: placeId };
     },
 
     updatePlace: (id, { name, category }) => {
@@ -192,12 +193,18 @@ export function useAppData(userId, showToast) {
     book: (placeId, plannedAt) =>
       run(supabase.from('bookings').insert({ place_id: placeId, planned_at: new Date(plannedAt).toISOString() })),
 
-    markDone: (placeId) => run(supabase.from('place_visits').insert({ place_id: placeId })),
+    markDone: (placeId) => {
+      const place = state.places.find((p) => p.id === placeId);
+      if (!place?.booking) {
+        return run(supabase.from('bookings').insert({ place_id: placeId, planned_at: new Date().toISOString(), done_at: new Date().toISOString(), marked_by: userId }));
+      }
+      return run(supabase.from('bookings').update({ done_at: new Date().toISOString(), marked_by: userId }).eq('place_id', placeId));
+    },
 
-    reorder: (orderedIds) => {
-      const rows = orderedIds.map((placeId, i) => ({ user_id: userId, place_id: placeId, position: i }));
-      setOrder((o) => ({ ...o, ...Object.fromEntries(rows.map((r) => [r.place_id, r.position])) }));
-      return run(supabase.from('place_order').upsert(rows, { onConflict: 'user_id,place_id' }));
+    reorder: (orderedIds, collectionId) => {
+      const rows = orderedIds.map((placeId, i) => ({ user_id: userId, collection_id: collectionId, place_id: placeId, position: i }));
+      setOrder((o) => ({ ...o, ...Object.fromEntries(rows.map((r) => [`${r.collection_id}:${r.place_id}`, r.position])) }));
+      return run(supabase.from('place_order').upsert(rows, { onConflict: 'user_id,collection_id,place_id' }));
     },
 
     createCollection: (name, emoji = '📌') => run(supabase.from('collections').insert({ name, emoji })),
