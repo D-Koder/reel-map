@@ -7,6 +7,9 @@
   "functions": {
     "api/scrape-reel.js": {
       "maxDuration": 30
+    },
+    "api/scrape-location.js": {
+      "maxDuration": 60
     }
   }
 }

@@ -151,6 +151,8 @@ export default function PinModal({
           </div>
         </div>
 
+        {venue?.subtitle && <div className="venue-subtitle">{venue.subtitle}</div>}
+
         <div className="reel-context">
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             <PlaceThumb place={place} className="reel-thumbnail-small" />
@@ -220,6 +222,32 @@ export default function PinModal({
           <div className="modal-section">
             <div className="modal-label">Address</div>
             <div className="venue-address">{venue.address}</div>
+          </div>
+        )}
+
+        {venue?.phone && (
+          <div className="modal-section">
+            <div className="modal-label">Phone</div>
+            <a className="venue-address" href={`tel:${venue.phone.replace(/[^\d+]/g, '')}`}>
+              {venue.phone}
+            </a>
+          </div>
+        )}
+
+        {venue?.menu_url && (
+          <div className="modal-section">
+            <a className="step-btn secondary full-width" href={venue.menu_url} target="_blank" rel="noreferrer">
+              🍽️ View menu ↗
+            </a>
+          </div>
+        )}
+
+        {venue?.menu?.text && (
+          <div className="modal-section">
+            <details>
+              <summary className="modal-label">Menu details</summary>
+              <div className="venue-menu-text">{venue.menu.text}</div>
+            </details>
           </div>
         )}
 

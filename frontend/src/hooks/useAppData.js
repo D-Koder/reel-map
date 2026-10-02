@@ -5,7 +5,7 @@ const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactio
 
 const PLACE_SELECT = `
   id, collection_id, name, category, reel_url, reel_thumbnail_url, shared_by, added_by, created_at,
-  venue:venues(id, name, address, lat, lng, hours, phone, booking_url),
+  venue:venues(id, name, subtitle, address, lat, lng, hours, phone, booking_url, menu_url, menu),
   reactions(user_id, feeling),
   booking:bookings(booked_by, planned_at),
   visit:place_visits(marked_by, done_at),
@@ -130,12 +130,24 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, feeling }) => {
+    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling }) => {
       let venueId = null;
       if (location?.trim()) {
         const { data: venue, error: venueError } = await supabase
           .from('venues')
-          .insert({ name, address: location.trim(), source: 'manual' })
+          .insert({
+            name: venueDetails?.name || name,
+            subtitle: venueDetails?.subtitle || null,
+            address: venueDetails?.address || location.trim(),
+            lat: venueDetails?.latitude ?? null,
+            lng: venueDetails?.longitude ?? null,
+            hours: venueDetails?.hours?.length ? venueDetails.hours : null,
+            phone: venueDetails?.phone || null,
+            menu_url: venueDetails?.menuUrl || null,
+            menu: venueDetails?.menuText ? { text: venueDetails.menuText } : null,
+            source: venueDetails ? 'google_maps' : 'manual',
+            source_id: venueDetails?.mapsUrl || null,
+          })
           .select('id')
           .single();
         if (venueError) {

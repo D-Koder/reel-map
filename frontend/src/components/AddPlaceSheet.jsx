@@ -25,6 +25,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   // Step 2: Place Details
   const [reelUrl, setReelUrl] = useState('');
   const [scrapedData, setScrapedData] = useState(null);
+  const [mapsData, setMapsData] = useState(null);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('food');
@@ -104,10 +105,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       return;
     }
 
-    addLog('🔍 Searching Google Maps with full caption...', 'info');
-
-    // Build the search query and show the URL that will be searched
-    const searchQuery = scrapedData.caption;
+    const searchQuery = [name || scrapedData.placeName, location || scrapedData.location]
+      .filter(Boolean)
+      .join(' ') || scrapedData.caption;
+    addLog(`🔍 Searching Google Maps for: ${searchQuery}`, 'info');
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
     addLog(`🔗 Maps URL: ${mapsUrl}`, 'info');
 
@@ -118,6 +119,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          placeName: name || scrapedData.placeName,
           caption: scrapedData.caption,
           location: location || scrapedData.location
         }),
@@ -134,19 +136,18 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
 
       if (data.success) {
-        addLog(`📋 JSON Response: ${JSON.stringify(data)}`, 'info');
-        addLog(`✅ Clicked first Google Maps result`, 'success');
-        if (data.name) {
-          addLog(`🏪 Restaurant/Place: ${data.name}`, 'success');
-        }
-        addLog(`📍 Address: ${data.address}`, 'success');
-        if (data.hours) {
-          addLog(`🕐 Hours: ${data.hours}`, 'success');
-        }
+        setMapsData(data);
+        setName(data.name || name);
         setLocation(data.address);
-        if (data.latitude && data.longitude) {
-          addLog(`🗺️ Coordinates: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`, 'success');
-        }
+        addLog(`✅ Clicked first Google Maps result: ${data.name}`, 'success');
+        addLog(`🏪 Name: ${data.name || 'Not found'}`, 'success');
+        addLog(`🏷️ Subtitle: ${data.subtitle || 'Not listed'}`, 'success');
+        addLog(`📍 Address: ${data.address || 'Not found'}`, 'success');
+        addLog(`🕐 Opening hours: ${data.hours?.length ? JSON.stringify(data.hours) : 'Not listed'}`, 'success');
+        addLog(`📞 Phone: ${data.phone || 'Not listed'}`, 'success');
+        addLog(`🍽️ Menu link: ${data.menuUrl || 'Not listed'}`, 'success');
+        addLog(`📖 Menu details: ${data.menuText || 'Not listed'}`, 'success');
+        addLog(`🗺️ Google Maps: ${data.mapsUrl || 'Not available'}`, 'success');
       }
     } catch (error) {
       addLog(`❌ Could not fetch location: ${error.message}`, 'error');
@@ -171,6 +172,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
 
     // URL is valid, proceed to step 2
     setReelUrl(trimmedUrl);
+    setMapsData(null);
     scrapeReel(trimmedUrl);
     setTimeout(() => setStep('details'), 300);
   };
@@ -178,6 +180,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const handleSkipReel = () => {
     setReelUrl('');
     setScrapedData(null);
+    setMapsData(null);
     setStep('details');
   };
 
@@ -192,6 +195,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       collectionId,
       reelUrl: reelUrl.trim(),
       reelThumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl),
+      venueDetails: mapsData,
       feeling
     });
     setSaving(false);
