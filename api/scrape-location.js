@@ -160,25 +160,36 @@ module.exports = async function handler(req, res) {
     // Menu is a page-changing action in Maps. Return to the place details, then
     // expand and read hours last so the dropdown does not disrupt other scraping.
     await page.goto(result.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-    await page.waitForFunction(() => document.querySelector('h1') &&
-      (document.querySelector('[aria-label*="Show open hours" i]') || document.querySelector('table tr')),
-    { timeout: 12000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('h1'), { timeout: 12000 }).catch(() => {});
     const hoursOpened = await page.evaluate(() => {
-      const icon = document.querySelector('[aria-label*="Show open hours" i]');
-      const control = icon?.closest('[role="button"],button') ||
-        [...document.querySelectorAll('[role="button"],button')].find((element) => /hours/i.test(element.getAttribute('aria-label') || ''));
-      if (!control) return { clicked: false, expanded: false };
+      const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
+      const controls = [...document.querySelectorAll('button,[role="button"]')];
+      const control = controls.find((element) => /see more hours|show open hours|opening hours/i.test(
+        `${element.getAttribute('aria-label') || ''} ${textOf(element)}`
+      )) || controls.find((element) => /hours/i.test(element.getAttribute('aria-label') || ''));
+      if (!control) {
+        return {
+          clicked: false,
+          expanded: false,
+          candidates: controls.map((element) => `${element.getAttribute('aria-label') || ''} ${textOf(element)}`.trim())
+            .filter((label) => /hour|open|closed/i.test(label)).slice(0, 8),
+        };
+      }
+      const label = `${control.getAttribute('aria-label') || ''} ${textOf(control)}`.trim();
       control.click();
-      return { clicked: true, expanded: control.getAttribute('aria-expanded') === 'true' };
+      return { clicked: true, expanded: control.getAttribute('aria-expanded') === 'true', label };
     });
     if (hoursOpened.clicked) {
-      await page.waitForFunction(() => document.querySelectorAll('table tr').length > 0,
-        { timeout: 7000 }).catch(() => {});
+      await page.waitForFunction(() => {
+        const rows = [...document.querySelectorAll('table tr,[role="row"]')];
+        return rows.some((row) => /mon|tue|wed|thu|fri|sat|sun/i.test(row.innerText || row.textContent || '') &&
+          /\d/.test(row.innerText || row.textContent || ''));
+      }, { timeout: 9000 }).catch(() => {});
     }
     result.hours = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
-      const rows = [...document.querySelectorAll('table tr')].map((row) => {
-        const cells = [...row.querySelectorAll('th,td')].map(textOf).filter(Boolean);
+      const rows = [...document.querySelectorAll('table tr,[role="row"]')].map((row) => {
+        const cells = [...row.querySelectorAll('th,td,[role="cell"],[role="columnheader"]')].map(textOf).filter(Boolean);
         if (cells.length < 2 || !/mon|tue|wed|thu|fri|sat|sun/i.test(cells[0])) return null;
         return {
           days: cells[0].replace(/[\uE000-\uF8FF]/g, '').trim(),
@@ -187,7 +198,7 @@ module.exports = async function handler(req, res) {
       }).filter(Boolean);
       return [...new Map(rows.map((row) => [row.days, row])).values()];
     });
-    console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, rows: result.hours }));
+    console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, pageUrl: page.url(), rows: result.hours }));
 
     if (!result.name) {
       return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });
