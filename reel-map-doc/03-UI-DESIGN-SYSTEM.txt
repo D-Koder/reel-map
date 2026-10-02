@@ -1,0 +1,278 @@
+===============================================
+REEL MAP - UI DESIGN SYSTEM
+===============================================
+
+COLOR PALETTE
+===============================================
+
+PRIMARY:
+  • Coral / Orange: #d85a30 (CTA buttons, active state)
+  • Warm Beige: #fefdfb (backgrounds, cards)
+  • Dark Text: #2c2c2a (headings, body)
+
+CONSENSUS GRADIENTS:
+  • Both In 🔥🔥:     linear-gradient(135deg, #f5ddd4 0%, #fde8df 100%)
+  • Mixed Vibes 🔥😐: linear-gradient(135deg, #fef3e6 0%, #fef8f0 100%)
+  • No Consensus 😐😐: linear-gradient(135deg, #f1f0ed 0%, #f5f4f1 100%)
+  • Booked 🟢:        linear-gradient(135deg, #ddf5e6 0%, #e8faf1 100%)
+
+ACCENTS:
+  • Success Green: #2ecc71
+  • Muted Gray: #888780
+  • Border Gray: #d3d1c7
+  • Light Gray: #f1efe8
+
+
+TYPOGRAPHY
+===============================================
+
+FONT FAMILY: System fonts
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif
+
+SCALES:
+  • Headers (H1):   16px, font-weight 700, letter-spacing -0.5px
+  • Headers (H2):   14px, font-weight 600
+  • Labels:         11px, font-weight 600, uppercase, letter-spacing 0.5px
+  • Body:           12px, font-weight 400
+  • Captions:       10px, font-weight 400, color: #888780
+
+LINE HEIGHT:
+  • Headers:        1.2
+  • Body:           1.5
+
+
+SPACING
+===============================================
+
+SCALE (8px base):
+  • xs:  4px
+  • sm:  8px
+  • md:  12px
+  • lg:  16px
+  • xl:  20px
+  • 2xl: 24px
+
+MARGINS:
+  • Section gaps:   12px
+  • Card padding:   10px
+  • Button padding: 10px
+
+
+COMPONENTS
+===============================================
+
+1. PIN ITEM (Collection card)
+   ─────────────────────────────────────
+   Layout:        flex, gap 10px, align-center
+   Background:    Gradient (by consensus)
+   Border:        0.5px solid (light border)
+   Border-radius: 6px
+   Padding:       10px
+   Height:        ~60px min
+   
+   CHILDREN:
+   • Thumbnail: 40px × 40px, border-radius 4px, emoji inside
+   • Info:      flex-1
+     - Name: 13px, font-weight 600
+     - Rating: 11px, color #888780
+   • Booked Badge (if booked): 18px emoji (🟢)
+     - Animation: pulse 2s infinite
+     - Margin-left: auto
+   
+   HOVER: translateX(2px), border-color #888780
+   CLICK: open modal
+
+
+2. COLLECTION BOARD (Section)
+   ─────────────────────────────────────
+   Margin-bottom: 8px
+   
+   Header:
+   • Title:  13px, font-weight 600, flex with icon emoji
+   • Count:  10px, color #888780, bg #f1efe8, px 6px, rounded 3px
+   • Layout: space-between
+   
+   Items: vertical list, gap 6px below each
+
+
+3. MODAL
+   ─────────────────────────────────────
+   Position:       fixed bottom (mobile), max-width 320px
+   Background:     white
+   Border-radius:  12px 12px 0 0 (mobile)
+   Padding:        16px
+   Max-height:     85vh
+   Overflow-y:     auto
+   Animation:      slideUp 0.3s ease-out
+   
+   Sections:
+   • Header:       close btn (×), title
+   • Reel Context: thumbnail (50×50) + sender info
+   • Hours:        table, 11px font
+   • Checklist:    active step only
+   
+   Z-index: 100
+
+
+4. BUTTON (Primary)
+   ─────────────────────────────────────
+   Background:    #d85a30 (coral)
+   Color:         white
+   Padding:       10px
+   Border:        none
+   Border-radius: 6px
+   Font:          12px, font-weight 600
+   Cursor:        pointer
+   Transition:    all 0.2s
+   
+   HOVER:  background #b8421f
+   ACTIVE: opacity 0.8
+
+
+5. BUTTON (Secondary)
+   ─────────────────────────────────────
+   Background:    #f1efe8 (light gray)
+   Color:         #2c2c2a
+   Border:        0.5px solid #d3d1c7
+   Padding:       10px
+   Border-radius: 6px
+   Font:          12px, font-weight 600
+   
+   HOVER:  background #e8e6dd
+   ACTIVE: opacity 0.8
+
+
+6. TABS (Navigation)
+   ─────────────────────────────────────
+   Layout:        flex, gap 0
+   Background:    #fefdfb
+   Border-bottom: 0.5px solid #d3d1c7
+   
+   Tab:
+   • Padding:     10px
+   • Font:        12px, font-weight 500, color #888780
+   • Border-bottom: 2px solid transparent
+   • Transition:  all 0.2s
+   
+   ACTIVE: border-bottom #d85a30, color #d85a30
+   HOVER:  background #f1efe8
+
+
+7. INPUT (Text, Datetime)
+   ─────────────────────────────────────
+   Width:         100%
+   Padding:       8px
+   Border:        0.5px solid #d3d1c7
+   Border-radius: 4px
+   Font:          12px, font-family inherit
+   Margin-bottom: 8px
+   
+   FOCUS: border-color #d85a30, outline none
+
+
+8. TOAST NOTIFICATION
+   ─────────────────────────────────────
+   Position:     fixed bottom-center
+   Background:   #2c2c2a (dark)
+   Color:        white
+   Padding:      12px 16px
+   Border-radius: 6px
+   Font:         12px
+   Z-index:      300
+   Animation:    slideInUp 0.3s ease
+   Duration:     2s auto-dismiss
+
+
+9. SETTINGS DRAWER
+   ─────────────────────────────────────
+   Position:      fixed right
+   Width:         320px
+   Height:        100vh
+   Background:    white
+   Border-left:   1px solid #d3d1c7
+   Overflow-y:    auto
+   Z-index:       200
+   Transform:     translateX(100%) → translateX(0) on open
+   Transition:    transform 0.3s ease
+   
+   Sticky Header: padding 12px, border-bottom
+
+
+10. BADGE (Rating)
+    ─────────────────────────────────────
+    Background:   transparent (emojis only)
+    Font-size:    11px
+    Text:         "🔥🔥 Both in" or "🔥😐 Mixed vibes" etc
+
+
+RESPONSIVE BREAKPOINTS
+===============================================
+
+MOBILE FIRST:
+  • 320px+:  base styles (single column)
+  • 640px+:  tablet (2 columns optional)
+  • 1024px+: desktop (3 columns optional)
+
+FOR MVP: 320px+ only (mobile first)
+- Header height: 44px
+- Sidebar width: 320px (full on mobile)
+- Modal max-width: 320px
+
+
+ANIMATIONS
+===============================================
+
+slideUp:
+  from: { transform: translateY(100%), opacity: 0 }
+  to:   { transform: translateY(0), opacity: 1 }
+  duration: 0.3s ease-out
+
+slideInUp:
+  from: { transform: translateX(-50%) translateY(100%), opacity: 0 }
+  to:   { transform: translateX(-50%) translateY(0), opacity: 1 }
+  duration: 0.3s ease
+
+pulse:
+  0%, 100%: { opacity: 1 }
+  50%:      { opacity: 0.6 }
+  duration: 2s infinite
+
+
+ACCESSIBILITY
+===============================================
+
+• Min tap target: 44px × 44px
+• Color contrast: WCAG AA minimum
+• Focus states: visible border or outline
+• Alt text: on all icons/images
+• ARIA labels: on interactive elements
+• Keyboard nav: Tab through all buttons
+• Screen reader: semantic HTML (button, nav, etc.)
+
+
+DARK MODE (Future)
+===============================================
+
+Currently: Light mode only
+
+When adding dark mode, toggle via CSS variables:
+  --bg-primary: #fefdfb (light) → #1a1a1a (dark)
+  --text-primary: #2c2c2a (light) → #f5f5f0 (dark)
+  --border: #d3d1c7 (light) → #333333 (dark)
+  --gradient-both-in: ... (adjust opacity/colors)
+
+
+MOBILE CONSIDERATIONS
+===============================================
+
+• Portrait orientation primary
+• Safe area insets: padding-top/bottom env()
+• Scrollable sections: avoid full-height
+• Buttons: tap-friendly spacing (8px min gap)
+• Input fields: 44px min height
+• No hover states on touch devices
+• Swipe gestures: future consideration
+
+
+END OF DESIGN SYSTEM
+===============================================

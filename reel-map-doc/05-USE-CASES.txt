@@ -1,0 +1,347 @@
+===============================================
+REEL MAP - USE CASES & USER JOURNEYS
+===============================================
+
+
+===============================================
+USE CASE 1: SAVE A REEL FROM PARTNER
+===============================================
+
+ACTOR: Sarah (user)
+TRIGGER: Partner Alex sends Instagram Reel link in text: "Let's go here! 🍷"
+
+MAIN FLOW:
+  1. Sarah opens Reel Map app
+  2. Taps "+" button (not yet in MVP, use manual for now)
+  3. Pastes link: https://instagram.com/reel/ABC123def456/
+  4. Regex extracts: "Wine & Wild" at Melbourne
+  5. Google Maps lookup: confirms address, hours, type
+  6. Sarah confirms location is correct
+  7. Sarah selects collection: "Date Night"
+  8. Reel saved to collection
+  9. Toast: "✓ Added to Date Night"
+  10. Sarah continues browsing other reels
+
+ALTERNATE FLOW (No Instagram link):
+  1. Sarah taps manual search
+  2. Autocomplete: "Wine & Wild Carlton"
+  3. Sarah selects from dropdown
+  4. Saves to collection as above
+
+POSTCONDITION:
+  • Reel appears in "Date Night" collection
+  • Alex can see it (if collection is shared)
+  • Ready for step 2: rating
+
+
+===============================================
+USE CASE 2: RATE TOGETHER (BOTH USERS)
+===============================================
+
+ACTOR: Sarah & Alex (couple)
+TRIGGER: Sarah added reel, sent link to Alex
+
+SARAH'S FLOW:
+  1. Sarah opens "Date Night" collection
+  2. Sees "Wine & Wild" in collection
+  3. Taps to open modal
+  4. Sees reel context (Alex sent it Oct 1)
+  5. Taps rating area: selects 🔥🔥 (loves it)
+  6. Modal closes
+  7. Pin item updates to show: "🔥🔥 Both in" (wait for Alex)
+
+ALEX'S FLOW (in parallel):
+  1. Alex opens Reel Map (shared collection)
+  2. Opens "Wine & Wild" modal
+  3. Rates 🔥🔥 (also loves it)
+  4. Modal closes
+
+RESULT:
+  • Both rated 🔥🔥
+  • App auto-routes: "Both in = Do Soon"
+  • Pin background changes to warm coral gradient
+  • Item now shows: "🔥🔥 Both in"
+  • Ready for step 3: booking
+
+
+===============================================
+USE CASE 3: PLAN A BOOKING (BOTH USERS)
+===============================================
+
+ACTOR: Sarah (initiates booking)
+TRIGGER: Both rated 🔥🔥, Sarah wants to book
+
+FLOW:
+  1. Sarah opens "Wine & Wild" from "Date Night"
+  2. Modal opens
+  3. STEP 1: Confirm Hours
+     - Sarah sees: "Wine & Wild open Sat 12pm-12am. Works?"
+     - Sarah taps: "Yes, proceed"
+     - Toast: "✓ Step 1 complete"
+  
+  4. STEP 2: Book Reservation
+     - Sarah enters date/time: Oct 4, 2026 @ 7:00 PM
+     - Options:
+       a) "🔗 OpenTable" (opens in new tab)
+       b) "📞 Call" (shows phone number)
+       c) "Skip & Next →" (to calendar)
+     - Sarah chooses OpenTable
+     - (In future: API integration to book directly)
+  
+  5. STEP 3: Add to Calendar
+     - Sarah sees preset title: "Wine & Wild with Alex"
+     - Sarah can edit title
+     - Taps: "📅 Add to Calendar"
+     - (Integrates with Google Calendar or iCal link)
+     - Toast: "✓ Added to calendar"
+  
+  6. FINAL SCREEN: "All set! 🎉"
+     - "Mark as Done" button appears (but disabled for 1 hour)
+     - Message: "Check back after 8:00 PM to mark complete"
+
+POSTCONDITION:
+  • Booking saved: Oct 4 @ 7pm
+  • Pin now shows: 🟢 green dot (booked)
+  • Modal shows: "Planned Date: Sun, 4 Oct, 07:00 pm"
+  • Booking step skipped on next open
+  • Alex can see booking status
+
+
+===============================================
+USE CASE 4: MARK AS DONE (POST-ADVENTURE)
+===============================================
+
+ACTOR: Sarah (after visiting)
+TRIGGER: Oct 5 @ 8:30pm (next day, after planned time)
+
+FLOW:
+  1. Sarah opens "Wine & Wild" from collection
+  2. Modal shows booked info: "Oct 4 @ 7:00 PM"
+  3. STEP 1-3 skipped (already booked)
+  4. "Mark as Done" button now ENABLED (1+ hour after booking)
+  5. Sarah taps: "✅ Mark as Done"
+  6. CAPTURE EXPERIENCE SCREEN:
+     - Rating (required): Sarah rates 🔥🔥 "Amazing wine selection"
+     - Note (optional): "Loved the ambiance, Alex's favorite red"
+     - Tags (optional): #cozy #wine #melbourne
+  7. Sarah taps: "Save Memory"
+  8. Toast: "✓ Marked as done! Streak: 2"
+
+POSTCONDITION:
+  • Reel moved to "Completed This Month" board (future)
+  • Visit history recorded
+  • Streak incremented
+  • Can filter by "completed" on map
+
+
+===============================================
+USE CASE 5: SHARE COLLECTION WITH PARTNER
+===============================================
+
+ACTOR: Sarah (shares)
+TRIGGER: Sarah created "Date Night" collection, wants Alex to see/rate
+
+FLOW:
+  1. Sarah opens Settings ⚙️
+  2. Finds "Date Night" in "My Collections"
+  3. Taps share icon 🔗
+  4. Options appear:
+     a) "Email Invite" → generates magic link → sends to Alex
+     b) "Generate Code" → creates shareable code (RM-ABC1234)
+  5. Sarah chooses Email
+  6. System pre-fills Alex's email
+  7. Sarah taps "Send"
+  8. Toast: "✓ Invite sent to alex@email.com"
+
+ALEX'S SIDE:
+  1. Alex receives email: "Sarah shared 'Date Night' with you"
+  2. Clicks magic link in email
+  3. App opens, auto-logs Alex in
+  4. "Date Night" collection now visible in Alex's app
+  5. Alex can see reels AND rate them
+  6. Changes reflected in Sarah's app (real-time)
+
+POSTCONDITION:
+  • Collection shared (both can view & rate)
+  • Privacy toggle shows: 🔓 (shared)
+  • Future: Alex can only accept/decline items (not create)
+
+
+===============================================
+USE CASE 6: EXPLORE TOGETHER MODE (MIXED VIBES)
+===============================================
+
+ACTOR: Sarah & Alex
+TRIGGER: Rated reel differently (🔥 vs 😐)
+
+SCENARIO: Italian Bistro
+  • Sarah rated: 🔥 (loves pasta)
+  • Alex rated: 😐 (not interested)
+
+RESULT:
+  • Item shows: 🔥😐 "Mixed vibes"
+  • Background gradient: muted gold
+  • Auto-routed to: "Explore Together" board
+  • Modal message: "You have different thoughts on this one"
+
+FLOW:
+  • Items stay in collection
+  • Can still book (if both agree later)
+  • Lower priority than "Both in" items
+  • Discussion prompt (future): "Why do you love this?"
+
+
+===============================================
+USE CASE 7: MAP DISCOVERY
+===============================================
+
+ACTOR: Sarah (browsing)
+TRIGGER: Wants to see all locations on map
+
+FLOW:
+  1. Sarah taps "Map" tab
+  2. Melbourne map loads with pins:
+     - 🔥🔥 Both in: orange pins
+     - 🔥😐 Mixed vibes: gold pins
+     - ✓ Completed: green pins
+  3. Sarah taps filter: "☕ Cafe"
+     - Only cafe pins shown
+     - Restaurants hidden
+  4. Sarah taps orange pin (Wine & Wild)
+     - Modal opens (same as clicking from collection)
+  5. Sarah taps filter: "All"
+     - All pins visible again
+
+POSTCONDITION:
+  • Easy visual browsing
+  • Filter combination (future)
+  • Can book directly from map
+
+
+===============================================
+USE CASE 8: SMART NUDGE NOTIFICATION
+===============================================
+
+ACTOR: Sarah (receives reminder)
+TRIGGER: Friday 5:00 PM, has "Do Soon" items
+
+NOTIFICATION:
+  "🔥 Don't forget! You have 5 places on your 'Do Soon' board
+   Wine & Wild, Brunch Spot Carlton, ... Plan a date?"
+
+FLOW:
+  1. Sarah sees notification
+  2. Taps it
+  3. App opens to "Do Soon" board
+  4. Sarah can browse and book
+
+CONSTRAINTS:
+  • Only 1 per week (max)
+  • Only if 5+ items in Do Soon
+  • Friday 5-6pm user's timezone
+
+
+===============================================
+USE CASE 9: FRIEND GROUP (FUTURE)
+===============================================
+
+ACTOR: Sarah, Alex, Jordan (3-person group)
+TRIGGER: Planning group trip, not couple activity
+
+FLOW:
+  1. Sarah creates "Weekend Getaway" collection
+  2. Collection marked: "Group" (not couple)
+  3. Sarah invites: Alex, Jordan
+  4. All 3 can add reels
+  5. All 3 can rate
+  6. Voting system (future):
+     - If deadlock (🔥 vs 😐), voting decides
+     - 2/3 votes → goes to Do Soon
+
+SCENARIO:
+  • Sarah: 🔥 Restaurant A
+  • Alex: 🔥 Restaurant A
+  • Jordan: 😐 Restaurant A
+  • Result: 2/3 vote = goes to Do Soon
+
+
+===============================================
+USE CASE 10: EMPTY STATE (NEW USER)
+===============================================
+
+ACTOR: Jordan (brand new user)
+TRIGGER: First time opening app
+
+FLOW:
+  1. Onboarding screen (future):
+     "Save locations. Rate together. Plan dates."
+  2. "Create your first collection" button
+  3. Jordan creates: "Coffee Spots"
+  4. Empty state message: "No reels yet. Paste a link to get started →"
+  5. Jordan pastes Reel link
+  6. Location appears in collection
+  7. Streak shows: "0 adventures this month"
+  8. Map empty (only showing 1 pin)
+
+FLOW CONTINUES:
+  • Partner adds more reels
+  • Both rate
+  • Book together
+  • Visit + mark done
+  • Streak increments
+
+
+===============================================
+ERROR SCENARIOS
+===============================================
+
+ERROR 1: Invalid Instagram Link
+  Input:  "https://instagram.com/user/"
+  Result: Toast: "❌ Not a valid Reel link"
+  Action: User can retry or search manually
+
+ERROR 2: Restaurant Closed / Deleted
+  Input:  Reel about restaurant that closed
+  Result: Google Places returns: "No longer available"
+  Action: Modal shows warning, user can update/delete
+
+ERROR 3: Booking Unavailable
+  Input:  Try to book on Monday (closed day)
+  Result: Modal warning: "This location is closed Monday"
+  Action: User selects different day
+
+ERROR 4: Partner Rejects Invite
+  Input:  Alex clicks "Decline" on email invite
+  Result: Collection not shared with Alex
+  Action: Sarah can resend or share code instead
+
+ERROR 5: Offline (PWA future)
+  Input:  User loses internet connection
+  Result: App loads from cache
+  Action: Can view saved reels, changes sync when online
+
+
+===============================================
+ACCESSIBILITY SCENARIOS
+===============================================
+
+SCREEN READER USER:
+  • Header: "Reel Map, home screen"
+  • Button: "Add to Date Night, button"
+  • Modal: "Wine & Wild, 4 of 3 steps complete"
+
+KEYBOARD NAVIGATION:
+  • Tab: cycle through pin items
+  • Enter: open modal
+  • Escape: close modal
+  • Tab in modal: step 1 → step 2 → buttons
+
+COLORBLIND USER:
+  • Gradients have different saturation (not just color)
+  • Emoji + color (🔥 + coral, not just coral)
+  • Text labels: "Both in", "Mixed vibes"
+
+
+===============================================
+END OF USE CASES
+===============================================

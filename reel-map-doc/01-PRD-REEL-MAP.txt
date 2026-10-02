@@ -1,0 +1,359 @@
+===============================================
+REEL MAP - PRODUCT REQUIREMENTS DOCUMENT
+===============================================
+
+PROJECT NAME: Reel Map
+VERSION: 1.0
+LAST UPDATED: October 2, 2026
+STATUS: In Development
+
+===============================================
+1. EXECUTIVE SUMMARY
+===============================================
+
+Reel Map is a social location-saver app for couples/friend groups. 
+Users save Instagram Reels → rate them together → plan dates → book → capture memories.
+
+PROBLEM: Partners send Reel links all week. Users forget them, never action them.
+SOLUTION: Save → Rate → Plan → Book → Done
+
+
+===============================================
+2. TARGET AUDIENCE
+===============================================
+
+PRIMARY:
+  • Couples aged 25-35
+  • Friend groups (2-4 people)
+  • Active Instagram users
+  • Date planners who like curation
+
+SECONDARY:
+  • Solo users organizing personal bucketlists
+
+
+===============================================
+3. CORE FEATURES
+===============================================
+
+ENTRY POINT:
+  • Paste Instagram Reel link (regex extracts location)
+  • Manual search (Google Places autocomplete)
+  • Instagram Graph API (Week 3+, pending Meta approval)
+
+COLLECTIONS / BOARDS:
+  • User creates custom collections: "Date Night", "Brunch Spots", "Weekend Vibes"
+  • Collections show items with gradient backgrounds:
+    - 🔥🔥 Both in = warm orange/coral gradient
+    - 🔥😐 Mixed vibes = muted gold/amber gradient
+    - 😐😐 No consensus = soft gray/neutral gradient
+
+RATING SYSTEM:
+  • Both users rate independently: 😐 / 🤔 / 🔥
+  • Auto-routing: Both 🔥 → Do Soon; Mixed → Explore Together
+
+ACTIVE BOOKINGS:
+  • Green 🟢 pulsing dot on items with confirmed reservations
+  • Modal shows planned date/time
+  • Booking step skipped in checklist if already booked
+  • "Mark as Done" button only clickable 1 hour after booking time
+
+PROGRESSIVE PLANNING CHECKLIST:
+  1. Check hours (confirm open, yes/not now)
+  2. Book reservation (OpenTable/Call/Skip)
+  3. Add to calendar (date + custom title)
+  • Step only marks done AFTER user completes action
+  • Final screen: "All set!" → Mark as Done
+
+MAP VIEW:
+  • Color-coded pins (orange=do-soon, gold=explore, green=completed)
+  • Filters: All / Cafe / Food / Event
+  • Tap pin → shows modal
+
+SHARING / AUTH (MVP):
+  • Magic link invite (email specific)
+  • Shareable code with expiry options (future)
+  • Collections can be marked private/shared
+
+SMART NUDGE:
+  • Friday evening notification for "Do Soon" items
+  • Capped 1/week max
+
+POST-ADVENTURE CAPTURE:
+  • Rating (required), note (optional), tags (optional)
+  • Mark as Done → streak +1
+
+
+===============================================
+4. NON-FUNCTIONAL REQUIREMENTS
+===============================================
+
+PERFORMANCE:
+  • Modal opens <200ms
+  • Map loads within 2 seconds
+  • No lag on collection switching
+
+MOBILE-FIRST:
+  • Responsive design (320px - 1920px)
+  • Touch-friendly buttons (min 44px)
+  • Swipe gestures for navigation (future)
+
+DATA PRIVACY:
+  • Magic link valid for 24 hours
+  • Private collections visible only to owner + invited users
+  • Shareable codes expire after set time
+
+
+===============================================
+5. TECH STACK
+===============================================
+
+FRONTEND:
+  • React 19 + Vite
+  • Mapbox GL JS (free tier, no card required)
+  • Tailwind CSS (styling)
+
+BACKEND:
+  • Node.js + Express
+  • Supabase (PostgreSQL + Auth)
+  • Google Places API (fallback: manual entry)
+
+DEPLOYMENT:
+  • Frontend: Vercel
+  • Backend: Railway / Render
+  • Database: Supabase (free tier)
+
+OPTIONAL (WEEK 3+):
+  • Instagram Graph API
+  • OpenTable / Google Calendar API
+  • Twilio (SMS notifications)
+
+
+===============================================
+6. DATABASE SCHEMA (POSTGRES)
+===============================================
+
+users
+  id, email, name, created_at
+
+collections
+  id, owner_id, name, description, is_private, created_at
+
+collection_items
+  id, collection_id, reel_id, added_at
+
+reels
+  id, owner_id, location_name, latitude, longitude, reel_url,
+  reel_thumbnail_url, caption, opening_hours, category, notes,
+  is_private, created_at
+
+reel_senders
+  id, reel_id, sent_by_user_id, sent_date
+
+reel_ratings
+  id, reel_id, user_id, rating (😐/🤔/🔥), rated_at
+
+bookings
+  id, reel_id, user_id, planned_date, planned_time,
+  reservation_link, reservation_status, calendar_event_id, created_at
+
+share_invites
+  id, collection_id, code, shared_with_email, expires_at, created_at
+
+visit_history
+  id, reel_id, user_id, visit_date, rating, notes, visited_at
+
+
+===============================================
+7. API ENDPOINTS (MVP)
+===============================================
+
+AUTH:
+  POST   /api/auth/magic-link         (send invite)
+  POST   /api/auth/verify             (verify token)
+  POST   /api/auth/logout
+  GET    /api/auth/me
+
+REELS:
+  POST   /api/reels                   (create)
+  GET    /api/reels                   (list all)
+  GET    /api/reels/:id               (single)
+  PUT    /api/reels/:id               (update)
+  DELETE /api/reels/:id               (delete)
+
+COLLECTIONS:
+  POST   /api/collections             (create)
+  GET    /api/collections             (list user's)
+  GET    /api/collections/:id         (single)
+  PUT    /api/collections/:id         (update name/privacy)
+  DELETE /api/collections/:id
+  POST   /api/collections/:id/items   (add reel to collection)
+  DELETE /api/collections/:id/items/:reel_id (remove)
+
+BOOKINGS:
+  POST   /api/bookings                (save reservation)
+  GET    /api/bookings/:id            (check status)
+  PUT    /api/bookings/:id            (update date/time)
+  DELETE /api/bookings/:id            (cancel)
+
+SHARING:
+  POST   /api/share/generate-code     (create shareable code)
+  POST   /api/share/invite-email      (send magic link)
+  POST   /api/share/accept/:code      (join collection)
+
+LOCATION SERVICES:
+  POST   /api/extract-location        (regex Instagram URL)
+  GET    /api/places/search           (Google Places autocomplete)
+  GET    /api/places/:id/details      (hours, phone, rating)
+
+
+===============================================
+8. USER FLOWS
+===============================================
+
+FLOW 1: SAVE A REEL
+  User receives Reel from partner
+  → Paste link in app
+  → Regex extracts location
+  → User confirms location
+  → Add to collection
+  → DONE
+
+FLOW 2: RATE TOGETHER
+  Partner opens shared collection
+  → See pending reels
+  → Both rate independently
+  → App auto-routes by consensus
+  → DONE
+
+FLOW 3: PLAN A DATE
+  User clicks "Book now"
+  → Step 1: Confirm hours work
+  → Step 2: Choose date/time, book reservation
+  → Step 3: Add to calendar
+  → Mark as Done (1 hour after booking time)
+  → DONE
+
+FLOW 4: CAPTURE MEMORY
+  Day after visit
+  → User clicks pin
+  → Rate experience
+  → Add note/photos
+  → Mark as Done
+  → Streak +1
+  → DONE
+
+
+===============================================
+9. SUCCESS METRICS
+===============================================
+
+ENGAGEMENT:
+  • Monthly active users (MAU)
+  • Avg reels saved per user per week
+  • Booking completion rate (save → booked)
+  • Streak (completed visits per month)
+
+RETENTION:
+  • 30-day retention
+  • 60-day retention
+  • Churn rate
+
+SHARING:
+  • Collections shared per user
+  • Users invited per collection
+  • Acceptance rate of invites
+
+
+===============================================
+10. CONSTRAINTS & RISKS
+===============================================
+
+CONSTRAINTS:
+  • Instagram API approval pending (may take weeks)
+  • Google Places requires API key + billing
+  • Rate limiting on external APIs
+  • Supabase free tier has row/storage limits
+
+RISKS:
+  • Instagram Reel links may become private
+  • Users may not fill out ratings honestly
+  • Booking abandonment (book but don't visit)
+  • Partner disconnection (shared collections)
+
+
+===============================================
+11. DEPENDENCIES
+===============================================
+
+EXTERNAL:
+  • Instagram (Reel scraping)
+  • Google Places API (location data)
+  • Mapbox API (map rendering)
+  • Supabase (PostgreSQL + Auth)
+  • OpenTable API (future)
+
+INTERNAL:
+  • Frontend ready before backend (async dev)
+  • Database schema locked before backend starts
+  • API contracts defined before frontend integration
+
+
+===============================================
+12. OUT OF SCOPE (MVP)
+===============================================
+
+  • Instagram Graph API integration (Week 3+)
+  • PWA / offline mode (Week 6+)
+  • PDF export (post-MVP)
+  • AI recommendations (post-MVP)
+  • Photo uploads for visited locations (post-MVP)
+  • Stripe payments (only free tier)
+  • Multi-language support (English only)
+
+
+===============================================
+13. RELEASE TIMELINE
+===============================================
+
+WEEK 1 (Foundation):
+  ✓ React + Vite setup
+  ✓ Collections UI
+  ✓ Modal interaction
+  ✓ Regex extraction logic
+  ✓ Business hours display
+
+WEEK 2 (Backend + DB):
+  ✓ Supabase schema migration
+  ✓ Express server + CRUD
+  ✓ Frontend-backend integration
+  ✓ Dynamic pins from DB
+
+WEEK 3 (Features):
+  ✓ Rating system
+  ✓ Auto-routing logic
+  ✓ Map view + filters
+  ✓ Instagram Graph API
+
+WEEK 4 (Booking):
+  ✓ Progressive checklist
+  ✓ OpenTable integration
+  ✓ Google Calendar sync
+  ✓ Smart nudge
+
+WEEK 5 (Auth + Sharing):
+  ✓ Supabase Auth
+  ✓ Share maps with partner
+  ✓ Private/shared toggle
+  ✓ Post-adventure capture
+
+WEEK 6 (Polish + Deploy):
+  ✓ Mobile-first responsive
+  ✓ PWA setup (future)
+  ✓ Beta test
+  ✓ Deploy to Vercel + Railway
+
+
+===============================================
+END OF PRD
+===============================================

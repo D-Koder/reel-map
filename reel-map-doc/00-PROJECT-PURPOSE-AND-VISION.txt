@@ -1,0 +1,454 @@
+===============================================
+REEL MAP - PURPOSE, VISION & VALUES
+===============================================
+
+
+===============================================
+WHY THIS PROJECT EXISTS
+===============================================
+
+THE PROBLEM (Real):
+  Every week, your partner/friend sends you Instagram Reels of cafes, restaurants,
+  events they think you'd like. You screenshot them. Bookmark them. Pin them.
+  Then you forget them.
+  
+  By Friday, you've lost track of 20+ places.
+  By next week, you've forgotten them entirely.
+  
+  Result: Great locations go unexplored. Date ideas disappear. Memories never happen.
+
+
+THE ROOT CAUSE:
+  Instagram Reels are BEAUTIFUL but EPHEMERAL.
+  They're designed for quick scroll → forget.
+  They're not designed for ACTION.
+  
+  There's no "save this for later" workflow that LEADS TO BOOKING.
+
+
+THE INSIGHT:
+  People don't need another bookmark app.
+  People need a PLANNING TOOL that turns Reels into REAL DATES.
+  
+  Not: "save this place"
+  But: "save this place → rate it together → book it → go → remember it"
+
+
+===============================================
+PROJECT PURPOSE (The Why)
+===============================================
+
+TO SOLVE:
+  Turn shared Instagram Reels → booked reservations → completed adventures
+
+FOR:
+  Couples and friend groups who want to explore more, together
+
+SO THAT:
+  They don't lose amazing ideas
+  They plan more dates confidently
+  They create better shared memories
+  They stop wasting great suggestions
+
+
+PRIMARY PURPOSE:
+  "Reel Map is the missing link between Instagram discovery and real-world action.
+   We turn fleeting Reel moments into planned adventures couples will remember."
+
+
+SECONDARY PURPOSES:
+  • Reduce decision fatigue (curated by each other, not algorithms)
+  • Strengthen relationships (shared planning ritual)
+  • Fight FOMO (follow through on ideas instead of scrolling past them)
+  • Create accountability (both users committed to the plan)
+
+
+===============================================
+VISION (3-5 year outcome)
+===============================================
+
+5-YEAR VISION:
+  "Reel Map becomes the go-to way for couples and friends to discover,
+   plan, and document shared adventures. It's how people turn casual
+   Instagram scrolling into real, memorable experiences together."
+
+WHEN SUCCESSFUL:
+  • Every couple we know uses it
+  • "Let me save that to Reel Map" becomes a natural phrase
+  • Users can look back on their year and see: 50 places saved, 20 visited
+  • Each couple has 10+ collections with their own rituals
+  • Communities form (local Reel Map meetups, shared collections)
+
+
+===============================================
+CORE BELIEFS
+===============================================
+
+BELIEF 1: Shared Curation > Algorithmic Feed
+  We believe people discover better places when curating FOR EACH OTHER,
+  not when algorithms decide what to show.
+  
+  Instagram shows you what gets engagement.
+  Your partner shows you what they think YOU'LL love.
+  
+  ACTION: Make it easy for partners to share. Celebrate shared ratings,
+  not individual scroll time.
+
+
+BELIEF 2: Planning IS the Experience
+  We believe the act of planning together is part of the adventure.
+  
+  It's not just about the place—it's about the conversation.
+  "Should we try this?" "When?" "Yes, let's book it!" → connection.
+  
+  ACTION: Make the planning ritual enjoyable. Progressive steps.
+  Celebrate booked dates, not just saved ones.
+
+
+BELIEF 3: Completion Matters More Than Saving
+  We believe quantity of saved locations is meaningless.
+  
+  100 saved locations you never visit = guilt.
+  5 completed adventures = memories forever.
+  
+  ACTION: Default to "Do Soon" (5-item limit). Track completion.
+  Celebrate streak, not collection size.
+
+
+BELIEF 4: Intimacy Over Scale
+  We believe this is not a social network for strangers.
+  
+  This is a tool for couples and close friends to coordinate better.
+  No public profiles. No liking other people's collections.
+  No feed algorithm. No influencer culture.
+  
+  ACTION: Private by default. Invite only. No follower counts.
+
+
+BELIEF 5: Friction Prevents Action
+  We believe most Reel tools fail because there are too many steps
+  between discovery and booking.
+  
+  Copy link → paste → search → save → later...
+  
+  By the time you get there, you've forgotten why it mattered.
+  
+  ACTION: 2-click saves. One modal for entire booking flow.
+  No separate "booking" app—do it here.
+
+
+BELIEF 6: Accountability Drives Completion
+  We believe having a partner committed to the same plan increases
+  the chance you'll actually go.
+  
+  Booking alone = easy to cancel.
+  Booking with your partner = harder to back out.
+  
+  ACTION: Show partner's commitment. Joint checklist.
+  Streak rewards (both of you).
+
+
+BELIEF 7: Transparency Builds Trust
+  We believe sharing should be intentional, not creepy.
+  
+  No tracking partners without consent.
+  No selling data.
+  No ads.
+  
+  ACTION: Ask permission to share. Show what data is stored.
+  Privacy-first settings.
+
+
+===============================================
+CORE VALUES
+===============================================
+
+1. INTENTIONALITY
+   We believe everything should serve a purpose.
+   No feature bloat. No dark patterns. No engagement metrics above user good.
+   
+   • Every button should move users toward booking
+   • Every notification should prompt action, not just engagement
+   • Every design choice should ask: does this help plan a date?
+
+2. SIMPLICITY
+   We believe less is more.
+   Power users want 100 features. Real couples want 5 that work.
+   
+   • One collection type (not 5)
+   • One rating system (😐/🤔/🔥)
+   • One booking flow (not 3 ways)
+
+3. TRANSPARENCY
+   We believe users deserve to know what we're doing with their data.
+   No hidden algorithms. No surprise features. No "free" with strings.
+   
+   • Clear privacy policy
+   • Show where data goes
+   • No selling data ever
+   • Honest about limitations
+
+4. JOY
+   We believe planning should be fun, not another task.
+   Gradients, emojis, celebrations, streaks.
+   
+   • Celebrate milestones ("🔥 2 adventures this month")
+   • Use delightful language
+   • Make rating together feel like play, not work
+   • Green dots that pulse when they see their booking is live
+
+5. RELIABILITY
+   We believe broken promises kill relationships.
+   If we say we'll save your data, we do.
+   If we say we'll email you an invite, it arrives.
+   
+   • No downtime without warning
+   • Data backups daily
+   • Support emails answered same day
+   • Uptime SLA: 99.5%
+
+
+===============================================
+PROBLEM WE'RE NOT SOLVING
+===============================================
+
+❌ GROUP TRIPS (3+ people)
+   That's a different problem. Different UX. Different booking flow.
+   We're starting with couples, then expanding.
+
+❌ SOLO TRAVEL
+   Reel Map is intentionally social. Solo users welcome,
+   but the value is in shared planning.
+
+❌ RESERVATION SYSTEM REPLACEMENT
+   We're not building OpenTable 2.0.
+   We're LINKING to existing reservation systems, not replacing them.
+
+❌ SOCIAL NETWORK
+   This is not Instagram for food lovers.
+   This is a planning tool, not a sharing/bragging platform.
+
+❌ MONETIZATION FIRST
+   We're not optimizing for ads or premium paywalls.
+   We're optimizing for real dates happening.
+   Monetization comes later (if at all).
+
+
+===============================================
+HOW WE MEASURE SUCCESS
+===============================================
+
+METRIC 1: Booking Completion
+  "Did users actually book?"
+  • Target: 60% of 🔥🔥 items → booked reservation
+  • This matters more than: # reels saved, # users, # invites sent
+
+METRIC 2: Adventure Completion  
+  "Did they actually go?"
+  • Target: 50% of booked items → visited + marked done
+  • This matters more than: # bookings made, # reviews written
+
+METRIC 3: Shared Planning
+  "Are partners using it together?"
+  • Target: 80% of collections have 2+ raters
+  • This matters more than: # solo collections, # downloads
+
+METRIC 4: Retention
+  "Are couples coming back?"
+  • Target: 60% 30-day retention
+  • This matters more than: # signups, # viral coefficient
+
+METRIC 5: Joy (Qualitative)
+  "Do users smile when using this?"
+  • Survey: "Rate your experience" (target: 4.5+/5)
+  • Open feedback: "Best date planning tool we've used"
+  • NPS: 50+
+
+
+===============================================
+NOT WHAT WE MEASURE
+===============================================
+
+❌ Daily Active Users
+   Who cares if they open it daily? We care if they plan well weekly.
+
+❌ Viral Coefficient
+   We don't want viral. We want sticky.
+   Couples telling one other couple is fine. We're not TikTok.
+
+❌ Average Session Length
+   Short sessions are good (plan → close → book).
+   Long sessions might mean we're too complicated.
+
+❌ Click-through Rates
+   We're not optimizing for engagement metrics.
+   We're optimizing for real-world outcomes.
+
+❌ Growth Rate
+   Steady, sustainable growth beats hockey-stick hockey stick.
+   We'd rather have 1,000 couples who love it
+   than 100,000 who tried once.
+
+
+===============================================
+OUR PHILOSOPHY ON DESIGN
+===============================================
+
+PHILOSOPHY: "Decisions are visible, not friction."
+
+What this means:
+  Users should see why they're making a choice, not be annoyed by it.
+  
+  Example (What NOT to do):
+    "You must verify your email to continue" ← friction
+  
+  Example (What we DO):
+    "Sarah needs to rate this too before we can decide.
+     (1/2 ratings)" ← transparency
+
+
+DESIGN PRINCIPLES:
+
+1. PROGRESSIVE DISCLOSURE
+   Show step 1. Complete it. Show step 2.
+   Don't show all 3 booking steps at once.
+
+2. CELEBRATE PROGRESS
+   "✓ Step 1 complete" → dopamine hit
+
+3. CLEAR NEXT STEPS
+   Never leave user wondering "what now?"
+   Every screen has 1 primary action.
+
+4. REDUCE DECISION PARALYSIS
+   "Do Soon" = 5 items max (not 50)
+   Collections = user-created (not algorithm-suggested)
+   Ratings = 3 options (not 10-star scale)
+
+5. MAKE BREAKING UP EASY
+   Want to unfriend your partner? One button.
+   Want to delete a collection? Confirm, done.
+   Want to leave the app? We won't beg you.
+
+
+===============================================
+WHO THIS IS FOR
+===============================================
+
+PRIMARY USER:
+  Sarah, 28, Melbourne
+  • Dating Alex for 3 years
+  • Spends 2 hours/day on Instagram
+  • Loves finding new cafes & restaurants
+  • Sends Alex Reels constantly
+  • Gets frustrated when great ideas are forgotten
+  • Wants to plan more dates but doesn't know where to start
+  • Values partner input (doesn't want to always decide)
+
+SECONDARY USER:
+  Alex, 30
+  • Appreciates Sarah's suggestions
+  • Prefers to not plan (happy to join plans)
+  • Wants it to be EASY to say yes/no
+  • Likes knowing what Sarah wants
+  • Doesn't want another app to manage
+
+BONUS USER:
+  Jordan, 26 (friend)
+  • Uses app with 2 friends for "friend dates"
+  • Saves concert venues, new bars, weekend trips
+  • Loves having a shared bucket list
+  • Uses app quarterly for trip planning
+
+
+===============================================
+WHAT SUCCESS LOOKS LIKE (Year 1)
+===============================================
+
+By end of 2027, Reel Map succeeds if:
+
+  ✓ 1,000+ couples use it regularly
+  ✓ 80% of users have booked at least 1 date from Reel Map
+  ✓ Average couple has 20+ booked adventures tracked
+  ✓ Streak feature is beloved (users brag about streaks)
+  ✓ Partners recommend it to other couples unprompted
+  ✓ 0 data breaches / 99%+ uptime
+  ✓ NPS score 50+
+  ✓ Newspaper/blog coverage: "The app that got us out of the house"
+
+
+===============================================
+WHAT FAILURE LOOKS LIKE
+===============================================
+
+Reel Map fails if:
+
+  ❌ Users save reels but never book (collection graveyard)
+  ❌ Only one partner uses it (the other ignores)
+  ❌ Users churn after 2 weeks ("cute idea, too much effort")
+  ❌ Average rating < 3.5 stars (fundamental UX problem)
+  ❌ No word-of-mouth growth (nobody tells friends)
+  ❌ Data breach or privacy violation (trust broken)
+  ❌ Becomes "another dating app" (scope creep)
+
+
+===============================================
+LONG-TERM VISION (10 years)
+===============================================
+
+MOONSHOT:
+  Reel Map becomes the OS for couple adventures.
+  
+  "Couple OS" feature set:
+  • Shared calendar (auto-synced bookings)
+  • Shared spending (track who owes whom)
+  • Joint memories (photo backup from dates)
+  • Conflict resolution (voting on tie-breaker dates)
+  • Couple analytics ("we visit 50% more places than average")
+
+WHERE WE WON'T GO:
+  • Dating app (we're for existing relationships)
+  • Financial services (no payments, no investment advice)
+  • Relationship therapy (no AI couples counselor)
+  • Mandatory social sharing (no public profiles)
+
+
+===============================================
+THE DEEPER WHY
+===============================================
+
+Beyond the product, we believe:
+
+MODERN RELATIONSHIPS NEED REAL EXPERIENCES.
+  We spend so much time online.
+  Our relationships deserve the same curated, intentional energy.
+
+SHARED DECISION-MAKING BUILDS TRUST.
+  When both partners contribute (rate, choose, plan),
+  the outing matters more.
+  It's not one person deciding. It's together deciding.
+
+COMPLETION MATTERS MORE THAN CONSUMPTION.
+  A few great dates you'll remember forever
+  beat a thousand saved links you'll never click.
+
+TOOLS SHAPE CULTURE.
+  Instagram made us mindlessly scroll.
+  Reel Map should make us intentionally plan.
+
+
+===============================================
+MISSION STATEMENT
+===============================================
+
+"Help couples and friends turn casual Instagram discoveries
+ into real, planned, memorable adventures together."
+
+OR SHORTER:
+
+"From Reel to Real."
+
+
+===============================================
+END OF PURPOSE & VISION
+===============================================

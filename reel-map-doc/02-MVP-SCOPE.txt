@@ -1,0 +1,252 @@
+===============================================
+REEL MAP - MVP SCOPE
+===============================================
+
+WHAT'S IN MVP:
+Features that ship on day 1
+
+
+===============================================
+FRONTEND (React + Vite)
+===============================================
+
+SCREENS:
+
+1. HOME SCREEN
+   ✓ Collections as boards (Date Night, Brunch Spots, Events)
+   ✓ Gradient backgrounds by consensus (🔥🔥 coral, 🔥😐 gold, 😐😐 gray)
+   ✓ Pin items show: emoji + name + rating badge
+   ✓ 🟢 green dot for booked items
+   ✓ Streak display at bottom
+
+2. PIN MODAL
+   ✓ Reel context (sender name, date, view link)
+   ✓ Business hours table
+   ✓ Progressive 3-step checklist:
+      - Step 1: Check hours (yes/not now)
+      - Step 2: Book reservation (OpenTable/Call/Skip & Next)
+      - Step 3: Add to calendar (date + title)
+   ✓ Planned date display (if booked)
+   ✓ Skip booking step if already booked
+   ✓ Mark as Done button (disabled until 1 hour after booking)
+
+3. MAP SCREEN
+   ✓ Fake/real map with labeled pins
+   ✓ Color-coded: orange (do-soon), gold (explore), green (completed)
+   ✓ Filters: All / Cafe / Food / Event
+   ✓ Click pin → open modal
+
+4. SETTINGS DRAWER
+   ✓ Edit collection names (inline edit)
+   ✓ Share collection (generate code)
+   ✓ Privacy toggle (🔓/🔒)
+   ✓ Add new collection button
+
+COMPONENTS TO BUILD:
+  • CollectionBoard.jsx (title, items, gradient logic)
+  • PinItem.jsx (emoji, name, rating, booked dot)
+  • PinModal.jsx (reel context, hours, checklist)
+  • MapView.jsx (Mapbox integration, filters)
+  • SettingsDrawer.jsx (collections list, controls)
+  • ProgressiveChecklist.jsx (steps 1-3, done screen)
+
+STYLING:
+  • Mobile-first responsive (320px+)
+  • Warm color palette (corals, golds, grays)
+  • Smooth transitions
+  • Touch-friendly buttons (44px min)
+
+
+===============================================
+BACKEND (Node.js + Express)
+===============================================
+
+ENDPOINTS (MINIMUM):
+
+AUTH (Supabase Magic Link):
+  POST   /api/auth/magic-link         (send invite, save to DB)
+  POST   /api/auth/verify             (validate token)
+  GET    /api/auth/me                 (current user profile)
+
+REELS (CRUD):
+  POST   /api/reels                   (create reel from location)
+  GET    /api/reels                   (list all user reels)
+  GET    /api/reels/:id               (single reel details)
+  PUT    /api/reels/:id               (update reel)
+
+COLLECTIONS (CRUD):
+  POST   /api/collections             (create new collection)
+  GET    /api/collections             (list user's collections)
+  GET    /api/collections/:id/reels   (items in collection)
+  PUT    /api/collections/:id         (update name/privacy)
+  POST   /api/collections/:id/reels   (add reel to collection)
+  DELETE /api/collections/:id/reels/:reel_id (remove reel)
+
+RATINGS:
+  POST   /api/ratings                 (save rating 😐/🤔/🔥)
+  GET    /api/reels/:id/ratings       (get all ratings for reel)
+
+BOOKINGS:
+  POST   /api/bookings                (save planned date/time)
+  GET    /api/bookings/:reel_id       (get booking for reel)
+  PUT    /api/bookings/:id            (update date/time)
+
+SHARING:
+  POST   /api/share/code              (generate shareable code)
+  POST   /api/share/accept/:code      (join collection by code)
+
+LOCATIONS:
+  POST   /api/extract-location        (parse Instagram URL via regex)
+  GET    /api/places/search           (Google Places autocomplete)
+
+MIDDLEWARE:
+  ✓ Auth guard (verify user token)
+  ✓ Error handling (try-catch + response)
+  ✓ CORS enabled
+  ✓ Request logging
+
+
+===============================================
+DATABASE (SUPABASE POSTGRES)
+===============================================
+
+TABLES (MINIMAL):
+
+users
+  - id (uuid, pk)
+  - email (text, unique)
+  - name (text)
+  - created_at (timestamp)
+
+collections
+  - id (uuid, pk)
+  - owner_id (uuid, fk→users.id)
+  - name (text)
+  - description (text, nullable)
+  - is_private (boolean)
+  - created_at (timestamp)
+
+reels
+  - id (uuid, pk)
+  - owner_id (uuid, fk→users.id)
+  - location_name (text)
+  - latitude (decimal)
+  - longitude (decimal)
+  - reel_url (text)
+  - reel_thumbnail_url (text, nullable)
+  - category (text: cafe/food/event)
+  - opening_hours (jsonb)
+  - created_at (timestamp)
+
+collection_items
+  - id (uuid, pk)
+  - collection_id (uuid, fk→collections.id)
+  - reel_id (uuid, fk→reels.id)
+  - added_at (timestamp)
+
+reel_ratings
+  - id (uuid, pk)
+  - reel_id (uuid, fk→reels.id)
+  - user_id (uuid, fk→users.id)
+  - rating (text: 😐 / 🤔 / 🔥)
+  - rated_at (timestamp)
+
+reel_senders
+  - id (uuid, pk)
+  - reel_id (uuid, fk→reels.id)
+  - sent_by_user_id (uuid, fk→users.id)
+  - sent_date (timestamp)
+
+bookings
+  - id (uuid, pk)
+  - reel_id (uuid, fk→reels.id)
+  - user_id (uuid, fk→users.id)
+  - planned_date (timestamp)
+  - reservation_link (text, nullable)
+  - status (text: pending/booked/cancelled)
+  - created_at (timestamp)
+
+share_invites
+  - id (uuid, pk)
+  - collection_id (uuid, fk→collections.id)
+  - code (text, unique)
+  - invited_email (text, nullable)
+  - accepted (boolean)
+  - created_at (timestamp)
+
+
+===============================================
+WHAT'S NOT IN MVP
+===============================================
+
+❌ Instagram Graph API (use regex only)
+❌ OpenTable API (link only, no booking integration)
+❌ Google Calendar sync (manual date picker)
+❌ Smart notifications (Friday nudge)
+❌ PDF export
+❌ Photo uploads
+❌ AI recommendations
+❌ Mobile app (web only)
+❌ PWA offline support
+❌ Multi-language
+
+
+===============================================
+RELEASE DEFINITION
+===============================================
+
+MVP COMPLETE WHEN:
+  ✓ Users can paste Instagram Reel link
+  ✓ Location auto-extracted via regex
+  ✓ Users can create custom collections
+  ✓ Users can rate reels together (🔥🔥 vs 🔥😐 vs 😐😐)
+  ✓ Collections show gradient backgrounds by consensus
+  ✓ Map shows color-coded pins with filters
+  ✓ Modal opens with 3-step checklist
+  ✓ Booked items show 🟢 dot + planned date
+  ✓ "Mark as Done" unavailable until 1 hour after booking
+  ✓ Users can share collections with partner (email invite)
+  ✓ All deployed to production (Vercel + Railway)
+  ✓ Beta tested with 2-3 real users (couples)
+
+
+===============================================
+DEPLOYMENT TARGETS
+===============================================
+
+FRONTEND: Vercel
+  • Automatic deploys from GitHub
+  • Environment: VITE_API_URL, VITE_MAPBOX_TOKEN
+  • Custom domain optional
+
+BACKEND: Railway / Render
+  • Node.js auto-detected
+  • Environment: DATABASE_URL, JWT_SECRET, etc.
+  • Background jobs (future)
+
+DATABASE: Supabase
+  • Free tier (unlimited rows, 500MB storage)
+  • Real-time subscriptions ready
+  • Auth built-in
+
+
+===============================================
+SUCCESS CRITERIA
+===============================================
+
+TECHNICAL:
+  ✓ All endpoints responding (< 500ms)
+  ✓ Modal opens < 200ms
+  ✓ No console errors in production
+  ✓ Mobile responsive on 320px+
+
+USER BEHAVIOR:
+  ✓ Users save reels (avg 2+ per week)
+  ✓ Users rate together (80%+ booked items have 2+ ratings)
+  ✓ Users complete bookings (50%+ booked items visited)
+  ✓ Partner accepts invite (100% of invites sent)
+
+
+===============================================
+END OF MVP SCOPE
+===============================================

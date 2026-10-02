@@ -1,0 +1,293 @@
+===============================================
+REEL MAP - RELEASE ROADMAP
+===============================================
+
+VERSIONING: Semantic (major.minor.patch)
+  • Major: Breaking changes
+  • Minor: New features
+  • Patch: Bug fixes
+
+
+===============================================
+v0.1.0 - MVP (Week 1-2)
+===============================================
+
+TARGET RELEASE: October 30, 2026
+STATUS: In Development
+
+FEATURES:
+  ✓ Collections UI (Date Night, Brunch Spots, Events)
+  ✓ Pin items with rating badges
+  ✓ Gradient backgrounds by consensus
+  ✓ Pin modal with reel context
+  ✓ Business hours display
+  ✓ Progressive 3-step checklist
+  ✓ Map view with color-coded pins
+  ✓ Map filters (All/Cafe/Food/Event)
+  ✓ Settings drawer (edit collections, share, privacy)
+  ✓ Magic link auth (basic, non-persistent)
+  ✓ Regex location extraction (Instagram URLs)
+  ✓ Booked indicator (🟢 green dot)
+  ✓ Planned date display in modal
+  ✓ Skip booking step if already booked
+  ✓ "Mark as Done" countdown (1 hour after booking)
+
+NOT INCLUDED:
+  ❌ Instagram Graph API
+  ❌ Database persistence (mock data only)
+  ❌ OpenTable integration
+  ❌ Google Calendar sync
+  ❌ Real notifications
+  ❌ Multi-user rating sync
+  ❌ Photo uploads
+
+DEPLOYMENT:
+  • Frontend: Vercel (demo link)
+  • Backend: None (frontend mock data only)
+  • Database: None (localStorage fallback)
+
+RELEASE CHECKLIST:
+  □ All components rendering correctly
+  □ Modal opens/closes smoothly
+  □ Filters working on map
+  □ Checklist flows complete
+  □ Mobile responsive (320px+)
+  □ No console errors
+  □ Demo data loaded
+  □ Vercel deploy successful
+
+
+===============================================
+v0.2.0 - Backend & Database (Week 3)
+===============================================
+
+TARGET RELEASE: November 6, 2026
+
+FEATURES:
+  ✓ Supabase database live
+  ✓ CRUD endpoints for reels
+  ✓ CRUD endpoints for collections
+  ✓ Auth endpoints (magic link verify)
+  ✓ Frontend connected to backend
+  ✓ Real data persistence
+  ✓ User sessions
+  ✓ Collection sharing via email invite
+  ✓ Rating system (😐/🤔/🔥)
+  ✓ Auto-routing logic (both 🔥 → Do Soon)
+  ✓ Booking save/update
+  ✓ Instagram Graph API integration (optional)
+
+REMOVED:
+  ❌ Mock data replaced with DB data
+  ❌ localStorage fallback
+
+DEPLOYMENT:
+  • Frontend: Vercel
+  • Backend: Railway/Render
+  • Database: Supabase free tier
+
+TESTING:
+  □ POST /api/reels returns 201
+  □ GET /api/reels/:id returns 200
+  □ Collections persist across refresh
+  □ Ratings sync between users
+  □ Frontend error handling (500, 404, etc)
+  □ API rate limiting tested
+  □ CORS working
+
+
+===============================================
+v0.3.0 - Features & Polish (Week 4-5)
+===============================================
+
+TARGET RELEASE: November 20, 2026
+
+FEATURES:
+  ✓ Smart nudge (Friday notification)
+  ✓ OpenTable linking (no API, just links)
+  ✓ Google Calendar sync (manual link)
+  ✓ Post-adventure capture (rating + note)
+  ✓ Streak counter (updated correctly)
+  ✓ Mark as Done button workflow
+  ✓ Improved error handling & UX
+  ✓ Mobile-first responsive polish
+  ✓ Loading states on all endpoints
+  ✓ Empty states (no collections, no reels)
+  ✓ Search/filter reels
+  ✓ Edit & delete reels
+  ✓ Delete collections
+  ✓ Accept/decline invites
+  ✓ Visit history tracking
+
+DEPLOYMENT:
+  • Both frontend & backend live
+  • Custom domain optional
+
+TESTING:
+  □ Beta test with 2-3 couples
+  □ User feedback collected
+  □ Bug fixes prioritized
+
+
+===============================================
+v1.0.0 - Launch (Week 6)
+===============================================
+
+TARGET RELEASE: November 27, 2026
+
+FEATURES:
+  ✓ All of v0.3.0
+  ✓ PWA setup (installable on mobile)
+  ✓ Offline support (cached data)
+  ✓ Email notifications sent
+  ✓ Analytics integrated (optional)
+  ✓ Privacy policy & ToS live
+  ✓ Contact/support form
+  ✓ Feedback mechanism
+  ✓ Bug fixes from beta
+
+DEPLOYMENT:
+  • Public launch
+  • Custom domain live
+  • SSL certificate
+  • Monitoring/alerting enabled
+
+RELEASE NOTES:
+  "Reel Map v1.0 — Save reels together, plan dates, make memories.
+   Share custom collections with your partner. Rate locations together.
+   Track your adventures with streaks."
+
+MARKETING:
+  □ Launch email to beta users
+  □ Social media announcement
+  □ Product Hunt (optional)
+
+
+===============================================
+v1.1.0 - Improvements (Post-launch, Week 1+)
+===============================================
+
+TARGET: Early December 2026
+
+FEATURES:
+  • Reel preview (load Instagram thumbnail automatically)
+  • Better location search (Google Places autocomplete fix)
+  • Duplicate reel detection (prevent adding same place twice)
+  • Collection import/export
+  • Group collections (organize by category)
+  • Reel tagging system
+  • Search by location name
+  • Favorites (star reels)
+  • Sort options (date added, rating, alphabetical)
+
+FIXES:
+  • Timezone handling in booking dates
+  • Modal scroll behavior on long business hours
+  • Map performance on 100+ pins
+
+
+===============================================
+v1.2.0 - Social Features (Post-launch, Week 2+)
+===============================================
+
+TARGET: Mid December 2026
+
+FEATURES:
+  • Friend groups (more than 2 users per collection)
+  • Comment on reels (before visiting)
+  • Voting on ratings (break ties: 🔥 vs 😐)
+  • User profiles (show stats: reels saved, adventures)
+  • Activity feed (who saved/rated what)
+  • Notifications in-app (new invite, someone rated)
+  • Message partner directly in app
+
+
+===============================================
+v2.0.0 - Advanced Features (2027)
+===============================================
+
+FEATURES (Post-MVP scope):
+  • AI recommendations ("You might like...")
+  • Photo uploads (capture visit)
+  • Map clustering (100+ pins)
+  • Pinterest-style gallery view
+  • PDF export of collections
+  • Stripe integration (premium features)
+  • Mobile app (React Native)
+  • Dark mode
+  • Multi-language
+  • Wallet integration (pay directly from app)
+
+
+===============================================
+ROADMAP PRIORITIES
+===============================================
+
+MUST HAVE (v1.0):
+  1. Collections + gradient UI
+  2. Booked indicator + checkout
+  3. Modal with checklist
+  4. Database persistence
+  5. User auth + sharing
+
+SHOULD HAVE (v1.1):
+  6. Better location search
+  7. Reel preview/thumbnail
+  8. Notifications
+  9. Post-adventure capture
+  10. Analytics
+
+NICE TO HAVE (v1.2+):
+  11. Comments/voting
+  12. Group collaboration
+  13. AI recommendations
+  14. Photo uploads
+
+
+===============================================
+SUPPORT & MAINTENANCE
+===============================================
+
+POST-LAUNCH:
+  • Monitor Sentry for errors
+  • Database backups daily
+  • Security updates within 24h
+  • Feature requests tracked in GitHub Issues
+  • Bug fixes within 48h
+  • Performance optimization quarterly
+
+USER SUPPORT:
+  • Email support (support@reelmap.app)
+  • FAQ page
+  • Contact form on app
+  • Twitter/Instagram for updates
+
+
+===============================================
+VERSIONING TIMELINE
+===============================================
+
+v0.1.0:  Oct 30, 2026  (Frontend MVP)
+v0.2.0:  Nov 6, 2026   (Backend live)
+v0.3.0:  Nov 20, 2026  (Polish & beta)
+v1.0.0:  Nov 27, 2026  (PUBLIC LAUNCH)
+v1.1.0:  Dec 15, 2026  (QoL improvements)
+v1.2.0:  Jan 15, 2027  (Social features)
+v2.0.0:  Q2 2027       (Major expansion)
+
+
+===============================================
+BREAKING CHANGES
+===============================================
+
+None planned for v1.0
+
+When migrating to v2.0+:
+  • Database schema changes will include migration scripts
+  • API versioning (v1/ vs v2/) to avoid breaking clients
+  • Deprecation warnings 2 weeks before removal
+
+
+===============================================
+END OF RELEASE ROADMAP
+===============================================

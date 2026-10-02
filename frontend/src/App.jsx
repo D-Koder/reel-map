@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import HomeScreen from './components/HomeScreen';
 import MapScreen from './components/MapScreen';
 import PinModal from './components/PinModal';
@@ -7,8 +7,10 @@ import AddPlaceSheet from './components/AddPlaceSheet';
 import SettingsDrawer from './components/SettingsDrawer';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
+import ShareCollectionModal from './components/ShareCollectionModal';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
+import { useInvites } from './hooks/useInvites';
 import { configError } from './lib/supabase';
 import './App.css';
 
@@ -34,6 +36,7 @@ function Toast({ toast, onDismiss }) {
 
 function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
+  const { acceptInvite } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -41,6 +44,7 @@ function MainApp({ userId, showToast }) {
   const [openPinId, setOpenPinId] = useState(null);
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [shareModal, setShareModal] = useState(null);
 
   const membersOf = useMemo(
     () => Object.fromEntries(data.collections.map((c) => [c.id, c.members])),
@@ -55,6 +59,21 @@ function MainApp({ userId, showToast }) {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   }, [data.places]);
+
+  // Handle invite codes from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteCode = params.get('invite');
+    if (inviteCode) {
+      acceptInvite(inviteCode).then((success) => {
+        if (success) {
+          data.refresh();
+          // Remove the invite parameter from URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      });
+    }
+  }, [acceptInvite, data]);
 
   const addNotification = useCallback((type, message, icon) => {
     const id = Date.now();
@@ -171,6 +190,7 @@ function MainApp({ userId, showToast }) {
         onUpdateCollection={data.updateCollection}
         onUpdateProfile={data.updateProfile}
         showToast={showToast}
+        onShare={setShareModal}
       />
 
       <NotificationPanel
@@ -222,6 +242,15 @@ function MainApp({ userId, showToast }) {
             }
           }}
           onClose={() => setAdding(false)}
+        />
+      )}
+
+      {shareModal && (
+        <ShareCollectionModal
+          collection={shareModal}
+          userId={userId}
+          onClose={() => setShareModal(null)}
+          showToast={showToast}
         />
       )}
     </div>

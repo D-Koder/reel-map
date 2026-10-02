@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AVATARS } from '../lib/constants';
 
-function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy }) {
+function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collection.name);
   const owner = collection.members.find((m) => m.role === 'owner');
@@ -53,6 +53,14 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy }) {
       </div>
       {isOwner && (
         <div className="collection-icons">
+          <button
+            className="collection-icon"
+            onClick={() => onShare(collection)}
+            title="Share collection"
+            aria-label="Share"
+          >
+            🔗
+          </button>
           <button
             className="collection-icon"
             onClick={() => onTogglePrivacy(collection)}
@@ -135,6 +143,7 @@ export default function SettingsDrawer({
   onUpdateCollection,
   onUpdateProfile,
   showToast,
+  onShare,
 }) {
   const [newName, setNewName] = useState('');
   const [email, setEmail] = useState('');
@@ -186,6 +195,7 @@ export default function SettingsDrawer({
                 isOwner={c.ownerId === userId}
                 onRename={rename}
                 onTogglePrivacy={togglePrivacy}
+                onShare={onShare}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>
