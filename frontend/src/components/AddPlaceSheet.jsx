@@ -105,6 +105,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     }
 
     addLog('🔍 Searching Google Maps with full caption...', 'info');
+
+    // Build the search query and show the URL that will be searched
+    const searchQuery = scrapedData.caption;
+    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
+    addLog(`🔗 Maps URL: ${mapsUrl}`, 'info');
+
     setSaving(true);
 
     try {
@@ -120,14 +126,14 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       const data = await response.json();
 
       if (!response.ok) {
-        addLog(`❌ Location search failed: ${data.error}`, 'error');
+        addLog(`❌ API Error: ${data.error || response.statusText}`, 'error');
+        if (data.details) {
+          addLog(`📝 Details: ${data.details}`, 'error');
+        }
         throw new Error(data.error);
       }
 
       if (data.success) {
-        if (data.mapsUrl) {
-          addLog(`🔗 Maps searched: ${data.mapsUrl}`, 'info');
-        }
         addLog(`📋 JSON Response: ${JSON.stringify(data)}`, 'info');
         addLog(`✅ Clicked first Google Maps result`, 'success');
         if (data.name) {

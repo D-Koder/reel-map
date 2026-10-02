@@ -19,14 +19,16 @@ module.exports = async function handler(req, res) {
   let browser;
   try {
     const isVercel = Boolean(process.env.VERCEL);
+    console.log(`[scrape-location] Starting browser launch for query: ${searchQuery}`);
     browser = await puppeteer.launch({
       args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: { width: 1280, height: 900 },
       executablePath: isVercel
         ? await chromium.executablePath()
         : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: false,
+      headless: true,
     });
+    console.log('[scrape-location] Browser launched successfully');
 
     const page = await browser.newPage();
     await page.setUserAgent(
@@ -35,7 +37,9 @@ module.exports = async function handler(req, res) {
 
     // Navigate to Google Maps search
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
+    console.log(`[scrape-location] Navigating to: ${mapsUrl}`);
     await page.goto(mapsUrl, { waitUntil: 'networkidle2', timeout: 25000 });
+    console.log('[scrape-location] Page loaded successfully');
 
     // Wait for search results to load
     await page.waitForFunction(() => {
