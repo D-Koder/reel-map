@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { categories, feelings } from '../lib/constants';
+import { normalizeImageUrl } from '../lib/media';
 
 const isValidInstagramReelUrl = (url) => {
   try {
@@ -49,9 +50,21 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     addLog('🔄 Starting to fetch reel data...', 'info');
 
     try {
-      const { data, error } = await supabase.functions.invoke('scrape-reel', {
-        body: { reelUrl: url }
-      });
+      let data;
+      let error;
+      if (import.meta.env.PROD) {
+        const response = await fetch('/api/scrape-reel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reelUrl: url }),
+        });
+        data = await response.json().catch(() => ({}));
+        if (!response.ok) error = new Error(data.error || `Scraper returned HTTP ${response.status}`);
+      } else {
+        ({ data, error } = await supabase.functions.invoke('scrape-reel', {
+          body: { reelUrl: url }
+        }));
+      }
 
       if (error) {
         let detail = error.message;
@@ -121,7 +134,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       category,
       collectionId,
       reelUrl: reelUrl.trim(),
-      reelThumbnailUrl: scrapedData?.thumbnailUrl || '',
+      reelThumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl),
       feeling
     });
     setSaving(false);
@@ -249,7 +262,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   backgroundColor: 'var(--border)',
                   borderRadius: '6px',
                   flexShrink: 0,
-                  backgroundImage: scrapedData.thumbnailUrl ? `url(${scrapedData.thumbnailUrl})` : 'none',
+                  backgroundImage: normalizeImageUrl(scrapedData.thumbnailUrl)
+                    ? `url("${normalizeImageUrl(scrapedData.thumbnailUrl)}")`
+                    : 'none',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center'
                 }} />
@@ -269,7 +284,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                     fontSize: '12px',
                     color: 'var(--text-muted)'
                   }}>
-                    ❤️ {(scrapedData.likes || 0).toLocaleString()} · 💬 {(scrapedData.comments || 0).toLocaleString()}
+                    {scrapedData.likes != null && `❤️ ${Number(scrapedData.likes).toLocaleString()}`}
+                    {scrapedData.likes != null && scrapedData.comments != null && ' · '}
+                    {scrapedData.comments != null && `💬 ${Number(scrapedData.comments).toLocaleString()}`}
+                    {scrapedData.likes == null && scrapedData.comments == null && 'Counts unavailable'}
                   </div>
                 </div>
               </div>

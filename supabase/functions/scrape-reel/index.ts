@@ -47,15 +47,33 @@ function parseDescription(description: string) {
   };
 }
 
-function locationFromCaption(caption: string) {
-  return caption.split(/\r?\n/)
+function placeDetailsFromCaption(caption: string) {
+  const locationLine = caption.split(/\r?\n/)
     .find((line) => /^\s*[📍📌]/u.test(line))
     ?.replace(/^\s*[📍📌]\s*/u, '')
     .trim() ?? '';
+  const separator = locationLine.match(/\s+[-–—]\s+/u);
+  if (!separator || separator.index === undefined) {
+    return { placeName: '', location: locationLine };
+  }
+  return {
+    placeName: locationLine.slice(0, separator.index).trim(),
+    location: locationLine.slice(separator.index + separator[0].length).trim(),
+  };
 }
 
-function placeNameFromLocation(location: string) {
-  return location.split(/\s+[-–—]\s+/u)[0]?.trim() ?? '';
+function normalizeImageUrl(value: unknown) {
+  let candidate = decodeHtml(String(value ?? '')).trim();
+  const cssUrl = candidate.match(/^url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)$/i);
+  if (cssUrl) candidate = (cssUrl[1] ?? cssUrl[2] ?? cssUrl[3] ?? '').trim();
+  candidate = candidate.replace(/^['"]|['"]$/g, '').trim();
+  if (candidate.startsWith('//')) candidate = `https:${candidate}`;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function collectEmbeddedData(html: string, shortcode: string) {
@@ -150,19 +168,20 @@ async function scrapeReel(reelUrl: string) {
       const oembed = await oembedResponse.json();
       if (oembed.title || oembed.author_name || oembed.thumbnail_url) {
         const caption = String(oembed.title || '');
+        const placeDetails = placeDetailsFromCaption(caption);
         return {
           success: true,
           reelUrl,
           caption,
-          location: locationFromCaption(caption),
-          placeName: placeNameFromLocation(locationFromCaption(caption)),
+          location: placeDetails.location,
+          placeName: placeDetails.placeName,
           date: '',
           creator: String(oembed.author_name || ''),
-          likes: 0,
-          comments: 0,
+          likes: Number(oembed.like_count) || null,
+          comments: Number(oembed.comment_count) || null,
           hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
           videoUrl: '',
-          thumbnailUrl: String(oembed.thumbnail_url || ''),
+          thumbnailUrl: normalizeImageUrl(oembed.thumbnail_url),
         };
       }
     }
@@ -187,6 +206,7 @@ async function scrapeReel(reelUrl: string) {
   const parsedDescription = parseDescription(description);
   const embedded = collectEmbeddedData(html, shortcode);
   const caption = String(embedded.caption || parsedDescription.caption || '');
+  const captionPlaceDetails = placeDetailsFromCaption(caption);
   const hashtags = [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]);
   const likesText = description.match(/([\d,.]+\s*[KMB]?)\s+likes?/i)?.[1] ?? '';
   const commentsText = description.match(/([\d,.]+\s*[KMB]?)\s+comments?/i)?.[1] ?? '';
@@ -201,15 +221,15 @@ async function scrapeReel(reelUrl: string) {
     success: true,
     reelUrl,
     caption,
-    location: String(embedded.location || locationFromCaption(caption)),
-    placeName: placeNameFromLocation(String(embedded.location || locationFromCaption(caption))),
+    location: captionPlaceDetails.location || String(embedded.location || ''),
+    placeName: captionPlaceDetails.placeName,
     date: String(embedded.date || ''),
     creator: String(embedded.creator || parsedDescription.creator || ''),
     likes: Number(embedded.likes) || parseCount(likesText),
     comments: Number(embedded.comments) || parseCount(commentsText),
     hashtags,
     videoUrl: String(embedded.videoUrl || getMeta(html, 'property', 'og:video') || ''),
-    thumbnailUrl: String(embedded.thumbnailUrl || getMeta(html, 'property', 'og:image') ||
+    thumbnailUrl: normalizeImageUrl(embedded.thumbnailUrl || getMeta(html, 'property', 'og:image') ||
       getMeta(html, 'name', 'twitter:image') || ''),
   };
 
