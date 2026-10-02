@@ -7,15 +7,15 @@ async function callApify(reelUrl: string) {
     throw new Error('APIFY_API_KEY is not set in environment variables');
   }
 
-  const response = await fetch('https://api.apify.com/v2/acts/junglee~instagram-reel-scraper/run', {
+  const response = await fetch('https://api.apify.com/v2/acts/zaver.api~instagram-reel-scraper/run', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${APIFY_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      startUrls: [{ url: reelUrl }],
-      maxPostsPerPage: 1
+      directUrls: [reelUrl],
+      resultsLimit: 1
     })
   });
 
