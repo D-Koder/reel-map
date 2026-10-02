@@ -54,14 +54,24 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       });
 
       if (error) {
-        addLog(`❌ API Error: ${error.message}`, 'error');
-        throw error;
+        let detail = error.message;
+        const response = error.context;
+        if (response && typeof response.clone === 'function') {
+          try {
+            const payload = await response.clone().json();
+            detail = payload.error || payload.message || detail;
+          } catch {
+            // Keep the SDK error when the function response isn't JSON.
+          }
+        }
+        addLog(`❌ API Error: ${detail}`, 'error');
+        throw new Error(detail);
       }
 
       if (data?.success) {
         addLog(`✅ Successfully scraped reel data`, 'success');
         setScrapedData(data);
-        setName(data.caption?.split('\n')[0].substring(0, 80) || '');
+        setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
         setLocation(data.location || '');
         addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
         addLog(`❤️ Likes: ${data.likes || 0}`, 'success');

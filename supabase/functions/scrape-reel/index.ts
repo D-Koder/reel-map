@@ -47,6 +47,17 @@ function parseDescription(description: string) {
   };
 }
 
+function locationFromCaption(caption: string) {
+  return caption.split(/\r?\n/)
+    .find((line) => /^\s*[📍📌]/u.test(line))
+    ?.replace(/^\s*[📍📌]\s*/u, '')
+    .trim() ?? '';
+}
+
+function placeNameFromLocation(location: string) {
+  return location.split(/\s+[-–—]\s+/u)[0]?.trim() ?? '';
+}
+
 function collectEmbeddedData(html: string, shortcode: string) {
   const values: Record<string, unknown> = {};
   const scripts = html.match(/<script\b[^>]*type=["']application\/(?:ld\+json|json)["'][^>]*>[\s\S]*?<\/script>/gi) ?? [];
@@ -123,6 +134,42 @@ async function scrapeReel(reelUrl: string) {
   }
 
   const shortcode = url.pathname.split('/').filter(Boolean)[1];
+  // Instagram's public oEmbed response includes the post caption, author, and
+  // poster image without needing a browser session or a third-party scraper.
+  const oembedUrl = new URL('https://www.instagram.com/api/v1/oembed/');
+  oembedUrl.searchParams.set('url', reelUrl);
+  try {
+    const oembedResponse = await fetch(oembedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (oembedResponse.ok) {
+      const oembed = await oembedResponse.json();
+      if (oembed.title || oembed.author_name || oembed.thumbnail_url) {
+        const caption = String(oembed.title || '');
+        return {
+          success: true,
+          reelUrl,
+          caption,
+          location: locationFromCaption(caption),
+          placeName: placeNameFromLocation(locationFromCaption(caption)),
+          date: '',
+          creator: String(oembed.author_name || ''),
+          likes: 0,
+          comments: 0,
+          hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+          videoUrl: '',
+          thumbnailUrl: String(oembed.thumbnail_url || ''),
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('Instagram oEmbed lookup failed; trying page metadata:', error);
+  }
+
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -154,7 +201,8 @@ async function scrapeReel(reelUrl: string) {
     success: true,
     reelUrl,
     caption,
-    location: String(embedded.location || ''),
+    location: String(embedded.location || locationFromCaption(caption)),
+    placeName: placeNameFromLocation(String(embedded.location || locationFromCaption(caption))),
     date: String(embedded.date || ''),
     creator: String(embedded.creator || parsedDescription.creator || ''),
     likes: Number(embedded.likes) || parseCount(likesText),

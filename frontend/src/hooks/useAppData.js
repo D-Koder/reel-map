@@ -130,13 +130,28 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, category, collectionId, reelUrl, reelThumbnailUrl, feeling }) => {
+    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, feeling }) => {
+      let venueId = null;
+      if (location?.trim()) {
+        const { data: venue, error: venueError } = await supabase
+          .from('venues')
+          .insert({ name, address: location.trim(), source: 'manual' })
+          .select('id')
+          .single();
+        if (venueError) {
+          showToast(`⚠️ ${friendlyError(venueError)}`);
+          return null;
+        }
+        venueId = venue.id;
+      }
+
       const { data, error } = await supabase
         .from('places')
         .insert({
           name,
           category,
           collection_id: collectionId,
+          venue_id: venueId,
           reel_url: reelUrl || null,
           reel_thumbnail_url: reelThumbnailUrl || null,
           shared_by: userId,
