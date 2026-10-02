@@ -104,7 +104,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       return;
     }
 
-    addLog('🔍 Searching Google Maps for location...', 'info');
+    addLog('🔍 Searching Google Maps with full caption...', 'info');
     setSaving(true);
 
     try {
@@ -125,10 +125,14 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
 
       if (data.success) {
-        addLog(`✅ Found location: ${data.location}`, 'success');
+        addLog(`✅ Clicked first Google Maps result`, 'success');
+        if (data.placeName) {
+          addLog(`🏪 Restaurant/Place: ${data.placeName}`, 'success');
+        }
+        addLog(`📍 Address: ${data.location}`, 'success');
         setLocation(data.location);
         if (data.latitude && data.longitude) {
-          addLog(`📍 Coordinates: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`, 'success');
+          addLog(`🗺️ Coordinates: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`, 'success');
         }
       }
     } catch (error) {

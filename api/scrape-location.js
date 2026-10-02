@@ -47,12 +47,32 @@ module.exports = async function handler(req, res) {
       const resultCard = document.querySelector('[role="region"] [role="button"]');
       if (!resultCard) return null;
 
-      const nameEl = resultCard.querySelector('[class*="fontHeadlineSmall"]') || resultCard.querySelector('h3') || resultCard;
-      const name = nameEl?.textContent?.trim() || '';
+      // Extract restaurant/place name - try multiple selectors
+      let name = '';
+      const nameEl = resultCard.querySelector('h2') || resultCard.querySelector('h3') ||
+                     resultCard.querySelector('[class*="fontHeadlineSmall"]');
+      if (nameEl) {
+        name = nameEl.textContent?.trim() || '';
+      }
 
-      // Try to extract rating/reviews
-      const ratingEl = resultCard.querySelector('[class*="fontBodySmall"]');
-      const rating = ratingEl?.textContent?.trim() || '';
+      // If no name found, get from first line of text
+      if (!name) {
+        const textContent = resultCard.textContent?.trim() || '';
+        const lines = textContent.split('\n').filter(l => l.trim());
+        name = lines[0] || '';
+      }
+
+      // Extract address/location - usually in secondary text
+      let location = '';
+      const textElements = resultCard.querySelectorAll('div');
+      const textLines = Array.from(textElements)
+        .map(el => el.textContent?.trim())
+        .filter(text => text && text.length > 5 && text.length < 200);
+
+      // Address is typically the second or third element
+      if (textLines.length > 1) {
+        location = textLines[1];
+      }
 
       // Try to get coordinates from data attributes or URL
       const link = resultCard.closest('a') || resultCard;
@@ -67,8 +87,8 @@ module.exports = async function handler(req, res) {
       }
 
       return {
-        name: name || searchQuery,
-        rating,
+        name: name || 'Unknown Place',
+        location: location || 'Address not found',
         link: href || null,
         latitude: lat,
         longitude: lng
@@ -85,8 +105,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       success: true,
       query: searchQuery,
-      location: result.name,
-      rating: result.rating || null,
+      placeName: result.name,
+      location: result.location,
       latitude: result.latitude,
       longitude: result.longitude,
       mapsUrl
