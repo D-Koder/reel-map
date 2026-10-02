@@ -48,34 +48,48 @@ module.exports = async function handler(req, res) {
       const resultCard = document.querySelector('[role="region"] [role="button"]');
       if (!resultCard) return null;
 
-      // Extract restaurant/place name - try multiple selectors
+      // Extract name - look for h2 or h3
       let name = '';
-      const nameEl = resultCard.querySelector('h2') || resultCard.querySelector('h3') ||
-                     resultCard.querySelector('[class*="fontHeadlineSmall"]');
+      const nameEl = resultCard.querySelector('h2') || resultCard.querySelector('h3');
       if (nameEl) {
         name = nameEl.textContent?.trim() || '';
       }
 
-      // If no name found, get from first line of text
-      if (!name) {
-        const textContent = resultCard.textContent?.trim() || '';
-        const lines = textContent.split('\n').filter(l => l.trim());
-        name = lines[0] || '';
+      // Extract all text content and split by lines
+      const allText = resultCard.innerText || resultCard.textContent || '';
+      const lines = allText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+      // Name is usually the first line if not found by h2/h3
+      if (!name && lines.length > 0) {
+        name = lines[0];
       }
 
-      // Extract address/location - usually in secondary text
-      let location = '';
-      const textElements = resultCard.querySelectorAll('div');
-      const textLines = Array.from(textElements)
-        .map(el => el.textContent?.trim())
-        .filter(text => text && text.length > 5 && text.length < 200);
+      // Look for address and hours - check each line
+      let address = '';
+      let hours = '';
 
-      // Address is typically the second or third element
-      if (textLines.length > 1) {
-        location = textLines[1];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Address pattern: contains numbers and street keywords, or state codes, or postcodes
+        if ((line.match(/\d+/) && line.match(/St|Ave|Rd|Lane|Terr|Court|Crescent|Road|Street/i)) ||
+            line.match(/VIC|NSW|QLD|WA|SA|ACT|NT/) ||
+            line.match(/\d{4}\s*$/) ||
+            line.match(/^\d{4}\s/)) {
+          address = line;
+          break;
+        }
       }
 
-      // Try to get coordinates from data attributes or URL
+      // Hours: look for "Closed", "Open" patterns, typically after address
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (line.match(/closed|open|am|pm/i) && line !== name && line !== address) {
+          hours = line;
+          break;
+        }
+      }
+
+      // Try to get coordinates from href
       const link = resultCard.closest('a') || resultCard;
       const href = link?.getAttribute('href') || '';
 
@@ -89,7 +103,8 @@ module.exports = async function handler(req, res) {
 
       return {
         name: name || 'Unknown Place',
-        location: location || 'Address not found',
+        address: address || 'Address not found',
+        hours: hours || '',
         link: href || null,
         latitude: lat,
         longitude: lng
@@ -106,8 +121,9 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       success: true,
       query: searchQuery,
-      placeName: result.name,
-      location: result.location,
+      name: result.name,
+      address: result.address,
+      hours: result.hours,
       latitude: result.latitude,
       longitude: result.longitude,
       mapsUrl

@@ -128,12 +128,16 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         if (data.mapsUrl) {
           addLog(`🔗 Maps searched: ${data.mapsUrl}`, 'info');
         }
+        addLog(`📋 JSON Response: ${JSON.stringify(data)}`, 'info');
         addLog(`✅ Clicked first Google Maps result`, 'success');
-        if (data.placeName) {
-          addLog(`🏪 Restaurant/Place: ${data.placeName}`, 'success');
+        if (data.name) {
+          addLog(`🏪 Restaurant/Place: ${data.name}`, 'success');
         }
-        addLog(`📍 Address: ${data.location}`, 'success');
-        setLocation(data.location);
+        addLog(`📍 Address: ${data.address}`, 'success');
+        if (data.hours) {
+          addLog(`🕐 Hours: ${data.hours}`, 'success');
+        }
+        setLocation(data.address);
         if (data.latitude && data.longitude) {
           addLog(`🗺️ Coordinates: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`, 'success');
         }
