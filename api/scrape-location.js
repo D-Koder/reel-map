@@ -38,14 +38,19 @@ module.exports = async function handler(req, res) {
     // Navigate to Google Maps search
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
     console.log(`[scrape-location] Navigating to: ${mapsUrl}`);
-    await page.goto(mapsUrl, { waitUntil: 'networkidle2', timeout: 25000 });
-    console.log('[scrape-location] Page loaded successfully');
+    await page.goto(mapsUrl, { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(err => {
+      console.log('[scrape-location] Page timeout, continuing with partial load:', err.message);
+    });
+    console.log('[scrape-location] Page load attempted');
 
-    // Wait for search results to load
+    // Wait for search results to load (max 5 seconds)
+    console.log('[scrape-location] Waiting for results to load...');
     await page.waitForFunction(() => {
       const results = document.querySelectorAll('[role="region"] [role="button"]');
       return results.length > 0;
-    }, { timeout: 10000 }).catch(() => {});
+    }, { timeout: 5000 }).catch(() => {
+      console.log('[scrape-location] Results wait timeout, continuing anyway');
+    });
 
     // Click the hours dropdown to expand full hours if it exists
     await page.evaluate(() => {
