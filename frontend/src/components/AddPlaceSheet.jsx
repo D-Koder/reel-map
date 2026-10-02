@@ -125,6 +125,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
 
       if (data.success) {
+        if (data.mapsUrl) {
+          addLog(`🔗 Maps URL: ${data.mapsUrl}`, 'info');
+        }
         addLog(`✅ Clicked first Google Maps result`, 'success');
         if (data.placeName) {
           addLog(`🏪 Restaurant/Place: ${data.placeName}`, 'success');
