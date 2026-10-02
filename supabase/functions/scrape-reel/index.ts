@@ -3,6 +3,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const APIFY_API_KEY = Deno.env.get('APIFY_API_KEY');
 
 async function callApify(reelUrl: string) {
+  if (!APIFY_API_KEY) {
+    throw new Error('APIFY_API_KEY is not set in environment variables');
+  }
+
   const response = await fetch('https://api.apify.com/v2/acts/junglee~instagram-reel-scraper/run', {
     method: 'POST',
     headers: {
@@ -16,7 +20,8 @@ async function callApify(reelUrl: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Apify API error: ${response.status}`);
+    const errorBody = await response.text();
+    throw new Error(`Apify API error ${response.status}: ${errorBody}`);
   }
 
   const data = await response.json();
