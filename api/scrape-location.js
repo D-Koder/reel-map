@@ -53,8 +53,11 @@ module.exports = async function handler(req, res) {
     // Wait for search results to load (max 5 seconds)
     console.log('[scrape-location] Waiting for results to load...');
     await page.waitForFunction(() => {
-      const results = document.querySelectorAll('[role="region"] [role="button"]');
-      return results.length > 0;
+      // Try multiple selectors to find the result container
+      const selector1 = document.querySelectorAll('[role="region"] [role="button"]');
+      const selector2 = document.querySelectorAll('div[data-msa-name]');
+      const selector3 = document.querySelectorAll('div[data-result-index]');
+      return selector1.length > 0 || selector2.length > 0 || selector3.length > 0;
     }, { timeout: 5000 }).catch(() => {
       console.log('[scrape-location] Results wait timeout, continuing anyway');
     });
@@ -63,7 +66,7 @@ module.exports = async function handler(req, res) {
     await page.evaluate(() => {
       // Look for the hours/opening times section with expand button
       const hoursButtons = Array.from(document.querySelectorAll('[role="button"]')).filter(btn =>
-        btn.textContent?.match(/closed|open|am|pm/i)
+        btn.textContent?.match(/closed|open|am|pm|hours/i)
       );
       if (hoursButtons.length > 0) {
         hoursButtons[0].click();
@@ -74,29 +77,49 @@ module.exports = async function handler(req, res) {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const result = await page.evaluate(() => {
-      // Find the first result card
-      const resultCard = document.querySelector('[role="region"] [role="button"]');
+      // Try multiple strategies to find the result card
+      let resultCard = document.querySelector('[role="region"] [role="button"]');
+
+      if (!resultCard) {
+        // Fallback: look for data attributes
+        resultCard = document.querySelector('div[data-result-index="0"]');
+      }
+
+      if (!resultCard) {
+        // Fallback: look for the first prominent div with text
+        const mainRegion = document.querySelector('[role="region"]');
+        if (mainRegion) {
+          resultCard = mainRegion.querySelector('[role="button"]');
+        }
+      }
+
       if (!resultCard) return null;
 
       // Get all text content and split by lines
-      const allText = resultCard.innerText || '';
+      const allText = resultCard.innerText || resultCard.textContent || '';
       const lines = allText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-      // Extract name - first line that's not a rating
+      console.log('[scrape-location] Extracted lines:', lines.length);
+      console.log('[scrape-location] First 10 lines:', lines.slice(0, 10));
+
+      // Extract name - first line that's not a rating or special marker
       let name = '';
       for (const line of lines) {
-        if (!line.match(/★|reviews|rating|[0-9]\.[0-9]\s/i)) {
+        if (!line.match(/★|⭐|reviews?|rating|[0-9]+\.[0-9]\s*★|opened|closed|open/i) && line.length > 2) {
           name = line;
           break;
         }
       }
 
-      // Extract address - look for street patterns or state codes
+      // Extract address - look for street patterns or state codes (must have multiple words)
       let address = '';
       for (const line of lines) {
-        if (line.match(/^\d+\s+\w/) ||  // Starts with number + word
-            line.match(/\bVIC\b|\bNSW\b|\bQLD\b|\bWA\b|\bSA\b|\bACT\b|\bNT\b/) || // State
-            line.match(/\b\d{4}\b/)) {   // Postcode
+        const hasNumber = line.match(/^\d+\s+\w/);  // Starts with number + word (street)
+        const hasState = line.match(/\bVIC\b|\bNSW\b|\bQLD\b|\bWA\b|\bSA\b|\bACT\b|\bNT\b/);  // State
+        const hasPostcode = line.match(/\b\d{4}\b/);  // Postcode
+        const hasComma = line.includes(',');  // Address has comma
+
+        if ((hasNumber || hasState || (hasPostcode && hasComma)) && line.length > 5) {
           address = line;
           break;
         }
@@ -105,8 +128,9 @@ module.exports = async function handler(req, res) {
       // Extract hours - collect day names + times
       const hoursLines = [];
       for (const line of lines) {
-        if (line.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Closed|Open)/i) ||
-            line.match(/\d{1,2}:\d{2}\s*[ap]m/i)) {
+        if (line.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i) ||
+            line.match(/^(Closed|Open|Opens|Closes)/i) ||
+            line.match(/\d{1,2}:\d{2}\s*[ap]\.?m/i)) {
           hoursLines.push(line);
         }
       }
@@ -141,6 +165,14 @@ module.exports = async function handler(req, res) {
         query: searchQuery
       });
     }
+
+    console.log('[scrape-location] Extracted result:', {
+      name: result.name,
+      address: result.address,
+      hours: result.hours,
+      latitude: result.latitude,
+      longitude: result.longitude
+    });
 
     return res.status(200).json({
       success: true,
