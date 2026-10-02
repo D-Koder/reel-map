@@ -126,7 +126,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
 
       if (data.success) {
         if (data.mapsUrl) {
-          addLog(`🔗 Maps URL: ${data.mapsUrl}`, 'info');
+          addLog(`🔗 Maps searched: ${data.mapsUrl}`, 'info');
         }
         addLog(`✅ Clicked first Google Maps result`, 'success');
         if (data.placeName) {
@@ -494,8 +494,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
               borderRadius: '6px',
               fontFamily: 'monospace',
               fontSize: '11px',
-              maxHeight: '120px',
+              maxHeight: '150px',
               overflowY: 'auto',
+              overflowX: 'hidden',
               color: '#0f0'
             }}>
               {apiLogs.map((log, idx) => (
@@ -503,7 +504,8 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   padding: '3px 0',
                   color: log.type === 'error' ? '#ff6b6b' : log.type === 'success' ? '#51cf66' : '#a0aec0',
                   borderBottom: '1px solid #2a2a2a',
-                  lineHeight: '1.4'
+                  lineHeight: '1.4',
+                  wordBreak: 'break-all'
                 }}>
                   <span style={{ color: '#888' }}>[{log.timestamp}]</span> {log.message}
                 </div>

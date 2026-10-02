@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       executablePath: isVercel
         ? await chromium.executablePath()
         : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: true,
+      headless: false,
     });
 
     const page = await browser.newPage();
