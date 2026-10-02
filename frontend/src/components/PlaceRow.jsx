@@ -26,7 +26,18 @@ export default function PlaceRow({ pin, members, onOpen }) {
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && onOpen()}
       >
-        <PlaceThumb place={pin} className="pin-thumbnail" />
+        <button
+          type="button"
+          className="place-thumb-link"
+          aria-label={pin.reel_url ? `Open ${pin.name} reel` : `${pin.name} thumbnail`}
+          disabled={!pin.reel_url}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (pin.reel_url) window.open(pin.reel_url, '_blank', 'noopener,noreferrer');
+          }}
+        >
+          <PlaceThumb place={pin} className="pin-thumbnail" />
+        </button>
         <div className="pin-info">
           <div className="pin-name">{pin.name}</div>
           <div className="pin-rating">{isDone ? '✅ Done' : `${votes} ${vibe.label}`.trim()}</div>

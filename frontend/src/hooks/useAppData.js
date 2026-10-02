@@ -5,7 +5,7 @@ const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactio
 
 const PLACE_SELECT = `
   id, collection_id, name, category, reel_url, reel_thumbnail_url, shared_by, added_by, created_at,
-  venue:venues(id, name, subtitle, address, lat, lng, hours, phone, booking_url, menu_url, menu),
+  venue:venues(id, name, subtitle, address, lat, lng, hours, phone, website_url, booking_url, menu_url, menu, source_id),
   reactions(user_id, feeling),
   booking:bookings(booked_by, planned_at),
   visit:place_visits(marked_by, done_at),
@@ -143,6 +143,8 @@ export function useAppData(userId, showToast) {
             lng: venueDetails?.longitude ?? null,
             hours: venueDetails?.hours?.length ? venueDetails.hours : null,
             phone: venueDetails?.phone || null,
+            website_url: venueDetails?.websiteUrl || null,
+            booking_url: venueDetails?.bookingUrl || null,
             menu_url: venueDetails?.menuUrl || null,
             menu: venueDetails?.menuText ? { text: venueDetails.menuText } : null,
             source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),

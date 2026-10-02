@@ -66,29 +66,6 @@ module.exports = async function handler(req, res) {
       console.log('[scrape-location] Google Maps routed directly to the matching first place result');
     }
 
-    // Expand the complete weekly schedule using the control's accessible label.
-    const hoursButton = await page.$('[aria-label*="Show open hours" i]');
-    if (hoursButton) {
-      console.log('[scrape-location] Expanding weekly opening hours');
-      await hoursButton.evaluate((element) => {
-        (element.closest('button,[role="button"]') || element).click();
-      }).catch(() => {});
-      await page.waitForFunction(() => document.querySelectorAll('table tr').length >= 7, { timeout: 5000 })
-        .catch(() => {});
-      const hoursState = await page.evaluate(() => ({
-        rows: [...document.querySelectorAll('table tr')].map((row) => row.innerText),
-        buttons: [...document.querySelectorAll('button')]
-          .map((button) => ({ label: button.getAttribute('aria-label'), expanded: button.getAttribute('aria-expanded') }))
-          .filter((button) => /hours/i.test(button.label || '')),
-      }));
-      console.log('[scrape-location] Hours expansion state:', JSON.stringify(hoursState));
-    } else {
-      const pageControls = await page.evaluate(() => [...document.querySelectorAll('button')]
-        .map((button) => button.getAttribute('aria-label') || button.innerText)
-        .filter((label) => /hours|open|closed/i.test(label)));
-      console.log('[scrape-location] Weekly-hours expand control was not present; similar buttons:', pageControls);
-    }
-
     const result = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const panel = document.querySelector('[role="main"]') || document.querySelector('main') || document;
@@ -108,24 +85,41 @@ module.exports = async function handler(req, res) {
       const phone = textOf(phoneButton?.querySelector('.Io6YTe')) ||
         textOf(phoneButton).replace(/^Phone:\s*/i, '').replace(/\s*Copy phone number\s*$/i, '').trim();
 
-      const hoursRows = [...panel.querySelectorAll('table tr')].map((row) => {
-        const cells = [...row.querySelectorAll('th, td')].map(textOf).filter(Boolean);
-        if (cells.length < 2) return null;
-        return {
-          days: cells[0].replace(/[\uE000-\uF8FF]/g, '').trim(),
-          time: cells.slice(1).join(' ').replace(/[\uE000-\uF8FF]/g, '').trim(),
-        };
-      }).filter(Boolean);
-      const uniqueHours = [...new Map(hoursRows.map((row) => [row.days, row])).values()];
-
       const mapLink = location.href;
       const coords = mapLink.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+      const links = [...panel.querySelectorAll('a[href]')].map((anchor) => ({
+        href: anchor.href,
+        label: `${textOf(anchor)} ${anchor.getAttribute('aria-label') || ''} ${anchor.title || ''}`.trim(),
+      }));
+      const validLink = (href) => {
+        try {
+          const url = new URL(href);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+        } catch {
+          return '';
+        }
+      };
+      const authority = panel.querySelector('[data-item-id="authority"]');
+      const websiteControl = authority || [...panel.querySelectorAll('button,a')].find((element) =>
+        /website|official site/i.test(`${element.getAttribute('aria-label') || ''} ${element.title || ''} ${textOf(element)}`)
+      );
+      const websiteLabel = `${websiteControl?.getAttribute('aria-label') || ''} ${textOf(websiteControl)}`;
+      const labelUrl = websiteLabel.match(/https?:\/\/[^\s]+|(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:\/[^\s]*)?/i)?.[0];
+      const websiteUrl = validLink(websiteControl?.href || websiteControl?.querySelector('a[href]')?.href ||
+        websiteControl?.getAttribute('data-url') || websiteControl?.getAttribute('data-href') ||
+        (labelUrl ? (/^https?:\/\//i.test(labelUrl) ? labelUrl : `https://${labelUrl}`) : '') ||
+        links.find((link) => /website|official site/i.test(link.label))?.href || '');
+      const bookingUrl = validLink(links.find((link) =>
+        /reserve|reservation|find a table|book(?:ing)?\s*(?:a\s*)?table|table booking/i.test(link.label)
+      )?.href || '');
       return {
         name,
         subtitle,
         address,
         phone,
-        hours: uniqueHours,
+        hours: [],
+        websiteUrl,
+        bookingUrl,
         mapsUrl: mapLink,
         latitude: coords ? Number(coords[1]) : null,
         longitude: coords ? Number(coords[2]) : null,
@@ -162,6 +156,38 @@ module.exports = async function handler(req, res) {
     });
     result.menuUrl = menuDetails.url;
     result.menuText = menuDetails.text;
+
+    // Menu is a page-changing action in Maps. Return to the place details, then
+    // expand and read hours last so the dropdown does not disrupt other scraping.
+    await page.goto(result.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('h1') &&
+      (document.querySelector('[aria-label*="Show open hours" i]') || document.querySelector('table tr')),
+    { timeout: 12000 }).catch(() => {});
+    const hoursOpened = await page.evaluate(() => {
+      const icon = document.querySelector('[aria-label*="Show open hours" i]');
+      const control = icon?.closest('[role="button"],button') ||
+        [...document.querySelectorAll('[role="button"],button')].find((element) => /hours/i.test(element.getAttribute('aria-label') || ''));
+      if (!control) return { clicked: false, expanded: false };
+      control.click();
+      return { clicked: true, expanded: control.getAttribute('aria-expanded') === 'true' };
+    });
+    if (hoursOpened.clicked) {
+      await page.waitForFunction(() => document.querySelectorAll('table tr').length > 0,
+        { timeout: 7000 }).catch(() => {});
+    }
+    result.hours = await page.evaluate(() => {
+      const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
+      const rows = [...document.querySelectorAll('table tr')].map((row) => {
+        const cells = [...row.querySelectorAll('th,td')].map(textOf).filter(Boolean);
+        if (cells.length < 2 || !/mon|tue|wed|thu|fri|sat|sun/i.test(cells[0])) return null;
+        return {
+          days: cells[0].replace(/[\uE000-\uF8FF]/g, '').trim(),
+          time: cells.slice(1).join(' ').replace(/[\uE000-\uF8FF]/g, '').trim(),
+        };
+      }).filter(Boolean);
+      return [...new Map(rows.map((row) => [row.days, row])).values()];
+    });
+    console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, rows: result.hours }));
 
     if (!result.name) {
       return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });

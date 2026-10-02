@@ -564,6 +564,20 @@ button {
   flex-shrink: 0;
 }
 
+.place-thumb-link {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+}
+
+.place-thumb-link:disabled {
+  cursor: default;
+}
+
 .pin-marker.both-in {
   background: linear-gradient(135deg, #d85a30, #f0997b);
 }

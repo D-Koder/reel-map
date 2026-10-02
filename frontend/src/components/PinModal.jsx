@@ -222,6 +222,26 @@ export default function PinModal({
           <div className="modal-section">
             <div className="modal-label">Address</div>
             <div className="venue-address">{venue.address}</div>
+            {venue.source_id?.startsWith('https://www.google.com/maps/') && (
+              <a className="step-btn secondary full-width" href={venue.source_id} target="_blank" rel="noreferrer">
+                📍 Open Google Maps ↗
+              </a>
+            )}
+          </div>
+        )}
+
+        {(venue?.website_url || venue?.booking_url) && (
+          <div className="modal-section">
+            {venue.website_url && (
+              <a className="step-btn secondary full-width" href={venue.website_url} target="_blank" rel="noreferrer">
+                🌐 Open website ↗
+              </a>
+            )}
+            {venue.booking_url && (
+              <a className="step-btn primary full-width" href={venue.booking_url} target="_blank" rel="noreferrer">
+                🍽️ Reserve a table ↗
+              </a>
+            )}
           </div>
         )}
 

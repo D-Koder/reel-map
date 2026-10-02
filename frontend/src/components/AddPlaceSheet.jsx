@@ -149,6 +149,8 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         addLog(`📞 Phone: ${data.phone || 'Not listed'}`, 'success');
         addLog(`🍽️ Menu link: ${data.menuUrl || 'Not listed'}`, 'success');
         addLog(`📖 Menu details: ${data.menuText || 'Not listed'}`, 'success');
+        addLog(`🌐 Website: ${data.websiteUrl || 'Not listed'}`, 'success');
+        addLog(`🍽️ Reserve a table: ${data.bookingUrl || 'Not listed'}`, 'success');
         addLog(`🗺️ Google Maps: ${data.mapsUrl || 'Not available'}`, 'success');
       }
     } catch (error) {
@@ -356,18 +358,27 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 gap: '12px',
                 alignItems: 'center'
               }}>
-                <div style={{
+                <button
+                  type="button"
+                  aria-label="Open reel"
+                  onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
+                  style={{
                   width: '60px',
                   height: '60px',
                   backgroundColor: 'var(--border)',
                   borderRadius: '6px',
                   flexShrink: 0,
+                  border: 0,
+                  padding: 0,
+                  cursor: reelUrl ? 'pointer' : 'default',
                   backgroundImage: normalizeImageUrl(scrapedData.thumbnailUrl)
                     ? `url("${normalizeImageUrl(scrapedData.thumbnailUrl)}")`
                     : 'none',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center'
-                }} />
+                  }}
+                  disabled={!reelUrl}
+                />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: '13px',
@@ -392,8 +403,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => window.open(reelUrl, '_blank')}
-                  title="Open reel"
+                  onClick={() => {
+                    const query = [name || scrapedData.placeName, location || scrapedData.location].filter(Boolean).join(' ');
+                    const mapsUrl = mapsData?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  title="Open Google Maps location"
+                  aria-label="Open Google Maps location"
                   style={{
                     background: 'none',
                     border: 'none',
