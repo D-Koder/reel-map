@@ -98,6 +98,46 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setLoading(false);
   };
 
+  const scrapeLocationFromCaption = async () => {
+    if (!scrapedData?.caption) {
+      console.warn('No caption to scrape location from');
+      return;
+    }
+
+    addLog('🔍 Searching Google Maps for location...', 'info');
+    setSaving(true);
+
+    try {
+      const response = await fetch('/api/scrape-location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caption: scrapedData.caption,
+          location: location || scrapedData.location
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        addLog(`❌ Location search failed: ${data.error}`, 'error');
+        throw new Error(data.error);
+      }
+
+      if (data.success) {
+        addLog(`✅ Found location: ${data.location}`, 'success');
+        setLocation(data.location);
+        if (data.latitude && data.longitude) {
+          addLog(`📍 Coordinates: ${data.latitude.toFixed(4)}, ${data.longitude.toFixed(4)}`, 'success');
+        }
+      }
+    } catch (error) {
+      addLog(`❌ Could not fetch location: ${error.message}`, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleConfirmReel = () => {
     const trimmedUrl = reelUrlInput.trim();
     setUrlError('');
@@ -290,6 +330,25 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                     {scrapedData.likes == null && scrapedData.comments == null && 'Counts unavailable'}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => window.open(reelUrl, '_blank')}
+                  title="Open reel"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    flexShrink: 0,
+                    opacity: 0.7,
+                    transition: 'opacity 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.opacity = '1'}
+                  onMouseLeave={(e) => e.target.style.opacity = '0.7'}
+                >
+                  ↗️
+                </button>
               </div>
             )}
 
@@ -310,14 +369,40 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
             {/* Location Field */}
             <label className="field">
               <span className="modal-label">Location</span>
-              <input
-                className="step-input"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. San Francisco, CA"
-                maxLength={100}
-                disabled={saving}
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  className="step-input"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. San Francisco, CA"
+                  maxLength={100}
+                  disabled={saving}
+                  style={{ flex: 1 }}
+                />
+                {scrapedData?.caption && (
+                  <button
+                    type="button"
+                    onClick={scrapeLocationFromCaption}
+                    disabled={saving}
+                    title="Auto-find location from caption using Google Maps"
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      whiteSpace: 'nowrap',
+                      opacity: saving ? 0.6 : 1,
+                      transition: 'opacity 0.2s'
+                    }}
+                  >
+                    🔍 Find
+                  </button>
+                )}
+              </div>
             </label>
 
             {/* Collection & Category */}
