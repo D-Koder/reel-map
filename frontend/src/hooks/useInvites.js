@@ -6,13 +6,12 @@ export function useInvites(userId, showToast) {
   const generateInviteLink = useCallback(
     async (collectionId) => {
       try {
-        // Create an invite record in the database
+        // The insert policy only permits collection owners to create invites.
         const { data, error } = await supabase
           .from('collection_invites')
           .insert({
             collection_id: collectionId,
             created_by: userId,
-            created_at: new Date().toISOString(),
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           })
           .select('id')
@@ -39,49 +38,12 @@ export function useInvites(userId, showToast) {
   const acceptInvite = useCallback(
     async (inviteCode) => {
       try {
-        // Get the invite details
-        const { data: invite, error: inviteError } = await supabase
-          .from('collection_invites')
-          .select('collection_id, expires_at')
-          .eq('id', inviteCode)
-          .single();
+        const { data: joined, error } = await supabase.rpc('accept_collection_invite', {
+          p_invite_id: inviteCode,
+        });
+        if (error) throw error;
 
-        if (inviteError || !invite) {
-          showToast('❌ Invalid or expired invite link');
-          return false;
-        }
-
-        // Check if expired
-        if (new Date(invite.expires_at) < new Date()) {
-          showToast('❌ This invite link has expired');
-          return false;
-        }
-
-        // Check if already a member
-        const { data: existing } = await supabase
-          .from('collection_members')
-          .select('id')
-          .eq('collection_id', invite.collection_id)
-          .eq('user_id', userId)
-          .single();
-
-        if (existing) {
-          showToast('✅ You already have access to this collection');
-          return true;
-        }
-
-        // Add user to collection as member
-        const { error: addError } = await supabase
-          .from('collection_members')
-          .insert({
-            collection_id: invite.collection_id,
-            user_id: userId,
-            role: 'member',
-          });
-
-        if (addError) throw addError;
-
-        showToast('🎉 Successfully joined the collection!');
+        showToast(joined ? '🎉 Successfully joined the collection!' : '✅ You already have access to this collection');
         return true;
       } catch (error) {
         console.error('Failed to accept invite:', error);
