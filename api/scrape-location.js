@@ -13,28 +13,14 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Provide caption or location text' });
   }
 
-  // Extract address from caption (look for postcode or street patterns)
-  let searchQuery = location;
-  if (!searchQuery && caption) {
-    // Look for Australian postcode (4 digits) - usually at end of address
-    const postcodeMatch = caption.match(/\b\d{4}\s*$/m);
-    if (postcodeMatch) {
-      // Extract from that postcode backward to find the full address
-      const index = caption.indexOf(postcodeMatch[0]);
-      const beforePostcode = caption.substring(0, index).trim();
-      // Find the last line break or start of address
-      const addressStart = beforePostcode.lastIndexOf('\n');
-      searchQuery = caption.substring(addressStart === -1 ? 0 : addressStart).trim();
-    } else {
-      // Fallback: look for street address pattern
-      const addressMatch = caption.match(/(\d+[\s\w]+(?:St|Street|Ave|Avenue|Rd|Road|Lane|Crescent|Court|Terr)[\w\s,]*)/i);
-      if (addressMatch) {
-        searchQuery = addressMatch[1];
-      } else {
-        // Last resort: use full caption but clean it
-        searchQuery = caption.replace(/#[\w]+/g, '').replace(/[😍🎉😊]/g, '').trim();
-      }
-    }
+  // Search with caption but remove emojis and clean up
+  let searchQuery = location || caption;
+  if (searchQuery === caption) {
+    // Remove all emojis and clean up hashtags
+    searchQuery = caption
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis
+      .replace(/#[\w]+/g, '') // Remove hashtags
+      .trim();
   }
 
   let browser;
@@ -92,70 +78,47 @@ module.exports = async function handler(req, res) {
       const resultCard = document.querySelector('[role="region"] [role="button"]');
       if (!resultCard) return null;
 
-      // Extract name - look for h2 or h3
-      let name = '';
-      const nameEl = resultCard.querySelector('h2') || resultCard.querySelector('h3');
-      if (nameEl) {
-        name = nameEl.textContent?.trim() || '';
-      }
-
-      // Extract all text content and split by lines
-      const allText = resultCard.innerText || resultCard.textContent || '';
+      // Get all text content and split by lines
+      const allText = resultCard.innerText || '';
       const lines = allText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-      // Name is usually the first line if not found by h2/h3
-      if (!name && lines.length > 0) {
-        name = lines[0];
+      // Extract name - first line that's not a rating
+      let name = '';
+      for (const line of lines) {
+        if (!line.match(/★|reviews|rating|[0-9]\.[0-9]\s/i)) {
+          name = line;
+          break;
+        }
       }
 
-      // Look for address and hours - check each line
+      // Extract address - look for street patterns or state codes
       let address = '';
-      let hours = '';
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // Address pattern: contains numbers and street keywords, or state codes, or postcodes
-        if ((line.match(/\d+/) && line.match(/St|Ave|Rd|Lane|Terr|Court|Crescent|Road|Street/i)) ||
-            line.match(/VIC|NSW|QLD|WA|SA|ACT|NT/) ||
-            line.match(/\d{4}\s*$/) ||
-            line.match(/^\d{4}\s/)) {
+      for (const line of lines) {
+        if (line.match(/^\d+\s+\w/) ||  // Starts with number + word
+            line.match(/\bVIC\b|\bNSW\b|\bQLD\b|\bWA\b|\bSA\b|\bACT\b|\bNT\b/) || // State
+            line.match(/\b\d{4}\b/)) {   // Postcode
           address = line;
           break;
         }
       }
 
-      // Hours: collect all lines with day names and times
-      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Closed', 'Open'];
+      // Extract hours - collect day names + times
       const hoursLines = [];
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // Collect lines that contain day names or time patterns
-        if (dayNames.some(day => line.includes(day)) || line.match(/\d{1,2}:\d{2}\s*(am|pm|–|-)/) || line.match(/^(Closed|Open)/i)) {
+      for (const line of lines) {
+        if (line.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Closed|Open)/i) ||
+            line.match(/\d{1,2}:\d{2}\s*[ap]m/i)) {
           hoursLines.push(line);
         }
       }
 
-      // Join all hours lines, or use first hours line if not expanded
-      if (hoursLines.length > 0) {
-        hours = hoursLines.join(' | ');
-      } else {
-        // Fallback: look for "Closed", "Open" patterns if no full hours found
-        for (let i = lines.length - 1; i >= 0; i--) {
-          const line = lines[i];
-          if (line.match(/closed|open/i) && line !== name && line !== address) {
-            hours = line;
-            break;
-          }
-        }
-      }
+      let hours = hoursLines.join(' | ');
 
-      // Try to get coordinates from href
+      // Get coordinates from href
       const link = resultCard.closest('a') || resultCard;
       const href = link?.getAttribute('href') || '';
-
       let lat = null;
       let lng = null;
+
       const coordMatch = href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
       if (coordMatch) {
         lat = parseFloat(coordMatch[1]);
@@ -163,7 +126,7 @@ module.exports = async function handler(req, res) {
       }
 
       return {
-        name: name || 'Unknown Place',
+        name: name || 'Unknown',
         address: address || 'Address not found',
         hours: hours || '',
         link: href || null,
