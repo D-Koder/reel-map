@@ -1,39 +1,111 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { getVibe, mapFilters } from '../lib/constants';
-import PlaceThumb from './PlaceThumb';
 
-// Placeholder map until Mapbox arrives in phase 3: pins are laid out from their real
-// coordinates, scaled to fit the box. Bounds use every located place so pins don't jump when filtering.
-function usePinLayout(places) {
-  return useMemo(() => {
-    const located = places.filter((p) => p.venue?.lat != null && p.venue?.lng != null);
-    if (located.length === 0) return { positions: {}, unlocated: places.length };
-
-    const lats = located.map((p) => p.venue.lat);
-    const lngs = located.map((p) => p.venue.lng);
-    const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
-    const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)];
-    const latSpan = maxLat - minLat || 1;
-    const lngSpan = maxLng - minLng || 1;
-
-    // Keep pins clear of the filter chips (top) and the label (bottom).
-    const scale = (value, min, span) => (located.length === 1 ? 0.5 : (value - min) / span);
-    const positions = Object.fromEntries(
-      located.map((p) => [
-        p.id,
-        {
-          top: `${18 + (1 - scale(p.venue.lat, minLat, latSpan)) * 64}%`,
-          left: `${10 + scale(p.venue.lng, minLng, lngSpan) * 76}%`,
-        },
-      ])
-    );
-    return { positions, unlocated: places.length - located.length };
-  }, [places]);
-}
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MELBOURNE_CENTER = [144.9631, -37.8136];
 
 export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
   const [filter, setFilter] = useState('all');
-  const { positions, unlocated } = usePinLayout(places);
+  const [mapError, setMapError] = useState('');
+  const [mapReady, setMapReady] = useState(false);
+  const mapContainer = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const hasFittedBounds = useRef(false);
+  const located = useMemo(
+    () => places.filter((place) => Number.isFinite(place.venue?.lat) && Number.isFinite(place.venue?.lng)),
+    [places]
+  );
+  const visible = located.filter((place) => filter === 'all' || place.category === filter);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    let map;
+    try {
+      map = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: MELBOURNE_CENTER,
+        zoom: 11,
+        attributionControl: true,
+      });
+    } catch (error) {
+      console.error('Mapbox initialization failed:', error);
+      setMapError('Mapbox could not initialize. Check that WebGL is enabled in this browser.');
+      return undefined;
+    }
+    mapRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+    map.on('error', (event) => {
+      if (event.error) setMapError('Mapbox could not load the map. Check the Mapbox token and allowed URLs.');
+    });
+    map.once('load', () => {
+      setMapError('');
+      setMapReady(true);
+    });
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      hasFittedBounds.current = false;
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !map.isStyleLoaded()) return undefined;
+
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = visible.map((place) => {
+      const members = membersOf[place.collection_id] ?? [];
+      const vibe = getVibe(members.map((member) => member.id), place.reactions);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `map-pin mapbox-pin ${vibe.consensus}`;
+      button.setAttribute('aria-label', place.name);
+      button.title = place.name;
+      button.addEventListener('click', () => onOpenPin(place.id));
+
+      const markerContent = document.createElement('span');
+      markerContent.className = `pin-marker ${vibe.consensus}`;
+      if (place.reel_thumbnail_url) {
+        const image = document.createElement('img');
+        image.src = place.reel_thumbnail_url;
+        image.alt = '';
+        image.className = 'map-pin-image';
+        markerContent.append(image);
+      } else {
+        markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
+      }
+      button.append(markerContent);
+
+      return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
+        .setLngLat([place.venue.lng, place.venue.lat])
+        .addTo(map);
+    });
+
+    if (visible.length === 1 && !hasFittedBounds.current) {
+      map.flyTo({ center: [visible[0].venue.lng, visible[0].venue.lat], zoom: 14, essential: true });
+    } else if (visible.length > 1) {
+      const bounds = new mapboxgl.LngLatBounds();
+      visible.forEach((place) => bounds.extend([place.venue.lng, place.venue.lat]));
+      if (!hasFittedBounds.current) {
+        map.fitBounds(bounds, { padding: { top: 100, right: 60, bottom: 80, left: 60 }, maxZoom: 14, duration: 600 });
+      }
+    }
+    if (visible.length) hasFittedBounds.current = true;
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+    };
+  }, [visible, membersOf, onOpenPin, mapReady]);
 
   const selectFilter = (id) => {
     setFilter(id);
@@ -41,11 +113,13 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
     showToast(`🔍 Showing ${label}`);
   };
 
-  const visible = places.filter((p) => positions[p.id] && (filter === 'all' || p.category === filter));
-
   return (
     <div className="screen map-screen">
-      <div className="fake-map">
+      <div className="mapbox-map">
+        {MAPBOX_TOKEN
+          ? <div className="mapbox-canvas" ref={mapContainer} />
+          : <div className="mapbox-message">Add VITE_MAPBOX_TOKEN to enable the interactive map.</div>}
+        {mapError && <div className="mapbox-error" role="status">{mapError}</div>}
         <div className="map-controls" role="toolbar" aria-label="Filter pins">
           {mapFilters.map((f) => (
             <button
@@ -61,29 +135,10 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
 
         <div className="map-title">
           📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}
-          {unlocated > 0 && <span className="map-title-note"> · {unlocated} without a location yet</span>}
+          {places.length - located.length > 0 && (
+            <span className="map-title-note"> · {places.length - located.length} without a location yet</span>
+          )}
         </div>
-
-        {visible.map((p) => {
-          const members = membersOf[p.collection_id] ?? [];
-          const vibe = getVibe(
-            members.map((m) => m.id),
-            p.reactions
-          );
-          return (
-            <button
-              key={p.id}
-              className="map-pin"
-              style={positions[p.id]}
-              onClick={() => onOpenPin(p.id)}
-              aria-label={p.name}
-            >
-              <span className={`pin-marker ${vibe.consensus}`}>
-                <PlaceThumb place={p} className="pin-marker-emoji" />
-              </span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );

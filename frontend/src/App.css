@@ -392,15 +392,40 @@ button {
   overflow: hidden;
 }
 
-.fake-map {
+.mapbox-map {
   flex: 1;
   position: relative;
   overflow: hidden;
   min-height: 0;
-  background:
-    linear-gradient(90deg, rgba(211, 209, 199, 0.35) 1px, transparent 1px) 0 0 / 56px 56px,
-    linear-gradient(rgba(211, 209, 199, 0.35) 1px, transparent 1px) 0 0 / 56px 56px,
-    linear-gradient(135deg, #e8f4f8 0%, #f0f8f0 100%);
+  background: #e8eef0;
+}
+
+.mapbox-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.mapbox-message,
+.mapbox-error {
+  position: absolute;
+  z-index: 5;
+  top: 64px;
+  left: 50%;
+  max-width: min(90%, 440px);
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border-radius: 10px;
+  background: rgba(254, 253, 251, 0.97);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mapbox-error {
+  top: auto;
+  bottom: 52px;
+  color: #a33b26;
 }
 
 /* Floating filter chips, scroll sideways on narrow screens */
@@ -468,19 +493,16 @@ button {
   pointer-events: none;
 }
 
-/* 44px hit area around a 34px visual marker */
+/* Mapbox marker buttons use the same accessible touch target as the old map pins. */
 .map-pin {
-  position: absolute;
   width: var(--tap);
   height: var(--tap);
-  margin: -6px 0 0 -6px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
-  z-index: 10;
   transition: transform 0.15s;
 }
 
@@ -506,6 +528,25 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.mapbox-pin .pin-marker {
+  overflow: hidden;
+  background: var(--accent);
+}
+
+.map-pin-image {
+  width: 100%;
+  height: 100%;
+  border: 2px solid white;
+  border-radius: 50%;
+  object-fit: cover;
+  transform: rotate(45deg) scale(1.05);
+}
+
+.mapboxgl-ctrl-bottom-right {
+  right: calc(8px + var(--safe-right));
+  bottom: calc(52px + var(--safe-bottom));
 }
 
 .pin-marker-emoji.has-image {

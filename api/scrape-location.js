@@ -2,193 +2,184 @@ const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const caption = typeof req.body?.caption === 'string' ? req.body.caption.trim() : '';
+  const placeName = typeof req.body?.placeName === 'string' ? req.body.placeName.trim() : '';
   const location = typeof req.body?.location === 'string' ? req.body.location.trim() : '';
+  const caption = typeof req.body?.caption === 'string' ? req.body.caption.trim() : '';
+  const query = [placeName, location].filter(Boolean).join(' ') || location || caption;
+  if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
-  if (!caption && !location) {
-    return res.status(400).json({ error: 'Provide caption or location text' });
-  }
-
-  // Search with caption but remove emojis and clean up
-  let searchQuery = location || caption;
-  if (searchQuery === caption) {
-    // Remove all emojis and clean up hashtags
-    searchQuery = caption
-      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis
-      .replace(/#[\w]+/g, '') // Remove hashtags
-      .trim();
-  }
-
+  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
   let browser;
   try {
     const isVercel = Boolean(process.env.VERCEL);
-    console.log(`[scrape-location] Starting browser launch for query: ${searchQuery}`);
+    console.log(`[scrape-location] Search query: ${query}`);
     browser = await puppeteer.launch({
       args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: { width: 1280, height: 900 },
-      executablePath: isVercel
-        ? await chromium.executablePath()
-        : process.env.PUPPETEER_EXECUTABLE_PATH,
+      executablePath: isVercel ? await chromium.executablePath() : process.env.PUPPETEER_EXECUTABLE_PATH,
       headless: true,
     });
-    console.log('[scrape-location] Browser launched successfully');
 
     const page = await browser.newPage();
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
+    await page.goto(mapsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
 
-    // Navigate to Google Maps search
-    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
-    console.log(`[scrape-location] Navigating to: ${mapsUrl}`);
-    await page.goto(mapsUrl, { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(err => {
-      console.log('[scrape-location] Page timeout, continuing with partial load:', err.message);
-    });
-    console.log('[scrape-location] Page load attempted');
+    const firstResultSelector = 'a[aria-label][href*="/maps/place/"]';
+    await page.waitForFunction((selector) =>
+      document.querySelector(selector) ||
+      (location.pathname.includes('/maps/place/') && document.querySelector('h1')),
+    { timeout: 25000 }, firstResultSelector).catch(() => {});
+    const firstResult = await page.$(firstResultSelector);
+    const alreadyOnPlaceDetails = !firstResult && await page.evaluate(() =>
+      location.pathname.includes('/maps/place/') && Boolean(document.querySelector('h1'))
+    );
+    if (!firstResult && !alreadyOnPlaceDetails) {
+      const pageState = await page.evaluate(() => ({
+        title: document.title,
+        url: location.href,
+        text: document.body?.innerText?.slice(0, 800) || '',
+        placeLinks: [...document.querySelectorAll('a[href*="/maps/place/"]')].slice(0, 5).map((link) => ({
+          href: link.href,
+          label: link.getAttribute('aria-label'),
+          text: link.innerText,
+        })),
+      }));
+      console.warn('[scrape-location] No result link; Maps page state:', JSON.stringify(pageState));
+      console.warn(`[scrape-location] No Maps results found for: ${query}`);
+      return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+    }
 
-    // Wait for search results to load (max 5 seconds)
-    console.log('[scrape-location] Waiting for results to load...');
-    await page.waitForFunction(() => {
-      // Try multiple selectors to find the result container
-      const selector1 = document.querySelectorAll('[role="region"] [role="button"]');
-      const selector2 = document.querySelectorAll('div[data-msa-name]');
-      const selector3 = document.querySelectorAll('div[data-result-index]');
-      return selector1.length > 0 || selector2.length > 0 || selector3.length > 0;
-    }, { timeout: 5000 }).catch(() => {
-      console.log('[scrape-location] Results wait timeout, continuing anyway');
-    });
+    if (firstResult) {
+      const firstResultLabel = await firstResult.evaluate((element) => element.getAttribute('aria-label') || '');
+      console.log(`[scrape-location] Clicking first result: ${firstResultLabel || '(unnamed result)'}`);
+      await firstResult.click();
+      await page.waitForFunction(() => {
+        const title = document.querySelector('h1');
+        return title?.textContent?.trim() && location.pathname.includes('/maps/place/');
+      }, { timeout: 15000 });
+    } else {
+      // Google Maps can resolve a uniquely matching search directly to its first place page.
+      console.log('[scrape-location] Google Maps routed directly to the matching first place result');
+    }
 
-    // Click the hours dropdown to expand full hours if it exists
-    await page.evaluate(() => {
-      // Look for the hours/opening times section with expand button
-      const hoursButtons = Array.from(document.querySelectorAll('[role="button"]')).filter(btn =>
-        btn.textContent?.match(/closed|open|am|pm|hours/i)
-      );
-      if (hoursButtons.length > 0) {
-        hoursButtons[0].click();
-      }
-    }).catch(() => {});
-
-    // Wait a bit for hours to expand
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Expand the complete weekly schedule using the control's accessible label.
+    const hoursButton = await page.$('[aria-label*="Show open hours" i]');
+    if (hoursButton) {
+      console.log('[scrape-location] Expanding weekly opening hours');
+      await hoursButton.evaluate((element) => {
+        (element.closest('button,[role="button"]') || element).click();
+      }).catch(() => {});
+      await page.waitForFunction(() => document.querySelectorAll('table tr').length >= 7, { timeout: 5000 })
+        .catch(() => {});
+      const hoursState = await page.evaluate(() => ({
+        rows: [...document.querySelectorAll('table tr')].map((row) => row.innerText),
+        buttons: [...document.querySelectorAll('button')]
+          .map((button) => ({ label: button.getAttribute('aria-label'), expanded: button.getAttribute('aria-expanded') }))
+          .filter((button) => /hours/i.test(button.label || '')),
+      }));
+      console.log('[scrape-location] Hours expansion state:', JSON.stringify(hoursState));
+    } else {
+      const pageControls = await page.evaluate(() => [...document.querySelectorAll('button')]
+        .map((button) => button.getAttribute('aria-label') || button.innerText)
+        .filter((label) => /hours|open|closed/i.test(label)));
+      console.log('[scrape-location] Weekly-hours expand control was not present; similar buttons:', pageControls);
+    }
 
     const result = await page.evaluate(() => {
-      // Try multiple strategies to find the result card
-      let resultCard = document.querySelector('[role="region"] [role="button"]');
+      const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
+      const panel = document.querySelector('[role="main"]') || document.querySelector('main') || document;
+      const name = textOf(panel.querySelector('h1'));
+      const subtitle = textOf(panel.querySelector('button[jsaction*="category"]')) ||
+        [...panel.querySelectorAll('button')].map(textOf).find((text) =>
+          /restaurant|cafe|bar|hotel|store|shop|museum|park|venue/i.test(text)
+        ) || '';
 
-      if (!resultCard) {
-        // Fallback: look for data attributes
-        resultCard = document.querySelector('div[data-result-index="0"]');
-      }
+      const addressButton = panel.querySelector('[data-item-id="address"]') ||
+        panel.querySelector('button[aria-label^="Address:"]');
+      const address = textOf(addressButton?.querySelector('.Io6YTe')) ||
+        textOf(addressButton).replace(/^Address:\s*/i, '').replace(/\s*Copy address\s*$/i, '').trim();
 
-      if (!resultCard) {
-        // Fallback: look for the first prominent div with text
-        const mainRegion = document.querySelector('[role="region"]');
-        if (mainRegion) {
-          resultCard = mainRegion.querySelector('[role="button"]');
-        }
-      }
+      const phoneButton = panel.querySelector('[data-item-id^="phone:tel:"]') ||
+        panel.querySelector('button[aria-label^="Phone:"]');
+      const phone = textOf(phoneButton?.querySelector('.Io6YTe')) ||
+        textOf(phoneButton).replace(/^Phone:\s*/i, '').replace(/\s*Copy phone number\s*$/i, '').trim();
 
-      if (!resultCard) return null;
+      const hoursRows = [...panel.querySelectorAll('table tr')].map((row) => {
+        const cells = [...row.querySelectorAll('th, td')].map(textOf).filter(Boolean);
+        if (cells.length < 2) return null;
+        return {
+          days: cells[0].replace(/[\uE000-\uF8FF]/g, '').trim(),
+          time: cells.slice(1).join(' ').replace(/[\uE000-\uF8FF]/g, '').trim(),
+        };
+      }).filter(Boolean);
+      const uniqueHours = [...new Map(hoursRows.map((row) => [row.days, row])).values()];
 
-      // Get all text content and split by lines
-      const allText = resultCard.innerText || resultCard.textContent || '';
-      const lines = allText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-
-      console.log('[scrape-location] Extracted lines:', lines.length);
-      console.log('[scrape-location] First 10 lines:', lines.slice(0, 10));
-
-      // Extract name - first line that's not a rating or special marker
-      let name = '';
-      for (const line of lines) {
-        if (!line.match(/★|⭐|reviews?|rating|[0-9]+\.[0-9]\s*★|opened|closed|open/i) && line.length > 2) {
-          name = line;
-          break;
-        }
-      }
-
-      // Extract address - look for street patterns or state codes (must have multiple words)
-      let address = '';
-      for (const line of lines) {
-        const hasNumber = line.match(/^\d+\s+\w/);  // Starts with number + word (street)
-        const hasState = line.match(/\bVIC\b|\bNSW\b|\bQLD\b|\bWA\b|\bSA\b|\bACT\b|\bNT\b/);  // State
-        const hasPostcode = line.match(/\b\d{4}\b/);  // Postcode
-        const hasComma = line.includes(',');  // Address has comma
-
-        if ((hasNumber || hasState || (hasPostcode && hasComma)) && line.length > 5) {
-          address = line;
-          break;
-        }
-      }
-
-      // Extract hours - collect day names + times
-      const hoursLines = [];
-      for (const line of lines) {
-        if (line.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i) ||
-            line.match(/^(Closed|Open|Opens|Closes)/i) ||
-            line.match(/\d{1,2}:\d{2}\s*[ap]\.?m/i)) {
-          hoursLines.push(line);
-        }
-      }
-
-      let hours = hoursLines.join(' | ');
-
-      // Get coordinates from href
-      const link = resultCard.closest('a') || resultCard;
-      const href = link?.getAttribute('href') || '';
-      let lat = null;
-      let lng = null;
-
-      const coordMatch = href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-      if (coordMatch) {
-        lat = parseFloat(coordMatch[1]);
-        lng = parseFloat(coordMatch[2]);
-      }
-
+      const mapLink = location.href;
+      const coords = mapLink.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
       return {
-        name: name || 'Unknown',
-        address: address || 'Address not found',
-        hours: hours || '',
-        link: href || null,
-        latitude: lat,
-        longitude: lng
+        name,
+        subtitle,
+        address,
+        phone,
+        hours: uniqueHours,
+        mapsUrl: mapLink,
+        latitude: coords ? Number(coords[1]) : null,
+        longitude: coords ? Number(coords[2]) : null,
       };
     });
 
-    if (!result) {
-      return res.status(404).json({
-        error: 'No location found on Google Maps',
-        query: searchQuery
+    const menu = await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll('[role="tab"]')]
+        .map((tab) => (tab.innerText || tab.textContent || '').trim());
+      const menuTab = [...document.querySelectorAll('[role="tab"]')]
+        .find((tab) => /^menu$/i.test((tab.innerText || tab.textContent || '').trim()));
+      if (!menuTab) return { opened: false, tabs };
+      menuTab.click();
+      return { opened: true, tabs };
+    });
+    console.log('[scrape-location] Menu tab state:', JSON.stringify(menu));
+    if (menu.opened) {
+      await page.waitForFunction(() => [...document.querySelectorAll('[role="region"]')]
+        .some((region) => /^menu$/i.test(region.getAttribute('aria-label') || '')),
+      { timeout: 7000 }).catch(() => {});
+    }
+    const menuDetails = await page.evaluate(() => {
+      const menuRegion = [...document.querySelectorAll('[role="region"]')]
+        .find((region) => /^menu$/i.test(region.getAttribute('aria-label') || ''));
+      const links = [...(menuRegion?.querySelectorAll('a[href]') ?? [])];
+      const menuLink = links.find((anchor) => {
+        const text = `${anchor.innerText || ''} ${anchor.getAttribute('aria-label') || ''}`.trim();
+        return /^menu(?:\s|$)/i.test(text) || /drive\.google\.com|menu/i.test(anchor.href);
       });
+      return {
+        url: menuLink?.href || '',
+        text: (menuRegion?.innerText || '').trim(),
+      };
+    });
+    result.menuUrl = menuDetails.url;
+    result.menuText = menuDetails.text;
+
+    if (!result.name) {
+      return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });
+    }
+    if (!result.address) {
+      return res.status(422).json({ error: `Google Maps found "${result.name}" but did not provide an address`, query, mapsUrl: result.mapsUrl });
     }
 
-    console.log('[scrape-location] Extracted result:', {
-      name: result.name,
-      address: result.address,
-      hours: result.hours,
-      latitude: result.latitude,
-      longitude: result.longitude
-    });
-
-    return res.status(200).json({
-      success: true,
-      query: searchQuery,
-      name: result.name,
-      address: result.address,
-      hours: result.hours,
-      latitude: result.latitude,
-      longitude: result.longitude,
-      mapsUrl
-    });
+    const output = { success: true, query, ...result };
+    console.log('[scrape-location] Extracted place details:', JSON.stringify(output, null, 2));
+    return res.status(200).json(output);
   } catch (error) {
-    console.error('Google Maps scrape failed:', error);
+    console.error('[scrape-location] Google Maps scrape failed:', error);
     return res.status(502).json({
-      error: 'Could not fetch location from Google Maps. Try entering location manually.',
-      details: error.message
+      error: 'Could not retrieve place details from Google Maps. Try another search or enter the location manually.',
+      details: error.message,
+      query,
+      mapsUrl,
     });
   } finally {
     await browser?.close().catch(() => {});

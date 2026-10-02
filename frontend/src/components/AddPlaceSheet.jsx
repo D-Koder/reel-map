@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
 
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
 const isValidInstagramReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
@@ -188,6 +190,43 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     e.preventDefault();
     if (!name.trim() || !collectionId) return;
     setSaving(true);
+
+    let venueDetails = mapsData;
+    if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
+      if (!MAPBOX_TOKEN) {
+        addLog('⚠️ Mapbox token is missing; saved address will not have a map pin.', 'error');
+      } else {
+        addLog(`📍 Finding map coordinates for: ${name.trim()}, ${location.trim()}`, 'info');
+        try {
+          const query = [name.trim(), location.trim()].filter(Boolean).join(', ');
+          const geocodeUrl = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
+          geocodeUrl.searchParams.set('access_token', MAPBOX_TOKEN);
+          geocodeUrl.searchParams.set('limit', '1');
+          geocodeUrl.searchParams.set('types', 'address,poi');
+          const response = await fetch(geocodeUrl);
+          if (!response.ok) throw new Error(`Mapbox geocoding returned HTTP ${response.status}`);
+
+          const result = await response.json();
+          const feature = result.features?.[0];
+          if (feature?.center?.length === 2) {
+            venueDetails = {
+              ...venueDetails,
+              latitude: feature.center[1],
+              longitude: feature.center[0],
+              address: venueDetails?.address || location.trim(),
+              name: venueDetails?.name || name.trim(),
+              source: 'mapbox',
+            };
+            addLog(`✅ Coordinates: ${feature.center[1].toFixed(5)}, ${feature.center[0].toFixed(5)} (${feature.place_name || feature.text || 'Mapbox result'})`, 'success');
+          } else {
+            addLog('⚠️ No coordinates found. Place will save without a map pin; add a full street address and try again.', 'error');
+          }
+        } catch (error) {
+          addLog(`⚠️ Address geocoding failed: ${error.message}. Place will save without a map pin.`, 'error');
+        }
+      }
+    }
+
     await onAdd({
       name: name.trim(),
       location: location.trim(),
@@ -195,7 +234,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       collectionId,
       reelUrl: reelUrl.trim(),
       reelThumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl),
-      venueDetails: mapsData,
+      venueDetails,
       feeling
     });
     setSaving(false);
@@ -389,13 +428,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
 
             {/* Location Field */}
             <label className="field">
-              <span className="modal-label">Location</span>
+              <span className="modal-label">Address · used for map pin</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   className="step-input"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. San Francisco, CA"
+                  placeholder="Street address, suburb, city"
                   maxLength={100}
                   disabled={saving}
                   style={{ flex: 1 }}

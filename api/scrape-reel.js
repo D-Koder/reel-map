@@ -41,7 +41,7 @@ function isInstagramReelUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && ['instagram.com', 'www.instagram.com'].includes(url.hostname) &&
-      /^\/reel\/[^/]+\/?$/.test(url.pathname);
+      /^\/(?:reel\/[^/]+|[^/]+\/reel\/[^/]+)\/?$/.test(url.pathname);
   } catch {
     return false;
   }

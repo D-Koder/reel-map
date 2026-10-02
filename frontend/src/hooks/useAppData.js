@@ -145,7 +145,7 @@ export function useAppData(userId, showToast) {
             phone: venueDetails?.phone || null,
             menu_url: venueDetails?.menuUrl || null,
             menu: venueDetails?.menuText ? { text: venueDetails.menuText } : null,
-            source: venueDetails ? 'google_maps' : 'manual',
+            source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
             source_id: venueDetails?.mapsUrl || null,
           })
           .select('id')

@@ -147,11 +147,13 @@ function collectEmbeddedData(html: string, shortcode: string) {
 async function scrapeReel(reelUrl: string) {
   const url = new URL(reelUrl);
   if (url.protocol !== 'https:' || !['instagram.com', 'www.instagram.com'].includes(url.hostname) ||
-      !/^\/reel\/[^/]+\/?$/.test(url.pathname)) {
+      !/^\/(?:reel\/[^/]+|[^/]+\/reel\/[^/]+)\/?$/.test(url.pathname)) {
     throw new Error('Enter a valid https://www.instagram.com/reel/... link');
   }
 
-  const shortcode = url.pathname.split('/').filter(Boolean)[1];
+  const pathParts = url.pathname.split('/').filter(Boolean);
+  const reelSegmentIndex = pathParts.indexOf('reel');
+  const shortcode = pathParts[reelSegmentIndex + 1];
   // Instagram's public oEmbed response includes the post caption, author, and
   // poster image without needing a browser session or a third-party scraper.
   const oembedUrl = new URL('https://www.instagram.com/api/v1/oembed/');
