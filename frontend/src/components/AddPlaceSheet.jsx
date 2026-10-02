@@ -19,6 +19,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [reelUrlInput, setReelUrlInput] = useState('');
   const [urlError, setUrlError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
   const [reelUrl, setReelUrl] = useState('');
@@ -36,23 +37,40 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const addLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setApiLogs(prev => [...prev, { message, type, timestamp }]);
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  };
+
   const scrapeReel = async (url) => {
     setLoading(true);
+    setApiLogs([]);
+    addLog('🔄 Starting to fetch reel data...', 'info');
+
     try {
       const { data, error } = await supabase.functions.invoke('scrape-reel', {
         body: { reelUrl: url }
       });
 
-      if (error) throw error;
+      if (error) {
+        addLog(`❌ API Error: ${error.message}`, 'error');
+        throw error;
+      }
 
       if (data?.success) {
+        addLog(`✅ Successfully scraped reel data`, 'success');
         setScrapedData(data);
         setName(data.caption?.split('\n')[0].substring(0, 80) || '');
         setLocation(data.location || '');
+        addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
+        addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+      } else {
+        addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }
     } catch (error) {
-      console.error('Scrape failed:', error.message);
-      // Still proceed to details even if scrape fails
+      addLog(`❌ Scrape failed: ${error.message}`, 'error');
+      console.error('Scrape error:', error);
     }
     setLoading(false);
   };
@@ -137,14 +155,74 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   ⚠️ {urlError}
                 </span>
               )}
-              {loading && (
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  🔄 Fetching reel info…
-                </span>
-              )}
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+            {/* Loading State with Skeleton */}
+            {loading && (
+              <div style={{
+                padding: '12px',
+                backgroundColor: 'var(--surface-muted)',
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  🔄 Fetching reel info…
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    backgroundColor: 'var(--border)',
+                    borderRadius: '6px',
+                    animation: 'pulse 2s infinite'
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      height: '12px',
+                      backgroundColor: 'var(--border)',
+                      borderRadius: '4px',
+                      marginBottom: '8px',
+                      width: '80%',
+                      animation: 'pulse 2s infinite'
+                    }} />
+                    <div style={{
+                      height: '10px',
+                      backgroundColor: 'var(--border)',
+                      borderRadius: '4px',
+                      width: '60%',
+                      animation: 'pulse 2s infinite'
+                    }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* API Logs Console */}
+            {apiLogs.length > 0 && (
+              <div style={{
+                padding: '10px',
+                backgroundColor: '#1a1a1a',
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                color: '#0f0'
+              }}>
+                {apiLogs.map((log, idx) => (
+                  <div key={idx} style={{
+                    padding: '4px 0',
+                    color: log.type === 'error' ? '#ff6b6b' : log.type === 'success' ? '#51cf66' : '#a0aec0',
+                    borderBottom: '1px solid #2a2a2a'
+                  }}>
+                    <span style={{ color: '#888' }}>[{log.timestamp}]</span> {log.message}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button
                 type="button"
                 className="step-btn full-width"
