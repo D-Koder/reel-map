@@ -13,7 +13,8 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Provide caption or location text' });
   }
 
-  const searchQuery = location || caption;
+  // Always search with full caption for better results
+  const searchQuery = caption || location;
 
   let browser;
   try {
