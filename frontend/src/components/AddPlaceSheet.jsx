@@ -111,6 +111,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       category,
       collectionId,
       reelUrl: reelUrl.trim(),
+      reelThumbnailUrl: scrapedData?.thumbnailUrl || '',
       feeling
     });
     setSaving(false);

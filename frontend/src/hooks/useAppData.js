@@ -130,10 +130,17 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, category, collectionId, reelUrl, feeling }) => {
+    addPlace: async ({ name, category, collectionId, reelUrl, reelThumbnailUrl, feeling }) => {
       const { data, error } = await supabase
         .from('places')
-        .insert({ name, category, collection_id: collectionId, reel_url: reelUrl || null, shared_by: userId })
+        .insert({
+          name,
+          category,
+          collection_id: collectionId,
+          reel_url: reelUrl || null,
+          reel_thumbnail_url: reelThumbnailUrl || null,
+          shared_by: userId,
+        })
         .select('id')
         .single();
       if (error) {
