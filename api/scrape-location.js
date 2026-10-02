@@ -13,8 +13,29 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Provide caption or location text' });
   }
 
-  // Always search with full caption for better results
-  const searchQuery = caption || location;
+  // Extract address from caption (look for postcode or street patterns)
+  let searchQuery = location;
+  if (!searchQuery && caption) {
+    // Look for Australian postcode (4 digits) - usually at end of address
+    const postcodeMatch = caption.match(/\b\d{4}\s*$/m);
+    if (postcodeMatch) {
+      // Extract from that postcode backward to find the full address
+      const index = caption.indexOf(postcodeMatch[0]);
+      const beforePostcode = caption.substring(0, index).trim();
+      // Find the last line break or start of address
+      const addressStart = beforePostcode.lastIndexOf('\n');
+      searchQuery = caption.substring(addressStart === -1 ? 0 : addressStart).trim();
+    } else {
+      // Fallback: look for street address pattern
+      const addressMatch = caption.match(/(\d+[\s\w]+(?:St|Street|Ave|Avenue|Rd|Road|Lane|Crescent|Court|Terr)[\w\s,]*)/i);
+      if (addressMatch) {
+        searchQuery = addressMatch[1];
+      } else {
+        // Last resort: use full caption but clean it
+        searchQuery = caption.replace(/#[\w]+/g, '').replace(/[😍🎉😊]/g, '').trim();
+      }
+    }
+  }
 
   let browser;
   try {
