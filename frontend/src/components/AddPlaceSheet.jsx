@@ -197,31 +197,6 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
               </div>
             )}
 
-            {/* API Logs Console */}
-            {apiLogs.length > 0 && (
-              <div style={{
-                padding: '10px',
-                backgroundColor: '#1a1a1a',
-                borderRadius: '6px',
-                marginBottom: '16px',
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                maxHeight: '150px',
-                overflowY: 'auto',
-                color: '#0f0'
-              }}>
-                {apiLogs.map((log, idx) => (
-                  <div key={idx} style={{
-                    padding: '4px 0',
-                    color: log.type === 'error' ? '#ff6b6b' : log.type === 'success' ? '#51cf66' : '#a0aec0',
-                    borderBottom: '1px solid #2a2a2a'
-                  }}>
-                    <span style={{ color: '#888' }}>[{log.timestamp}]</span> {log.message}
-                  </div>
-                ))}
-              </div>
-            )}
-
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button
                 type="button"
@@ -375,6 +350,45 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
               {saving ? 'Adding…' : 'Add place'}
             </button>
           </form>
+        )}
+
+        {/* API Logs Console - Always Visible */}
+        {apiLogs.length > 0 && (
+          <div style={{
+            marginTop: '16px',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--border)'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: '500',
+              color: 'var(--text-muted)',
+              marginBottom: '8px'
+            }}>
+              API Logs
+            </div>
+            <div style={{
+              padding: '10px',
+              backgroundColor: '#1a1a1a',
+              borderRadius: '6px',
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              maxHeight: '120px',
+              overflowY: 'auto',
+              color: '#0f0'
+            }}>
+              {apiLogs.map((log, idx) => (
+                <div key={idx} style={{
+                  padding: '3px 0',
+                  color: log.type === 'error' ? '#ff6b6b' : log.type === 'success' ? '#51cf66' : '#a0aec0',
+                  borderBottom: '1px solid #2a2a2a',
+                  lineHeight: '1.4'
+                }}>
+                  <span style={{ color: '#888' }}>[{log.timestamp}]</span> {log.message}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
