@@ -87,10 +87,14 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       if (data?.success) {
         addLog(`✅ Successfully scraped reel data`, 'success');
         setScrapedData(data);
-        setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
-        setLocation(data.location || '');
-        addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
+        const extractedName = data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '';
+        const extractedLocation = data.location || '';
+        setName(extractedName);
+        setLocation(extractedLocation);
+        addLog(`📍 Location: ${extractedLocation || 'Not found'}`, 'success');
         addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+        setLoading(false);
+        return { name: extractedName, location: extractedLocation };
       } else {
         addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }
@@ -99,15 +103,16 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       console.error('Scrape error:', error);
     }
     setLoading(false);
+    return null;
   };
 
-  const scrapeLocationFromCaption = async () => {
-    if (!name.trim()) {
+  const scrapeLocationFromCaption = async (placeName = name, placeLocation = location) => {
+    if (!placeName.trim()) {
       addLog('⚠️ Enter a place name first', 'error');
       return;
     }
 
-    const searchQuery = [name, location].filter(Boolean).join(' ') || scrapedData?.caption;
+    const searchQuery = [placeName, placeLocation].filter(Boolean).join(' ') || scrapedData?.caption;
     if (!searchQuery) {
       addLog('⚠️ Enter a place name or address to search', 'error');
       return;
@@ -124,9 +129,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          placeName: name || scrapedData?.placeName,
+          placeName: placeName || scrapedData?.placeName,
           caption: scrapedData?.caption,
-          location: location || scrapedData?.location
+          location: placeLocation || scrapedData?.location
         }),
       });
 
@@ -180,10 +185,15 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     // URL is valid, proceed to step 2
     setReelUrl(trimmedUrl);
     setMapsData(null);
-    await scrapeReel(trimmedUrl);
+
+    // Scrape reel and auto-trigger Maps scraping if successful
+    const result = await scrapeReel(trimmedUrl);
     setTimeout(() => setStep('details'), 300);
-    // Auto-trigger Google Maps scraping after reel data is loaded
-    setTimeout(() => scrapeLocationFromCaption(), 600);
+
+    if (result) {
+      // Auto-trigger Google Maps scraping with extracted name/location
+      setTimeout(() => scrapeLocationFromCaption(result.name, result.location), 600);
+    }
   };
 
   const handleSkipReel = () => {
