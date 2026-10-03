@@ -112,7 +112,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       return;
     }
 
-    const searchQuery = [placeName, placeLocation].filter(Boolean).join(' ') || scrapedData?.caption;
+    // Build search query: prefer location, then just place name (not full caption)
+    // Location usually has the actual place name + suburb, which works better for Maps
+    const searchQuery = placeLocation.trim() || placeName.split('\n')[0].trim() || placeName.trim();
     if (!searchQuery) {
       addLog('⚠️ Enter a place name or address to search', 'error');
       return;
