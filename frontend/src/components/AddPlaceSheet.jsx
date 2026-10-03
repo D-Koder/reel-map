@@ -129,7 +129,6 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          placeName,
           caption,
           location: placeLocation
         }),
