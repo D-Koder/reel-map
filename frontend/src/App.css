@@ -775,7 +775,7 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 100;
+  z-index: 250;
   animation: fadeIn 0.2s ease-out;
 }
 
