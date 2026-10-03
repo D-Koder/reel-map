@@ -32,6 +32,9 @@ ADD COLUMN IF NOT EXISTS menu jsonb,
 ADD COLUMN IF NOT EXISTS source text,
 ADD COLUMN IF NOT EXISTS source_id text;
 
+-- Drop collection_id from places since it's now in collection_places junction table
+ALTER TABLE public.places DROP COLUMN IF EXISTS collection_id;
+
 -- ---------------------------------------------------------------------------
 -- Step 3: Create collection_places junction table (NEW)
 -- ---------------------------------------------------------------------------
