@@ -77,7 +77,7 @@ export function useAppData(userId, showToast) {
   const refresh = useCallback(async () => {
     const [profileRes, collectionsRes, placesRes, orderRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
-      supabase.from('collections').select(COLLECTION_SELECT).order('created_at'),
+      supabase.rpc('get_user_collections'),
       supabase.from('places').select(PLACE_SELECT).order('created_at'),
       supabase.from('place_order').select('place_id, collection_id, position'),
     ]);
@@ -88,11 +88,18 @@ export function useAppData(userId, showToast) {
     }
     // Build order map by (collection_id, place_id)
     setOrder(Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position])));
+
+    // Transform RPC response to match expected format
+    const collections = collectionsRes.data.map(c => ({
+      ...c,
+      collection_members: c.collection_members.map(m => m.profile ? { ...m.profile, role: m.role } : null).filter(Boolean)
+    }));
+
     setState({
       loading: false,
       error: null,
       profile: profileRes.data,
-      collections: collectionsRes.data.map(normaliseCollection),
+      collections: collections.map(normaliseCollection),
       places: placesRes.data.flatMap(normalisePlace),
     });
   }, [userId]);
