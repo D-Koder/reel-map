@@ -94,7 +94,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         addLog(`📍 Location: ${extractedLocation || 'Not found'}`, 'success');
         addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
         setLoading(false);
-        return { name: extractedName, location: extractedLocation };
+        return { name: extractedName, location: extractedLocation, caption: data.caption };
       } else {
         addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }
@@ -106,13 +106,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     return null;
   };
 
-  const scrapeLocationFromCaption = async (placeName = name, placeLocation = location) => {
+  const scrapeLocationFromCaption = async (placeName = name, placeLocation = location, caption = scrapedData?.caption) => {
     if (!placeName.trim()) {
       addLog('⚠️ Enter a place name first', 'error');
       return;
     }
 
-    const searchQuery = [placeName, placeLocation].filter(Boolean).join(' ') || scrapedData?.caption;
+    const searchQuery = [placeName, placeLocation].filter(Boolean).join(' ') || caption;
     if (!searchQuery) {
       addLog('⚠️ Enter a place name or address to search', 'error');
       return;
@@ -129,9 +129,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          placeName: placeName || scrapedData?.placeName,
-          caption: scrapedData?.caption,
-          location: placeLocation || scrapedData?.location
+          placeName,
+          caption,
+          location: placeLocation
         }),
       });
 
@@ -191,8 +191,8 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setTimeout(() => setStep('details'), 300);
 
     if (result) {
-      // Auto-trigger Google Maps scraping with extracted name/location
-      setTimeout(() => scrapeLocationFromCaption(result.name, result.location), 600);
+      // Auto-trigger Google Maps scraping with extracted data
+      setTimeout(() => scrapeLocationFromCaption(result.name, result.location, result.caption), 600);
     }
   };
 
