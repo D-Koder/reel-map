@@ -4,11 +4,11 @@ import { CSS } from '@dnd-kit/utilities';
 import { feelingEmoji, getVibe } from '../lib/constants';
 import PlaceThumb from './PlaceThumb';
 
-export default function PlaceRow({ pin, members, onOpen }) {
+export default function PlaceRow({ pin, members, userId, onOpen }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   });
-  const memberIds = members.map((m) => m.id);
+  const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const votes = memberIds.map((id) => feelingEmoji(pin.reactions[id])).filter(Boolean).join('');
   const isDone = Boolean(pin.visit);

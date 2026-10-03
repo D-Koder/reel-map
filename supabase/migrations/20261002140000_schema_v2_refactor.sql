@@ -58,18 +58,21 @@ CREATE INDEX IF NOT EXISTS idx_collection_places_added_by ON public.collection_p
 -- RLS for collection_places
 ALTER TABLE public.collection_places ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "collection_places: members read"
+DROP POLICY IF EXISTS "collection_places: members read" ON public.collection_places;
+CREATE POLICY "collection_places: members read"
   ON public.collection_places FOR SELECT TO authenticated
   USING (private.is_collection_member(collection_id));
 
-CREATE POLICY IF NOT EXISTS "collection_places: member adds"
+DROP POLICY IF EXISTS "collection_places: member adds" ON public.collection_places;
+CREATE POLICY "collection_places: member adds"
   ON public.collection_places FOR INSERT TO authenticated
   WITH CHECK (
     added_by = (SELECT auth.uid())
     AND private.is_collection_member(collection_id)
   );
 
-CREATE POLICY IF NOT EXISTS "collection_places: adder removes"
+DROP POLICY IF EXISTS "collection_places: adder removes" ON public.collection_places;
+CREATE POLICY "collection_places: adder removes"
   ON public.collection_places FOR DELETE TO authenticated
   USING (added_by = (SELECT auth.uid()));
 
@@ -112,7 +115,8 @@ CREATE INDEX IF NOT EXISTS idx_place_order_place ON public.place_order (place_id
 -- RLS for place_order
 ALTER TABLE public.place_order ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "place_order: own rows"
+DROP POLICY IF EXISTS "place_order: own rows" ON public.place_order;
+CREATE POLICY "place_order: own rows"
   ON public.place_order FOR ALL TO authenticated
   USING (user_id = (SELECT auth.uid()))
   WITH CHECK (

@@ -37,7 +37,7 @@ function Toast({ toast, onDismiss }) {
 
 function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
-  const { acceptInvite } = useInvites(userId, showToast);
+  const { acceptInvite } = useInvites(showToast);
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -158,6 +158,7 @@ function MainApp({ userId, showToast }) {
       <main className="content">
         <section className={`panel panel-home ${screen === 'home' ? 'active' : ''}`}>
           <HomeScreen
+            userId={userId}
             places={data.places}
             collections={data.collections}
             membersOf={membersOf}

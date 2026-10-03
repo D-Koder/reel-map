@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function useInvites(userId, showToast) {
+export function useInvites(showToast) {
   // Generate shareable invite link for a collection
   const generateInviteLink = useCallback(
     async (collectionId) => {
@@ -11,7 +11,6 @@ export function useInvites(userId, showToast) {
           .from('collection_invites')
           .insert({
             collection_id: collectionId,
-            created_by: userId,
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
           })
           .select('id')
@@ -31,7 +30,7 @@ export function useInvites(userId, showToast) {
         return null;
       }
     },
-    [userId, showToast]
+    [showToast]
   );
 
   // Accept an invite and join the collection
@@ -51,7 +50,7 @@ export function useInvites(userId, showToast) {
         return false;
       }
     },
-    [userId, showToast]
+    [showToast]
   );
 
   return { generateInviteLink, acceptInvite };

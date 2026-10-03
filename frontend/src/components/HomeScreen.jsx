@@ -5,6 +5,7 @@ import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifi
 import PlaceRow from './PlaceRow';
 
 export default function HomeScreen({
+  userId,
   places,
   collections,
   membersOf,
@@ -78,7 +79,7 @@ export default function HomeScreen({
                 <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                   <div className="pin-list">
                     {pins.map((pin) => (
-                      <PlaceRow key={pin.id} pin={pin} members={members} onOpen={() => onOpenPin(pin.id)} />
+                      <PlaceRow key={pin.id} pin={pin} members={members} userId={userId} onOpen={() => onOpenPin(pin.id)} />
                     ))}
                   </div>
                 </SortableContext>

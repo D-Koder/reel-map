@@ -57,6 +57,18 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
     };
   }, []);
 
+  // The map panel is mounted while hidden on mobile, so initialize/resize it again
+  // whenever its container becomes visible and receives its real viewport size.
+  useEffect(() => {
+    const container = mapContainer.current;
+    const map = mapRef.current;
+    if (!container || !map || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(() => map.resize());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [mapReady]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !map.isStyleLoaded()) return undefined;

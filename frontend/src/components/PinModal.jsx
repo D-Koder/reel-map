@@ -220,7 +220,15 @@ export default function PinModal({
         {place?.address && (
           <div className="modal-section">
             <div className="modal-label">Address</div>
-            <div className="venue-address">{place.address}</div>
+            <a
+              className="venue-address"
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${place.address} in Google Maps`}
+            >
+              {place.address}
+            </a>
             {place.source_id?.startsWith('https://www.google.com/maps/') && (
               <a className="step-btn secondary full-width" href={place.source_id} target="_blank" rel="noreferrer">
                 📍 Open Google Maps ↗
