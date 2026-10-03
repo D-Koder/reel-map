@@ -78,7 +78,7 @@ export function useAppData(userId, showToast) {
     const [profileRes, collectionsRes, placesRes, orderRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
-      supabase.from('places').select(PLACE_SELECT).order('created_at'),
+      supabase.rpc('get_user_places'),
       supabase.from('place_order').select('place_id, collection_id, position'),
     ]);
     const failed = [profileRes, collectionsRes, placesRes, orderRes].find((r) => r.error);
@@ -95,12 +95,19 @@ export function useAppData(userId, showToast) {
       collection_members: c.collection_members.map(m => m.profile ? { ...m.profile, role: m.role } : null).filter(Boolean)
     }));
 
+    const places = placesRes.data.map(p => ({
+      ...p,
+      reactions: p.reactions || {},
+      booking: p.booking ? p.booking.filter(b => b) : null,
+      collection_places: p.collection_places ? p.collection_places.filter(cp => cp) : []
+    }));
+
     setState({
       loading: false,
       error: null,
       profile: profileRes.data,
       collections: collections.map(normaliseCollection),
-      places: placesRes.data.flatMap(normalisePlace),
+      places: places.flatMap(normalisePlace),
     });
   }, [userId]);
 
