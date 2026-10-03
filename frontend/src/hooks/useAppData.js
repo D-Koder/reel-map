@@ -89,12 +89,6 @@ export function useAppData(userId, showToast) {
     // Build order map by (collection_id, place_id)
     setOrder(Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position])));
 
-    // Transform RPC response to match expected format
-    const collections = collectionsRes.data.map(c => ({
-      ...c,
-      collection_members: c.collection_members.map(m => m.profile ? { ...m.profile, role: m.role } : null).filter(Boolean)
-    }));
-
     const places = placesRes.data.map(p => ({
       ...p,
       reactions: p.reactions || {},
@@ -106,7 +100,7 @@ export function useAppData(userId, showToast) {
       loading: false,
       error: null,
       profile: profileRes.data,
-      collections: collections.map(normaliseCollection),
+      collections: collectionsRes.data.map(normaliseCollection),
       places: places.flatMap(normalisePlace),
     });
   }, [userId]);
@@ -185,14 +179,24 @@ export function useAppData(userId, showToast) {
         p_reel_thumbnail_url: reelThumbnailUrl || null,
         p_source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
         p_source_id: venueDetails?.mapsUrl || null,
-      });
+      }).abortSignal(AbortSignal.timeout(20000));
       if (error) {
-        showToast(`⚠️ ${friendlyError(error)}`);
+        showToast(error.name === 'AbortError' || error.name === 'TimeoutError'
+          ? '⚠️ Saving took too long. Check your connection and try again.'
+          : `⚠️ ${friendlyError(error)}`);
         return null;
       }
       const placeId = data;
-      if (feeling) await supabase.from('reactions').insert({ place_id: placeId, feeling });
-      await refresh();
+      if (feeling) {
+        const { error: reactionError } = await supabase
+          .from('reactions')
+          .insert({ place_id: placeId, feeling })
+          .abortSignal(AbortSignal.timeout(10000));
+        if (reactionError) showToast(`⚠️ Place saved, but vibe didn't save: ${friendlyError(reactionError)}`);
+      }
+      void refresh().catch((refreshError) => {
+        showToast(`⚠️ Place saved, but refresh failed: ${refreshError.message}`);
+      });
       return { id: placeId };
     },
 
