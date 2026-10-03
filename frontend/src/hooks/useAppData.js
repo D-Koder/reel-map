@@ -207,7 +207,7 @@ export function useAppData(userId, showToast) {
       return run(supabase.from('place_order').upsert(rows, { onConflict: 'user_id,collection_id,place_id' }));
     },
 
-    createCollection: (name, emoji = '📌') => run(supabase.from('collections').insert({ name, emoji, owner_id: userId })),
+    createCollection: (name, emoji = '📌') => run(supabase.rpc('create_collection', { p_name: name, p_emoji: emoji })),
     updateCollection: (id, patch) => run(supabase.from('collections').update(patch).eq('id', id)),
 
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
