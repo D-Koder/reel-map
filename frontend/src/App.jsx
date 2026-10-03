@@ -12,7 +12,7 @@ import ShareCollectionModal from './components/ShareCollectionModal';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
-import { configError } from './lib/supabase';
+import { configError, supabase } from './lib/supabase';
 import './App.css';
 
 function Toast({ toast, onDismiss }) {
@@ -102,6 +102,25 @@ function MainApp({ userId, showToast }) {
     if (!(await data.markDone(place.id))) return;
     showToast(`✅ Marked "${place.name}" as done!`);
     setOpenPinId(null);
+  };
+
+  const handleTransferOwnership = async (collectionId, newOwnerId) => {
+    if (await data.transferOwnership(collectionId, newOwnerId)) {
+      showToast('✓ Ownership transferred');
+      return true;
+    }
+    return false;
+  };
+
+  const handleDeleteUser = async () => {
+    setIsDeleting(true);
+    if (await data.deleteUser()) {
+      showToast('Account deleted');
+      setDeleteModalOpen(false);
+      await supabase.auth.signOut();
+    } else {
+      setIsDeleting(false);
+    }
   };
 
   if (data.loading) {
@@ -276,25 +295,6 @@ function App() {
     setToast({ message, action, key: Date.now() });
     toastTimer.current = setTimeout(() => setToast(null), action ? 4000 : 2500);
   }, []);
-
-  const handleTransferOwnership = useCallback(async (collectionId, newOwnerId) => {
-    if (await data.transferOwnership(collectionId, newOwnerId)) {
-      showToast('✓ Ownership transferred');
-      return true;
-    }
-    return false;
-  }, [data, showToast]);
-
-  const handleDeleteUser = useCallback(async () => {
-    setIsDeleting(true);
-    if (await data.deleteUser()) {
-      showToast('Account deleted');
-      setDeleteModalOpen(false);
-      await supabase.auth.signOut();
-    } else {
-      setIsDeleting(false);
-    }
-  }, [data, showToast]);
 
   let body;
   if (configError) {
