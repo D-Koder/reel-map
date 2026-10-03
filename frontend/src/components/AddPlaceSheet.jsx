@@ -34,6 +34,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
+  const [searchingLocations, setSearchingLocations] = useState(false);
+  const [locationCandidates, setLocationCandidates] = useState([]);
+  const [locationSearchDone, setLocationSearchDone] = useState(false);
+  const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -101,62 +105,81 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setLoading(false);
   };
 
+  const requestLocationApi = async (payload) => {
+    const response = await fetch('/api/scrape-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(55000),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Google Maps returned HTTP ${response.status}`);
+    return data;
+  };
+
+  const selectLocationCandidate = async (candidate) => {
+    setLoadingCandidateUrl(candidate.url);
+    try {
+      const data = await requestLocationApi({
+        action: 'details',
+        query: candidate.searchQuery,
+        placeUrl: candidate.url,
+        placeAddress: candidate.address,
+        placeName: candidate.name,
+        location: candidate.address || location || scrapedData?.location || '',
+      });
+      setMapsData(data);
+      setName(data.name || candidate.name);
+      setLocation(data.address || candidate.address || location);
+      setLocationCandidates([]);
+      setLocationSearchDone(false);
+      addLog(`✅ Selected ${data.name}; scraped its place details.`, 'success');
+      addLog(`📍 Address: ${data.address || 'Not listed'}`, 'success');
+      addLog(`🗺️ Google Maps: ${data.mapsUrl || candidate.url}`, 'success');
+    } catch (error) {
+      addLog(`❌ Could not fetch selected place: ${error.message}`, 'error');
+    } finally {
+      setLoadingCandidateUrl(null);
+    }
+  };
+
   const scrapeLocationFromCaption = async () => {
     if (!scrapedData?.caption) {
       console.warn('No caption to scrape location from');
       return;
     }
 
-    const searchQuery = [name || scrapedData.placeName, location || scrapedData.location]
-      .filter(Boolean)
-      .join(' ') || scrapedData.caption;
+    const rawName = name || scrapedData.placeName || '';
+    const captionName = rawName.match(/^\[([^\]]+)\]\([^)]+\)$/)?.[1] || rawName;
+    const venueName = /^@?[\w.]+$/.test(captionName.trim()) && captionName.trim().startsWith('@')
+      ? ''
+      : captionName.trim();
+    const locationQuery = location || scrapedData.location || '';
+    const searchQuery = venueName
+      ? [locationQuery, venueName].filter(Boolean).join(', ')
+      : scrapedData.caption;
     addLog(`🔍 Searching Google Maps for: ${searchQuery}`, 'info');
-    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
-    addLog(`🔗 Maps URL: ${mapsUrl}`, 'info');
-
-    setSaving(true);
+    setLocationCandidates([]);
+    setLocationSearchDone(false);
+    setSearchingLocations(true);
 
     try {
-      const response = await fetch('/api/scrape-location', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          placeName: name || scrapedData.placeName,
-          caption: scrapedData.caption,
-          location: location || scrapedData.location
-        }),
+      const data = await requestLocationApi({
+        action: 'search',
+        query: searchQuery,
+        placeName: venueName,
+        caption: scrapedData.caption,
+        location: locationQuery,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        addLog(`❌ API Error: ${data.error || response.statusText}`, 'error');
-        if (data.details) {
-          addLog(`📝 Details: ${data.details}`, 'error');
-        }
-        throw new Error(data.error);
-      }
-
-      if (data.success) {
-        setMapsData(data);
-        setName(data.name || name);
-        setLocation(data.address);
-        addLog(`✅ Clicked first Google Maps result: ${data.name}`, 'success');
-        addLog(`🏪 Name: ${data.name || 'Not found'}`, 'success');
-        addLog(`🏷️ Subtitle: ${data.subtitle || 'Not listed'}`, 'success');
-        addLog(`📍 Address: ${data.address || 'Not found'}`, 'success');
-        addLog(`🕐 Opening hours: ${data.hours?.length ? JSON.stringify(data.hours) : 'Not listed'}`, 'success');
-        addLog(`📞 Phone: ${data.phone || 'Not listed'}`, 'success');
-        addLog(`🍽️ Menu link: ${data.menuUrl || 'Not listed'}`, 'success');
-        addLog(`📖 Menu details: ${data.menuText || 'Not listed'}`, 'success');
-        addLog(`🌐 Website: ${data.websiteUrl || 'Not listed'}`, 'success');
-        addLog(`🍽️ Reserve a table: ${data.bookingUrl || 'Not listed'}`, 'success');
-        addLog(`🗺️ Google Maps: ${data.mapsUrl || 'Not available'}`, 'success');
-      }
+      const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery }));
+      setLocationSearchDone(true);
+      addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}.`, 'success');
+      if (candidates.length === 1) await selectLocationCandidate(candidates[0]);
+      else setLocationCandidates(candidates);
     } catch (error) {
       addLog(`❌ Could not fetch location: ${error.message}`, 'error');
     } finally {
-      setSaving(false);
+      setSearchingLocations(false);
     }
   };
 
@@ -440,7 +463,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
               <input
                 className="step-input"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setMapsData(null);
+                  setLocationCandidates([]);
+                  setLocationSearchDone(false);
+                }}
                 placeholder="e.g. Wine & Wild"
                 maxLength={80}
                 required
@@ -455,7 +483,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 <input
                   className="step-input"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => {
+                    setLocation(e.target.value);
+                    setMapsData(null);
+                    setLocationCandidates([]);
+                    setLocationSearchDone(false);
+                  }}
                   placeholder="Street address, suburb, city"
                   maxLength={100}
                   disabled={saving}
@@ -465,7 +498,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   <button
                     type="button"
                     onClick={scrapeLocationFromCaption}
-                    disabled={saving}
+                    disabled={saving || searchingLocations || !!loadingCandidateUrl}
                     title="Auto-find location from caption using Google Maps"
                     style={{
                       padding: '8px 12px',
@@ -477,15 +510,57 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                       fontSize: '13px',
                       fontWeight: '500',
                       whiteSpace: 'nowrap',
-                      opacity: saving ? 0.6 : 1,
+                      opacity: saving || searchingLocations || loadingCandidateUrl ? 0.6 : 1,
                       transition: 'opacity 0.2s'
                     }}
                   >
-                    🔍 Find
+                    {searchingLocations ? 'Searching…' : '🔍 Find'}
                   </button>
                 )}
               </div>
             </label>
+
+            {locationCandidates.length > 0 && (
+              <div role="group" aria-label="Google Maps matches" style={{ margin: '-8px 0 16px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  Choose the right place ({locationCandidates.length} found):
+                </div>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {locationCandidates.map((candidate) => (
+                    <button
+                      key={candidate.url}
+                      type="button"
+                      onClick={() => selectLocationCandidate(candidate)}
+                      disabled={saving || !!loadingCandidateUrl}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        textAlign: 'left',
+                        cursor: loadingCandidateUrl ? 'wait' : 'pointer',
+                      }}
+                    >
+                      <strong style={{ display: 'block', fontSize: '14px' }}>
+                        {loadingCandidateUrl === candidate.url ? 'Loading details…' : candidate.name}
+                      </strong>
+                      <span style={{ display: 'block', marginTop: '3px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {[candidate.address, candidate.category, candidate.rating && `★ ${candidate.rating}`]
+                          .filter(Boolean).join(' · ') || candidate.summary || 'Google Maps place'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {locationSearchDone && locationCandidates.length === 0 && (
+              <div role="status" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                No matches. Try editing the address or enter place details manually.
+              </div>
+            )}
 
             {/* Collection & Category */}
             <div className="field-row">

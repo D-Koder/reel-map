@@ -7,10 +7,30 @@ module.exports = async function handler(req, res) {
   const placeName = typeof req.body?.placeName === 'string' ? req.body.placeName.trim() : '';
   const location = typeof req.body?.location === 'string' ? req.body.location.trim() : '';
   const caption = typeof req.body?.caption === 'string' ? req.body.caption.trim() : '';
-  const query = [placeName, location].filter(Boolean).join(' ') || location || caption;
+  const action = req.body?.action;
+  const providedQuery = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
+  const query = (['search', 'details'].includes(action) && providedQuery) ||
+    [location, placeName].filter(Boolean).join(' ') || caption;
   if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
   const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  let selectedPlaceUrl = '';
+  let selectedPlaceSlug = '';
+  let selectedPlaceCoordinates = null;
+  if (action === 'details') {
+    try {
+      const candidateUrl = new URL(req.body?.placeUrl);
+      if (candidateUrl.protocol !== 'https:' || !['google.com', 'www.google.com'].includes(candidateUrl.hostname) ||
+          !candidateUrl.pathname.startsWith('/maps/place/')) {
+        return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
+      }
+      selectedPlaceUrl = candidateUrl.href;
+      selectedPlaceSlug = decodeURIComponent(candidateUrl.pathname.split('/')[3] || '').replace(/\+/g, ' ');
+      selectedPlaceCoordinates = candidateUrl.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    } catch {
+      return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
+    }
+  }
   let browser;
   try {
     const isVercel = Boolean(process.env.VERCEL);
@@ -26,17 +46,104 @@ module.exports = async function handler(req, res) {
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
-    await page.goto(mapsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.goto(mapsUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 25000,
+    });
 
     const firstResultSelector = 'a[aria-label][href*="/maps/place/"]';
-    await page.waitForFunction((selector) =>
-      document.querySelector(selector) ||
-      (location.pathname.includes('/maps/place/') && document.querySelector('h1')),
-    { timeout: 25000 }, firstResultSelector).catch(() => {});
-    const firstResult = await page.$(firstResultSelector);
-    const alreadyOnPlaceDetails = !firstResult && await page.evaluate(() =>
+    if (action === 'search') {
+      await page.waitForFunction((selector) => document.querySelector(selector) ||
+        (location.pathname.includes('/maps/place/') && document.querySelector('h1')),
+        { timeout: 25000 }, firstResultSelector).catch(() => {});
+      const directCandidate = await page.evaluate(() => {
+        const name = document.querySelector('h1')?.textContent?.trim();
+        return location.pathname.includes('/maps/place/') && name
+          ? { name, url: location.href, address: '', category: '', rating: '', summary: '' }
+          : null;
+      });
+      const candidates = directCandidate ? [directCandidate] : await page.$$eval(firstResultSelector, (anchors) => {
+        const seen = new Set();
+        return anchors.flatMap((anchor) => {
+          const url = anchor.href;
+          const name = (anchor.getAttribute('aria-label') || anchor.innerText || '').trim();
+          if (!url || !name || seen.has(url)) return [];
+          seen.add(url);
+
+          let card = anchor.closest('[role="article"]');
+          if (!card) {
+            let parent = anchor.parentElement;
+            for (let depth = 0; parent && depth < 5; depth += 1, parent = parent.parentElement) {
+              const text = (parent.innerText || '').trim();
+              if (text.includes(name) && text.length > name.length && text.length < 700) {
+                card = parent;
+                break;
+              }
+            }
+          }
+          const lines = (card?.innerText || anchor.innerText || '').split('\n').map((line) => line.trim()).filter(Boolean);
+          const summary = [...new Set(lines.filter((line) => line !== name))].slice(0, 5).join(' · ');
+          const address = lines.flatMap((line) => line.split('·').map((part) => part.trim())).find((line) => /\d/.test(line) &&
+            /\b(?:street|st|road|rd|avenue|ave|highway|hwy|drive|dr|lane|ln|court|ct|way|place|pl)\b/i.test(line)) || '';
+          const category = lines.find((line) => line.includes('·'))?.split('·')[0].trim() || '';
+          const rating = lines.find((line) => /^[1-5](?:\.\d)?$/.test(line)) || '';
+          return [{ name, url, address, category, rating, summary }];
+        }).slice(0, 5);
+      });
+
+      if (candidates.length === 0) {
+        const pageState = await page.evaluate(() => ({
+          title: document.title,
+          url: location.href,
+          text: document.body?.innerText?.slice(0, 800) || '',
+        }));
+        console.warn('[scrape-location] No result links; Maps page state:', JSON.stringify(pageState));
+        return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+      }
+
+      return res.status(200).json({ success: true, query, candidates });
+    }
+
+    if (action === 'details') {
+      const normalize = (value) => String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      const alreadySelected = await page.evaluate((targetName) => {
+        const heading = document.querySelector('h1')?.textContent || '';
+        const normalize = (value) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        return location.pathname.includes('/maps/place/') && normalize(heading) === normalize(targetName);
+      }, placeName);
+
+      if (!alreadySelected) {
+        await page.waitForFunction((selector) => document.querySelector(selector),
+          { timeout: 25000 }, firstResultSelector);
+        const resultLinks = await page.$$(firstResultSelector);
+        let selectedResult = null;
+        for (const resultLink of resultLinks) {
+          const candidate = await resultLink.evaluate((anchor) => ({
+            name: anchor.getAttribute('aria-label') || anchor.innerText || '',
+            slug: decodeURIComponent(new URL(anchor.href).pathname.split('/')[3] || '').replace(/\+/g, ' '),
+          }));
+          if (normalize(candidate.name) === normalize(placeName) || normalize(candidate.slug) === normalize(selectedPlaceSlug)) {
+            selectedResult = resultLink;
+            break;
+          }
+        }
+        if (!selectedResult) {
+          return res.status(404).json({ error: `Selected place "${placeName || selectedPlaceSlug}" was not in the search results`, query, mapsUrl });
+        }
+        await selectedResult.click();
+      }
+      await page.waitForFunction(() => document.querySelector('h1')?.textContent?.trim() &&
+        location.pathname.includes('/maps/place/'), { timeout: 15000 });
+    } else {
+      await page.waitForFunction((selector) =>
+        document.querySelector(selector) ||
+        (location.pathname.includes('/maps/place/') && document.querySelector('h1')),
+      { timeout: 25000 }, firstResultSelector).catch(() => {});
+    }
+    const firstResult = action === 'details' ? null : await page.$(firstResultSelector);
+    const alreadyOnPlaceDetails = action === 'details' || (!firstResult && await page.evaluate(() =>
       location.pathname.includes('/maps/place/') && Boolean(document.querySelector('h1'))
-    );
+    ));
     if (!firstResult && !alreadyOnPlaceDetails) {
       const pageState = await page.evaluate(() => ({
         title: document.title,
@@ -69,7 +176,7 @@ module.exports = async function handler(req, res) {
     const result = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const panel = document.querySelector('[role="main"]') || document.querySelector('main') || document;
-      const name = textOf(panel.querySelector('h1'));
+      const name = textOf(panel.querySelector('h1')) || textOf(document.querySelector('h1'));
       const subtitle = textOf(panel.querySelector('button[jsaction*="category"]')) ||
         [...panel.querySelectorAll('button')].map(textOf).find((text) =>
           /restaurant|cafe|bar|hotel|store|shop|museum|park|venue/i.test(text)
@@ -125,6 +232,14 @@ module.exports = async function handler(req, res) {
         longitude: coords ? Number(coords[2]) : null,
       };
     });
+
+    if (action === 'details') {
+      if (!result.address) result.address = req.body?.placeAddress || location;
+      if (selectedPlaceCoordinates) {
+        result.latitude = Number(selectedPlaceCoordinates[1]);
+        result.longitude = Number(selectedPlaceCoordinates[2]);
+      }
+    }
 
     const menu = await page.evaluate(() => {
       const tabs = [...document.querySelectorAll('[role="tab"]')]
@@ -203,7 +318,7 @@ module.exports = async function handler(req, res) {
     if (!result.name) {
       return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });
     }
-    if (!result.address) {
+    if (!result.address && action !== 'details') {
       return res.status(422).json({ error: `Google Maps found "${result.name}" but did not provide an address`, query, mapsUrl: result.mapsUrl });
     }
 
