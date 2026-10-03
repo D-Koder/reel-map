@@ -30,6 +30,12 @@ function friendlyError(error) {
 }
 
 function normalisePlace(row) {
+  const reactions = Array.isArray(row.reactions)
+    ? Object.fromEntries(row.reactions.map((reaction) => [reaction.user_id, reaction.feeling]))
+    : row.reactions && typeof row.reactions === 'object'
+      ? row.reactions
+      : {};
+
   // Create one entry per collection this place belongs to
   const collections = row.collection_places ?? [];
   if (collections.length === 0) {
@@ -41,7 +47,7 @@ function normalisePlace(row) {
       added_at: null,
       position: null,
       booking: row.booking?.[0] || null,
-      reactions: Object.fromEntries((row.reactions ?? []).map((r) => [r.user_id, r.feeling])),
+      reactions,
     }];
   }
   return collections.map((cp) => ({
@@ -51,7 +57,7 @@ function normalisePlace(row) {
     added_at: cp.added_at,
     position: cp.position,
     booking: row.booking?.[0] || null,
-    reactions: Object.fromEntries((row.reactions ?? []).map((r) => [r.user_id, r.feeling])),
+    reactions,
   }));
 }
 
