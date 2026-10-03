@@ -34,6 +34,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
+  const [useCaption, setUseCaption] = useState(true);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -87,10 +88,14 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       if (data?.success) {
         addLog(`✅ Successfully scraped reel data`, 'success');
         setScrapedData(data);
-        setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
-        setLocation(data.location || '');
-        addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
+        const extractedName = data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '';
+        const extractedLocation = data.location || '';
+        setName(extractedName);
+        setLocation(extractedLocation);
+        addLog(`📍 Location: ${extractedLocation || 'Not found'}`, 'success');
         addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+        setLoading(false);
+        return { name: extractedName, location: extractedLocation, caption: data.caption };
       } else {
         addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }
@@ -99,17 +104,24 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       console.error('Scrape error:', error);
     }
     setLoading(false);
+    return null;
   };
 
-  const scrapeLocationFromCaption = async () => {
-    if (!scrapedData?.caption) {
-      console.warn('No caption to scrape location from');
+  const scrapeLocationFromCaption = async (placeName = name, placeLocation = location, caption = scrapedData?.caption) => {
+    if (!placeName.trim()) {
+      addLog('⚠️ Enter a place name first', 'error');
       return;
     }
 
-    const searchQuery = [name || scrapedData.placeName, location || scrapedData.location]
-      .filter(Boolean)
-      .join(' ') || scrapedData.caption;
+    let searchQuery = [placeName, placeLocation].filter(Boolean).join(' ');
+    if (!searchQuery && useCaption && caption) {
+      searchQuery = caption;
+    }
+    if (!searchQuery) {
+      addLog('⚠️ Enter a place name or address to search', 'error');
+      return;
+    }
+
     addLog(`🔍 Searching Google Maps for: ${searchQuery}`, 'info');
     const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
     addLog(`🔗 Maps URL: ${mapsUrl}`, 'info');
@@ -121,9 +133,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          placeName: name || scrapedData.placeName,
-          caption: scrapedData.caption,
-          location: location || scrapedData.location
+          placeName,
+          caption,
+          location: placeLocation
         }),
       });
 
@@ -160,7 +172,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     }
   };
 
-  const handleConfirmReel = () => {
+  const handleConfirmReel = async () => {
     const trimmedUrl = reelUrlInput.trim();
     setUrlError('');
 
@@ -177,8 +189,15 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     // URL is valid, proceed to step 2
     setReelUrl(trimmedUrl);
     setMapsData(null);
-    scrapeReel(trimmedUrl);
+
+    // Scrape reel and auto-trigger Maps scraping if successful
+    const result = await scrapeReel(trimmedUrl);
     setTimeout(() => setStep('details'), 300);
+
+    if (result) {
+      // Auto-trigger Google Maps scraping with extracted data
+      setTimeout(() => scrapeLocationFromCaption(result.name, result.location, result.caption), 600);
+    }
   };
 
   const handleSkipReel = () => {
@@ -406,7 +425,17 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   onClick={() => {
                     const query = [name || scrapedData.placeName, location || scrapedData.location].filter(Boolean).join(' ');
                     const mapsUrl = mapsData?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
-                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    addLog(`🔗 Opening first result: ${mapsUrl}`, 'info');
+                    try {
+                      const mapWindow = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                      if (mapWindow) {
+                        addLog(`✅ Google Maps result opened successfully`, 'success');
+                      } else {
+                        addLog(`⚠️ Google Maps result may be blocked by popup blocker`, 'error');
+                      }
+                    } catch (error) {
+                      addLog(`❌ Failed to open Google Maps result: ${error.message}`, 'error');
+                    }
                   }}
                   title="Open Google Maps location"
                   aria-label="Open Google Maps location"
@@ -455,30 +484,40 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   disabled={saving}
                   style={{ flex: 1 }}
                 />
-                {scrapedData?.caption && (
-                  <button
-                    type="button"
-                    onClick={scrapeLocationFromCaption}
-                    disabled={saving}
-                    title="Auto-find location from caption using Google Maps"
-                    style={{
-                      padding: '8px 12px',
-                      backgroundColor: 'var(--primary)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap',
-                      opacity: saving ? 0.6 : 1,
-                      transition: 'opacity 0.2s'
-                    }}
-                  >
-                    🔍 Find
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={scrapeLocationFromCaption}
+                  disabled={saving || !name.trim()}
+                  title={name.trim() ? "Search Google Maps for address & details" : "Enter a place name first"}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: name.trim() && !saving ? 'pointer' : 'not-allowed',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                    opacity: (saving || !name.trim()) ? 0.6 : 1,
+                    transition: 'opacity 0.2s'
+                  }}
+                >
+                  🔍 Find
+                </button>
               </div>
+              {scrapedData?.caption && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={useCaption}
+                    onChange={(e) => setUseCaption(e.target.checked)}
+                    disabled={saving}
+                    style={{ cursor: saving ? 'not-allowed' : 'pointer' }}
+                  />
+                  Include caption in search
+                </label>
+              )}
             </label>
 
             {/* Collection & Category */}

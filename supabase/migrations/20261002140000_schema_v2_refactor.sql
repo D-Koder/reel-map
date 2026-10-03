@@ -1,4 +1,4 @@
--- Reel Map v2 Schema Refactor
+-- Reel Map v2 Schema Refactor (FIXED)
 -- Changes:
 -- 1. Merge venues into places (dedup by lat/lng)
 -- 2. Create collection_places junction table (places in multiple collections)
@@ -32,12 +32,8 @@ ADD COLUMN IF NOT EXISTS menu jsonb,
 ADD COLUMN IF NOT EXISTS source text,
 ADD COLUMN IF NOT EXISTS source_id text;
 
--- Remove collection_id from places (will be in collection_places)
--- ALTER TABLE public.places DROP COLUMN IF EXISTS collection_id; -- CAUTION: save data first
-
--- Remove shared_by and added_by (will be in collection_places)
--- ALTER TABLE public.places DROP COLUMN IF EXISTS shared_by; -- CAUTION: save data first
--- ALTER TABLE public.places DROP COLUMN IF EXISTS added_by; -- CAUTION: save data first
+-- Drop collection_id from places since it's now in collection_places junction table
+ALTER TABLE public.places DROP COLUMN IF EXISTS collection_id;
 
 -- ---------------------------------------------------------------------------
 -- Step 3: Create collection_places junction table (NEW)
@@ -58,18 +54,21 @@ CREATE INDEX IF NOT EXISTS idx_collection_places_added_by ON public.collection_p
 -- RLS for collection_places
 ALTER TABLE public.collection_places ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "collection_places: members read"
+DROP POLICY IF EXISTS "collection_places: members read" ON public.collection_places;
+CREATE POLICY "collection_places: members read"
   ON public.collection_places FOR SELECT TO authenticated
   USING (private.is_collection_member(collection_id));
 
-CREATE POLICY IF NOT EXISTS "collection_places: member adds"
+DROP POLICY IF EXISTS "collection_places: member adds" ON public.collection_places;
+CREATE POLICY "collection_places: member adds"
   ON public.collection_places FOR INSERT TO authenticated
   WITH CHECK (
     added_by = (SELECT auth.uid())
     AND private.is_collection_member(collection_id)
   );
 
-CREATE POLICY IF NOT EXISTS "collection_places: adder removes"
+DROP POLICY IF EXISTS "collection_places: adder removes" ON public.collection_places;
+CREATE POLICY "collection_places: adder removes"
   ON public.collection_places FOR DELETE TO authenticated
   USING (added_by = (SELECT auth.uid()));
 
@@ -81,21 +80,13 @@ ALTER TABLE public.bookings
 ADD COLUMN IF NOT EXISTS done_at timestamptz,
 ADD COLUMN IF NOT EXISTS marked_by uuid REFERENCES public.profiles (id) ON DELETE CASCADE;
 
--- Remove place_id PK constraint to allow flexible structure
--- Current: place_id is PK (one booking per place)
--- This stays the same - one booking per place, but now also tracks visit
-
 -- Create index for marked_by
 CREATE INDEX IF NOT EXISTS idx_bookings_marked_by ON public.bookings (marked_by);
-
--- Update RLS for bookings to include visit marking
--- (existing policies should still work)
 
 -- ---------------------------------------------------------------------------
 -- Step 5: Update place_order to include collection_id
 -- ---------------------------------------------------------------------------
 -- Drop old place_order if it only has user_id + place_id
--- Create new place_order with collection context
 DROP TABLE IF EXISTS public.place_order;
 
 CREATE TABLE public.place_order (
@@ -112,7 +103,8 @@ CREATE INDEX IF NOT EXISTS idx_place_order_place ON public.place_order (place_id
 -- RLS for place_order
 ALTER TABLE public.place_order ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "place_order: own rows"
+DROP POLICY IF EXISTS "place_order: own rows" ON public.place_order;
+CREATE POLICY "place_order: own rows"
   ON public.place_order FOR ALL TO authenticated
   USING (user_id = (SELECT auth.uid()))
   WITH CHECK (
@@ -121,25 +113,11 @@ CREATE POLICY IF NOT EXISTS "place_order: own rows"
   );
 
 -- ---------------------------------------------------------------------------
--- Step 6: Remove old venues table (after data migration)
--- ---------------------------------------------------------------------------
--- NOTE: Only run after migrating data to places
--- DROP TABLE IF EXISTS public.venues CASCADE;
-
--- ---------------------------------------------------------------------------
--- Step 7: Remove old place_visits table (after data merge into bookings)
--- ---------------------------------------------------------------------------
--- NOTE: Only run after migrating data to bookings
--- DROP TABLE IF EXISTS public.place_visits CASCADE;
-
--- ---------------------------------------------------------------------------
--- Step 8: Helper function to update streak on activity
+-- Step 6: Helper function to update streak on activity
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.update_streak_on_visit(p_user_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-  -- Simple implementation: increment streak when user marks place as done
-  -- More sophisticated logic would track consecutive weeks
   UPDATE public.profiles
   SET
     current_streak = current_streak + 1,
@@ -153,7 +131,7 @@ REVOKE EXECUTE ON FUNCTION public.update_streak_on_visit(uuid) FROM public, anon
 GRANT EXECUTE ON FUNCTION public.update_streak_on_visit(uuid) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- Step 9: Create function to add place to collection (dedup + create)
+-- Step 7: Create function to add place to collection (dedup + create)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.add_place_to_collection(
   p_collection_id uuid,
@@ -210,7 +188,7 @@ REVOKE EXECUTE ON FUNCTION public.add_place_to_collection(uuid, text, text, doub
 GRANT EXECUTE ON FUNCTION public.add_place_to_collection(uuid, text, text, double precision, double precision, text, jsonb, text, text, text, text, text, text) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- Step 10: Update sample data function for new schema
+-- Step 8: Update sample data function for new schema
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.create_sample_data()
 RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
@@ -304,7 +282,7 @@ REVOKE EXECUTE ON FUNCTION public.create_sample_data() FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.create_sample_data() TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- Step 11: Enable realtime for new tables
+-- Step 9: Enable realtime for new tables
 -- ---------------------------------------------------------------------------
 ALTER PUBLICATION supabase_realtime ADD TABLE
   public.collection_places,
