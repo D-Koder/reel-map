@@ -15,7 +15,7 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
   const markersRef = useRef([]);
   const hasFittedBounds = useRef(false);
   const located = useMemo(
-    () => places.filter((place) => Number.isFinite(place.venue?.lat) && Number.isFinite(place.venue?.lng)),
+    () => places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)),
     [places]
   );
   const visible = located.filter((place) => filter === 'all' || place.category === filter);
@@ -86,15 +86,15 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
       button.append(markerContent);
 
       return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
-        .setLngLat([place.venue.lng, place.venue.lat])
+        .setLngLat([place.lng, place.lat])
         .addTo(map);
     });
 
     if (visible.length === 1 && !hasFittedBounds.current) {
-      map.flyTo({ center: [visible[0].venue.lng, visible[0].venue.lat], zoom: 14, essential: true });
+      map.flyTo({ center: [visible[0].lng, visible[0].lat], zoom: 14, essential: true });
     } else if (visible.length > 1) {
       const bounds = new mapboxgl.LngLatBounds();
-      visible.forEach((place) => bounds.extend([place.venue.lng, place.venue.lat]));
+      visible.forEach((place) => bounds.extend([place.lng, place.lat]));
       if (!hasFittedBounds.current) {
         map.fitBounds(bounds, { padding: { top: 100, right: 60, bottom: 80, left: 60 }, maxZoom: 14, duration: 600 });
       }
