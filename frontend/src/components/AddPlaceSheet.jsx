@@ -34,6 +34,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
+  const [useCaption, setUseCaption] = useState(true);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -112,7 +113,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       return;
     }
 
-    const searchQuery = [placeName, placeLocation].filter(Boolean).join(' ') || caption;
+    let searchQuery = [placeName, placeLocation].filter(Boolean).join(' ');
+    if (!searchQuery && useCaption && caption) {
+      searchQuery = caption;
+    }
     if (!searchQuery) {
       addLog('⚠️ Enter a place name or address to search', 'error');
       return;
@@ -421,7 +425,17 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   onClick={() => {
                     const query = [name || scrapedData.placeName, location || scrapedData.location].filter(Boolean).join(' ');
                     const mapsUrl = mapsData?.mapsUrl || `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
-                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    addLog(`🔗 Opening first result: ${mapsUrl}`, 'info');
+                    try {
+                      const mapWindow = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                      if (mapWindow) {
+                        addLog(`✅ Google Maps result opened successfully`, 'success');
+                      } else {
+                        addLog(`⚠️ Google Maps result may be blocked by popup blocker`, 'error');
+                      }
+                    } catch (error) {
+                      addLog(`❌ Failed to open Google Maps result: ${error.message}`, 'error');
+                    }
                   }}
                   title="Open Google Maps location"
                   aria-label="Open Google Maps location"
@@ -492,6 +506,18 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   🔍 Find
                 </button>
               </div>
+              {scrapedData?.caption && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={useCaption}
+                    onChange={(e) => setUseCaption(e.target.checked)}
+                    disabled={saving}
+                    style={{ cursor: saving ? 'not-allowed' : 'pointer' }}
+                  />
+                  Include caption in search
+                </label>
+              )}
             </label>
 
             {/* Collection & Category */}
