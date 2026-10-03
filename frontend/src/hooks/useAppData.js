@@ -212,6 +212,11 @@ export function useAppData(userId, showToast) {
 
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
 
+    transferOwnership: (collectionId, newOwnerId) =>
+      run(supabase.rpc('transfer_collection_ownership', { p_collection_id: collectionId, p_new_owner_id: newOwnerId })),
+
+    deleteUser: () => run(supabase.rpc('delete_user')),
+
     createSampleData: () => run(supabase.rpc('create_sample_data')),
   };
 

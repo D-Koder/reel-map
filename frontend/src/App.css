@@ -1228,6 +1228,21 @@ select.step-input {
   background: #b82e2e;
 }
 
+.step-btn.danger {
+  background: #d93a3a;
+  color: white;
+}
+
+.step-btn.danger:active {
+  background: #b82e2e;
+}
+
+.step-btn.danger:disabled {
+  background: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+
 @media (min-width: 600px) {
   .confirm-overlay {
     align-items: center;
@@ -1835,4 +1850,123 @@ select.step-input {
   .toast {
     bottom: 24px;
   }
+}
+
+/* DELETE ACCOUNT MODAL */
+.delete-account-modal {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.orphan-warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+  color: #664d03;
+}
+
+.collections-to-orphan {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.orphan-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-muted);
+}
+
+.orphan-item.transferred {
+  background: #d4edda;
+  border-color: #28a745;
+}
+
+.orphan-collection-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.orphan-collection-members {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.transfer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transfer-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.transfer-btn:hover {
+  background: var(--surface-muted);
+  border-color: var(--text-muted);
+}
+
+.transfer-btn:active {
+  background: var(--text);
+  color: white;
+}
+
+.transfer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transfer-success {
+  padding: 8px 12px;
+  background: #d4edda;
+  border: 1px solid #28a745;
+  border-radius: 6px;
+  color: #155724;
+  font-size: 13px;
+  text-align: center;
+}
+
+.no-members {
+  padding: 8px 12px;
+  background: var(--surface-muted);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.modal-body {
+  padding: 12px 0;
+}
+
+.modal-body > p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.modal-body > p.warning {
+  color: #d93a3a;
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
 }

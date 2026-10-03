@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AVATARS } from '../lib/constants';
+import DeleteAccountModal from './DeleteAccountModal';
 
 function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare }) {
   const [editing, setEditing] = useState(false);
@@ -75,7 +76,7 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
   );
 }
 
-function ProfileSection({ profile, email, onUpdateProfile }) {
+function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
   const [name, setName] = useState(profile.display_name);
   const [pickingAvatar, setPickingAvatar] = useState(false);
 
@@ -129,6 +130,9 @@ function ProfileSection({ profile, email, onUpdateProfile }) {
       <button className="step-btn secondary full-width" onClick={() => supabase.auth.signOut()}>
         Log out
       </button>
+      <button className="step-btn danger full-width" onClick={onDeleteClick}>
+        Delete Account
+      </button>
     </div>
   );
 }
@@ -144,9 +148,13 @@ export default function SettingsDrawer({
   onUpdateProfile,
   showToast,
   onShare,
+  onTransferOwnership,
+  onDeleteUser,
 }) {
   const [newName, setNewName] = useState('');
   const [email, setEmail] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   React.useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ''));
@@ -172,6 +180,25 @@ export default function SettingsDrawer({
     }
   };
 
+  const handleTransferOwnership = async (collectionId, newOwnerId) => {
+    if (await onTransferOwnership(collectionId, newOwnerId)) {
+      showToast('✓ Ownership transferred');
+      return true;
+    }
+    return false;
+  };
+
+  const handleDeleteUser = async () => {
+    setIsDeleting(true);
+    if (await onDeleteUser()) {
+      showToast('Account deleted');
+      setDeleteModalOpen(false);
+      await supabase.auth.signOut();
+    } else {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <>
       <div className={`overlay-bg ${open ? 'open' : ''}`} onClick={onClose} />
@@ -184,7 +211,7 @@ export default function SettingsDrawer({
         </div>
 
         <div className="settings-content">
-          {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} />}
+          {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} onDeleteClick={() => setDeleteModalOpen(true)} />}
 
           <div className="settings-section">
             <div className="settings-section-title">📁 Collections</div>
@@ -220,6 +247,16 @@ export default function SettingsDrawer({
           </div>
         </div>
       </div>
+
+      <DeleteAccountModal
+        open={deleteModalOpen}
+        onClose={() => !isDeleting && setDeleteModalOpen(false)}
+        userId={userId}
+        collections={collections}
+        onTransferOwnership={handleTransferOwnership}
+        onConfirmDelete={handleDeleteUser}
+        isDeleting={isDeleting}
+      />
     </>
   );
 }

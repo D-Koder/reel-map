@@ -186,6 +186,8 @@ function MainApp({ userId, showToast }) {
         onUpdateProfile={data.updateProfile}
         showToast={showToast}
         onShare={setShareModal}
+        onTransferOwnership={data.transferOwnership}
+        onDeleteUser={data.deleteUser}
       />
 
       <NotificationPanel
