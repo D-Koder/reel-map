@@ -5,6 +5,7 @@ import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
 import AddPlaceSheet from './components/AddPlaceSheet';
 import SettingsDrawer from './components/SettingsDrawer';
+import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import ShareCollectionModal from './components/ShareCollectionModal';
@@ -45,6 +46,8 @@ function MainApp({ userId, showToast }) {
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [shareModal, setShareModal] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const membersOf = useMemo(
     () => Object.fromEntries(data.collections.map((c) => [c.id, c.members])),
@@ -186,8 +189,17 @@ function MainApp({ userId, showToast }) {
         onUpdateProfile={data.updateProfile}
         showToast={showToast}
         onShare={setShareModal}
-        onTransferOwnership={data.transferOwnership}
-        onDeleteUser={data.deleteUser}
+        onOpenDeleteModal={() => setDeleteModalOpen(true)}
+      />
+
+      <DeleteAccountModal
+        open={deleteModalOpen}
+        onClose={() => !isDeleting && setDeleteModalOpen(false)}
+        userId={userId}
+        collections={data.collections}
+        onTransferOwnership={handleTransferOwnership}
+        onConfirmDelete={handleDeleteUser}
+        isDeleting={isDeleting}
       />
 
       <NotificationPanel
@@ -264,6 +276,25 @@ function App() {
     setToast({ message, action, key: Date.now() });
     toastTimer.current = setTimeout(() => setToast(null), action ? 4000 : 2500);
   }, []);
+
+  const handleTransferOwnership = useCallback(async (collectionId, newOwnerId) => {
+    if (await data.transferOwnership(collectionId, newOwnerId)) {
+      showToast('✓ Ownership transferred');
+      return true;
+    }
+    return false;
+  }, [data, showToast]);
+
+  const handleDeleteUser = useCallback(async () => {
+    setIsDeleting(true);
+    if (await data.deleteUser()) {
+      showToast('Account deleted');
+      setDeleteModalOpen(false);
+      await supabase.auth.signOut();
+    } else {
+      setIsDeleting(false);
+    }
+  }, [data, showToast]);
 
   let body;
   if (configError) {
