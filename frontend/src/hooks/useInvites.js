@@ -1,20 +1,36 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function useInvites(showToast) {
+export function useInvites(userId, showToast) {
   // Generate shareable invite link for a collection
   const generateInviteLink = useCallback(
     async (collectionId) => {
       try {
         // The insert policy only permits collection owners to create invites.
-        const { data, error } = await supabase
+        const invite = {
+          collection_id: collectionId,
+          code: crypto.randomUUID(),
+          invited_by: userId,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        let { data, error } = await supabase
           .from('collection_invites')
-          .insert({
-            collection_id: collectionId,
-            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-          })
+          .insert(invite)
           .select('id')
           .single();
+
+        // Newer schemas use created_by and no longer include legacy code/invited_by.
+        if (error && /(?:code|invited_by).*(?:column|schema cache)|column.*(?:code|invited_by)/i.test(error.message)) {
+          ({ data, error } = await supabase
+            .from('collection_invites')
+            .insert({
+              collection_id: collectionId,
+              created_by: userId,
+              expires_at: invite.expires_at,
+            })
+            .select('id')
+            .single());
+        }
 
         if (error) throw error;
 
@@ -22,15 +38,15 @@ export function useInvites(showToast) {
         const inviteCode = data.id;
         const inviteUrl = `${window.location.origin}?invite=${inviteCode}`;
 
-        showToast('✅ Invite link copied!');
+        if (typeof showToast === 'function') showToast('✅ Invite link copied!');
         return inviteUrl;
       } catch (error) {
         console.error('Failed to generate invite:', error);
-        showToast(`❌ ${error.message}`);
+        if (typeof showToast === 'function') showToast(`❌ ${error.message}`);
         return null;
       }
     },
-    [showToast]
+    [userId, showToast]
   );
 
   // Accept an invite and join the collection
@@ -42,11 +58,13 @@ export function useInvites(showToast) {
         });
         if (error) throw error;
 
-        showToast(joined ? '🎉 Successfully joined the collection!' : '✅ You already have access to this collection');
+        if (typeof showToast === 'function') {
+          showToast(joined ? '🎉 Successfully joined the collection!' : '✅ You already have access to this collection');
+        }
         return true;
       } catch (error) {
         console.error('Failed to accept invite:', error);
-        showToast(`❌ ${error.message}`);
+        if (typeof showToast === 'function') showToast(`❌ ${error.message}`);
         return false;
       }
     },

@@ -60,13 +60,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       let data;
       let error;
       if (import.meta.env.PROD) {
-        const response = await fetch('/api/scrape-reel', {
+        const response = await fetch('/api/enrich-reel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reelUrl: url }),
         });
         data = await response.json().catch(() => ({}));
-        if (!response.ok) error = new Error(data.error || `Scraper returned HTTP ${response.status}`);
+        if (!response.ok) error = new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
       } else {
         ({ data, error } = await supabase.functions.invoke('scrape-reel', {
           body: { reelUrl: url }
@@ -95,6 +95,22 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         setLocation(data.location || '');
         addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
         addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+        if (data.maps) {
+          const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
+          if (data.maps.details) {
+            setMapsData(data.maps.details);
+            setName(data.maps.details.name || data.placeName || name);
+            setLocation(data.maps.details.address || data.location || '');
+            addLog(`✅ Google Maps matched ${data.maps.details.name}.`, 'success');
+            addLog(`📍 Address: ${data.maps.details.address || 'Not listed'}`, 'success');
+          } else if (candidates.length) {
+            setLocationCandidates(candidates);
+            setLocationSearchDone(true);
+            addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
+          } else if (data.maps.error) {
+            addLog(`⚠️ Google Maps: ${data.maps.error}`, 'error');
+          }
+        }
       } else {
         addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }

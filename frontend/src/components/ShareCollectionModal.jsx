@@ -58,15 +58,20 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                     borderRadius: '6px',
                   }}
                 >
-                  <img
-                    src={member.avatar}
-                    alt={member.display_name}
+                  <span
+                    aria-label={`${member.display_name}'s avatar`}
                     style={{
                       width: '32px',
                       height: '32px',
                       borderRadius: '50%',
+                      display: 'grid',
+                      placeItems: 'center',
+                      backgroundColor: '#fff',
+                      fontSize: '20px',
                     }}
-                  />
+                  >
+                    {member.avatar}
+                  </span>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '500' }}>{member.display_name}</div>
                     <div style={{ fontSize: '11px', color: '#888780' }}>

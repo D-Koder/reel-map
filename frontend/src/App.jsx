@@ -37,7 +37,7 @@ function Toast({ toast, onDismiss }) {
 
 function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
-  const { acceptInvite } = useInvites(showToast);
+  const { acceptInvite } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
