@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
 
@@ -57,21 +56,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     addLog('🔄 Starting to fetch reel data...', 'info');
 
     try {
-      let data;
-      let error;
-      if (import.meta.env.PROD) {
-        const response = await fetch('/api/enrich-reel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reelUrl: url }),
-        });
-        data = await response.json().catch(() => ({}));
-        if (!response.ok) error = new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
-      } else {
-        ({ data, error } = await supabase.functions.invoke('scrape-reel', {
-          body: { reelUrl: url }
-        }));
-      }
+      const response = await fetch('/api/enrich-reel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reelUrl: url }),
+      });
+      const data = await response.json().catch(() => ({}));
+      const error = response.ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
 
       if (error) {
         let detail = error.message;

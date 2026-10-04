@@ -31,7 +31,12 @@ module.exports = async function handler(req, res) {
   }
 
   const reel = reelResponse.body;
-  const query = [reel.placeName, reel.location].filter(Boolean).join(', ') || reel.caption || reel.creator || '';
+  const placeName = String(reel.placeName || '').replace(/^@/, '');
+  const locationLine = reel.caption.split(/\r?\n/).find((line) => /^\s*[📍📌]/u.test(line))?.trim();
+  const searchCaption = locationLine
+    ? `${locationLine}\n${reel.caption.replace(/^\s*[📍📌].*(?:\r?\n|$)/mu, '').trim()}`
+    : reel.caption;
+  const query = searchCaption || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   if (!query) {
     return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
@@ -53,12 +58,17 @@ module.exports = async function handler(req, res) {
   const candidates = searchResponse.body.candidates || [];
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
   let selectedCandidate = null;
-  if (req.body?.mapsPlaceUrl) {
+  if (typeof req.selectCandidate === 'function') {
+    const choice = await req.selectCandidate(candidates);
+    selectedCandidate = candidates.find((candidate) => candidate.url === choice?.url) || null;
+  } else if (req.body?.mapsPlaceUrl) {
     selectedCandidate = candidates.find((candidate) => candidate.url === req.body.mapsPlaceUrl) || null;
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && candidates.length === 1) selectedCandidate = candidates[0];
+  if (!selectedCandidate && typeof req.selectCandidate !== 'function' && candidates.length === 1) {
+    selectedCandidate = candidates[0];
+  }
 
   let details = null;
   let detailsError = null;

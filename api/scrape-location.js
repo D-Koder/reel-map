@@ -13,7 +13,7 @@ module.exports = async function handler(req, res) {
     [location, placeName].filter(Boolean).join(' ') || caption;
   if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
-  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   let selectedPlaceUrl = '';
   let selectedPlaceSlug = '';
   let selectedPlaceCoordinates = null;
@@ -39,14 +39,14 @@ module.exports = async function handler(req, res) {
       args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: { width: 1280, height: 900 },
       executablePath: isVercel ? await chromium.executablePath() : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: true,
+      headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
     });
 
     const page = await browser.newPage();
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
-    await page.goto(mapsUrl, {
+    await page.goto(action === 'details' ? selectedPlaceUrl : mapsUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 25000,
     });
@@ -334,6 +334,11 @@ module.exports = async function handler(req, res) {
       mapsUrl,
     });
   } finally {
-    await browser?.close().catch(() => {});
+    if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
+      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
+      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__.push(browser);
+    } else {
+      await browser?.close().catch(() => {});
+    }
   }
 };

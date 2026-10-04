@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
       executablePath: isVercel
         ? await chromium.executablePath()
         : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: true,
+      headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
     });
 
     const page = await browser.newPage();
@@ -148,6 +148,11 @@ module.exports = async function handler(req, res) {
     console.error('Reel DOM scrape failed:', error);
     return res.status(502).json({ error: 'Instagram did not provide the Reel page data. Try again or enter the place details manually.' });
   } finally {
-    await browser?.close().catch(() => {});
+    if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
+      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
+      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__.push(browser);
+    } else {
+      await browser?.close().catch(() => {});
+    }
   }
 };
