@@ -19,9 +19,8 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
   if (!open) return null;
 
   return (
-    <>
-      <div className="modal-overlay" onClick={onClose} />
-      <div className="modal delete-account-modal">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal delete-account-modal" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <span>Delete Account</span>
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
@@ -100,6 +99,6 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
