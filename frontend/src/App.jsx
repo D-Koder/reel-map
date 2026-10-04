@@ -43,6 +43,7 @@ function MainApp({ userId, showToast }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [openPinId, setOpenPinId] = useState(null);
+  const mapScreenRef = useRef(null);
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [shareModal, setShareModal] = useState(null);
@@ -57,6 +58,11 @@ function MainApp({ userId, showToast }) {
   const streak = useMemo(() => {
     return data.profile?.current_streak ?? 0;
   }, [data.profile]);
+
+  const closePin = () => {
+    mapScreenRef.current?.markModalClosing();
+    setOpenPinId(null);
+  };
 
   // Handle invite codes from URL
   useEffect(() => {
@@ -89,7 +95,7 @@ function MainApp({ userId, showToast }) {
   const deletePlace = async (place) => {
     if (!(await data.deletePlace(place.id))) return;
     addNotification('deleted', `Deleted "${place.name}"`, '🗑️');
-    setOpenPinId(null);
+    closePin();
     showToast(`🗑️ Deleted "${place.name}"`, {
       label: 'Undo',
       onClick: async () => {
@@ -101,7 +107,7 @@ function MainApp({ userId, showToast }) {
   const markDone = async (place) => {
     if (!(await data.markDone(place.id))) return;
     showToast(`✅ Marked "${place.name}" as done!`);
-    setOpenPinId(null);
+    closePin();
   };
 
   const handleTransferOwnership = async (collectionId, newOwnerId) => {
@@ -177,7 +183,7 @@ function MainApp({ userId, showToast }) {
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen places={data.places} membersOf={membersOf} onOpenPin={setOpenPinId} showToast={showToast} />
+          <MapScreen ref={mapScreenRef} places={data.places} membersOf={membersOf} onOpenPin={setOpenPinId} showToast={showToast} />
         </section>
       </main>
 
@@ -207,6 +213,8 @@ function MainApp({ userId, showToast }) {
         onCreateCollection={data.createCollection}
         onUpdateCollection={data.updateCollection}
         onUpdateProfile={data.updateProfile}
+        onRemoveCollectionMember={data.removeCollectionMember}
+        onDeleteCollection={data.deleteCollection}
         showToast={showToast}
         onShare={setShareModal}
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
@@ -240,7 +248,7 @@ function MainApp({ userId, showToast }) {
           onMarkDone={() => markDone(openPin)}
           onEdit={() => setEditPinId(openPin.id)}
           onDelete={() => deletePlace(openPin)}
-          onClose={() => setOpenPinId(null)}
+          onClose={closePin}
           showToast={showToast}
         />
       )}

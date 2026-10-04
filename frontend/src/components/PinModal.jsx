@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
+import { DEFAULT_AVATAR_URL, feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 
@@ -176,7 +176,7 @@ export default function PinModal({
               const feeling = feelings.find((f) => f.id === place.reactions[person.id]);
               return (
                 <div className={`person-row ${mine ? 'mine' : ''}`} key={person.id}>
-                  <span className="person-avatar">{person.avatar}</span>
+                      <span className="person-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : person.avatar === '🙂' ? <img src={DEFAULT_AVATAR_URL} alt="" /> : person.avatar}</span>
                   <span className="person-name">
                     {mine ? 'You' : person.display_name}
                     {person.id === place.shared_by && <span className="person-tag">shared reel</span>}

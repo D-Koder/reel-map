@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useInvites } from '../hooks/useInvites';
+import { DEFAULT_AVATAR_URL } from '../lib/constants';
 
 export default function ShareCollectionModal({ collection, userId, onClose, showToast }) {
   const { generateInviteLink } = useInvites(userId, showToast);
@@ -70,7 +71,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                       fontSize: '20px',
                     }}
                   >
-                    {member.avatar}
+                    {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}
                   </span>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '500' }}>{member.display_name}</div>

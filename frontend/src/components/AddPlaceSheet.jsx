@@ -33,10 +33,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
-  const [searchingLocations, setSearchingLocations] = useState(false);
   const [locationCandidates, setLocationCandidates] = useState([]);
   const [locationSearchDone, setLocationSearchDone] = useState(false);
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
+  const [verifyResults, setVerifyResults] = useState(null);
+  const [verifyCandidate, setVerifyCandidate] = useState(null);
+  const [verifyingLocation, setVerifyingLocation] = useState(false);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -124,7 +126,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     return data;
   };
 
-  const selectLocationCandidate = async (candidate) => {
+  const selectLocationCandidate = async (candidate, preserveName = false) => {
     setLoadingCandidateUrl(candidate.url);
     try {
       const data = await requestLocationApi({
@@ -136,10 +138,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         location: candidate.address || location || scrapedData?.location || '',
       });
       setMapsData(data);
-      setName(data.name || candidate.name);
+      if (!preserveName || !name.trim()) setName(data.name || candidate.name);
       setLocation(data.address || candidate.address || location);
       setLocationCandidates([]);
       setLocationSearchDone(false);
+      setVerifyResults(null);
+      setVerifyCandidate(null);
       addLog(`✅ Selected ${data.name}; scraped its place details.`, 'success');
       addLog(`📍 Address: ${data.address || 'Not listed'}`, 'success');
       addLog(`🗺️ Google Maps: ${data.mapsUrl || candidate.url}`, 'success');
@@ -150,43 +154,20 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     }
   };
 
-  const scrapeLocationFromCaption = async () => {
-    if (!scrapedData?.caption) {
-      console.warn('No caption to scrape location from');
-      return;
-    }
-
-    const rawName = name || scrapedData.placeName || '';
-    const captionName = rawName.match(/^\[([^\]]+)\]\([^)]+\)$/)?.[1] || rawName;
-    const venueName = /^@?[\w.]+$/.test(captionName.trim()) && captionName.trim().startsWith('@')
-      ? ''
-      : captionName.trim();
-    const locationQuery = location || scrapedData.location || '';
-    const searchQuery = venueName
-      ? [locationQuery, venueName].filter(Boolean).join(', ')
-      : scrapedData.caption;
-    addLog(`🔍 Searching Google Maps for: ${searchQuery}`, 'info');
-    setLocationCandidates([]);
-    setLocationSearchDone(false);
-    setSearchingLocations(true);
-
+  const verifyLocation = async () => {
+    const query = location.trim();
+    if (!query) return;
+    setVerifyingLocation(true);
+    setVerifyCandidate(null);
+    setVerifyResults([]);
     try {
-      const data = await requestLocationApi({
-        action: 'search',
-        query: searchQuery,
-        placeName: venueName,
-        caption: scrapedData.caption,
-        location: locationQuery,
-      });
-      const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery }));
-      setLocationSearchDone(true);
-      addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}.`, 'success');
-      if (candidates.length === 1) await selectLocationCandidate(candidates[0]);
-      else setLocationCandidates(candidates);
+      const data = await requestLocationApi({ action: 'search', query, location: query });
+      setVerifyResults(data.candidates || []);
+      if (data.candidates?.length === 1) setVerifyCandidate(data.candidates[0]);
     } catch (error) {
-      addLog(`❌ Could not fetch location: ${error.message}`, 'error');
+      addLog(`❌ Could not verify address: ${error.message}`, 'error');
     } finally {
-      setSearchingLocations(false);
+      setVerifyingLocation(false);
     }
   };
 
@@ -501,30 +482,18 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   disabled={saving}
                   style={{ flex: 1 }}
                 />
-                {scrapedData?.caption && (
-                  <button
-                    type="button"
-                    onClick={scrapeLocationFromCaption}
-                    disabled={saving || searchingLocations || !!loadingCandidateUrl}
-                    title="Auto-find location from caption using Google Maps"
-                    style={{
-                      padding: '8px 12px',
-                      backgroundColor: 'var(--primary)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap',
-                      opacity: saving || searchingLocations || loadingCandidateUrl ? 0.6 : 1,
-                      transition: 'opacity 0.2s'
-                    }}
-                  >
-                    {searchingLocations ? 'Searching…' : '🔍 Find'}
-                  </button>
-                )}
               </div>
+              {!reelUrl && (
+                <button
+                  type="button"
+                  className="step-btn secondary"
+                  onClick={verifyLocation}
+                  disabled={saving || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                  style={{ marginTop: '8px' }}
+                >
+                  {verifyingLocation ? 'Searching Google Maps…' : 'Verify location'}
+                </button>
+              )}
             </label>
 
             {locationCandidates.length > 0 && (
@@ -566,6 +535,51 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
             {locationSearchDone && locationCandidates.length === 0 && (
               <div role="status" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
                 No matches. Try editing the address or enter place details manually.
+              </div>
+            )}
+
+            {verifyResults && (
+              <div className="modal-overlay location-verify-overlay" onClick={(e) => { e.stopPropagation(); setVerifyResults(null); }}>
+                <div className="modal location-verify-modal" role="dialog" aria-label="Verify location" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <div className="modal-title">Confirm location</div>
+                    <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close">✕</button>
+                  </div>
+                  {verifyResults.length ? (
+                    <>
+                      <p className="modal-label">Choose the matching Google Maps place.</p>
+                      <div className="location-verify-results">
+                        {verifyResults.map((candidate) => (
+                          <button
+                            key={candidate.url}
+                            type="button"
+                            className={`location-verify-result ${verifyCandidate?.url === candidate.url ? 'selected' : ''}`}
+                            onClick={() => setVerifyCandidate(candidate)}
+                          >
+                            <strong>{candidate.name}</strong>
+                            <span>{candidate.address || candidate.summary || 'Address not listed'}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="field-row">
+                        <button type="button" className="step-btn secondary full-width" onClick={() => setVerifyResults(null)}>Cancel</button>
+                        <button
+                          type="button"
+                          className="step-btn primary full-width"
+                          disabled={!verifyCandidate || !!loadingCandidateUrl}
+                          onClick={() => selectLocationCandidate({ ...verifyCandidate, searchQuery: location.trim() }, true)}
+                        >
+                          {loadingCandidateUrl ? 'Loading details…' : 'Confirm place'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p>No Google Maps matches. Check the address and try again.</p>
+                      <button type="button" className="step-btn secondary full-width" onClick={() => setVerifyResults(null)}>Close</button>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getVibe, mapFilters } from '../lib/constants';
@@ -6,14 +6,19 @@ import { getVibe, mapFilters } from '../lib/constants';
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MELBOURNE_CENTER = [144.9631, -37.8136];
 
-export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
+const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, showToast }, ref) {
   const [filter, setFilter] = useState('all');
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
+  const [placesListOpen, setPlacesListOpen] = useState(true);
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const hasFittedBounds = useRef(false);
+  const isClosingModal = useRef(false);  // ← ADD THIS LINE
+  useImperativeHandle(ref, () => ({
+    markModalClosing: () => { isClosingModal.current = true; },
+  }), []);
   const located = useMemo(
     () => places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)),
     [places]
@@ -70,9 +75,11 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
   }, [mapReady]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady || !map.isStyleLoaded()) return undefined;
+  const map = mapRef.current;
+  if (!map || !mapReady || !map.isStyleLoaded()) return undefined;
 
+  // Don't reset bounds if we're just closing a modal
+  if (!isClosingModal.current) {  // ← ADD THIS CHECK
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = visible.map((place) => {
       const members = membersOf[place.collection_id] ?? [];
@@ -112,18 +119,72 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
       }
     }
     if (visible.length) hasFittedBounds.current = true;
+  }
 
-    return () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-    };
-  }, [visible, membersOf, onOpenPin, mapReady]);
+  isClosingModal.current = false;  // ← RESET FLAG AFTER RENDER
+
+  return () => {
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+  };
+}, [visible, membersOf, onOpenPin, mapReady]);
 
   const selectFilter = (id) => {
     setFilter(id);
     const label = id === 'all' ? 'All' : id.charAt(0).toUpperCase() + id.slice(1);
     showToast(`🔍 Showing ${label}`);
   };
+
+const openListedPlace = (place) => {
+  const map = mapRef.current;
+  if (!map) return;
+
+  isClosingModal.current = false;
+  // Reset bounds so new location can be fit
+  hasFittedBounds.current = false;
+
+  // Zoom to location
+  map.flyTo({ center: [place.lng, place.lat], zoom: 15, essential: true });
+
+  // Re-render pins when zoom animation finishes
+  map.once('moveend', () => {
+    // Clear old markers
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
+    // Re-create markers
+    markersRef.current = visible.map((place) => {
+      const members = membersOf[place.collection_id] ?? [];
+      const vibe = getVibe(members.map((member) => member.id), place.reactions);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `map-pin mapbox-pin ${vibe.consensus}`;
+      button.setAttribute('aria-label', place.name);
+      button.title = place.name;
+      button.addEventListener('click', () => onOpenPin(place.id));
+
+      const markerContent = document.createElement('span');
+      markerContent.className = `pin-marker ${vibe.consensus}`;
+      if (place.reel_thumbnail_url) {
+        const image = document.createElement('img');
+        image.src = place.reel_thumbnail_url;
+        image.alt = '';
+        image.className = 'map-pin-image';
+        markerContent.append(image);
+      } else {
+        markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
+      }
+      button.append(markerContent);
+
+      return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
+        .setLngLat([place.lng, place.lat])
+        .addTo(map);
+    });
+
+    // Open pin details after pins reload
+    onOpenPin(place.id);
+  });
+};
 
   return (
     <div className="screen map-screen">
@@ -145,6 +206,23 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
           ))}
         </div>
 
+        <div className="map-place-list" aria-label="Places shown on map">
+          <button type="button" className="map-place-list-title" aria-expanded={placesListOpen} onClick={() => setPlacesListOpen((open) => !open)}>
+            Shown places ({visible.length}) <span aria-hidden="true">{placesListOpen ? '⌄' : '⌃'}</span>
+          </button>
+          {placesListOpen && (
+            <div className="map-place-list-items">
+              {visible.map((place) => (
+                <button key={place.id} type="button" className="map-place-item" onClick={() => openListedPlace(place)}>
+                  <span className="map-place-item-name">{place.name}</span>
+                  {place.address && <span className="map-place-item-address">{place.address}</span>}
+                </button>
+              ))}
+              {!visible.length && <span className="map-place-empty">No places match this filter.</span>}
+            </div>
+          )}
+        </div>
+
         <div className="map-title">
           📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}
           {places.length - located.length > 0 && (
@@ -154,4 +232,6 @@ export default function MapScreen({ places, membersOf, onOpenPin, showToast }) {
       </div>
     </div>
   );
-}
+});
+
+export default MapScreen;

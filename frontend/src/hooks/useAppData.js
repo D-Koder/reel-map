@@ -13,11 +13,11 @@ const PLACE_SELECT = `
 
 const COLLECTION_SELECT = `
   id, name, emoji, is_private, owner_id, created_at,
-  collection_members(user_id, role, profile:profiles(id, display_name, avatar))
+  collection_members(user_id, role, profile:profiles(id, display_name, avatar, avatar_url))
 `;
 
 const PROFILE_SELECT = `
-  id, display_name, avatar, current_streak, best_streak, last_activity_at
+  id, display_name, avatar, avatar_url, current_streak, best_streak, last_activity_at
 `;
 
 // Turn database errors into something a person can act on.
@@ -235,6 +235,10 @@ export function useAppData(userId, showToast) {
     updateCollection: (id, patch) => run(supabase.from('collections').update(patch).eq('id', id)),
 
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
+    removeCollectionMember: (collectionId, memberId) => run(
+      supabase.from('collection_members').delete().eq('collection_id', collectionId).eq('user_id', memberId)
+    ),
+    deleteCollection: (collectionId) => run(supabase.from('collections').delete().eq('id', collectionId)),
 
     transferOwnership: (collectionId, newOwnerId) =>
       run(supabase.rpc('transfer_collection_ownership', { p_collection_id: collectionId, p_new_owner_id: newOwnerId })),
