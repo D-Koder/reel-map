@@ -54,12 +54,11 @@ security definer
 set search_path = ''
 as $$
 declare
-  user_id uuid;
-  orphan_collection_id uuid;
+  v_user_id uuid;
 begin
-  user_id := (select auth.uid());
+  v_user_id := (select auth.uid());
 
-  if user_id is null then
+  if v_user_id is null then
     raise exception 'You must be signed in to delete your account';
   end if;
 
@@ -69,31 +68,31 @@ begin
 
   -- Remove user from all collection_members
   delete from public.collection_members
-    where user_id = user_id;
+    where user_id = v_user_id;
 
   -- Delete user's place orders
   delete from public.place_order
-    where user_id = user_id;
+    where user_id = v_user_id;
 
   -- Delete user's reactions
   delete from public.reactions
-    where user_id = user_id;
+    where user_id = v_user_id;
 
   -- Delete user's bookings
   delete from public.bookings
-    where booked_by = user_id;
+    where booked_by = v_user_id;
 
   -- Delete user's invites
   delete from public.collection_invites
-    where created_by = user_id;
+    where created_by = v_user_id;
 
   -- Delete user's profile
   delete from public.profiles
-    where id = user_id;
+    where id = v_user_id;
 
   -- Delete auth user
   delete from auth.users
-    where id = user_id;
+    where id = v_user_id;
 
   return true;
 end;

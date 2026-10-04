@@ -15,7 +15,8 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const hasFittedBounds = useRef(false);
-  const isClosingModal = useRef(false);  // ← ADD THIS LINE
+  const isClosingModal = useRef(false);
+  const pendingZoomRef = useRef(null);  // ← ADD THIS LINE
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -139,51 +140,59 @@ const openListedPlace = (place) => {
   const map = mapRef.current;
   if (!map) return;
 
+  // Cancel previous zoom animation if one is pending
+  if (pendingZoomRef.current) {
+    map.off('moveend', pendingZoomRef.current.handler);
+  }
+
   isClosingModal.current = false;
-  // Reset bounds so new location can be fit
   hasFittedBounds.current = false;
 
   // Zoom to location
   map.flyTo({ center: [place.lng, place.lat], zoom: 15, essential: true });
 
-  // Re-render pins when zoom animation finishes
-  map.once('moveend', () => {
+  // Create handler and store it so we can cancel it
+  const moveendHandler = () => {
     // Clear old markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
     // Re-create markers
-    markersRef.current = visible.map((place) => {
-      const members = membersOf[place.collection_id] ?? [];
-      const vibe = getVibe(members.map((member) => member.id), place.reactions);
+    markersRef.current = visible.map((p) => {
+      const members = membersOf[p.collection_id] ?? [];
+      const vibe = getVibe(members.map((member) => member.id), p.reactions);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = `map-pin mapbox-pin ${vibe.consensus}`;
-      button.setAttribute('aria-label', place.name);
-      button.title = place.name;
-      button.addEventListener('click', () => onOpenPin(place.id));
+      button.setAttribute('aria-label', p.name);
+      button.title = p.name;
+      button.addEventListener('click', () => onOpenPin(p.id));
 
       const markerContent = document.createElement('span');
       markerContent.className = `pin-marker ${vibe.consensus}`;
-      if (place.reel_thumbnail_url) {
+      if (p.reel_thumbnail_url) {
         const image = document.createElement('img');
-        image.src = place.reel_thumbnail_url;
+        image.src = p.reel_thumbnail_url;
         image.alt = '';
         image.className = 'map-pin-image';
         markerContent.append(image);
       } else {
-        markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
+        markerContent.textContent = p.category === 'cafe' ? '☕' : p.category === 'event' ? '🎉' : '🍽️';
       }
       button.append(markerContent);
 
       return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
-        .setLngLat([place.lng, place.lat])
+        .setLngLat([p.lng, p.lat])
         .addTo(map);
     });
 
-    // Open pin details after pins reload
-    onOpenPin(place.id);
-  });
+    // Clear the pending zoom
+    pendingZoomRef.current = null;
+  };
+
+  // Store handler so we can cancel it later
+  pendingZoomRef.current = { handler: moveendHandler };
+  map.once('moveend', moveendHandler);
 };
 
   return (

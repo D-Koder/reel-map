@@ -60,6 +60,8 @@ export default function PinModal({
   const [reservationDate, setReservationDate] = useState(defaultReservation);
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   const [now, setNow] = useState(() => Date.now());
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragStartRef = React.useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000);
@@ -75,6 +77,42 @@ export default function PinModal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, confirmingDelete]);
+
+  useEffect(() => {
+    const modal = document.querySelector('.modal');
+    if (!modal) return;
+
+    const handlePointerDown = (e) => {
+      dragStartRef.current = { y: e.clientY || e.touches?.[0]?.clientY };
+    };
+
+    const handlePointerMove = (e) => {
+      if (!dragStartRef.current) return;
+      const currentY = e.clientY || e.touches?.[0]?.clientY;
+      const offset = currentY - dragStartRef.current.y;
+      if (offset > 0) {
+        setDragOffset(offset);
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (dragStartRef.current && dragOffset > 80) {
+        onClose();
+      }
+      dragStartRef.current = null;
+      setDragOffset(0);
+    };
+
+    modal.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      modal.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [dragOffset, onClose]);
 
   const completeStep = async (stepNum) => {
     if (stepNum === 2) {
@@ -124,7 +162,13 @@ export default function PinModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={place.name}>
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={place.name}
+        style={{ transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined }}
+      >
         <div className="sheet-handle" aria-hidden="true" />
         <div className="modal-header">
           <div className="modal-title">{place.name}</div>
