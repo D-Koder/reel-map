@@ -4,10 +4,10 @@ import { normalizeImageUrl } from '../lib/media';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-const isValidInstagramReelUrl = (url) => {
+const isValidInstagramUrl = (url) => {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname.includes('instagram.com') && urlObj.pathname.includes('/reel/');
+    return urlObj.hostname.includes('instagram.com') && (urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/'));
   } catch {
     return false;
   }
@@ -55,7 +55,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const scrapeReel = async (url) => {
     setLoading(true);
     setApiLogs([]);
-    addLog('🔄 Starting to fetch reel data...', 'info');
+    addLog('🔄 Starting to fetch Instagram data...', 'info');
 
     try {
       const response = await fetch('/api/enrich-reel', {
@@ -176,12 +176,12 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setUrlError('');
 
     if (!trimmedUrl) {
-      setUrlError('Please paste an Instagram reel link');
+      setUrlError('Please paste an Instagram link');
       return;
     }
 
-    if (!isValidInstagramReelUrl(trimmedUrl)) {
-      setUrlError('Invalid Instagram reel link. Make sure it contains instagram.com/reel/');
+    if (!isValidInstagramUrl(trimmedUrl)) {
+      setUrlError('Invalid Instagram link. Make sure it contains instagram.com/reel/ or instagram.com/p/');
       return;
     }
 
@@ -279,7 +279,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         {step === 'reel' && (
           <div>
             <div className="field">
-              <span className="modal-label">Reel link (optional)</span>
+              <span className="modal-label">Instagram link (optional)</span>
               <input
                 className="step-input"
                 type="url"
@@ -289,7 +289,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   setReelUrlInput(e.target.value);
                   setUrlError('');
                 }}
-                placeholder="https://www.instagram.com/reel/…"
+                placeholder="https://www.instagram.com/reel/… or /p/…"
                 disabled={loading}
                 autoFocus
               />
@@ -309,7 +309,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 marginBottom: '16px'
               }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  🔄 Fetching reel info…
+                  🔄 Fetching Instagram data…
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <div style={{
