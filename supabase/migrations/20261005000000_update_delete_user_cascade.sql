@@ -1,3 +1,7 @@
+-- Ensure collection_invites table has created_by column (in case restore migration hasn't run)
+alter table if exists public.collection_invites
+  add column if not exists created_by uuid references public.profiles (id) on delete cascade;
+
 -- Update delete_user function to support cascade delete option
 create or replace function public.delete_user(p_cascade_delete boolean default false)
 returns boolean
