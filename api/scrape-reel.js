@@ -37,11 +37,11 @@ function parseCaptionLocation(caption) {
   };
 }
 
-function isInstagramReelUrl(value) {
+function isInstagramUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && ['instagram.com', 'www.instagram.com'].includes(url.hostname) &&
-      /^\/(?:reel\/[^/]+|[^/]+\/reel\/[^/]+)\/?$/.test(url.pathname);
+      /^\/(?:reel\/[^/]+|p\/[^/]+|[^/]+\/reel\/[^/]+)\/?$/.test(url.pathname);
   } catch {
     return false;
   }
@@ -51,8 +51,8 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
-  if (!isInstagramReelUrl(reelUrl)) {
-    return res.status(400).json({ error: 'Enter a valid https://www.instagram.com/reel/... link' });
+  if (!isInstagramUrl(reelUrl)) {
+    return res.status(400).json({ error: 'Enter a valid Instagram link (reel or post)' });
   }
 
   let browser;
