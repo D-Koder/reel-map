@@ -47,7 +47,7 @@ revoke all on function public.transfer_collection_ownership(uuid, uuid) from pub
 grant execute on function public.transfer_collection_ownership(uuid, uuid) to authenticated;
 
 -- Delete user and their data
-create or replace function public.delete_user()
+create or replace function public.delete_user(p_cascade_delete boolean default false)
 returns boolean
 language plpgsql
 security definer
@@ -55,6 +55,7 @@ set search_path = ''
 as $$
 declare
   v_user_id uuid;
+  v_collection_id uuid;
 begin
   v_user_id := (select auth.uid());
 
@@ -62,19 +63,22 @@ begin
     raise exception 'You must be signed in to delete your account';
   end if;
 
-  -- Orphan collections where user is the only owner
-  -- (Collections with user as owner but no other members will just lose their owner)
-  -- Actually, we keep them orphaned as requested
-
-  -- Remove user from all collection_members
-  delete from public.collection_members
-    where user_id = v_user_id;
+  -- Handle collections owned by this user
+  if p_cascade_delete then
+    -- Delete all collections owned by the user (cascades to places, reactions, bookings, etc.)
+    delete from public.collections
+      where owner_id = v_user_id;
+  else
+    -- Just remove user from collection_members, leaving collections orphaned
+    delete from public.collection_members
+      where user_id = v_user_id;
+  end if;
 
   -- Delete user's place orders
   delete from public.place_order
     where user_id = v_user_id;
 
-  -- Delete user's reactions
+  -- Delete user's reactions (if not already cascade deleted with collections)
   delete from public.reactions
     where user_id = v_user_id;
 

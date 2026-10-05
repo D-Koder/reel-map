@@ -1517,6 +1517,179 @@ select.step-input {
   text-overflow: ellipsis;
 }
 
+.profile-display-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface-muted);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.profile-edit-card {
+  background: var(--surface-muted);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.profile-edit-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.profile-avatar-editable {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.profile-avatar-editable:hover {
+  transform: scale(1.05);
+}
+
+.profile-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.profile-edit-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-readonly {
+  font-size: 13px;
+  padding: 8px;
+  background: var(--surface-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.avatar-picker-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-picker-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.avatar-option {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--surface-base);
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: grid;
+  place-items: center;
+}
+
+.avatar-option:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.avatar-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.profile-upload-btn {
+  margin-bottom: 12px;
+}
+
+.profile-photo-error {
+  font-size: 12px;
+  color: #d32f2f;
+  background: #ffebee;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.profile-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.profile-edit-actions button {
+  flex: 1;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cascade-delete-toggle {
+  background: var(--surface-muted);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.cascade-delete-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.cascade-delete-toggle input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.toggle-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  margin-left: 26px;
+}
+
 .coming-soon {
   font-size: 13px;
   color: var(--text-muted);

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 export default function DeleteAccountModal({ open, onClose, userId, collections, onTransferOwnership, onConfirmDelete, isDeleting }) {
   const ownedCollections = collections.filter(c => c.ownerId === userId);
   const [transfers, setTransfers] = useState({}); // collection.id -> new_owner_id
+  const [cascadeDelete, setCascadeDelete] = useState(false);
 
   const handleTransfer = async (collectionId, newOwnerId) => {
     if (await onTransferOwnership(collectionId, newOwnerId)) {
@@ -11,8 +12,11 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
   };
 
   const handleDelete = async () => {
-    if (confirm('⚠️ This will permanently delete your account and all your data. This cannot be undone.')) {
-      await onConfirmDelete();
+    const msg = cascadeDelete
+      ? '⚠️ This will permanently delete your account AND all shared collections you own. This cannot be undone.'
+      : '⚠️ This will permanently delete your account and all your data. Collections you own will become orphaned. This cannot be undone.';
+    if (confirm(msg)) {
+      await onConfirmDelete(cascadeDelete);
     }
   };
 
@@ -42,10 +46,31 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
           ) : (
             <>
               <p>You own {ownedCollections.length} collection{ownedCollections.length !== 1 ? 's' : ''}:</p>
-              <div className="orphan-warning">
-                <p>If you delete your account without transferring ownership, these collections will become orphaned (no owner). Members can still view them, but no one can modify them.</p>
+
+              <div className="cascade-delete-toggle">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={cascadeDelete}
+                    onChange={(e) => setCascadeDelete(e.target.checked)}
+                    disabled={isDeleting}
+                  />
+                  <span>Delete all shared collections I own</span>
+                </label>
+                <p className="toggle-hint">
+                  {cascadeDelete
+                    ? '🗑️ All shared collections will be permanently deleted'
+                    : '🔒 Collections will become orphaned (members can still view)'}
+                </p>
               </div>
 
+              {!cascadeDelete && (
+                <div className="orphan-warning">
+                  <p>If you delete your account without transferring ownership, these collections will become orphaned (no owner). Members can still view them, but no one can modify them.</p>
+                </div>
+              )}
+
+              {!cascadeDelete && (
               <div className="collections-to-orphan">
                 {ownedCollections.map(collection => {
                   const isTransferred = !!transfers[collection.id];
@@ -82,6 +107,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                   );
                 })}
               </div>
+              )}
 
               <div className="modal-actions">
                 <button className="step-btn secondary full-width" onClick={onClose}>
@@ -92,7 +118,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                   onClick={handleDelete}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Account & Orphan Collections'}
+                  {isDeleting ? 'Deleting...' : (cascadeDelete ? 'Delete Account & Collections' : 'Delete Account & Orphan Collections')}
                 </button>
               </div>
             </>

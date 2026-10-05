@@ -16,7 +16,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const markersRef = useRef([]);
   const hasFittedBounds = useRef(false);
   const isClosingModal = useRef(false);
-  const pendingZoomRef = useRef(null);  // ← ADD THIS LINE
+  const pendingZoomPlaceIdRef = useRef(null);  // ← ADD THIS LINE
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -140,19 +140,20 @@ const openListedPlace = (place) => {
   const map = mapRef.current;
   if (!map) return;
 
-  // Cancel previous zoom animation if one is pending
-  if (pendingZoomRef.current) {
-    map.off('moveend', pendingZoomRef.current.handler);
-  }
-
   isClosingModal.current = false;
   hasFittedBounds.current = false;
+  pendingZoomPlaceIdRef.current = place.id;
 
   // Zoom to location
   map.flyTo({ center: [place.lng, place.lat], zoom: 15, essential: true });
 
-  // Create handler and store it so we can cancel it
-  const moveendHandler = () => {
+  // Re-render pins when zoom animation finishes
+  const handleMoveEnd = () => {
+    // Only process if this is still the pending zoom
+    if (pendingZoomPlaceIdRef.current !== place.id) {
+      return;
+    }
+
     // Clear old markers
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
@@ -185,14 +186,9 @@ const openListedPlace = (place) => {
         .setLngLat([p.lng, p.lat])
         .addTo(map);
     });
-
-    // Clear the pending zoom
-    pendingZoomRef.current = null;
   };
 
-  // Store handler so we can cancel it later
-  pendingZoomRef.current = { handler: moveendHandler };
-  map.once('moveend', moveendHandler);
+  map.once('moveend', handleMoveEnd);
 };
 
   return (

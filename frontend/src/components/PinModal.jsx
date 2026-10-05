@@ -79,8 +79,8 @@ export default function PinModal({
   }, [onClose, confirmingDelete]);
 
   useEffect(() => {
-    const modal = document.querySelector('.modal');
-    if (!modal) return;
+    const handle = document.querySelector('.sheet-handle');
+    if (!handle) return;
 
     const handlePointerDown = (e) => {
       dragStartRef.current = { y: e.clientY || e.touches?.[0]?.clientY };
@@ -92,6 +92,7 @@ export default function PinModal({
       const offset = currentY - dragStartRef.current.y;
       if (offset > 0) {
         setDragOffset(offset);
+        e.preventDefault();
       }
     };
 
@@ -103,12 +104,12 @@ export default function PinModal({
       setDragOffset(0);
     };
 
-    modal.addEventListener('pointerdown', handlePointerDown);
+    handle.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
 
     return () => {
-      modal.removeEventListener('pointerdown', handlePointerDown);
+      handle.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };

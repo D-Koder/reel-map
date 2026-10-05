@@ -138,22 +138,44 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
     setPickingAvatar(false);
   };
 
+  const AvatarComponent = () => (
+    profile.avatar_url ? (
+      <img className="profile-avatar-image" src={profile.avatar_url} alt="Profile" />
+    ) : profile.avatar === '🙂' ? (
+      <img className="profile-avatar-image" src={DEFAULT_AVATAR_URL} alt="Profile" />
+    ) : (
+      profile.avatar
+    )
+  );
+
   return (
     <div className="settings-section">
       <div className="settings-section-title">🙂 You</div>
-      
-      <div className="profile-row">
-        {editMode ? (
-          <>
+
+      {!editMode ? (
+        <div className="profile-display-card">
+          <div className="profile-avatar">
+            <AvatarComponent />
+          </div>
+          <div className="profile-info">
+            <div className="profile-name">{profile.display_name}</div>
+            <div className="profile-email">{email}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="profile-edit-card">
+          <div className="profile-edit-header">
             <button
-              className="profile-avatar"
+              className="profile-avatar profile-avatar-editable"
               onClick={() => setPickingAvatar((v) => !v)}
               aria-label="Change avatar"
               aria-expanded={pickingAvatar}
+              title="Tap to change avatar"
             >
-              {profile.avatar_url ? <img className="profile-avatar-image" src={profile.avatar_url} alt="Profile" /> : profile.avatar === '🙂' ? <img className="profile-avatar-image" src={DEFAULT_AVATAR_URL} alt="Profile" /> : profile.avatar}
+              <AvatarComponent />
             </button>
-            <div className="profile-fields">
+            <div className="profile-edit-fields">
+              <label className="input-label">Display Name</label>
               <input
                 className="step-input"
                 value={name}
@@ -166,68 +188,62 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
                 autoFocus
                 aria-label="Profile name"
               />
-              <div className="profile-email">{email}</div>
+              <label className="input-label">Email</label>
+              <div className="input-readonly">{email}</div>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="profile-avatar">
-              {profile.avatar_url ? <img className="profile-avatar-image" src={profile.avatar_url} alt="Profile" /> : profile.avatar === '🙂' ? <img className="profile-avatar-image" src={DEFAULT_AVATAR_URL} alt="Profile" /> : profile.avatar}
-            </div>
-            <div className="profile-fields">
-              <div className="profile-name">{profile.display_name}</div>
-              <div className="profile-email">{email}</div>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
 
-      {editMode ? (
-        <>
-          <label className="step-btn secondary profile-upload-btn">
-            {uploading ? 'Uploading photo…' : 'Upload profile photo'}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
-          </label>
-          {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}
-          
           {pickingAvatar && (
-            <div className="avatar-grid">
-              {AVATARS.map((a) => (
-                <button
-                  key={a}
-                  className={`avatar-option ${profile.avatar === a ? 'selected' : ''}`}
-                  onClick={() => {
-                    onUpdateProfile({ avatar: a });
-                    setPickingAvatar(false);
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
+            <div className="avatar-picker-section">
+              <div className="avatar-picker-label">Choose an emoji avatar</div>
+              <div className="avatar-grid">
+                {AVATARS.map((a) => (
+                  <button
+                    key={a}
+                    className={`avatar-option ${profile.avatar === a ? 'selected' : ''}`}
+                    onClick={() => {
+                      onUpdateProfile({ avatar: a });
+                      setPickingAvatar(false);
+                    }}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="profile-edit-actions">
-            <button className="step-btn secondary" onClick={handleCancel}>
-              Cancel
-            </button>
-            <button className="step-btn" onClick={handleSave}>
-              Save Changes
-            </button>
-          </div>
-        </>
+          <label className="step-btn secondary profile-upload-btn full-width">
+            {uploading ? 'Uploading photo…' : '📸 Upload Profile Photo'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
+          </label>
+          {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}
+        </div>
+      )}
+
+      {editMode ? (
+        <div className="profile-edit-actions">
+          <button className="step-btn secondary" onClick={handleCancel}>
+            Cancel
+          </button>
+          <button className="step-btn" onClick={handleSave}>
+            Save Changes
+          </button>
+        </div>
       ) : (
         <button className="step-btn secondary full-width" onClick={() => setEditMode(true)}>
-          Edit Profile
+          ✏️ Edit Profile
         </button>
       )}
 
-      <button className="step-btn secondary full-width" onClick={() => supabase.auth.signOut()}>
-        Log out
-      </button>
-      <button className="step-btn danger full-width" onClick={onDeleteClick}>
-        Delete Account
-      </button>
+      <div className="profile-actions">
+        <button className="step-btn secondary full-width" onClick={() => supabase.auth.signOut()}>
+          Log out
+        </button>
+        <button className="step-btn danger full-width" onClick={onDeleteClick}>
+          Delete Account
+        </button>
+      </div>
     </div>
   );
 }

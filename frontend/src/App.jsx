@@ -118,9 +118,9 @@ function MainApp({ userId, showToast }) {
     return false;
   };
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = async (cascadeDelete = false) => {
     setIsDeleting(true);
-    if (await data.deleteUser()) {
+    if (await data.deleteUser(cascadeDelete)) {
       showToast('Account deleted');
       setDeleteModalOpen(false);
       await supabase.auth.signOut();

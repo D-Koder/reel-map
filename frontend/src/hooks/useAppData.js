@@ -243,7 +243,7 @@ export function useAppData(userId, showToast) {
     transferOwnership: (collectionId, newOwnerId) =>
       run(supabase.rpc('transfer_collection_ownership', { p_collection_id: collectionId, p_new_owner_id: newOwnerId })),
 
-    deleteUser: () => run(supabase.rpc('delete_user')),
+    deleteUser: (cascadeDelete = false) => run(supabase.rpc('delete_user', { p_cascade_delete: cascadeDelete })),
 
     createSampleData: () => run(supabase.rpc('create_sample_data')),
   };
