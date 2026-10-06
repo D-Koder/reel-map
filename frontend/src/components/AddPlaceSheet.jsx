@@ -99,6 +99,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
           } else if (candidates.length) {
             setLocationCandidates(candidates);
             setLocationSearchDone(true);
+            addLog(`🔍 Searched with: "${data.maps.query}"`, 'info');
             addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
           } else if (data.maps.error) {
             addLog(`⚠️ Google Maps: ${data.maps.error}`, 'error');
