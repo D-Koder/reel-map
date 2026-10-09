@@ -29,8 +29,7 @@ function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-module.exports = async function handler(req, res) {
-  const { step, respond } = progressFor(req, res, 'enrich-reel');
+async function enrich(req, res, step, respond) {
   if (req.method !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
@@ -100,4 +99,15 @@ module.exports = async function handler(req, res) {
     ...reel,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
+}
+
+module.exports = async function handler(req, res) {
+  const { step, respond } = progressFor(req, res, 'enrich-reel');
+  try {
+    return await enrich(req, res, step, respond);
+  } catch (error) {
+    // Without this, the stream ends with no result and the app shows "stopped before it finished".
+    console.error('[enrich-reel] Unexpected failure:', error);
+    return respond(500, { error: `Reel lookup failed: ${error.message}` });
+  }
 };
