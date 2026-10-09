@@ -13,6 +13,14 @@ module.exports = async function handler(req, res) {
     [location, placeName].filter(Boolean).join(' ') || caption;
   if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
+  const steps = [];
+  const step = (message) => {
+    steps.push(message);
+    console.log(`[scrape-location] ${message}`);
+  };
+  const sendJson = res.json.bind(res);
+  res.json = (body) => sendJson(body && typeof body === 'object' ? { ...body, steps } : body);
+
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   let selectedPlaceUrl = '';
   let selectedPlaceSlug = '';
@@ -34,7 +42,7 @@ module.exports = async function handler(req, res) {
   let browser;
   try {
     const isVercel = Boolean(process.env.VERCEL);
-    console.log(`[scrape-location] Search query: ${query}`);
+    step(`Searching Google Maps for "${query}"`);
     browser = await puppeteer.launch({
       args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: { width: 1280, height: 900 },
@@ -51,6 +59,7 @@ module.exports = async function handler(req, res) {
       timeout: 25000,
     });
 
+    step('Google Maps page loaded, looking for results');
     const firstResultSelector = 'a[aria-label][href*="/maps/place/"]';
     if (action === 'search') {
       await page.waitForFunction((selector) => document.querySelector(selector) ||
@@ -59,7 +68,19 @@ module.exports = async function handler(req, res) {
       const directCandidate = await page.evaluate(() => {
         const name = document.querySelector('h1')?.textContent?.trim();
         return location.pathname.includes('/maps/place/') && name
-          ? { name, url: location.href, address: '', category: '', rating: '', summary: '' }
+          ? {
+            name,
+            url: location.href,
+            address: (() => {
+              const addressButton = document.querySelector('[data-item-id="address"]') ||
+                document.querySelector('button[aria-label^="Address:"]');
+              return (addressButton?.querySelector('.Io6YTe')?.innerText || addressButton?.innerText || '')
+                .replace(/^Address:\s*/i, '').replace(/\s*Copy address\s*$/i, '').trim();
+            })(),
+            category: '',
+            rating: '',
+            summary: '',
+          }
           : null;
       });
       const candidates = directCandidate ? [directCandidate] : await page.$$eval(firstResultSelector, (anchors) => {
@@ -91,6 +112,9 @@ module.exports = async function handler(req, res) {
         }).slice(0, 5);
       });
 
+      step(directCandidate
+        ? `Google Maps opened the place directly: ${directCandidate.name}`
+        : `Found ${candidates.length} result(s)`);
       if (candidates.length === 0) {
         const pageState = await page.evaluate(() => ({
           title: document.title,
@@ -173,6 +197,7 @@ module.exports = async function handler(req, res) {
       console.log('[scrape-location] Google Maps routed directly to the matching first place result');
     }
 
+    step('Reading name, address, phone and website');
     const result = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const panel = document.querySelector('[role="main"]') || document.querySelector('main') || document;
@@ -241,6 +266,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
+    step(`Place read: ${result.name || '(no name)'}. Checking for a menu tab`);
     const menu = await page.evaluate(() => {
       const tabs = [...document.querySelectorAll('[role="tab"]')]
         .map((tab) => (tab.innerText || tab.textContent || '').trim());
@@ -276,6 +302,7 @@ module.exports = async function handler(req, res) {
     // expand and read hours last so the dropdown does not disrupt other scraping.
     await page.goto(result.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
     await page.waitForFunction(() => document.querySelector('h1'), { timeout: 12000 }).catch(() => {});
+    step('Opening hours');
     const hoursOpened = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const controls = [...document.querySelectorAll('button,[role="button"]')];
@@ -322,6 +349,7 @@ module.exports = async function handler(req, res) {
       return res.status(422).json({ error: `Google Maps found "${result.name}" but did not provide an address`, query, mapsUrl: result.mapsUrl });
     }
 
+    step(`Done: ${result.name}, ${result.hours?.length ?? 0} hour row(s) read`);
     const output = { success: true, query, ...result };
     console.log('[scrape-location] Extracted place details:', JSON.stringify(output, null, 2));
     return res.status(200).json(output);

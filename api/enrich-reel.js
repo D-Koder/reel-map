@@ -72,6 +72,7 @@ module.exports = async function handler(req, res) {
 
   let details = null;
   let detailsError = null;
+  let detailsSteps = [];
   if (selectedCandidate) {
     const detailsResponse = await invoke(scrapeLocation, {
       action: 'details',
@@ -83,10 +84,12 @@ module.exports = async function handler(req, res) {
     });
     if (detailsResponse.statusCode >= 400) detailsError = detailsResponse.body?.error || 'Could not read Google Maps details';
     else details = detailsResponse.body;
+    detailsSteps = detailsResponse.body?.steps ?? [];
   }
 
   return res.status(200).json({
     ...reel,
+    steps: [...(reel.steps ?? []), ...(searchResponse.body?.steps ?? []), ...detailsSteps],
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 };

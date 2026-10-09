@@ -52,6 +52,7 @@ function normalisePlace(row) {
   }
   return collections.map((cp) => ({
     ...row,
+    name: cp.custom_name || row.name,
     collection_id: cp.collection_id,
     added_by: cp.added_by,
     added_at: cp.added_at,
@@ -211,9 +212,18 @@ export function useAppData(userId, showToast) {
       return { id: placeId };
     },
 
-    updatePlace: (id, { name, category }) => {
-      patchPlace(id, { name, category });
-      return run(supabase.from('places').update({ name, category }).eq('id', id));
+    // Name is per collection (custom_name). Category is still shared on the place.
+    updatePlace: async (place, { name, category }) => {
+      const nameSaved = await run(
+        supabase
+          .from('collection_places')
+          .update({ custom_name: name })
+          .eq('collection_id', place.collection_id)
+          .eq('place_id', place.id)
+      );
+      if (!nameSaved) return false;
+      if (category === place.category) return true;
+      return run(supabase.from('places').update({ category }).eq('id', place.id));
     },
 
     deletePlace: (collectionId, placeId) =>

@@ -26,6 +26,19 @@ function normalizeImageUrl(value) {
   }
 }
 
+// "Name:" and "Address:" lines win. Falls back to the 📍 line.
+function parseCaptionDetails(caption) {
+  const field = (label) => {
+    const match = caption.match(new RegExp(`^\\s*${label}\\s*:\\s*(.+)$`, 'mi'));
+    return match ? match[1].trim() : '';
+  };
+  const fromLine = parseCaptionLocation(caption);
+  return {
+    placeName: field('Name') || fromLine.placeName,
+    location: field('Address') || fromLine.location,
+  };
+}
+
 function parseCaptionLocation(caption) {
   const line = caption.split(/\r?\n/).find((text) => /^\s*[📍📌]/u.test(text))
     ?.replace(/^\s*[📍📌]\s*/u, '').trim() ?? '';
@@ -55,6 +68,14 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Enter a valid Instagram link (reel or post)' });
   }
 
+  const steps = [];
+  const step = (message) => {
+    steps.push(message);
+    console.log(`[scrape-reel] ${message}`);
+  };
+  const sendJson = res.json.bind(res);
+  res.json = (body) => sendJson(body && typeof body === 'object' ? { ...body, steps } : body);
+
   let browser;
   try {
     const isVercel = Boolean(process.env.VERCEL);
@@ -67,12 +88,15 @@ module.exports = async function handler(req, res) {
       headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
     });
 
+    step('Browser started, opening the Instagram page');
     const page = await browser.newPage();
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
     await page.goto(reelUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    step('Page requested, waiting for the post content');
     await page.waitForSelector('main', { timeout: 12000 });
+    step('Post content found, reading caption, creator and counts');
     await page.waitForFunction(() => {
       const main = document.querySelector('main');
       return main && (main.querySelector('svg[aria-label="Like"], svg[aria-label="Unlike"]') ||
@@ -142,7 +166,16 @@ module.exports = async function handler(req, res) {
       };
     }, reelUrl);
 
+    const caption = scraped.caption || '';
+    const captionDetails = parseCaptionDetails(caption);
+    if (captionDetails.placeName) scraped.placeName = captionDetails.placeName;
+    if (captionDetails.location) scraped.location = captionDetails.location;
+    step(`Caption read (${caption.length} characters): ${scraped.likes ?? 0} likes, ${scraped.comments ?? 0} comments`);
+    step(captionDetails.placeName ? `Name from caption: "${captionDetails.placeName}"` : 'No "Name:" line in caption');
+    step(captionDetails.location ? `Address from caption: "${captionDetails.location}"` : 'No "Address:" line or 📍 line in caption');
+
     scraped.thumbnailUrl = normalizeImageUrl(scraped.thumbnailUrl);
+    step(scraped.thumbnailUrl ? 'Thumbnail found' : 'No thumbnail found');
     return res.status(200).json(scraped);
   } catch (error) {
     console.error('Reel DOM scrape failed:', error);

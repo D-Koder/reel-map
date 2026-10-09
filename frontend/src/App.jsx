@@ -253,7 +253,7 @@ function MainApp({ userId, showToast }) {
           key={editPin.id}
           place={editPin}
           onSave={async (patch) => {
-            if (await data.updatePlace(editPin.id, patch)) {
+            if (await data.updatePlace(editPin, patch)) {
               showToast(`✏️ Saved "${patch.name}"`);
               setEditPinId(null);
             }
