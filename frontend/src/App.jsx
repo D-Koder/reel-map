@@ -12,6 +12,7 @@ import ShareCollectionModal from './components/ShareCollectionModal';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
+import { useNotifications } from './hooks/useNotifications';
 import { configError, supabase } from './lib/supabase';
 import './App.css';
 
@@ -41,7 +42,7 @@ function MainApp({ userId, showToast }) {
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const { items: notifications, unreadCount, markAllRead, clearAll } = useNotifications(userId);
   const [openPinId, setOpenPinId] = useState(null);
   const mapScreenRef = useRef(null);
   const [editPinId, setEditPinId] = useState(null);
@@ -79,22 +80,8 @@ function MainApp({ userId, showToast }) {
     }
   }, [acceptInvite, data]);
 
-  const addNotification = useCallback((type, message, icon) => {
-    const id = Date.now();
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const time = `${hours}:${minutes}`;
-
-    setNotifications((prev) => [
-      { id, type, message, icon, time },
-      ...prev,
-    ]);
-  }, []);
-
   const deletePlace = async (place) => {
     if (!(await data.deletePlace(place.collection_id, place.id))) return;
-    addNotification('deleted', `Deleted "${place.name}"`, '🗑️');
     closePin();
     showToast(`🗑️ Deleted "${place.name}"`);
   };
@@ -146,8 +133,17 @@ function MainApp({ userId, showToast }) {
       <header className="header">
         <span className="header-title">🗺️ Reel Map</span>
         <div className="header-buttons">
-          <button className="header-btn" onClick={() => setNotificationsOpen(true)} aria-label="Notifications">
+          <button
+            className="header-btn"
+            onClick={() => { setNotificationsOpen(true); markAllRead(); }}
+            aria-label="Notifications"
+          >
             🔔
+            {unreadCount > 0 && (
+              <span style={{ marginLeft: 2, fontSize: 11, fontWeight: 700, color: '#fff', background: '#d4572a', borderRadius: 10, padding: '0 5px' }}>
+                {unreadCount}
+              </span>
+            )}
           </button>
           <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
             ⚙️
@@ -230,7 +226,7 @@ function MainApp({ userId, showToast }) {
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
         notifications={notifications}
-        onClear={() => setNotifications([])}
+        onClear={clearAll}
       />
 
       {openPin && !editPin && (
@@ -269,7 +265,6 @@ function MainApp({ userId, showToast }) {
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {
-              addNotification('added', `Added "${fields.name}" to a collection`, '📍');
               showToast(`📍 Added "${fields.name}"`);
               setAdding(false);
             }

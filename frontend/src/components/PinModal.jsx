@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DEFAULT_AVATAR_URL, feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
+import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 
@@ -258,7 +259,18 @@ export default function PinModal({
         {booking && (
           <div className="modal-section">
             <div className="modal-label">📅 Planned Date</div>
-            <div className="planned-date">{formatDateTime(booking.planned_at)}</div>
+            <button
+              type="button"
+              className="planned-date"
+              onClick={() => addToCalendar({
+                title: place.name,
+                location: place.address,
+                description: place.reel_url,
+                start: booking.planned_at,
+              })}
+            >
+              {formatDateTime(booking.planned_at)} · 📅 Add to calendar
+            </button>
           </div>
         )}
 
