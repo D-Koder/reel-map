@@ -274,6 +274,11 @@ export default function PinModal({
             >
               {place.address}
             </a>
+            {place.source_id?.startsWith('https://www.google.com/maps/') && (
+              <a className="step-btn secondary full-width" href={place.source_id} target="_blank" rel="noreferrer">
+                📍 Open Google Maps ↗
+              </a>
+            )}
           </div>
         )}
 

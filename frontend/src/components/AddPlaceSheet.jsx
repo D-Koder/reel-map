@@ -64,7 +64,6 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
         body: JSON.stringify({ reelUrl: url }),
       });
       const data = await response.json().catch(() => ({}));
-      (data.steps ?? []).forEach((message) => addLog(`🔎 ${message}`));
       const error = response.ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
 
       if (error) {
@@ -124,7 +123,6 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       signal: AbortSignal.timeout(55000),
     });
     const data = await response.json().catch(() => ({}));
-    (data.steps ?? []).forEach((message) => addLog(`🔎 ${message}`));
     if (!response.ok) throw new Error(data.error || `Google Maps returned HTTP ${response.status}`);
     return data;
   };
@@ -245,21 +243,6 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
 
       addLog('💾 Saving place…', 'info');
-      const collectionName = collections.find((c) => c.id === collectionId)?.name ?? collectionId;
-      addLog(`🧾 Saving to "${collectionName}": ${JSON.stringify({
-        name: name.trim(),
-        category,
-        address: location.trim() || null,
-        lat: venueDetails?.latitude ?? null,
-        lng: venueDetails?.longitude ?? null,
-        phone: venueDetails?.phone ?? null,
-        bookingUrl: venueDetails?.bookingUrl ?? null,
-        hours: venueDetails?.hours?.length ? venueDetails.hours : null,
-        reelUrl: reelUrl.trim() || null,
-        thumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl) || null,
-        source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
-        vibe: feeling,
-      })}`, 'info');
       await onAdd({
         name: name.trim(),
         location: location.trim(),

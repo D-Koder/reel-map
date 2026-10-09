@@ -52,8 +52,6 @@ function normalisePlace(row) {
   }
   return collections.map((cp) => ({
     ...row,
-    name: cp.custom_name || row.name,
-    category: cp.category || row.category,
     collection_id: cp.collection_id,
     added_by: cp.added_by,
     added_at: cp.added_at,
@@ -213,15 +211,10 @@ export function useAppData(userId, showToast) {
       return { id: placeId };
     },
 
-    // Name and category are per collection (collection_places).
-    updatePlace: (place, { name, category }) =>
-      run(
-        supabase
-          .from('collection_places')
-          .update({ custom_name: name, category })
-          .eq('collection_id', place.collection_id)
-          .eq('place_id', place.id)
-      ),
+    updatePlace: (id, { name, category }) => {
+      patchPlace(id, { name, category });
+      return run(supabase.from('places').update({ name, category }).eq('id', id));
+    },
 
     deletePlace: (collectionId, placeId) =>
       run(supabase.rpc('delete_place', { p_collection_id: collectionId, p_place_id: placeId })),
