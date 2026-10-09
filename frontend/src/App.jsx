@@ -93,15 +93,10 @@ function MainApp({ userId, showToast }) {
   }, []);
 
   const deletePlace = async (place) => {
-    if (!(await data.deletePlace(place.id))) return;
+    if (!(await data.deletePlace(place.collection_id, place.id))) return;
     addNotification('deleted', `Deleted "${place.name}"`, '🗑️');
     closePin();
-    showToast(`🗑️ Deleted "${place.name}"`, {
-      label: 'Undo',
-      onClick: async () => {
-        if (await data.restorePlace(place.id)) showToast(`↩️ Restored "${place.name}"`);
-      },
-    });
+    showToast(`🗑️ Deleted "${place.name}"`);
   };
 
   const markDone = async (place) => {

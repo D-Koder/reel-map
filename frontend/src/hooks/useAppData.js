@@ -17,7 +17,7 @@ const COLLECTION_SELECT = `
 `;
 
 const PROFILE_SELECT = `
-  id, display_name, avatar, avatar_url, current_streak, best_streak, last_activity_at
+  id, display_name, avatar, avatar_url
 `;
 
 // Turn database errors into something a person can act on.
@@ -81,13 +81,14 @@ export function useAppData(userId, showToast) {
   const refreshTimer = useRef(null);
 
   const refresh = useCallback(async () => {
-    const [profileRes, collectionsRes, placesRes, orderRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
       supabase.from('place_order').select('place_id, collection_id, position'),
+      supabase.rpc('get_streak'),
     ]);
-    const failed = [profileRes, collectionsRes, placesRes, orderRes].find((r) => r.error);
+    const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes].find((r) => r.error);
     if (failed) {
       setState((s) => ({ ...s, loading: false, error: friendlyError(failed.error) }));
       return;
@@ -105,7 +106,11 @@ export function useAppData(userId, showToast) {
     setState({
       loading: false,
       error: null,
-      profile: profileRes.data,
+      profile: {
+        ...profileRes.data,
+        current_streak: streakRes.data?.[0]?.current_streak ?? 0,
+        best_streak: streakRes.data?.[0]?.best_streak ?? 0,
+      },
       collections: collectionsRes.data.map(normaliseCollection),
       places: places.flatMap(normalisePlace),
     });
@@ -211,8 +216,8 @@ export function useAppData(userId, showToast) {
       return run(supabase.from('places').update({ name, category }).eq('id', id));
     },
 
-    deletePlace: (id) => run(supabase.rpc('delete_place', { p_place_id: id })),
-    restorePlace: (id) => run(supabase.rpc('restore_place', { p_place_id: id })),
+    deletePlace: (collectionId, placeId) =>
+      run(supabase.rpc('delete_place', { p_collection_id: collectionId, p_place_id: placeId })),
 
     book: (placeId, plannedAt) =>
       run(supabase.from('bookings').insert({ place_id: placeId, planned_at: new Date(plannedAt).toISOString() })),
