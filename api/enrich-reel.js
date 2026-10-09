@@ -1,9 +1,7 @@
 const scrapeReel = require('./scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { progressFor } = require('../lib/progress');
 
-// Calls another endpoint in-process. Its steps are passed to onStep as they happen.
-async function invoke(handler, body, onStep) {
+async function invoke(handler, body) {
   const response = {
     statusCode: 200,
     status(code) {
@@ -15,13 +13,7 @@ async function invoke(handler, body, onStep) {
       return this;
     },
   };
-  await handler({
-    method: 'POST',
-    body,
-    emit: (event) => {
-      if (event.type === 'step' && onStep) onStep(event.message);
-    },
-  }, response);
+  await handler({ method: 'POST', body }, response);
   return response;
 }
 
@@ -29,13 +21,13 @@ function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-async function enrich(req, res, step, respond) {
-  if (req.method !== 'POST') return respond(405, { error: 'Method not allowed' });
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
-  const reelResponse = await invoke(scrapeReel, { reelUrl }, step);
+  const reelResponse = await invoke(scrapeReel, { reelUrl });
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
-    return respond(reelResponse.statusCode, reelResponse.body || { error: 'Could not read Instagram Reel' });
+    return res.status(reelResponse.statusCode).json(reelResponse.body || { error: 'Could not read Instagram Reel' });
   }
 
   const reel = reelResponse.body;
@@ -46,19 +38,18 @@ async function enrich(req, res, step, respond) {
     : reel.caption;
   const query = searchCaption || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   if (!query) {
-    return respond(200, { ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
+    return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
 
-  step(`Searching Google Maps for "${query.split('\n')[0]}"`);
   const searchResponse = await invoke(scrapeLocation, {
     action: 'search',
     query,
     placeName: reel.placeName,
     location: reel.location,
     caption: reel.caption,
-  }, step);
+  });
   if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
-    return respond(200, {
+    return res.status(200).json({
       ...reel,
       maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
     });
@@ -81,8 +72,8 @@ async function enrich(req, res, step, respond) {
 
   let details = null;
   let detailsError = null;
+  let detailsSteps = [];
   if (selectedCandidate) {
-    step(`Opening details for ${selectedCandidate.name}`);
     const detailsResponse = await invoke(scrapeLocation, {
       action: 'details',
       query,
@@ -90,24 +81,15 @@ async function enrich(req, res, step, respond) {
       placeAddress: selectedCandidate.address,
       placeName: selectedCandidate.name,
       location: selectedCandidate.address || reel.location,
-    }, step);
+    });
     if (detailsResponse.statusCode >= 400) detailsError = detailsResponse.body?.error || 'Could not read Google Maps details';
     else details = detailsResponse.body;
+    detailsSteps = detailsResponse.body?.steps ?? [];
   }
 
-  return respond(200, {
+  return res.status(200).json({
     ...reel,
+    steps: [...(reel.steps ?? []), ...(searchResponse.body?.steps ?? []), ...detailsSteps],
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
-}
-
-module.exports = async function handler(req, res) {
-  const { step, respond } = progressFor(req, res, 'enrich-reel');
-  try {
-    return await enrich(req, res, step, respond);
-  } catch (error) {
-    // Without this, the stream ends with no result and the app shows "stopped before it finished".
-    console.error('[enrich-reel] Unexpected failure:', error);
-    return respond(500, { error: `Reel lookup failed: ${error.message}` });
-  }
 };

@@ -60,16 +60,21 @@ function isInstagramUrl(value) {
   }
 }
 
-const { progressFor } = require('../lib/progress');
-
 module.exports = async function handler(req, res) {
-  const { step, respond } = progressFor(req, res, 'scrape-reel');
-  if (req.method !== 'POST') return respond(405, { error: 'Method not allowed' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   if (!isInstagramUrl(reelUrl)) {
-    return respond(400, { error: 'Enter a valid Instagram link (reel or post)' });
+    return res.status(400).json({ error: 'Enter a valid Instagram link (reel or post)' });
   }
+
+  const steps = [];
+  const step = (message) => {
+    steps.push(message);
+    console.log(`[scrape-reel] ${message}`);
+  };
+  const sendJson = res.json.bind(res);
+  res.json = (body) => sendJson(body && typeof body === 'object' ? { ...body, steps } : body);
 
   let browser;
   try {
@@ -171,10 +176,10 @@ module.exports = async function handler(req, res) {
 
     scraped.thumbnailUrl = normalizeImageUrl(scraped.thumbnailUrl);
     step(scraped.thumbnailUrl ? 'Thumbnail found' : 'No thumbnail found');
-    return respond(200, scraped);
+    return res.status(200).json(scraped);
   } catch (error) {
     console.error('Reel DOM scrape failed:', error);
-    return respond(502, { error: 'Instagram did not provide the Reel page data. Try again or enter the place details manually.' });
+    return res.status(502).json({ error: 'Instagram did not provide the Reel page data. Try again or enter the place details manually.' });
   } finally {
     if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
       globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
