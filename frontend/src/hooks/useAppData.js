@@ -201,7 +201,7 @@ export function useAppData(userId, showToast) {
       if (feeling) {
         const { error: reactionError } = await supabase
           .from('reactions')
-          .insert({ place_id: placeId, feeling })
+          .insert({ place_id: placeId, user_id: userId, feeling })
           .abortSignal(AbortSignal.timeout(10000));
         if (reactionError) showToast(`⚠️ Place saved, but vibe didn't save: ${friendlyError(reactionError)}`);
       }
