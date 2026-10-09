@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { categories, feelings } from '../lib/constants';
+import { postStream } from '../lib/streamApi';
 import { normalizeImageUrl } from '../lib/media';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -58,28 +59,15 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     addLog('🔄 Starting to fetch Instagram data...', 'info');
 
     try {
-      const response = await fetch('/api/enrich-reel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reelUrl: url }),
-      });
-      const data = await response.json().catch(() => ({}));
-      (data.steps ?? []).forEach((message) => addLog(`🔎 ${message}`));
-      const error = response.ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
-
-      if (error) {
-        let detail = error.message;
-        const response = error.context;
-        if (response && typeof response.clone === 'function') {
-          try {
-            const payload = await response.clone().json();
-            detail = payload.error || payload.message || detail;
-          } catch {
-            // Keep the SDK error when the function response isn't JSON.
-          }
-        }
-        addLog(`❌ API Error: ${detail}`, 'error');
-        throw new Error(detail);
+      let data;
+      try {
+        data = await postStream('/api/enrich-reel', { reelUrl: url }, {
+          onStep: (message) => addLog(`🔎 ${message}`),
+          timeoutMs: 90000,
+        });
+      } catch (error) {
+        addLog(`❌ API Error: ${error.message}`, 'error');
+        throw error;
       }
 
       if (data?.success) {
@@ -116,18 +104,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setLoading(false);
   };
 
-  const requestLocationApi = async (payload) => {
-    const response = await fetch('/api/scrape-location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(55000),
-    });
-    const data = await response.json().catch(() => ({}));
-    (data.steps ?? []).forEach((message) => addLog(`🔎 ${message}`));
-    if (!response.ok) throw new Error(data.error || `Google Maps returned HTTP ${response.status}`);
-    return data;
-  };
+  const requestLocationApi = (payload) => postStream('/api/scrape-location', payload, {
+    onStep: (message) => addLog(`🔎 ${message}`),
+    timeoutMs: 55000,
+  });
 
   const selectLocationCandidate = async (candidate, preserveName = false) => {
     setLoadingCandidateUrl(candidate.url);

@@ -1,7 +1,9 @@
 const scrapeReel = require('./scrape-reel');
 const scrapeLocation = require('./scrape-location');
+const { progressFor } = require('../lib/progress');
 
-async function invoke(handler, body) {
+// Calls another endpoint in-process. Its steps are passed to onStep as they happen.
+async function invoke(handler, body, onStep) {
   const response = {
     statusCode: 200,
     status(code) {
@@ -13,7 +15,13 @@ async function invoke(handler, body) {
       return this;
     },
   };
-  await handler({ method: 'POST', body }, response);
+  await handler({
+    method: 'POST',
+    body,
+    emit: (event) => {
+      if (event.type === 'step' && onStep) onStep(event.message);
+    },
+  }, response);
   return response;
 }
 
@@ -22,12 +30,13 @@ function normalize(value) {
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { step, respond } = progressFor(req, res, 'enrich-reel');
+  if (req.method !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
-  const reelResponse = await invoke(scrapeReel, { reelUrl });
+  const reelResponse = await invoke(scrapeReel, { reelUrl }, step);
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
-    return res.status(reelResponse.statusCode).json(reelResponse.body || { error: 'Could not read Instagram Reel' });
+    return respond(reelResponse.statusCode, reelResponse.body || { error: 'Could not read Instagram Reel' });
   }
 
   const reel = reelResponse.body;
@@ -38,18 +47,19 @@ module.exports = async function handler(req, res) {
     : reel.caption;
   const query = searchCaption || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   if (!query) {
-    return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
+    return respond(200, { ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
 
+  step(`Searching Google Maps for "${query.split('\n')[0]}"`);
   const searchResponse = await invoke(scrapeLocation, {
     action: 'search',
     query,
     placeName: reel.placeName,
     location: reel.location,
     caption: reel.caption,
-  });
+  }, step);
   if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
-    return res.status(200).json({
+    return respond(200, {
       ...reel,
       maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
     });
@@ -72,8 +82,8 @@ module.exports = async function handler(req, res) {
 
   let details = null;
   let detailsError = null;
-  let detailsSteps = [];
   if (selectedCandidate) {
+    step(`Opening details for ${selectedCandidate.name}`);
     const detailsResponse = await invoke(scrapeLocation, {
       action: 'details',
       query,
@@ -81,15 +91,13 @@ module.exports = async function handler(req, res) {
       placeAddress: selectedCandidate.address,
       placeName: selectedCandidate.name,
       location: selectedCandidate.address || reel.location,
-    });
+    }, step);
     if (detailsResponse.statusCode >= 400) detailsError = detailsResponse.body?.error || 'Could not read Google Maps details';
     else details = detailsResponse.body;
-    detailsSteps = detailsResponse.body?.steps ?? [];
   }
 
-  return res.status(200).json({
+  return respond(200, {
     ...reel,
-    steps: [...(reel.steps ?? []), ...(searchResponse.body?.steps ?? []), ...detailsSteps],
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 };

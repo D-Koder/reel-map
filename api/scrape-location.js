@@ -1,8 +1,11 @@
 const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
+const { progressFor } = require('../lib/progress');
+
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { step, respond } = progressFor(req, res, 'scrape-location');
+  if (req.method !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const placeName = typeof req.body?.placeName === 'string' ? req.body.placeName.trim() : '';
   const location = typeof req.body?.location === 'string' ? req.body.location.trim() : '';
@@ -11,15 +14,7 @@ module.exports = async function handler(req, res) {
   const providedQuery = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
   const query = (['search', 'details'].includes(action) && providedQuery) ||
     [location, placeName].filter(Boolean).join(' ') || caption;
-  if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
-
-  const steps = [];
-  const step = (message) => {
-    steps.push(message);
-    console.log(`[scrape-location] ${message}`);
-  };
-  const sendJson = res.json.bind(res);
-  res.json = (body) => sendJson(body && typeof body === 'object' ? { ...body, steps } : body);
+  if (!query) return respond(400, { error: 'Provide a place name or address to search Google Maps' });
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   let selectedPlaceUrl = '';
@@ -30,13 +25,13 @@ module.exports = async function handler(req, res) {
       const candidateUrl = new URL(req.body?.placeUrl);
       if (candidateUrl.protocol !== 'https:' || !['google.com', 'www.google.com'].includes(candidateUrl.hostname) ||
           !candidateUrl.pathname.startsWith('/maps/place/')) {
-        return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
+        return respond(400, { error: 'Choose a valid Google Maps place result' });
       }
       selectedPlaceUrl = candidateUrl.href;
       selectedPlaceSlug = decodeURIComponent(candidateUrl.pathname.split('/')[3] || '').replace(/\+/g, ' ');
       selectedPlaceCoordinates = candidateUrl.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
     } catch {
-      return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
+      return respond(400, { error: 'Choose a valid Google Maps place result' });
     }
   }
   let browser;
@@ -122,10 +117,10 @@ module.exports = async function handler(req, res) {
           text: document.body?.innerText?.slice(0, 800) || '',
         }));
         console.warn('[scrape-location] No result links; Maps page state:', JSON.stringify(pageState));
-        return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+        return respond(404, { error: `No Google Maps results found for "${query}"`, query, mapsUrl });
       }
 
-      return res.status(200).json({ success: true, query, candidates });
+      return respond(200, { success: true, query, candidates });
     }
 
     if (action === 'details') {
@@ -152,7 +147,7 @@ module.exports = async function handler(req, res) {
           }
         }
         if (!selectedResult) {
-          return res.status(404).json({ error: `Selected place "${placeName || selectedPlaceSlug}" was not in the search results`, query, mapsUrl });
+          return respond(404, { error: `Selected place "${placeName || selectedPlaceSlug}" was not in the search results`, query, mapsUrl });
         }
         await selectedResult.click();
       }
@@ -181,7 +176,7 @@ module.exports = async function handler(req, res) {
       }));
       console.warn('[scrape-location] No result link; Maps page state:', JSON.stringify(pageState));
       console.warn(`[scrape-location] No Maps results found for: ${query}`);
-      return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+      return respond(404, { error: `No Google Maps results found for "${query}"`, query, mapsUrl });
     }
 
     if (firstResult) {
@@ -343,19 +338,19 @@ module.exports = async function handler(req, res) {
     console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, pageUrl: page.url(), rows: result.hours }));
 
     if (!result.name) {
-      return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });
+      return respond(404, { error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });
     }
     if (!result.address && action !== 'details') {
-      return res.status(422).json({ error: `Google Maps found "${result.name}" but did not provide an address`, query, mapsUrl: result.mapsUrl });
+      return respond(422, { error: `Google Maps found "${result.name}" but did not provide an address`, query, mapsUrl: result.mapsUrl });
     }
 
     step(`Done: ${result.name}, ${result.hours?.length ?? 0} hour row(s) read`);
     const output = { success: true, query, ...result };
     console.log('[scrape-location] Extracted place details:', JSON.stringify(output, null, 2));
-    return res.status(200).json(output);
+    return respond(200, output);
   } catch (error) {
     console.error('[scrape-location] Google Maps scrape failed:', error);
-    return res.status(502).json({
+    return respond(502, {
       error: 'Could not retrieve place details from Google Maps. Try another search or enter the location manually.',
       details: error.message,
       query,
