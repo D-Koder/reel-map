@@ -256,6 +256,7 @@ export default function SettingsDrawer({
   collections,
   onCreateCollection,
   onUpdateCollection,
+  onSetPrivacy,
   onUpdateProfile,
   onRemoveCollectionMember,
   onDeleteCollection,
@@ -275,8 +276,21 @@ export default function SettingsDrawer({
   };
 
   const togglePrivacy = async (collection) => {
-    if (await onUpdateCollection(collection.id, { is_private: !collection.isPrivate })) {
-      showToast(collection.isPrivate ? '🔓 Now shared' : '🔒 Now private');
+    const makePrivate = !collection.isPrivate;
+    const others = collection.members.filter((m) => m.role !== 'owner');
+    if (makePrivate && others.length > 0) {
+      const names = others.map((m) => m.display_name).join(', ');
+      const ok = window.confirm(
+        `Make "${collection.name}" private?\n\n` +
+        `This removes ${others.length} member(s): ${names}.\n` +
+        'They will be told they were removed. Open invite links will stop working.'
+      );
+      if (!ok) return;
+    }
+    const result = await onSetPrivacy(collection.id, makePrivate, makePrivate && others.length > 0);
+    if (result.ok) {
+      const removedNote = makePrivate && result.removed ? ` · removed ${result.removed}` : '';
+      showToast(makePrivate ? `🔒 Now private${removedNote}` : '🔓 Now shared');
     }
   };
 

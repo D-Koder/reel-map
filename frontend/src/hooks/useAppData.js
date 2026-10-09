@@ -246,6 +246,22 @@ export function useAppData(userId, showToast) {
     createCollection: (name, emoji = '📌') => run(supabase.rpc('create_collection', { p_name: name, p_emoji: emoji })),
     updateCollection: (id, patch) => run(supabase.from('collections').update(patch).eq('id', id)),
 
+    // Making a collection private removes its other members (the owner confirms first).
+    setCollectionPrivate: async (collectionId, makePrivate, confirm) => {
+      const { data, error } = await supabase.rpc('set_collection_private', {
+        p_collection_id: collectionId,
+        p_private: makePrivate,
+        p_confirm: confirm,
+      });
+      if (error) {
+        showToast(`⚠️ ${friendlyError(error)}`);
+        await refresh();
+        return { ok: false };
+      }
+      await refresh();
+      return { ok: true, removed: data ?? 0 };
+    },
+
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
     removeCollectionMember: (collectionId, memberId) => run(
       supabase.from('collection_members').delete().eq('collection_id', collectionId).eq('user_id', memberId)

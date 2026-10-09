@@ -207,6 +207,7 @@ function MainApp({ userId, showToast }) {
         collections={data.collections}
         onCreateCollection={data.createCollection}
         onUpdateCollection={data.updateCollection}
+        onSetPrivacy={data.setCollectionPrivate}
         onUpdateProfile={data.updateProfile}
         onRemoveCollectionMember={data.removeCollectionMember}
         onDeleteCollection={data.deleteCollection}
