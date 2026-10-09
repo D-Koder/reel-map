@@ -243,6 +243,21 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       }
 
       addLog('💾 Saving place…', 'info');
+      const collectionName = collections.find((c) => c.id === collectionId)?.name ?? collectionId;
+      addLog(`🧾 Saving to "${collectionName}": ${JSON.stringify({
+        name: name.trim(),
+        category,
+        address: location.trim() || null,
+        lat: venueDetails?.latitude ?? null,
+        lng: venueDetails?.longitude ?? null,
+        phone: venueDetails?.phone ?? null,
+        bookingUrl: venueDetails?.bookingUrl ?? null,
+        hours: venueDetails?.hours?.length ? venueDetails.hours : null,
+        reelUrl: reelUrl.trim() || null,
+        thumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl) || null,
+        source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
+        vibe: feeling,
+      })}`, 'info');
       await onAdd({
         name: name.trim(),
         location: location.trim(),

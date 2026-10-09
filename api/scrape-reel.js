@@ -26,6 +26,19 @@ function normalizeImageUrl(value) {
   }
 }
 
+// "Name:" and "Address:" lines win. Falls back to the 📍 line.
+function parseCaptionDetails(caption) {
+  const field = (label) => {
+    const match = caption.match(new RegExp(`^\\s*${label}\\s*:\\s*(.+)$`, 'mi'));
+    return match ? match[1].trim() : '';
+  };
+  const fromLine = parseCaptionLocation(caption);
+  return {
+    placeName: field('Name') || fromLine.placeName,
+    location: field('Address') || fromLine.location,
+  };
+}
+
 function parseCaptionLocation(caption) {
   const line = caption.split(/\r?\n/).find((text) => /^\s*[📍📌]/u.test(text))
     ?.replace(/^\s*[📍📌]\s*/u, '').trim() ?? '';
@@ -141,6 +154,10 @@ module.exports = async function handler(req, res) {
         thumbnailUrl: thumbnail,
       };
     }, reelUrl);
+
+    const captionDetails = parseCaptionDetails(scraped.caption || '');
+    if (captionDetails.placeName) scraped.placeName = captionDetails.placeName;
+    if (captionDetails.location) scraped.location = captionDetails.location;
 
     scraped.thumbnailUrl = normalizeImageUrl(scraped.thumbnailUrl);
     return res.status(200).json(scraped);

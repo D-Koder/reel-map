@@ -59,7 +59,19 @@ module.exports = async function handler(req, res) {
       const directCandidate = await page.evaluate(() => {
         const name = document.querySelector('h1')?.textContent?.trim();
         return location.pathname.includes('/maps/place/') && name
-          ? { name, url: location.href, address: '', category: '', rating: '', summary: '' }
+          ? {
+            name,
+            url: location.href,
+            address: (() => {
+              const addressButton = document.querySelector('[data-item-id="address"]') ||
+                document.querySelector('button[aria-label^="Address:"]');
+              return (addressButton?.querySelector('.Io6YTe')?.innerText || addressButton?.innerText || '')
+                .replace(/^Address:\s*/i, '').replace(/\s*Copy address\s*$/i, '').trim();
+            })(),
+            category: '',
+            rating: '',
+            summary: '',
+          }
           : null;
       });
       const candidates = directCandidate ? [directCandidate] : await page.$$eval(firstResultSelector, (anchors) => {
