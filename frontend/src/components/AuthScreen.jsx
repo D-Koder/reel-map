@@ -15,6 +15,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
+  const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
 
@@ -35,7 +36,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
       const res = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { display_name: displayName.trim(), avatar } },
+        options: { data: { display_name: displayName.trim(), avatar, country: country.trim() } },
       });
       error = res.error;
       // With "Confirm email" switched on, there is no session until the link is clicked.
@@ -93,6 +94,17 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
                 ))}
               </div>
             </div>
+            <label className="field">
+              <span className="modal-label">Country (optional)</span>
+              <input
+                className="step-input"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="e.g. Australia"
+                autoComplete="country-name"
+                maxLength={60}
+              />
+            </label>
           </>
         )}
 
