@@ -92,10 +92,18 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     [places]
   );
   // Category and collection filters combine: a place must match both. Multiple collections match any.
-  const visible = located.filter((place) =>
-    (filter === 'all' || place.category === filter) &&
-    (collectionFilter.size === 0 || collectionFilter.has(place.collection_id))
-  );
+  // A place in several selected collections shows once: the map has one row per collection the place is in.
+  const visible = useMemo(() => {
+    const shown = new Set();
+    return located.filter((place) => {
+      const matches =
+        (filter === 'all' || place.category === filter) &&
+        (collectionFilter.size === 0 || collectionFilter.has(place.collection_id));
+      if (!matches || shown.has(place.id)) return false;
+      shown.add(place.id);
+      return true;
+    });
+  }, [located, filter, collectionFilter]);
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
