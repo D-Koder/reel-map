@@ -30,7 +30,6 @@ async function forwardGeocode(text, signal) {
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('autocomplete', 'true');
   url.searchParams.set('limit', '5');
-  url.searchParams.set('country', 'au');
   url.searchParams.set('proximity', `${MELBOURNE_CENTER[0]},${MELBOURNE_CENTER[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
@@ -59,6 +58,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const [searchResults, setSearchResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
   const searchMarkerRef = useRef(null);
+  const [selectedSearch, setSelectedSearch] = useState(null); // the picked suggestion, used to pre-fill Add a place
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -203,6 +203,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     setSearchText('');
     setSearchResults([]);
     setSearchStatus('');
+    setSelectedSearch(null);
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = null;
   };
@@ -213,6 +214,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     // The typed text stays as it is. Only the suggestion list closes.
     setSearchResults([]);
     setSearchStatus('');
+    setSelectedSearch(result);
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })
       .setLngLat([result.lng, result.lat])
@@ -408,6 +410,16 @@ const openListedPlace = (place) => {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          className="map-add-button"
+          onClick={() => onAddAt?.(selectedSearch
+            ? { name: selectedSearch.name, address: selectedSearch.address, latitude: selectedSearch.lat, longitude: selectedSearch.lng }
+            : null)}
+        >
+          ＋ Add a place
+        </button>
 
         <div className="map-title">
           📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}

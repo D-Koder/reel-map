@@ -27,7 +27,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
   const [reelUrl, setReelUrl] = useState('');
   const [scrapedData, setScrapedData] = useState(null);
   const [mapsData, setMapsData] = useState(null);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialPlace?.name ?? '');
   const [location, setLocation] = useState(initialPlace?.address ?? '');
   // Exact spot tapped on the map. Used as the pin until a Google place is picked.
   const [pinCoords, setPinCoords] = useState(initialPlace

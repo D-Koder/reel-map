@@ -581,6 +581,24 @@ button {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+.map-add-button {
+  position: absolute;
+  left: calc(12px + var(--safe-left));
+  bottom: 12px;
+  z-index: 20;
+  min-height: 40px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
 .map-place-list {
   position: absolute;
   z-index: 20;
