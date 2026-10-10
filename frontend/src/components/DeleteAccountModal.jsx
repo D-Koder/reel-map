@@ -40,7 +40,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                 onClick={handleDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete My Account'}
+                {isDeleting ? <><span className="spinner" aria-hidden="true" />Deleting...</> : 'Delete My Account'}
               </button>
             </>
           ) : (
@@ -118,7 +118,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                   onClick={handleDelete}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : (cascadeDelete ? 'Delete Account & Collections' : 'Delete Account & Orphan Collections')}
+                  {isDeleting ? <><span className="spinner" aria-hidden="true" />Deleting...</> : (cascadeDelete ? 'Delete Account & Collections' : 'Delete Account & Orphan Collections')}
                 </button>
               </div>
             </>

@@ -142,7 +142,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
 
         <button type="submit" className="step-btn primary full-width" disabled={busy}>
           {busy
-            ? 'Please wait…'
+            ? <><span className="spinner" aria-hidden="true" />Please wait…</>
             : { login: 'Log in', signup: 'Create account', forgot: 'Send reset link', reset: 'Save password' }[mode]}
         </button>
 

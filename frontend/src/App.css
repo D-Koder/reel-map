@@ -212,6 +212,16 @@ button {
   border-radius: 999px;
 }
 
+/* Tappable version of the empty-collection hint */
+button.collection-empty {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  background: none;
+  cursor: pointer;
+}
+
 .collection-empty {
   font-size: 13px;
   color: var(--text-muted);
@@ -1015,7 +1025,34 @@ button {
   height: 5px;
   border-radius: 999px;
   background: var(--border);
-  margin: 0 auto 8px;
+  /* Bigger touch area for swipe-to-close; the bar itself stays the same size. */
+  box-sizing: content-box;
+  padding: 10px 40px;
+  background-clip: content-box;
+  margin: -10px auto 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+/* Shared spinner for any waiting state. Inherits the text colour. */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-turn 0.7s linear infinite;
+}
+
+@keyframes spinner-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
 }
 
 .modal-header {

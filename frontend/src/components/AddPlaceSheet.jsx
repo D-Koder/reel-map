@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Value of the last Collection option. Picking it opens the "New collection" pop-up.
+const NEW_COLLECTION = '__new__';
 
 const isValidInstagramUrl = (url) => {
   try {
@@ -13,7 +16,7 @@ const isValidInstagramUrl = (url) => {
   }
 };
 
-export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlace = null }) {
+export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, onClose, initialPlace = null }) {
   // Step management. A place opened from a long-press on the map skips the reel step.
   const [step, setStep] = useState(initialPlace ? 'details' : 'reel'); // 'reel' | 'details'
 
@@ -43,6 +46,11 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
+  const sheetRef = useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, onClose);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [creatingCollection, setCreatingCollection] = useState(false);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -195,6 +203,22 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
     }
   };
 
+  // New collections are public (the database default) and use the default 📌 icon.
+  // On success the new collection is selected for this place.
+  const createNewCollection = async (event) => {
+    event.preventDefault();
+    const trimmed = newCollectionName.trim();
+    if (!trimmed || creatingCollection) return;
+    setCreatingCollection(true);
+    const newId = await onCreateCollection(trimmed);
+    setCreatingCollection(false);
+    if (typeof newId === 'string') {
+      setCollectionId(newId);
+      setNewCollectionOpen(false);
+      setNewCollectionName('');
+    }
+  };
+
   const handleConfirmReel = () => {
     const trimmedUrl = reelUrlInput.trim();
     setUrlError('');
@@ -303,12 +327,13 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={sheetRef}
         className="modal edit-sheet"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Add a place"
       >
-        <div className="sheet-handle" aria-hidden="true" />
+        <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Add a place</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
@@ -350,7 +375,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                 marginBottom: '16px'
               }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  🔄 Fetching Instagram data…
+                  <span className="spinner" aria-hidden="true" />Fetching Instagram data…
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <div style={{
@@ -396,7 +421,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                 onClick={handleConfirmReel}
                 disabled={loading || !reelUrlInput.trim()}
               >
-                {loading ? 'Loading…' : 'Confirm'}
+                {loading ? <><span className="spinner" aria-hidden="true" />Loading…</> : 'Confirm'}
               </button>
             </div>
           </div>
@@ -533,7 +558,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                   disabled={saving || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
                   style={{ marginTop: '8px' }}
                 >
-                  {verifyingLocation ? 'Searching Google Maps…' : 'Verify location'}
+                  {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching Google Maps…</> : 'Verify location'}
                 </button>
               )}
             </label>
@@ -563,7 +588,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                       }}
                     >
                       <strong style={{ display: 'block', fontSize: '14px' }}>
-                        {loadingCandidateUrl === candidate.url ? 'Loading details…' : candidate.name}
+                        {loadingCandidateUrl === candidate.url ? <><span className="spinner" aria-hidden="true" />Loading details…</> : candidate.name}
                       </strong>
                       <span style={{ display: 'block', marginTop: '3px', fontSize: '12px', color: 'var(--text-muted)' }}>
                         {[candidate.address, candidate.category, candidate.rating && `★ ${candidate.rating}`]
@@ -593,7 +618,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                     <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close">✕</button>
                   </div>
                   {verifyingLocation ? (
-                    <p className="modal-label" role="status">Searching Google Maps…</p>
+                    <p className="modal-label" role="status"><span className="spinner" aria-hidden="true" />Searching Google Maps…</p>
                   ) : verifyResults.length ? (
                     <>
                       <p className="modal-label">Choose the matching Google Maps place.</p>
@@ -618,7 +643,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                           disabled={!verifyCandidate || !!loadingCandidateUrl}
                           onClick={() => selectLocationCandidate({ ...verifyCandidate, searchQuery: location.trim() }, true)}
                         >
-                          {loadingCandidateUrl ? 'Loading details…' : 'Confirm place'}
+                          {loadingCandidateUrl ? <><span className="spinner" aria-hidden="true" />Loading details…</> : 'Confirm place'}
                         </button>
                       </div>
                     </>
@@ -632,6 +657,51 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
               </div>
             )}
 
+            {newCollectionOpen && (
+              <div
+                className="modal-overlay location-verify-overlay"
+                onClick={() => !creatingCollection && setNewCollectionOpen(false)}
+              >
+                <form
+                  className="modal location-verify-modal"
+                  role="dialog"
+                  aria-label="New collection"
+                  onClick={(e) => e.stopPropagation()}
+                  onSubmit={createNewCollection}
+                >
+                  <div className="modal-header">
+                    <div className="modal-title">New collection</div>
+                  </div>
+                  <label className="field">
+                    <span className="modal-label">Name</span>
+                    <input
+                      className="step-input"
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                      placeholder="e.g. Date nights"
+                      maxLength={40}
+                      autoFocus
+                      disabled={creatingCollection}
+                      required
+                    />
+                  </label>
+                  <div className="field-row">
+                    <button
+                      type="button"
+                      className="step-btn secondary full-width"
+                      onClick={() => setNewCollectionOpen(false)}
+                      disabled={creatingCollection}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="step-btn primary full-width" disabled={creatingCollection}>
+                      {creatingCollection ? <><span className="spinner" aria-hidden="true" />Creating…</> : 'OK'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* Collection & Category */}
             <div className="field-row">
               <label className="field">
@@ -639,7 +709,10 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                 <select
                   className="step-input"
                   value={collectionId}
-                  onChange={(e) => setCollectionId(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value === NEW_COLLECTION) setNewCollectionOpen(true);
+                    else setCollectionId(e.target.value);
+                  }}
                   disabled={saving}
                 >
                   {collections.map((c) => (
@@ -647,6 +720,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
                       {c.emoji} {c.name}
                     </option>
                   ))}
+                  <option value={NEW_COLLECTION}>+ New collection</option>
                 </select>
               </label>
               <label className="field">
@@ -688,7 +762,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlac
 
             {/* Submit Button */}
             <button type="submit" className="step-btn primary full-width" disabled={saving || !name.trim()}>
-              {saving ? 'Adding…' : 'Add place'}
+              {saving ? <><span className="spinner" aria-hidden="true" />Adding…</> : 'Add place'}
             </button>
           </form>
         )}

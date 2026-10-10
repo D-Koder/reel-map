@@ -256,7 +256,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     searchSessionRef.current = null;
     // The typed text stays as it is. Only the suggestion list closes.
     setSearchResults([]);
-    setSearchStatus('');
+    setSearchStatus('retrieving');
     let coords;
     try {
       coords = await retrievePlace(result.id, sessionToken, AbortSignal.timeout(10000));
@@ -266,6 +266,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     }
     const place = { ...result, ...coords };
     setSelectedSearch(place);
+    setSearchStatus('');
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })
       .setLngLat([place.lng, place.lat])
@@ -418,7 +419,8 @@ const openListedPlace = (place) => {
               <button type="button" className="map-search-clear" onClick={clearSearch} aria-label="Clear search">✕</button>
             )}
           </div>
-          {searchStatus === 'searching' && <div className="map-search-note">Searching…</div>}
+          {searchStatus === 'searching' && <div className="map-search-note"><span className="spinner" aria-hidden="true" />Searching…</div>}
+          {searchStatus === 'retrieving' && <div className="map-search-note"><span className="spinner" aria-hidden="true" />Finding place…</div>}
           {searchStatus === 'none' && <div className="map-search-note">No matches. Try a different spelling.</div>}
           {searchStatus === 'error' && <div className="map-search-note">Search is unavailable right now.</div>}
           {searchResults.length > 0 && (

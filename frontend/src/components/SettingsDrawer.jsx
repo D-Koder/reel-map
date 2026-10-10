@@ -214,7 +214,7 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
           )}
 
           <label className="step-btn secondary profile-upload-btn full-width">
-            {uploading ? 'Uploading photo…' : '📸 Upload Profile Photo'}
+            {uploading ? <><span className="spinner" aria-hidden="true" />Uploading photo…</> : '📸 Upload Profile Photo'}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
           </label>
           {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}

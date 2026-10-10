@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import useSheetDrag from '../lib/useSheetDrag';
 import { DEFAULT_AVATAR_URL, feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
@@ -61,8 +62,8 @@ export default function PinModal({
   const [reservationDate, setReservationDate] = useState(defaultReservation);
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   const [now, setNow] = useState(() => Date.now());
-  const [dragOffset, setDragOffset] = useState(0);
-  const dragStartRef = React.useRef(null);
+  const sheetRef = React.useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, onClose);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000);
@@ -79,42 +80,6 @@ export default function PinModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, confirmingDelete]);
 
-  useEffect(() => {
-    const handle = document.querySelector('.sheet-handle');
-    if (!handle) return;
-
-    const handlePointerDown = (e) => {
-      dragStartRef.current = { y: e.clientY || e.touches?.[0]?.clientY };
-    };
-
-    const handlePointerMove = (e) => {
-      if (!dragStartRef.current) return;
-      const currentY = e.clientY || e.touches?.[0]?.clientY;
-      const offset = currentY - dragStartRef.current.y;
-      if (offset > 0) {
-        setDragOffset(offset);
-        e.preventDefault();
-      }
-    };
-
-    const handlePointerUp = () => {
-      if (dragStartRef.current && dragOffset > 80) {
-        onClose();
-      }
-      dragStartRef.current = null;
-      setDragOffset(0);
-    };
-
-    handle.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-
-    return () => {
-      handle.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [dragOffset, onClose]);
 
   const completeStep = async (stepNum) => {
     if (stepNum === 2) {
@@ -169,9 +134,9 @@ export default function PinModal({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={place.name}
-        style={{ transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined }}
+        ref={sheetRef}
       >
-        <div className="sheet-handle" aria-hidden="true" />
+        <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">{place.name}</div>
           <div className="modal-header-actions">
@@ -396,7 +361,7 @@ export default function PinModal({
                   onClick={() => completeStep(2)}
                   disabled={saving || !reservationDate}
                 >
-                  {saving ? 'Saving…' : 'Save booking →'}
+                  {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save booking →'}
                 </button>
               </div>
             )}

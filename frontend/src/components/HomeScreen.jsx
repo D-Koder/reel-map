@@ -14,6 +14,7 @@ export default function HomeScreen({
   onReorder,
   onCreateSample,
   onOpenSettings,
+  onAddPlace,
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -68,7 +69,11 @@ export default function HomeScreen({
                 </div>
               </div>
 
-              {pins.length === 0 && <div className="collection-empty">No places yet — tap ＋ to add one.</div>}
+              {pins.length === 0 && (
+                <button type="button" className="collection-empty" onClick={onAddPlace}>
+                  No places yet — tap ＋ to add one.
+                </button>
+              )}
 
               <DndContext
                 sensors={sensors}

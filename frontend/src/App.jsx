@@ -118,7 +118,7 @@ function MainApp({ userId, showToast }) {
   };
 
   if (data.loading) {
-    return <div className="center-screen">Loading your places…</div>;
+    return <div className="center-screen"><span className="spinner" aria-hidden="true" />Loading your places…</div>;
   }
   if (data.error && !data.profile) {
     return (
@@ -168,6 +168,7 @@ function MainApp({ userId, showToast }) {
             streak={streak}
             onOpenPin={setOpenPinId}
             onReorder={data.reorder}
+            onAddPlace={() => openAddAt(null)}
             onCreateSample={async () => {
               if (await data.createSampleData()) showToast('✨ Added sample places');
             }}
@@ -268,6 +269,7 @@ function MainApp({ userId, showToast }) {
       {adding && (
         <AddPlaceSheet
           initialPlace={addDraft}
+          onCreateCollection={data.createCollection}
           collections={data.collections}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
@@ -314,7 +316,7 @@ function App() {
       </div>
     );
   } else if (session === undefined) {
-    body = <div className="center-screen">Loading…</div>;
+    body = <div className="center-screen"><span className="spinner" aria-hidden="true" />Loading…</div>;
   } else if (recovering) {
     body = (
       <AuthScreen

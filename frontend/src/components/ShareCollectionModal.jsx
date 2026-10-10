@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import useSheetDrag from '../lib/useSheetDrag';
 import { useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
 
 export default function ShareCollectionModal({ collection, userId, onClose, showToast }) {
+  const sheetRef = React.useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { generateInviteLink } = useInvites(userId, showToast);
   const [inviteUrl, setInviteUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,8 +34,8 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal edit-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
+      <div ref={sheetRef} className="modal edit-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Share "{collection.name}"</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
@@ -135,7 +138,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                   disabled={loading}
                   className="step-btn primary full-width"
                 >
-                  {loading ? 'Generating…' : '✨ Generate Invite Link'}
+                  {loading ? <><span className="spinner" aria-hidden="true" />Generating…</> : '✨ Generate Invite Link'}
                 </button>
               )}
             </div>

@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import useSheetDrag from '../lib/useSheetDrag';
 import { categories } from '../lib/constants';
 
 // Only whoever added the place can open this; vibes are set in the place sheet.
 export default function EditPlaceSheet({ place, onSave, onClose }) {
+  const sheetRef = React.useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
   const [category, setCategory] = useState(place.category);
   const [saving, setSaving] = useState(false);
@@ -24,13 +27,14 @@ export default function EditPlaceSheet({ place, onSave, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <form
+        ref={sheetRef}
         className="modal edit-sheet"
         onClick={(e) => e.stopPropagation()}
         onSubmit={save}
         role="dialog"
         aria-label={`Edit ${place.name}`}
       >
-        <div className="sheet-handle" aria-hidden="true" />
+        <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Edit place</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
@@ -62,7 +66,7 @@ export default function EditPlaceSheet({ place, onSave, onClose }) {
         </label>
 
         <button type="submit" className="step-btn primary full-width" disabled={saving}>
-          {saving ? 'Saving…' : 'Save changes'}
+          {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
         </button>
       </form>
     </div>
