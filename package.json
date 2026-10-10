@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test:reel-enrichment": "node test-reel-enrichment.js"
+    "test:reel-enrichment": "node test-reel-enrichment.js",
+    "scraper:live": "node tools/live-scraper/server.js"
   },
   "devDependencies": {
     "axios": "^1.20.0",

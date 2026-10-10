@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live scraper logs</title>
+  <style>
+    :root { color-scheme: dark; --bg: #14161a; --panel: #1d2026; --line: #2d323b; --text: #e6e8ec; --muted: #8b93a1; --accent: #c2410c; --info: #93c5fd; --warn: #fcd34d; --error: #fca5a5; --ok: #86efac; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+    header { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    h1 { font-size: 18px; margin: 0; }
+    .status { font-size: 12px; color: var(--muted); }
+    .status b { color: var(--text); }
+    main { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; padding: 16px 20px; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+    select, input { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+    .row { display: flex; gap: 8px; margin-top: 14px; }
+    button { padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; flex: 1; }
+    button:disabled { opacity: .5; cursor: wait; }
+    .log { height: 60vh; min-height: 320px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.6 ui-monospace, Menlo, monospace; }
+    .line { white-space: pre-wrap; word-break: break-word; }
+    .time { color: var(--muted); margin-right: 8px; }
+    .info { color: var(--info); }
+    .warn { color: var(--warn); }
+    .error { color: var(--error); }
+    .sep { color: var(--ok); border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; }
+    pre.result { margin: 0; max-height: 30vh; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Live scraper logs</h1>
+    <div class="status" id="status">Connecting…</div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Run a scrape</h2>
+      <form id="form">
+        <label for="mode">Scraper</label>
+        <select id="mode">
+          <option value="instagram">Instagram reel (scrape-reel)</option>
+          <option value="pipeline">Instagram + Maps pipeline (enrich-reel)</option>
+          <option value="maps-search">Google Maps search (scrape-location)</option>
+          <option value="maps-details">Google Maps place details (scrape-location)</option>
+        </select>
+        <div id="fields"></div>
+        <div class="row">
+          <button type="submit" class="primary" id="run">Run</button>
+          <button type="button" id="clear">Clear log</button>
+        </div>
+      </form>
+      <p class="hint">Runs one at a time. Output is the same log text the app's API calls produce.</p>
+    </section>
+
+    <div style="display:grid; gap:16px; min-width:0;">
+      <section>
+        <h2>Live log</h2>
+        <div class="log" id="log" aria-live="polite"></div>
+      </section>
+      <section>
+        <h2>Last result</h2>
+        <pre class="result" id="result">No run yet.</pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const FIELD_LABELS = {
+      reelUrl: ['Instagram reel link', 'https://www.instagram.com/reel/…'],
+      query: ['Search text', 'e.g. The Bank Apartments, 283 City Rd'],
+      placeUrl: ['Google Maps place link', 'https://www.google.com/maps/place/…'],
+      placeName: ['Place name (optional)', 'e.g. The Bank Apartments'],
+    };
+    const MODE_FIELDS = {
+      instagram: ['reelUrl'],
+      pipeline: ['reelUrl'],
+      'maps-search': ['query'],
+      'maps-details': ['placeUrl', 'placeName', 'query'],
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const modeSelect = $('mode');
+    const fieldsEl = $('fields');
+    const logEl = $('log');
+    const statusEl = $('status');
+    const runBtn = $('run');
+
+    function renderFields() {
+      const names = MODE_FIELDS[modeSelect.value];
+      fieldsEl.innerHTML = names.map((name) => {
+        const [label, placeholder] = FIELD_LABELS[name];
+        return `<label for="f-${name}">${label}</label><input id="f-${name}" name="${name}" placeholder="${placeholder}" autocomplete="off">`;
+      }).join('');
+    }
+
+    function stamp(time) {
+      return new Date(time || Date.now()).toLocaleTimeString();
+    }
+
+    function addLine(text, cls, time) {
+      const div = document.createElement('div');
+      div.className = `line ${cls || ''}`;
+      const t = document.createElement('span');
+      t.className = 'time';
+      t.textContent = stamp(time);
+      div.append(t, document.createTextNode(text));
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function addSeparator(text) {
+      const div = document.createElement('div');
+      div.className = 'line sep';
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function handleEvent(event) {
+      if (event.type === 'hello') {
+        statusEl.innerHTML = event.running ? '<b>Running</b>' : 'Connected · <b>idle</b>';
+      } else if (event.type === 'start') {
+        statusEl.innerHTML = `<b>Running #${event.run}</b> · ${event.mode}`;
+        addSeparator(`▶ Run #${event.run} · ${event.mode} · ${JSON.stringify(event.input)}`);
+      } else if (event.type === 'log') {
+        addLine(event.message, event.level, event.time);
+      } else if (event.type === 'queued') {
+        addLine(`Queued behind ${event.ahead} run(s)…`, 'warn', event.time);
+      } else if (event.type === 'done') {
+        statusEl.innerHTML = `Done · <b>HTTP ${event.status}</b> · run #${event.run}`;
+        $('result').textContent = JSON.stringify(event.result, null, 2);
+        addSeparator(`■ Run #${event.run} finished · HTTP ${event.status}`);
+      } else if (event.type === 'failed') {
+        statusEl.innerHTML = `<b>Run #${event.run} crashed</b>`;
+        addLine(event.message, 'error', event.time);
+      }
+    }
+
+    function connect() {
+      const source = new EventSource('/events');
+      source.onmessage = (message) => handleEvent(JSON.parse(message.data));
+      source.onerror = () => { statusEl.textContent = 'Disconnected. Retrying…'; };
+      source.onopen = () => { if (statusEl.textContent === 'Disconnected. Retrying…') statusEl.textContent = 'Reconnected'; };
+    }
+
+    $('form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const body = { mode: modeSelect.value };
+      for (const name of MODE_FIELDS[modeSelect.value]) body[name] = $(`f-${name}`).value;
+      runBtn.disabled = true;
+      try {
+        const response = await fetch('/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (response.status === 400) {
+          addLine(`Not sent: ${payload.error}`, 'error');
+        }
+      } catch (error) {
+        addLine(`Request failed: ${error.message}`, 'error');
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+
+    modeSelect.addEventListener('change', renderFields);
+    $('clear').addEventListener('click', () => { logEl.innerHTML = ''; });
+    renderFields();
+    connect();
+  </script>
+</body>
+</html>
