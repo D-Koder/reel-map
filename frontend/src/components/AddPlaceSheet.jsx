@@ -13,9 +13,9 @@ const isValidInstagramUrl = (url) => {
   }
 };
 
-export default function AddPlaceSheet({ collections, onAdd, onClose }) {
-  // Step management
-  const [step, setStep] = useState('reel'); // 'reel' | 'details'
+export default function AddPlaceSheet({ collections, onAdd, onClose, initialPlace = null }) {
+  // Step management. A place opened from a long-press on the map skips the reel step.
+  const [step, setStep] = useState(initialPlace ? 'details' : 'reel'); // 'reel' | 'details'
 
   // Step 1: Reel Link
   const [reelUrlInput, setReelUrlInput] = useState('');
@@ -28,7 +28,11 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
   const [scrapedData, setScrapedData] = useState(null);
   const [mapsData, setMapsData] = useState(null);
   const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(initialPlace?.address ?? '');
+  // Exact spot tapped on the map. Used as the pin until a Google place is picked.
+  const [pinCoords, setPinCoords] = useState(initialPlace
+    ? { latitude: initialPlace.latitude, longitude: initialPlace.longitude, source: 'map_pin' }
+    : null);
   const [category, setCategory] = useState('food');
   const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
@@ -123,7 +127,11 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
       signal: AbortSignal.timeout(55000),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `Google Maps returned HTTP ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(data.error || `Google Maps returned HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
     return data;
   };
 
@@ -155,16 +163,30 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     }
   };
 
+  // "No results" from the server (404) is an empty list, not an error.
+  const searchCandidates = async (query) => {
+    try {
+      const data = await requestLocationApi({ action: 'search', query, location: query });
+      return data.candidates || [];
+    } catch (error) {
+      if (error.status === 404) return [];
+      throw error;
+    }
+  };
+
   const verifyLocation = async () => {
-    const query = location.trim();
-    if (!query) return;
+    const address = location.trim();
+    const placeName = name.trim();
+    if (!address) return;
     setVerifyingLocation(true);
     setVerifyCandidate(null);
     setVerifyResults(null);
     try {
-      const data = await requestLocationApi({ action: 'search', query, location: query });
-      setVerifyResults(data.candidates || []);
-      if (data.candidates?.length === 1) setVerifyCandidate(data.candidates[0]);
+      // Name + address first. If Google finds nothing, retry with the address alone.
+      let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
+      if (!candidates.length) candidates = await searchCandidates(address);
+      setVerifyResults(candidates);
+      if (candidates.length === 1) setVerifyCandidate(candidates[0]);
     } catch (error) {
       addLog(`❌ Could not verify address: ${error.message}`, 'error');
       setVerifyResults(null);
@@ -207,7 +229,9 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     setSaving(true);
 
     try {
-      let venueDetails = mapsData;
+      // Google place first, then the spot tapped on the map. Mapbox is only a fallback.
+      let venueDetails = mapsData ?? pinCoords;
+      if (!mapsData && pinCoords) addLog('📍 Using the spot you tapped on the map.', 'info');
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
         if (!MAPBOX_TOKEN) {
           addLog('⚠️ Mapbox token is missing; saved address will not have a map pin.', 'error');
@@ -491,6 +515,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                   onChange={(e) => {
                     setLocation(e.target.value);
                     setMapsData(null);
+                    setPinCoords(null);
                     setLocationCandidates([]);
                     setLocationSearchDone(false);
                   }}
@@ -554,7 +579,7 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 No matches. Try editing the address or enter place details manually.
               </div>
             )}
-            {location.trim() && !mapsData && (
+            {location.trim() && !mapsData && !pinCoords && (
               <div role="note" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
                 No Google Maps place selected. The map pin will be approximate.
               </div>

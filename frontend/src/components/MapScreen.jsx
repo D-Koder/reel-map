@@ -5,8 +5,26 @@ import { getVibe, mapFilters } from '../lib/constants';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MELBOURNE_CENTER = [144.9631, -37.8136];
+const LONG_PRESS_MS = 1750;
+const LONG_PRESS_MAX_MOVE_PX = 10;
 
-const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, showToast }, ref) {
+// Turns a tapped spot into a street address for the add sheet. Returns '' if Mapbox can't.
+async function reverseGeocode(lng, lat) {
+  try {
+    const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
+    url.searchParams.set('access_token', MAPBOX_TOKEN);
+    url.searchParams.set('types', 'address,poi');
+    url.searchParams.set('limit', '1');
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return '';
+    const result = await response.json();
+    return result.features?.[0]?.place_name || '';
+  } catch {
+    return '';
+  }
+}
+
+const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
   const [filter, setFilter] = useState('all');
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
@@ -129,6 +147,58 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     markersRef.current = [];
   };
 }, [visible, membersOf, onOpenPin, mapReady]);
+
+  // Press and hold the map for 1.75s to add a place at that spot.
+  // Dragging or pinching cancels the press.
+  const onAddAtRef = useRef(onAddAt);
+  onAddAtRef.current = onAddAt;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return undefined;
+
+    let timer = null;
+    let startPoint = null;
+    const cancel = () => {
+      clearTimeout(timer);
+      timer = null;
+    };
+    const start = (event) => {
+      startPoint = event.point;
+      cancel();
+      const { lng, lat } = event.lngLat;
+      timer = setTimeout(async () => {
+        timer = null;
+        if (navigator.vibrate) navigator.vibrate(30);
+        const address = await reverseGeocode(lng, lat);
+        onAddAtRef.current?.({ address, latitude: lat, longitude: lng });
+      }, LONG_PRESS_MS);
+    };
+    const checkMove = (event) => {
+      if (!timer || !startPoint) return;
+      const distance = Math.hypot(event.point.x - startPoint.x, event.point.y - startPoint.y);
+      if (distance > LONG_PRESS_MAX_MOVE_PX) cancel();
+    };
+
+    map.on('mousedown', start);
+    map.on('touchstart', start);
+    map.on('mousemove', checkMove);
+    map.on('touchmove', checkMove);
+    map.on('mouseup', cancel);
+    map.on('touchend', cancel);
+    map.on('dragstart', cancel);
+    map.on('zoomstart', cancel);
+    return () => {
+      cancel();
+      map.off('mousedown', start);
+      map.off('touchstart', start);
+      map.off('mousemove', checkMove);
+      map.off('touchmove', checkMove);
+      map.off('mouseup', cancel);
+      map.off('touchend', cancel);
+      map.off('dragstart', cancel);
+      map.off('zoomstart', cancel);
+    };
+  }, [mapReady]);
 
   const selectFilter = (id) => {
     setFilter(id);

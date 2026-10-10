@@ -47,6 +47,12 @@ function MainApp({ userId, showToast }) {
   const mapScreenRef = useRef(null);
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
+  // Set when the add sheet is opened from a map long-press: { address, latitude, longitude }.
+  const [addDraft, setAddDraft] = useState(null);
+  const openAddAt = (draft) => {
+    setAddDraft(draft);
+    setAdding(true);
+  };
   const [shareModal, setShareModal] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -168,13 +174,13 @@ function MainApp({ userId, showToast }) {
             onOpenSettings={() => setSettingsOpen(true)}
           />
           {data.collections.length > 0 && (
-            <button className="fab" onClick={() => setAdding(true)} aria-label="Add a place">
+            <button className="fab" onClick={() => openAddAt(null)} aria-label="Add a place">
               ＋
             </button>
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen ref={mapScreenRef} places={data.places} membersOf={membersOf} onOpenPin={setOpenPinId} showToast={showToast} />
+          <MapScreen ref={mapScreenRef} places={data.places} membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
         </section>
       </main>
 
@@ -261,6 +267,7 @@ function MainApp({ userId, showToast }) {
 
       {adding && (
         <AddPlaceSheet
+          initialPlace={addDraft}
           collections={data.collections}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
@@ -269,7 +276,10 @@ function MainApp({ userId, showToast }) {
               setAdding(false);
             }
           }}
-          onClose={() => setAdding(false)}
+          onClose={() => {
+            setAdding(false);
+            setAddDraft(null);
+          }}
         />
       )}
 
