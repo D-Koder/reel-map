@@ -70,7 +70,7 @@ export default function HomeScreen({
               </div>
 
               {pins.length === 0 && (
-                <button type="button" className="collection-empty" onClick={onAddPlace}>
+                <button type="button" className="collection-empty" onClick={() => onAddPlace(collection.id)}>
                   No places yet — tap ＋ to add one.
                 </button>
               )}

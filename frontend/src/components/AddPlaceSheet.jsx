@@ -16,7 +16,7 @@ const isValidInstagramUrl = (url) => {
   }
 };
 
-export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, onClose, initialPlace = null }) {
+export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null }) {
   // Step management. A place opened from a long-press on the map skips the reel step.
   const [step, setStep] = useState(initialPlace ? 'details' : 'reel'); // 'reel' | 'details'
 
@@ -37,7 +37,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
     ? { latitude: initialPlace.latitude, longitude: initialPlace.longitude, source: 'map_pin' }
     : null);
   const [category, setCategory] = useState('food');
-  const [collectionId, setCollectionId] = useState(collections[0]?.id ?? '');
+  const [collectionId, setCollectionId] = useState(initialCollectionId ?? collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState('keen');
   const [saving, setSaving] = useState(false);
   const [locationCandidates, setLocationCandidates] = useState([]);
@@ -618,7 +618,10 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                     <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close">✕</button>
                   </div>
                   {verifyingLocation ? (
-                    <p className="modal-label" role="status"><span className="spinner" aria-hidden="true" />Searching Google Maps…</p>
+                    <div role="status" aria-label="Searching Google Maps">
+                      <div className="modal-label" style={{ marginBottom: '8px' }}>Searching Google Maps…</div>
+                      {[0, 1, 2].map((i) => <div key={i} className="skeleton-card" />)}
+                    </div>
                   ) : verifyResults.length ? (
                     <>
                       <p className="modal-label">Choose the matching Google Maps place.</p>
@@ -662,12 +665,12 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                 className="modal-overlay location-verify-overlay"
                 onClick={() => !creatingCollection && setNewCollectionOpen(false)}
               >
-                <form
+                {/* A div, not a form: this sits inside the add-place form, and a nested form submits the outer one. */}
+                <div
                   className="modal location-verify-modal"
                   role="dialog"
                   aria-label="New collection"
                   onClick={(e) => e.stopPropagation()}
-                  onSubmit={createNewCollection}
                 >
                   <div className="modal-header">
                     <div className="modal-title">New collection</div>
@@ -678,6 +681,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                       className="step-input"
                       value={newCollectionName}
                       onChange={(e) => setNewCollectionName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') createNewCollection(e); }}
                       placeholder="e.g. Date nights"
                       maxLength={40}
                       autoFocus
@@ -694,11 +698,11 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="step-btn primary full-width" disabled={creatingCollection}>
+                    <button type="button" className="step-btn primary full-width" onClick={createNewCollection} disabled={creatingCollection}>
                       {creatingCollection ? <><span className="spinner" aria-hidden="true" />Creating…</> : 'OK'}
                     </button>
                   </div>
-                </form>
+                </div>
               </div>
             )}
 

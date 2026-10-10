@@ -1039,6 +1039,21 @@ button.collection-empty {
   cursor: grab;
 }
 
+/* Skeleton placeholder rows shown while results are loading */
+.skeleton-card {
+  height: 54px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
 /* Shared spinner for any waiting state. Inherits the text colour. */
 .spinner {
   display: inline-block;

@@ -49,8 +49,17 @@ function MainApp({ userId, showToast }) {
   const [adding, setAdding] = useState(false);
   // Set when the add sheet is opened from a map long-press: { address, latitude, longitude }.
   const [addDraft, setAddDraft] = useState(null);
+  // Collection to pre-select when the add sheet opens from a collection's empty-state button.
+  const [addCollectionId, setAddCollectionId] = useState(null);
   const openAddAt = (draft) => {
     setAddDraft(draft);
+    setAddCollectionId(null);
+    setAdding(true);
+  };
+
+  const openAddInCollection = (collectionId) => {
+    setAddDraft(null);
+    setAddCollectionId(collectionId);
     setAdding(true);
   };
   const [shareModal, setShareModal] = useState(null);
@@ -168,7 +177,7 @@ function MainApp({ userId, showToast }) {
             streak={streak}
             onOpenPin={setOpenPinId}
             onReorder={data.reorder}
-            onAddPlace={() => openAddAt(null)}
+            onAddPlace={openAddInCollection}
             onCreateSample={async () => {
               if (await data.createSampleData()) showToast('✨ Added sample places');
             }}
@@ -269,6 +278,7 @@ function MainApp({ userId, showToast }) {
       {adding && (
         <AddPlaceSheet
           initialPlace={addDraft}
+          initialCollectionId={addCollectionId}
           onCreateCollection={data.createCollection}
           collections={data.collections}
           onAdd={async (fields) => {
