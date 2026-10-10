@@ -24,28 +24,29 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
-// Centre point ([lng, lat]) of the profile's country. Search results rank near it first.
-async function countryCenter(country, signal) {
+// Mapbox country code (e.g. "au") for the profile's country name, or null if Mapbox doesn't know it.
+async function lookupCountryCode(country, signal) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(country)}.json`);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('types', 'country');
   url.searchParams.set('limit', '1');
   const response = await fetch(url, { signal });
   if (!response.ok) return null;
-  const data = await response.json();
-  const center = data.features?.[0]?.center;
-  return center ? [center[0], center[1]] : null;
+  const shortCode = (await response.json()).features?.[0]?.properties?.short_code;
+  return shortCode ? shortCode.toLowerCase() : null;
 }
 
-// Place and address suggestions for the map search box. Ranks results nearest to `bias` ([lng, lat]).
-async function forwardGeocode(text, signal, bias) {
+// Place and address suggestions for the map search box.
+// countryCode limits results to one country (null = everywhere). origin ([lng, lat]) ranks the nearest first.
+async function forwardGeocode(text, signal, { origin, countryCode }) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('autocomplete', 'true');
   url.searchParams.set('limit', '5');
   // Named places (poi) as well as addresses, so "Queen Victoria Market" finds the market.
   url.searchParams.set('types', 'poi,address,place,locality,neighborhood');
-  url.searchParams.set('proximity', `${bias[0]},${bias[1]}`);
+  if (countryCode) url.searchParams.set('country', countryCode);
+  if (origin) url.searchParams.set('proximity', `${origin[0]},${origin[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
   const data = await response.json();
@@ -77,17 +78,17 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
   const [searchBias, setSearchBias] = useState(null);
   const locationRequestedRef = useRef(false);
-  // Centre of the profile's country ([lng, lat]). Takes priority over the user's location.
-  const [countryBias, setCountryBias] = useState(null);
+  // Mapbox country code for the profile's country. Its results are listed first, then the rest.
+  const [countryCode, setCountryCode] = useState(null);
   useEffect(() => {
     if (!profileCountry) {
-      setCountryBias(null);
+      setCountryCode(null);
       return undefined;
     }
     const controller = new AbortController();
-    countryCenter(profileCountry, controller.signal)
-      .then(setCountryBias)
-      .catch(() => setCountryBias(null));
+    lookupCountryCode(profileCountry, controller.signal)
+      .then(setCountryCode)
+      .catch(() => setCountryCode(null));
     return () => controller.abort();
   }, [profileCountry]);
   useImperativeHandle(ref, () => ({
@@ -205,9 +206,9 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   };
 }, [visible, membersOf, onOpenPin, mapReady]);
 
-  // Asked once, when the search box is first tapped. Skipped when the profile country already sets the ranking.
+  // Asked once, when the search box is first tapped. Used only when the map has no view yet.
   const requestUserLocation = () => {
-    if (locationRequestedRef.current || countryBias || !navigator.geolocation) return;
+    if (locationRequestedRef.current || !navigator.geolocation) return;
     locationRequestedRef.current = true;
     navigator.geolocation.getCurrentPosition(
       (position) => setSearchBias([position.coords.longitude, position.coords.latitude]),
@@ -225,13 +226,23 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       setSearchStatus('');
       return undefined;
     }
-    // Ranking order: profile country, then the user's location, then Melbourne.
-    const origin = countryBias ?? searchBias ?? MELBOURNE_CENTER;
+    // Like Google Maps: rank near the map's current view. Fall back to the user's location, then Melbourne.
+    // Each search runs twice: limited to the profile's country (listed first), and everywhere else.
+    const view = mapRef.current?.getCenter();
+    const origin = view ? [view.lng, view.lat] : (searchBias ?? MELBOURNE_CENTER);
     const controller = new AbortController();
     setSearchStatus('searching');
     const timer = setTimeout(async () => {
       try {
-        const results = await forwardGeocode(text, controller.signal, origin);
+        const [inCountry, everywhere] = await Promise.all([
+          countryCode ? forwardGeocode(text, controller.signal, { origin, countryCode }) : Promise.resolve([]),
+          forwardGeocode(text, controller.signal, { origin, countryCode: null }),
+        ]);
+        const seen = new Set(inCountry.map((result) => result.id));
+        const results = [
+          ...inCountry.map((result) => ({ ...result, inCountry: true })),
+          ...everywhere.filter((result) => !seen.has(result.id)).map((result) => ({ ...result, inCountry: false })),
+        ];
         setSearchResults(results);
         setSearchStatus(results.length ? '' : 'none');
       } catch (error) {
@@ -242,7 +253,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchText, countryBias, searchBias]);
+  }, [searchText, countryCode, searchBias]);
 
   const clearSearch = () => {
     setSearchText('');
@@ -417,11 +428,16 @@ const openListedPlace = (place) => {
           {searchStatus === 'error' && <div className="map-search-note">Search is unavailable right now.</div>}
           {searchResults.length > 0 && (
             <div className="map-search-results">
-              {searchResults.map((result) => (
-                <button key={result.id} type="button" className="map-search-result" onClick={() => chooseSearchResult(result)}>
-                  <strong>{result.name}</strong>
-                  <span>{result.address}</span>
-                </button>
+              {searchResults.map((result, index) => (
+                <React.Fragment key={result.id}>
+                  {index > 0 && !result.inCountry && searchResults[index - 1].inCountry && (
+                    <div className="map-search-divider">Other countries</div>
+                  )}
+                  <button type="button" className="map-search-result" onClick={() => chooseSearchResult(result)}>
+                    <strong>{result.name}</strong>
+                    <span>{result.address}</span>
+                  </button>
+                </React.Fragment>
               ))}
             </div>
           )}
