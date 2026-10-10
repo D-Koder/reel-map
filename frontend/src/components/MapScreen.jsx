@@ -61,8 +61,10 @@ async function retrievePlace(mapboxId, sessionToken, signal) {
   return { lng, lat };
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
+const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, onOpenPin, onAddAt, showToast }, ref) {
   const [filter, setFilter] = useState('all');
+  // Collection ids picked in the chip row. Empty means all collections.
+  const [collectionFilter, setCollectionFilter] = useState(() => new Set());
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
   const [placesListOpen, setPlacesListOpen] = useState(true);
@@ -89,7 +91,11 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     () => places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)),
     [places]
   );
-  const visible = located.filter((place) => filter === 'all' || place.category === filter);
+  // Category and collection filters combine: a place must match both. Multiple collections match any.
+  const visible = located.filter((place) =>
+    (filter === 'all' || place.category === filter) &&
+    (collectionFilter.size === 0 || collectionFilter.has(place.collection_id))
+  );
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
@@ -326,6 +332,15 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     };
   }, [mapReady]);
 
+  const toggleCollectionFilter = (id) => {
+    setCollectionFilter((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const selectFilter = (id) => {
     setFilter(id);
     const label = id === 'all' ? 'All' : id.charAt(0).toUpperCase() + id.slice(1);
@@ -447,6 +462,28 @@ const openListedPlace = (place) => {
             </button>
           ))}
         </div>
+
+        {collections.length > 0 && (
+          <div className="map-controls map-controls-collections" role="toolbar" aria-label="Filter by collection">
+            <button
+              className={`map-filter ${collectionFilter.size === 0 ? 'active' : ''}`}
+              onClick={() => setCollectionFilter(new Set())}
+              aria-pressed={collectionFilter.size === 0}
+            >
+              All collections
+            </button>
+            {collections.map((c) => (
+              <button
+                key={c.id}
+                className={`map-filter ${collectionFilter.has(c.id) ? 'active' : ''}`}
+                onClick={() => toggleCollectionFilter(c.id)}
+                aria-pressed={collectionFilter.has(c.id)}
+              >
+                {c.emoji} {c.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="map-place-list" aria-label="Places shown on map">
           <button type="button" className="map-place-list-title" aria-expanded={placesListOpen} onClick={() => setPlacesListOpen((open) => !open)}>

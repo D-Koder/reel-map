@@ -181,7 +181,7 @@ function MainApp({ userId, showToast }) {
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen ref={mapScreenRef} places={data.places} membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+          <MapScreen ref={mapScreenRef} places={data.places} collections={data.collections}membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
         </section>
       </main>
 
