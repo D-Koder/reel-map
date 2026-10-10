@@ -1039,7 +1039,38 @@ button.collection-empty {
   cursor: grab;
 }
 
+/* Collections a place is in, shown in the edit sheet */
+.place-collections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.place-collection-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 13px;
+}
+
+.place-collection-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* Skeleton placeholder rows shown while results are loading */
+.skeleton-bar {
+  display: block;
+  height: 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
 .skeleton-card {
   height: 54px;
   margin-bottom: 8px;

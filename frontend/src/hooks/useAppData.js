@@ -55,6 +55,8 @@ function normalisePlace(row) {
     name: cp.custom_name || row.name,
     category: cp.category || row.category,
     collection_id: cp.collection_id,
+    // Every collection this place is in, so the edit sheet can offer only the others.
+    collectionIds: collections.map((c) => c.collection_id),
     added_by: cp.added_by,
     added_at: cp.added_at,
     position: cp.position,
@@ -219,6 +221,28 @@ export function useAppData(userId, showToast) {
         supabase
           .from('collection_places')
           .update({ custom_name: name, category })
+          .eq('collection_id', place.collection_id)
+          .eq('place_id', place.id)
+      ),
+
+    // Copy: anyone who can see the place can add it to a collection they belong to.
+    copyPlaceToCollection: (place, targetCollectionId) =>
+      run(
+        supabase.from('collection_places').insert({
+          collection_id: targetCollectionId,
+          place_id: place.id,
+          added_by: userId,
+          category: place.category,
+          custom_name: place.name,
+        })
+      ),
+
+    // Move: only whoever added the place can move it (the database checks this too).
+    movePlaceToCollection: (place, targetCollectionId) =>
+      run(
+        supabase
+          .from('collection_places')
+          .update({ collection_id: targetCollectionId })
           .eq('collection_id', place.collection_id)
           .eq('place_id', place.id)
       ),

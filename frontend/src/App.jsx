@@ -265,6 +265,18 @@ function MainApp({ userId, showToast }) {
         <EditPlaceSheet
           key={editPin.id}
           place={editPin}
+          collections={data.collections}
+          userId={userId}
+          onCopy={async (targetId) => {
+            const ok = await data.copyPlaceToCollection(editPin, targetId);
+            if (ok) showToast('📋 Copied to collection');
+            return ok;
+          }}
+          onMove={async (targetId) => {
+            const ok = await data.movePlaceToCollection(editPin, targetId);
+            if (ok) showToast('➡️ Moved to collection');
+            return ok;
+          }}
           onSave={async (patch) => {
             if (await data.updatePlace(editPin, patch)) {
               showToast(`✏️ Saved "${patch.name}"`);
