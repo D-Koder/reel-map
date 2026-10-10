@@ -24,29 +24,15 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
-// Mapbox country code (e.g. "au") for the profile's country name, or null if Mapbox doesn't know it.
-async function lookupCountryCode(country, signal) {
-  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(country)}.json`);
-  url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('types', 'country');
-  url.searchParams.set('limit', '1');
-  const response = await fetch(url, { signal });
-  if (!response.ok) return null;
-  const shortCode = (await response.json()).features?.[0]?.properties?.short_code;
-  return shortCode ? shortCode.toLowerCase() : null;
-}
-
-// Place and address suggestions for the map search box.
-// countryCode limits results to one country (null = everywhere). origin ([lng, lat]) ranks the nearest first.
-async function forwardGeocode(text, signal, { origin, countryCode }) {
+// Place and address suggestions for the map search box. Ranks results nearest to `origin` ([lng, lat]).
+async function forwardGeocode(text, signal, origin) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('autocomplete', 'true');
   url.searchParams.set('limit', '5');
   // Named places (poi) as well as addresses, so "Queen Victoria Market" finds the market.
   url.searchParams.set('types', 'poi,address,place,locality,neighborhood');
-  if (countryCode) url.searchParams.set('country', countryCode);
-  if (origin) url.searchParams.set('proximity', `${origin[0]},${origin[1]}`);
+  url.searchParams.set('proximity', `${origin[0]},${origin[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
   const data = await response.json();
@@ -59,7 +45,7 @@ async function forwardGeocode(text, signal, { origin, countryCode }) {
   }));
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, profileCountry, showToast }, ref) {
+const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
   const [filter, setFilter] = useState('all');
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
@@ -78,19 +64,6 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
   const [searchBias, setSearchBias] = useState(null);
   const locationRequestedRef = useRef(false);
-  // Mapbox country code for the profile's country. Its results are listed first, then the rest.
-  const [countryCode, setCountryCode] = useState(null);
-  useEffect(() => {
-    if (!profileCountry) {
-      setCountryCode(null);
-      return undefined;
-    }
-    const controller = new AbortController();
-    lookupCountryCode(profileCountry, controller.signal)
-      .then(setCountryCode)
-      .catch(() => setCountryCode(null));
-    return () => controller.abort();
-  }, [profileCountry]);
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -227,22 +200,13 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       return undefined;
     }
     // Like Google Maps: rank near the map's current view. Fall back to the user's location, then Melbourne.
-    // Each search runs twice: limited to the profile's country (listed first), and everywhere else.
     const view = mapRef.current?.getCenter();
     const origin = view ? [view.lng, view.lat] : (searchBias ?? MELBOURNE_CENTER);
     const controller = new AbortController();
     setSearchStatus('searching');
     const timer = setTimeout(async () => {
       try {
-        const [inCountry, everywhere] = await Promise.all([
-          countryCode ? forwardGeocode(text, controller.signal, { origin, countryCode }) : Promise.resolve([]),
-          forwardGeocode(text, controller.signal, { origin, countryCode: null }),
-        ]);
-        const seen = new Set(inCountry.map((result) => result.id));
-        const results = [
-          ...inCountry.map((result) => ({ ...result, inCountry: true })),
-          ...everywhere.filter((result) => !seen.has(result.id)).map((result) => ({ ...result, inCountry: false })),
-        ];
+        const results = await forwardGeocode(text, controller.signal, origin);
         setSearchResults(results);
         setSearchStatus(results.length ? '' : 'none');
       } catch (error) {
@@ -253,7 +217,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchText, countryCode, searchBias]);
+  }, [searchText, searchBias]);
 
   const clearSearch = () => {
     setSearchText('');
@@ -428,16 +392,11 @@ const openListedPlace = (place) => {
           {searchStatus === 'error' && <div className="map-search-note">Search is unavailable right now.</div>}
           {searchResults.length > 0 && (
             <div className="map-search-results">
-              {searchResults.map((result, index) => (
-                <React.Fragment key={result.id}>
-                  {index > 0 && !result.inCountry && searchResults[index - 1].inCountry && (
-                    <div className="map-search-divider">Other countries</div>
-                  )}
-                  <button type="button" className="map-search-result" onClick={() => chooseSearchResult(result)}>
-                    <strong>{result.name}</strong>
-                    <span>{result.address}</span>
-                  </button>
-                </React.Fragment>
+              {searchResults.map((result) => (
+                <button key={result.id} type="button" className="map-search-result" onClick={() => chooseSearchResult(result)}>
+                  <strong>{result.name}</strong>
+                  <span>{result.address}</span>
+                </button>
               ))}
             </div>
           )}
