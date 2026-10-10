@@ -24,6 +24,19 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
+// Centre point ([lng, lat]) of the profile's country. Search results rank near it first.
+async function countryCenter(country, signal) {
+  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(country)}.json`);
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('types', 'country');
+  url.searchParams.set('limit', '1');
+  const response = await fetch(url, { signal });
+  if (!response.ok) return null;
+  const data = await response.json();
+  const center = data.features?.[0]?.center;
+  return center ? [center[0], center[1]] : null;
+}
+
 // Place and address suggestions for the map search box. Ranks results nearest to `bias` ([lng, lat]).
 async function forwardGeocode(text, signal, bias) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
@@ -43,7 +56,7 @@ async function forwardGeocode(text, signal, bias) {
   }));
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
+const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, profileCountry, showToast }, ref) {
   const [filter, setFilter] = useState('all');
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
@@ -62,6 +75,19 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
   const [searchBias, setSearchBias] = useState(null);
   const locationRequestedRef = useRef(false);
+  // Centre of the profile's country ([lng, lat]). Takes priority over the user's location.
+  const [countryBias, setCountryBias] = useState(null);
+  useEffect(() => {
+    if (!profileCountry) {
+      setCountryBias(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    countryCenter(profileCountry, controller.signal)
+      .then(setCountryBias)
+      .catch(() => setCountryBias(null));
+    return () => controller.abort();
+  }, [profileCountry]);
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -177,9 +203,9 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   };
 }, [visible, membersOf, onOpenPin, mapReady]);
 
-  // Asked once, when the search box is first tapped. Denied or unavailable keeps the Melbourne bias.
+  // Asked once, when the search box is first tapped. Skipped when the profile country already sets the ranking.
   const requestUserLocation = () => {
-    if (locationRequestedRef.current || !navigator.geolocation) return;
+    if (locationRequestedRef.current || countryBias || !navigator.geolocation) return;
     locationRequestedRef.current = true;
     navigator.geolocation.getCurrentPosition(
       (position) => setSearchBias([position.coords.longitude, position.coords.latitude]),
@@ -197,11 +223,13 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       setSearchStatus('');
       return undefined;
     }
+    // Ranking order: profile country, then the user's location, then Melbourne.
+    const origin = countryBias ?? searchBias ?? MELBOURNE_CENTER;
     const controller = new AbortController();
     setSearchStatus('searching');
     const timer = setTimeout(async () => {
       try {
-        const results = await forwardGeocode(text, controller.signal, searchBias ?? MELBOURNE_CENTER);
+        const results = await forwardGeocode(text, controller.signal, origin);
         setSearchResults(results);
         setSearchStatus(results.length ? '' : 'none');
       } catch (error) {
@@ -212,7 +240,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchText, searchBias]);
+  }, [searchText, countryBias, searchBias]);
 
   const clearSearch = () => {
     setSearchText('');

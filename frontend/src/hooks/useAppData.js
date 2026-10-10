@@ -17,7 +17,7 @@ const COLLECTION_SELECT = `
 `;
 
 const PROFILE_SELECT = `
-  id, display_name, avatar, avatar_url
+  id, display_name, avatar, avatar_url, country
 `;
 
 // Turn database errors into something a person can act on.
