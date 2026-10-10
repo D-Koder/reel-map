@@ -1,11 +1,11 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getVibe, mapFilters } from '../lib/constants';
+import { categories, getVibe } from '../lib/constants';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MELBOURNE_CENTER = [144.9631, -37.8136];
-const LONG_PRESS_MS = 1750;
+const LONG_PRESS_MS = 1000;
 const LONG_PRESS_MAX_MOVE_PX = 10;
 
 // Turns a tapped spot into a street address for the add sheet. Returns '' if Mapbox can't.
@@ -61,10 +61,27 @@ async function retrievePlace(mapboxId, sessionToken, signal) {
   return { lng, lat };
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, onOpenPin, onAddAt, showToast }, ref) {
-  const [filter, setFilter] = useState('all');
-  // Collection ids picked in the chip row. Empty means all collections.
-  const [collectionFilter, setCollectionFilter] = useState(() => new Set());
+// Ring that grows and fades at the tapped point, confirming the hold registered. Removes itself when done.
+function showPressRing(map, point) {
+  const ring = document.createElement('div');
+  ring.className = 'map-press-ring';
+  ring.style.left = `${point.x}px`;
+  ring.style.top = `${point.y}px`;
+  map.getContainer().appendChild(ring);
+  ring.animate(
+    [
+      { transform: 'scale(0.3)', opacity: 1 },
+      { transform: 'scale(1.6)', opacity: 0 },
+    ],
+    { duration: 600, easing: 'ease-out' }
+  ).onfinish = () => ring.remove();
+}
+
+const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, onOpenPin, onAddAt }, ref) {
+  // Ids unchecked in the chip rows. Empty means everything shows; unchecking every chip shows nothing.
+  // Tracking what is hidden means a collection created later shows by default.
+  const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
+  const [hiddenCollections, setHiddenCollections] = useState(() => new Set());
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
   const [placesListOpen, setPlacesListOpen] = useState(true);
@@ -80,7 +97,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Groups the suggestions for one search and the pick that follows, for Mapbox billing.
   const searchSessionRef = useRef(null);
   const searchMarkerRef = useRef(null);
-  const [selectedSearch, setSelectedSearch] = useState(null); // the picked suggestion, used to pre-fill Add a place
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
   const [searchBias, setSearchBias] = useState(null);
   const locationRequestedRef = useRef(false);
@@ -91,19 +107,19 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     () => places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)),
     [places]
   );
-  // Category and collection filters combine: a place must match both. Multiple collections match any.
-  // A place in several selected collections shows once: the map has one row per collection the place is in.
+  // Category and collection filters combine: a place must match both.
+  // A place in several collections shows once: the map has one row per collection the place is in.
   const visible = useMemo(() => {
     const shown = new Set();
     return located.filter((place) => {
-      const matches =
-        (filter === 'all' || place.category === filter) &&
-        (collectionFilter.size === 0 || collectionFilter.has(place.collection_id));
+      const matches = !hiddenCategories.has(place.category) && !hiddenCollections.has(place.collection_id);
       if (!matches || shown.has(place.id)) return false;
       shown.add(place.id);
       return true;
     });
-  }, [located, filter, collectionFilter]);
+  }, [located, hiddenCategories, hiddenCollections]);
+  const allCategoriesShown = categories.every((c) => !hiddenCategories.has(c.id));
+  const allCollectionsShown = collections.every((c) => !hiddenCollections.has(c.id));
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
@@ -257,7 +273,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     setSearchText('');
     setSearchResults([]);
     setSearchStatus('');
-    setSelectedSearch(null);
     searchSessionRef.current = null;
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = null;
@@ -279,7 +294,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       return;
     }
     const place = { ...result, ...coords };
-    setSelectedSearch(place);
     setSearchStatus('');
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })
@@ -288,7 +302,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     map.flyTo({ center: [place.lng, place.lat], zoom: 16, essential: true });
   };
 
-  // Press and hold the map for 1.75s to add a place at that spot.
+  // Press and hold the map for 1s to add a place at that spot.
   // Dragging or pinching cancels the press.
   const onAddAtRef = useRef(onAddAt);
   onAddAtRef.current = onAddAt;
@@ -309,6 +323,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       timer = setTimeout(async () => {
         timer = null;
         if (navigator.vibrate) navigator.vibrate(30);
+        showPressRing(map, startPoint);
         const address = await reverseGeocode(lng, lat);
         onAddAtRef.current?.({ address, latitude: lat, longitude: lng });
       }, LONG_PRESS_MS);
@@ -340,8 +355,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     };
   }, [mapReady]);
 
-  const toggleCollectionFilter = (id) => {
-    setCollectionFilter((current) => {
+  const toggleHidden = (setHidden, id) => {
+    setHidden((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -349,10 +364,12 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     });
   };
 
-  const selectFilter = (id) => {
-    setFilter(id);
-    const label = id === 'all' ? 'All' : id.charAt(0).toUpperCase() + id.slice(1);
-    showToast(`🔍 Showing ${label}`);
+  // "All" shows everything, or hides everything when all are already shown.
+  const toggleAllCategories = () => {
+    setHiddenCategories(allCategoriesShown ? new Set(categories.map((c) => c.id)) : new Set());
+  };
+  const toggleAllCollections = () => {
+    setHiddenCollections(allCollectionsShown ? new Set(collections.map((c) => c.id)) : new Set());
   };
 
 const openListedPlace = (place) => {
@@ -475,14 +492,21 @@ const openListedPlace = (place) => {
         </form>
 
         <div className="map-controls" role="toolbar" aria-label="Filter pins">
-          {mapFilters.map((f) => (
+          <button
+            className={`map-filter ${allCategoriesShown ? 'active' : ''}`}
+            onClick={toggleAllCategories}
+            aria-pressed={allCategoriesShown}
+          >
+            All
+          </button>
+          {categories.map((c) => (
             <button
-              key={f.id}
-              className={`map-filter ${filter === f.id ? 'active' : ''}`}
-              onClick={() => selectFilter(f.id)}
-              aria-pressed={filter === f.id}
+              key={c.id}
+              className={`map-filter ${!hiddenCategories.has(c.id) ? 'active' : ''}`}
+              onClick={() => toggleHidden(setHiddenCategories, c.id)}
+              aria-pressed={!hiddenCategories.has(c.id)}
             >
-              {f.label}
+              {c.label}
             </button>
           ))}
         </div>
@@ -490,18 +514,18 @@ const openListedPlace = (place) => {
         {collections.length > 0 && (
           <div className="map-controls map-controls-collections" role="toolbar" aria-label="Filter by collection">
             <button
-              className={`map-filter ${collectionFilter.size === 0 ? 'active' : ''}`}
-              onClick={() => setCollectionFilter(new Set())}
-              aria-pressed={collectionFilter.size === 0}
+              className={`map-filter ${allCollectionsShown ? 'active' : ''}`}
+              onClick={toggleAllCollections}
+              aria-pressed={allCollectionsShown}
             >
               All collections
             </button>
             {collections.map((c) => (
               <button
                 key={c.id}
-                className={`map-filter ${collectionFilter.has(c.id) ? 'active' : ''}`}
-                onClick={() => toggleCollectionFilter(c.id)}
-                aria-pressed={collectionFilter.has(c.id)}
+                className={`map-filter ${!hiddenCollections.has(c.id) ? 'active' : ''}`}
+                onClick={() => toggleHidden(setHiddenCollections, c.id)}
+                aria-pressed={!hiddenCollections.has(c.id)}
               >
                 {c.emoji} {c.name}
               </button>
@@ -526,15 +550,6 @@ const openListedPlace = (place) => {
           )}
         </div>
 
-        <button
-          type="button"
-          className="map-add-button"
-          onClick={() => onAddAt?.(selectedSearch
-            ? { name: selectedSearch.name, address: selectedSearch.address, latitude: selectedSearch.lat, longitude: selectedSearch.lng }
-            : null)}
-        >
-          ＋ Add a place
-        </button>
 
         <div className="map-title">
           📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}

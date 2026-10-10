@@ -576,6 +576,18 @@ button.collection-empty {
   transition: all 0.2s;
 }
 
+/* Press-and-hold confirmation ring, positioned and animated by showPressRing in MapScreen.jsx */
+.map-press-ring {
+  position: absolute;
+  z-index: 15;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
 .map-filter.active {
   background: var(--accent);
   color: white;
@@ -594,24 +606,6 @@ button.collection-empty {
   padding: 6px 10px;
   border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.map-add-button {
-  position: absolute;
-  left: calc(12px + var(--safe-left));
-  bottom: 12px;
-  z-index: 20;
-  min-height: 40px;
-  padding: 0 16px;
-  background: var(--accent);
-  color: #fff;
-  border: 0;
-  border-radius: 999px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
 }
 
 .map-place-list {
