@@ -24,13 +24,13 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
-// Place and address suggestions for the map search box, biased towards Melbourne.
-async function forwardGeocode(text, signal) {
+// Place and address suggestions for the map search box. Ranks results nearest to `bias` ([lng, lat]).
+async function forwardGeocode(text, signal, bias) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('autocomplete', 'true');
   url.searchParams.set('limit', '5');
-  url.searchParams.set('proximity', `${MELBOURNE_CENTER[0]},${MELBOURNE_CENTER[1]}`);
+  url.searchParams.set('proximity', `${bias[0]},${bias[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
   const data = await response.json();
@@ -59,6 +59,9 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
   const searchMarkerRef = useRef(null);
   const [selectedSearch, setSelectedSearch] = useState(null); // the picked suggestion, used to pre-fill Add a place
+  // The user's position ([lng, lat]) ranks search results. null until they allow location.
+  const [searchBias, setSearchBias] = useState(null);
+  const locationRequestedRef = useRef(false);
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -174,7 +177,19 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   };
 }, [visible, membersOf, onOpenPin, mapReady]);
 
+  // Asked once, when the search box is first tapped. Denied or unavailable keeps the Melbourne bias.
+  const requestUserLocation = () => {
+    if (locationRequestedRef.current || !navigator.geolocation) return;
+    locationRequestedRef.current = true;
+    navigator.geolocation.getCurrentPosition(
+      (position) => setSearchBias([position.coords.longitude, position.coords.latitude]),
+      () => {},
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 },
+    );
+  };
+
   // Suggestions wait 350ms after the last keystroke. Older requests are cancelled.
+  // Runs again when the user's location arrives, so results re-rank.
   useEffect(() => {
     const text = searchText.trim();
     if (text.length < 3) {
@@ -186,7 +201,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     setSearchStatus('searching');
     const timer = setTimeout(async () => {
       try {
-        const results = await forwardGeocode(text, controller.signal);
+        const results = await forwardGeocode(text, controller.signal, searchBias ?? MELBOURNE_CENTER);
         setSearchResults(results);
         setSearchStatus(results.length ? '' : 'none');
       } catch (error) {
@@ -197,7 +212,7 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchText]);
+  }, [searchText, searchBias]);
 
   const clearSearch = () => {
     setSearchText('');
@@ -356,6 +371,7 @@ const openListedPlace = (place) => {
               type="search"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
+              onFocus={requestUserLocation}
               onKeyDown={(event) => { if (event.key === 'Escape') clearSearch(); }}
               placeholder="Search a place or address"
               aria-label="Search a place or address"
