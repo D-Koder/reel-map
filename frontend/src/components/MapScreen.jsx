@@ -24,6 +24,26 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
+// Place and address suggestions for the map search box, biased towards Melbourne.
+async function forwardGeocode(text, signal) {
+  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('autocomplete', 'true');
+  url.searchParams.set('limit', '5');
+  url.searchParams.set('country', 'au');
+  url.searchParams.set('proximity', `${MELBOURNE_CENTER[0]},${MELBOURNE_CENTER[1]}`);
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
+  const data = await response.json();
+  return (data.features || []).map((feature) => ({
+    id: feature.id,
+    name: feature.text || feature.place_name,
+    address: feature.place_name,
+    lng: feature.center[0],
+    lat: feature.center[1],
+  }));
+}
+
 const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
   const [filter, setFilter] = useState('all');
   const [mapError, setMapError] = useState('');
@@ -35,6 +55,10 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const hasFittedBounds = useRef(false);
   const isClosingModal = useRef(false);
   const pendingZoomPlaceIdRef = useRef(null);  // ← ADD THIS LINE
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
+  const searchMarkerRef = useRef(null);
   useImperativeHandle(ref, () => ({
     markModalClosing: () => { isClosingModal.current = true; },
   }), []);
@@ -76,6 +100,8 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
       hasFittedBounds.current = false;
+      searchMarkerRef.current?.remove();
+      searchMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -147,6 +173,52 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     markersRef.current = [];
   };
 }, [visible, membersOf, onOpenPin, mapReady]);
+
+  // Suggestions wait 350ms after the last keystroke. Older requests are cancelled.
+  useEffect(() => {
+    const text = searchText.trim();
+    if (text.length < 3) {
+      setSearchResults([]);
+      setSearchStatus('');
+      return undefined;
+    }
+    const controller = new AbortController();
+    setSearchStatus('searching');
+    const timer = setTimeout(async () => {
+      try {
+        const results = await forwardGeocode(text, controller.signal);
+        setSearchResults(results);
+        setSearchStatus(results.length ? '' : 'none');
+      } catch (error) {
+        if (error.name !== 'AbortError') setSearchStatus('error');
+      }
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchText]);
+
+  const clearSearch = () => {
+    setSearchText('');
+    setSearchResults([]);
+    setSearchStatus('');
+    searchMarkerRef.current?.remove();
+    searchMarkerRef.current = null;
+  };
+
+  const chooseSearchResult = (result) => {
+    const map = mapRef.current;
+    if (!map) return;
+    // The typed text stays as it is. Only the suggestion list closes.
+    setSearchResults([]);
+    setSearchStatus('');
+    searchMarkerRef.current?.remove();
+    searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })
+      .setLngLat([result.lng, result.lat])
+      .addTo(map);
+    map.flyTo({ center: [result.lng, result.lat], zoom: 16, essential: true });
+  };
 
   // Press and hold the map for 1.75s to add a place at that spot.
   // Dragging or pinching cancels the press.
@@ -268,6 +340,45 @@ const openListedPlace = (place) => {
           ? <div className="mapbox-canvas" ref={mapContainer} />
           : <div className="mapbox-message">Add VITE_MAPBOX_TOKEN to enable the interactive map.</div>}
         {mapError && <div className="mapbox-error" role="status">{mapError}</div>}
+        <form
+          className="map-search"
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (searchResults[0]) chooseSearchResult(searchResults[0]);
+          }}
+        >
+          <div className="map-search-box">
+            <input
+              className="map-search-input"
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Escape') clearSearch(); }}
+              placeholder="Search a place or address"
+              aria-label="Search a place or address"
+              enterKeyHint="search"
+              autoComplete="off"
+            />
+            {searchText && (
+              <button type="button" className="map-search-clear" onClick={clearSearch} aria-label="Clear search">✕</button>
+            )}
+          </div>
+          {searchStatus === 'searching' && <div className="map-search-note">Searching…</div>}
+          {searchStatus === 'none' && <div className="map-search-note">No matches. Try a different spelling.</div>}
+          {searchStatus === 'error' && <div className="map-search-note">Search is unavailable right now.</div>}
+          {searchResults.length > 0 && (
+            <div className="map-search-results">
+              {searchResults.map((result) => (
+                <button key={result.id} type="button" className="map-search-result" onClick={() => chooseSearchResult(result)}>
+                  <strong>{result.name}</strong>
+                  <span>{result.address}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </form>
+
         <div className="map-controls" role="toolbar" aria-label="Filter pins">
           {mapFilters.map((f) => (
             <button
