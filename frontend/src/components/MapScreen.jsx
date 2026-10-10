@@ -24,25 +24,41 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
-// Place and address suggestions for the map search box. Ranks results nearest to `origin` ([lng, lat]).
-async function forwardGeocode(text, signal, origin) {
-  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json`);
+// Mapbox Search Box API. Suggestions come first. A place's coordinates are fetched only when it is picked.
+const SEARCH_BASE = 'https://api.mapbox.com/search/searchbox/v1';
+// Named places (poi) as well as addresses, so "Melbourne Museum" finds the museum.
+const SEARCH_TYPES = 'poi,address,place,locality,neighborhood';
+
+// Suggestions for the map search box, ranked near `origin` ([lng, lat]).
+async function searchSuggestions(text, signal, origin, sessionToken) {
+  const url = new URL(`${SEARCH_BASE}/suggest`);
+  url.searchParams.set('q', text);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('autocomplete', 'true');
+  url.searchParams.set('session_token', sessionToken);
+  url.searchParams.set('types', SEARCH_TYPES);
+  url.searchParams.set('language', 'en');
   url.searchParams.set('limit', '5');
-  // Named places (poi) as well as addresses, so "Queen Victoria Market" finds the market.
-  url.searchParams.set('types', 'poi,address,place,locality,neighborhood');
   url.searchParams.set('proximity', `${origin[0]},${origin[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
   const data = await response.json();
-  return (data.features || []).map((feature) => ({
-    id: feature.id,
-    name: feature.text || feature.place_name,
-    address: feature.place_name,
-    lng: feature.center[0],
-    lat: feature.center[1],
+  return (data.suggestions || []).map((suggestion) => ({
+    id: suggestion.mapbox_id,
+    name: suggestion.name,
+    address: suggestion.full_address || suggestion.place_formatted || suggestion.name,
   }));
+}
+
+// Coordinates ([lng, lat]) for one picked suggestion.
+async function retrievePlace(mapboxId, sessionToken, signal) {
+  const url = new URL(`${SEARCH_BASE}/retrieve/${encodeURIComponent(mapboxId)}`);
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('session_token', sessionToken);
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox retrieve returned HTTP ${response.status}`);
+  const [lng, lat] = (await response.json()).features?.[0]?.geometry?.coordinates ?? [];
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) throw new Error('No coordinates for this place');
+  return { lng, lat };
 }
 
 const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, onAddAt, showToast }, ref) {
@@ -59,6 +75,8 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
+  // Groups the suggestions for one search and the pick that follows, for Mapbox billing.
+  const searchSessionRef = useRef(null);
   const searchMarkerRef = useRef(null);
   const [selectedSearch, setSelectedSearch] = useState(null); // the picked suggestion, used to pre-fill Add a place
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
@@ -202,11 +220,13 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     // Like Google Maps: rank near the map's current view. Fall back to the user's location, then Melbourne.
     const view = mapRef.current?.getCenter();
     const origin = view ? [view.lng, view.lat] : (searchBias ?? MELBOURNE_CENTER);
+    searchSessionRef.current ??= crypto.randomUUID();
+    const sessionToken = searchSessionRef.current;
     const controller = new AbortController();
     setSearchStatus('searching');
     const timer = setTimeout(async () => {
       try {
-        const results = await forwardGeocode(text, controller.signal, origin);
+        const results = await searchSuggestions(text, controller.signal, origin, sessionToken);
         setSearchResults(results);
         setSearchStatus(results.length ? '' : 'none');
       } catch (error) {
@@ -224,22 +244,33 @@ const MapScreen = forwardRef(function MapScreen({ places, membersOf, onOpenPin, 
     setSearchResults([]);
     setSearchStatus('');
     setSelectedSearch(null);
+    searchSessionRef.current = null;
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = null;
   };
 
-  const chooseSearchResult = (result) => {
+  const chooseSearchResult = async (result) => {
     const map = mapRef.current;
     if (!map) return;
+    const sessionToken = searchSessionRef.current ?? crypto.randomUUID();
+    searchSessionRef.current = null;
     // The typed text stays as it is. Only the suggestion list closes.
     setSearchResults([]);
     setSearchStatus('');
-    setSelectedSearch(result);
+    let coords;
+    try {
+      coords = await retrievePlace(result.id, sessionToken, AbortSignal.timeout(10000));
+    } catch {
+      setSearchStatus('error');
+      return;
+    }
+    const place = { ...result, ...coords };
+    setSelectedSearch(place);
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })
-      .setLngLat([result.lng, result.lat])
+      .setLngLat([place.lng, place.lat])
       .addTo(map);
-    map.flyTo({ center: [result.lng, result.lat], zoom: 16, essential: true });
+    map.flyTo({ center: [place.lng, place.lat], zoom: 16, essential: true });
   };
 
   // Press and hold the map for 1.75s to add a place at that spot.
