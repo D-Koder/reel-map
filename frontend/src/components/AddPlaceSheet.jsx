@@ -375,7 +375,12 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                 marginBottom: '16px'
               }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  <span className="spinner" aria-hidden="true" />Fetching Instagram data…
+                  Fetching Instagram data…
+                </div>
+                <div role="status" aria-label="Fetching Instagram data" style={{ marginBottom: '8px' }}>
+                  <span className="skeleton-bar" style={{ width: '70%' }} />
+                  <span className="skeleton-bar" style={{ width: '45%' }} />
+                  <span className="skeleton-bar" style={{ width: '90%' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <div style={{
@@ -588,7 +593,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                       }}
                     >
                       <strong style={{ display: 'block', fontSize: '14px' }}>
-                        {loadingCandidateUrl === candidate.url ? <><span className="spinner" aria-hidden="true" />Loading details…</> : candidate.name}
+                        {loadingCandidateUrl === candidate.url ? <span className="skeleton-bar" style={{ width: '60%' }} aria-label="Loading details" /> : candidate.name}
                       </strong>
                       <span style={{ display: 'block', marginTop: '3px', fontSize: '12px', color: 'var(--text-muted)' }}>
                         {[candidate.address, candidate.category, candidate.rating && `★ ${candidate.rating}`]

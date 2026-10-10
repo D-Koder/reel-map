@@ -434,8 +434,24 @@ const openListedPlace = (place) => {
               <button type="button" className="map-search-clear" onClick={clearSearch} aria-label="Clear search">✕</button>
             )}
           </div>
-          {searchStatus === 'searching' && <div className="map-search-note"><span className="spinner" aria-hidden="true" />Searching…</div>}
-          {searchStatus === 'retrieving' && <div className="map-search-note"><span className="spinner" aria-hidden="true" />Finding place…</div>}
+          {searchStatus === 'searching' && (
+            <div className="map-search-results" role="status" aria-label="Searching">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="map-search-result" aria-hidden="true">
+                  <span className="skeleton-bar" style={{ width: '70%' }} />
+                  <span className="skeleton-bar" style={{ width: '45%', height: '10px' }} />
+                </div>
+              ))}
+            </div>
+          )}
+          {searchStatus === 'retrieving' && (
+            <div className="map-search-results" role="status" aria-label="Finding place">
+              <div className="map-search-result" aria-hidden="true">
+                <span className="skeleton-bar" style={{ width: '60%' }} />
+                <span className="skeleton-bar" style={{ width: '40%', height: '10px' }} />
+              </div>
+            </div>
+          )}
           {searchStatus === 'none' && <div className="map-search-note">No matches. Try a different spelling.</div>}
           {searchStatus === 'error' && <div className="map-search-note">Search is unavailable right now.</div>}
           {searchResults.length > 0 && (
