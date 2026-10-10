@@ -118,13 +118,14 @@ module.exports = async function handler(req, res) {
 
     if (action === 'details') {
       const normalize = (value) => String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-      const alreadySelected = await page.evaluate((targetName) => {
-        const heading = document.querySelector('h1')?.textContent || '';
-        const normalize = (value) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-        return location.pathname.includes('/maps/place/') && normalize(heading) === normalize(targetName);
-      }, placeName);
+      // The selected place URL was opened directly, so a loaded place page is the match.
+      await page.waitForFunction(() => location.pathname.includes('/maps/place/') &&
+        document.querySelector('h1')?.textContent?.trim(), { timeout: 15000 }).catch(() => {});
+      const onPlacePage = await page.evaluate(() =>
+        location.pathname.includes('/maps/place/') && Boolean(document.querySelector('h1')?.textContent?.trim())
+      );
 
-      if (!alreadySelected) {
+      if (!onPlacePage) {
         await page.waitForFunction((selector) => document.querySelector(selector),
           { timeout: 25000 }, firstResultSelector);
         const resultLinks = await page.$$(firstResultSelector);

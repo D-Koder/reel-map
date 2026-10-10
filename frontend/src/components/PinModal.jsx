@@ -279,7 +279,7 @@ export default function PinModal({
             <div className="modal-label">Address</div>
             <a
               className="venue-address"
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}`}
+              href={`https://www.google.com/maps/search/?api=1&query=${Number.isFinite(place.lat) && Number.isFinite(place.lng) ? `${place.lat},${place.lng}` : encodeURIComponent(place.address)}`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Open ${place.address} in Google Maps`}

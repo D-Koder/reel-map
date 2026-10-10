@@ -160,13 +160,14 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
     if (!query) return;
     setVerifyingLocation(true);
     setVerifyCandidate(null);
-    setVerifyResults([]);
+    setVerifyResults(null);
     try {
       const data = await requestLocationApi({ action: 'search', query, location: query });
       setVerifyResults(data.candidates || []);
       if (data.candidates?.length === 1) setVerifyCandidate(data.candidates[0]);
     } catch (error) {
       addLog(`❌ Could not verify address: ${error.message}`, 'error');
+      setVerifyResults(null);
     } finally {
       setVerifyingLocation(false);
     }
@@ -553,15 +554,22 @@ export default function AddPlaceSheet({ collections, onAdd, onClose }) {
                 No matches. Try editing the address or enter place details manually.
               </div>
             )}
+            {location.trim() && !mapsData && (
+              <div role="note" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                No Google Maps place selected. The map pin will be approximate.
+              </div>
+            )}
 
-            {verifyResults && (
+            {(verifyingLocation || verifyResults) && (
               <div className="modal-overlay location-verify-overlay" onClick={(e) => { e.stopPropagation(); setVerifyResults(null); }}>
                 <div className="modal location-verify-modal" role="dialog" aria-label="Verify location" onClick={(e) => e.stopPropagation()}>
                   <div className="modal-header">
                     <div className="modal-title">Confirm location</div>
                     <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close">✕</button>
                   </div>
-                  {verifyResults.length ? (
+                  {verifyingLocation ? (
+                    <p className="modal-label" role="status">Searching Google Maps…</p>
+                  ) : verifyResults.length ? (
                     <>
                       <p className="modal-label">Choose the matching Google Maps place.</p>
                       <div className="location-verify-results">
