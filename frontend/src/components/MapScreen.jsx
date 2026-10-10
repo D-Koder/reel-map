@@ -43,6 +43,8 @@ async function forwardGeocode(text, signal, bias) {
   url.searchParams.set('access_token', MAPBOX_TOKEN);
   url.searchParams.set('autocomplete', 'true');
   url.searchParams.set('limit', '5');
+  // Named places (poi) as well as addresses, so "Queen Victoria Market" finds the market.
+  url.searchParams.set('types', 'poi,address,place,locality,neighborhood');
   url.searchParams.set('proximity', `${bias[0]},${bias[1]}`);
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
