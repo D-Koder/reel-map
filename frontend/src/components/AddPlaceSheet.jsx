@@ -671,16 +671,14 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   maxLength={100}
                   disabled={saving}
                 />
-                {!reelUrl && (
-                  <button
-                    type="button"
-                    className="step-btn secondary"
-                    onClick={verifyLocation}
-                    disabled={saving || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
-                  >
-                    {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="step-btn secondary"
+                  onClick={verifyLocation}
+                  disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                >
+                  {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
+                </button>
               </div>
               <span className="field-hint">Used for the map pin. Verify to pick the exact Google Maps place.</span>
             </div>
