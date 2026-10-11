@@ -6,6 +6,7 @@ import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 import Avatar from './Avatar';
+import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -62,6 +63,15 @@ export default function PinModal({
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [reservationDate, setReservationDate] = useState(defaultReservation);
+  // Worked out when the sheet opens, so tapping the address opens it straight away.
+  const [mapsLink, setMapsLink] = useState(() => googleMapsLink(place));
+  useEffect(() => {
+    const controller = new AbortController();
+    checkedGoogleMapsLink(place, controller.signal).then((link) => {
+      if (!controller.signal.aborted) setMapsLink(link);
+    });
+    return () => controller.abort();
+  }, [place.id, place.address, place.lat, place.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   const [now, setNow] = useState(() => Date.now());
   const sheetRef = React.useRef(null);
@@ -244,8 +254,7 @@ export default function PinModal({
             <div className="modal-label">Address</div>
             <a
               className="venue-address"
-              // Search by name and address so Google opens the business, not a dropped pin at the coordinates.
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.venue_name ?? place.name}, ${place.address}`)}`}
+              href={mapsLink}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Open ${place.address} in Google Maps`}
