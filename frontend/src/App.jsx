@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { Bell, House, MapPin, Plus, Settings } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
 import MapScreen from './components/MapScreen';
 import PinModal from './components/PinModal';
@@ -290,7 +291,7 @@ function MainApp({ userId, showToast }) {
             onClick={() => { setNotificationsOpen(true); markAllRead(); }}
             aria-label="Notifications"
           >
-            🔔
+            <Bell aria-hidden="true" />
             {unreadCount > 0 && (
               <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 10, padding: '0 5px' }}>
                 {unreadCount}
@@ -298,7 +299,7 @@ function MainApp({ userId, showToast }) {
             )}
           </button>
           <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
-            ⚙️
+            <Settings aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -334,7 +335,7 @@ function MainApp({ userId, showToast }) {
           />
           {collections.length > 0 && (
             <button className="fab" onClick={() => openAddAt(null)} aria-label="Add a place">
-              ＋
+              <Plus aria-hidden="true" strokeWidth={2.5} />
             </button>
           )}
         </section>
@@ -345,8 +346,8 @@ function MainApp({ userId, showToast }) {
 
       <nav className="bottom-nav">
         {[
-          { id: 'home', icon: '🏠', label: 'Home' },
-          { id: 'map', icon: '📍', label: 'Map' },
+          { id: 'home', Icon: House, label: 'Home' },
+          { id: 'map', Icon: MapPin, label: 'Map' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -354,7 +355,7 @@ function MainApp({ userId, showToast }) {
             onClick={() => setScreen(tab.id)}
             aria-current={screen === tab.id ? 'page' : undefined}
           >
-            <span className="nav-icon">{tab.icon}</span>
+            <tab.Icon className="nav-icon" aria-hidden="true" strokeWidth={screen === tab.id ? 2.4 : 1.8} />
             <span className="nav-label">{tab.label}</span>
           </button>
         ))}

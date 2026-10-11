@@ -1,8 +1,12 @@
-import React from 'react';
-import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import React, { useState } from 'react';
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import PlaceRow from './PlaceRow';
+import { readJSON, writeJSON } from '../lib/storage';
+
+// Set after the first reorder, so the hint stops showing on this device.
+const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
 
 export default function HomeScreen({
   userId,
@@ -17,10 +21,17 @@ export default function HomeScreen({
   onAddPlace,
   banner = null,
 }) {
+  // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      // Enter opens the place, so only Space picks it up.
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] },
+    })
   );
+  const [reorderLearned, setReorderLearned] = useState(() => readJSON(REORDER_LEARNED_KEY, false));
 
   if (collections.length === 0) {
     return (
@@ -46,7 +57,9 @@ export default function HomeScreen({
     <div className="screen">
       <div className="home-screen">
         {banner}
-        <div className="reorder-hint">Hold ⋮⋮ to reorder places</div>
+        {!reorderLearned && places.length > 1 && (
+          <div className="reorder-hint">Tip: press and hold a place to move it</div>
+        )}
 
         {collections.map((collection) => {
           const pins = places.filter((p) => p.collection_id === collection.id);
@@ -54,6 +67,10 @@ export default function HomeScreen({
           // Drag order is personal; save the whole collection's new order.
           const handleDragEnd = ({ active, over }) => {
             if (!over || active.id === over.id) return;
+            if (!reorderLearned) {
+              writeJSON(REORDER_LEARNED_KEY, true);
+              setReorderLearned(true);
+            }
             const ids = pins.map((p) => p.id);
             onReorder(arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id)), collection.id);
           };

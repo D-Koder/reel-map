@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 const MESSAGES = {
   saving: 'Finding the place in this reel…',
@@ -39,7 +40,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
             )}
             {!busy && (
               <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label="Remove this reel">
-                ✕
+                <X aria-hidden="true" />
               </button>
             )}
           </div>

@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
@@ -497,7 +498,7 @@ const openListedPlace = (place) => {
               autoComplete="off"
             />
             {searchText && (
-              <button type="button" className="map-search-clear" onClick={clearSearch} aria-label="Clear search">✕</button>
+              <button type="button" className="map-search-clear" onClick={clearSearch} aria-label="Clear search"><X aria-hidden="true" /></button>
             )}
           </div>
           {searchStatus === 'searching' && (
@@ -604,7 +605,7 @@ const openListedPlace = (place) => {
             >
               <div className="modal-header">
                 <div className="modal-title">{venuePicker[0].address || venuePicker[0].name}</div>
-                <button type="button" className="modal-close" onClick={() => setVenuePicker(null)} aria-label="Close">✕</button>
+                <button type="button" className="modal-close" onClick={() => setVenuePicker(null)} aria-label="Close"><X aria-hidden="true" /></button>
               </div>
               <p className="modal-label">{venuePicker.length} places saved here. Choose one:</p>
               <div className="location-verify-results">

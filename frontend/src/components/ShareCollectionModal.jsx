@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
@@ -39,7 +40,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
         <div className="modal-header">
           <div className="modal-title">Share "{collection.name}"</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            ✕
+            <X aria-hidden="true" />
           </button>
         </div>
 

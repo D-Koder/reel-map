@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 
 export default function DeleteAccountModal({ open, onClose, userId, collections, onTransferOwnership, onConfirmDelete, isDeleting }) {
   const ownedCollections = collections.filter(c => c.ownerId === userId);
@@ -27,7 +28,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
       <div className="modal delete-account-modal" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <span>Delete Account</span>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
         </div>
 
         <div className="modal-body">

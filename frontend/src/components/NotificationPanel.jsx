@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 export default function NotificationPanel({ open, onClose, notifications, onClear }) {
   return (
@@ -8,7 +9,7 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
         <div className="notification-header">
           <span>Notifications</span>
           <button className="notification-close" onClick={onClose} aria-label="Close notifications">
-            ✕
+            <X aria-hidden="true" />
           </button>
         </div>
 

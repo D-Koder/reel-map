@@ -43,6 +43,24 @@ export function formatDateTime(date) {
   });
 }
 
+// Short label for a booking: "Today 7pm", "Tomorrow 12:30pm", "Sat 7pm", or "12 Oct 7pm" when it's further off.
+export function formatChipDate(date) {
+  const d = new Date(date);
+  const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+  const time = d
+    .toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
+    .replace(':00', '')
+    .replace(/\s/g, '')
+    .toLowerCase();
+  let day;
+  if (dayDiff === 0) day = 'Today';
+  else if (dayDiff === 1) day = 'Tomorrow';
+  else if (dayDiff > 1 && dayDiff < 7) day = d.toLocaleDateString('en-AU', { weekday: 'short' });
+  else day = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  return `${day} ${time}`;
+}
+
 export function formatDate(date) {
   return new Date(date).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' });
 }

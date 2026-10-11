@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Pencil, Trash2, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
@@ -143,7 +144,7 @@ export default function PinModal({
           <div className="modal-header-actions">
             {canEdit && (
               <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit">
-                ✏️
+                <Pencil aria-hidden="true" />
               </button>
             )}
             {canDelete && (
@@ -154,12 +155,10 @@ export default function PinModal({
                 aria-label="Delete place"
                 title="Delete"
               >
-                🗑️
+                <Trash2 aria-hidden="true" />
               </button>
             )}
-            <button className="modal-close" onClick={onClose} aria-label="Close">
-              ✕
-            </button>
+            <button className="modal-close" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
           </div>
         </div>
 

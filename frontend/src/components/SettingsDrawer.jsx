@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Lock, LockOpen, Settings, Share2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -99,7 +100,7 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
       {isOwner && (
         <div className="collection-icons">
           <button className="collection-icon" onClick={() => setManaging((open) => !open)} title="Manage collection" aria-label="Manage collection" aria-expanded={managing}>
-            ⚙️
+            <Settings aria-hidden="true" />
           </button>
           <button
             className="collection-icon"
@@ -107,7 +108,7 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
             title="Share collection"
             aria-label="Share"
           >
-            🔗
+            <Share2 aria-hidden="true" />
           </button>
           <button
             className="collection-icon"
@@ -115,7 +116,7 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
             title={collection.isPrivate ? 'Private — tap to share' : 'Shared — tap to make private'}
             aria-label={collection.isPrivate ? 'Make shared' : 'Make private'}
           >
-            {collection.isPrivate ? '🔒' : '🔓'}
+            {collection.isPrivate ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
           </button>
         </div>
       )}
@@ -370,9 +371,7 @@ export default function SettingsDrawer({
       <div className={`settings-drawer ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div className="settings-header">
           <span>Settings</span>
-          <button className="settings-close" onClick={onClose} aria-label="Close settings">
-            ✕
-          </button>
+          <button className="settings-close" onClick={onClose} aria-label="Close settings"><X aria-hidden="true" /></button>
         </div>
 
         <div className="settings-content">

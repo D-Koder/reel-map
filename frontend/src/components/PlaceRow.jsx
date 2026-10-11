@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { CalendarDays, CircleCheck } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { feelings, feelingEmoji, getVibe } from '../lib/constants';
+import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 
 export default function PlaceRow({ pin, members, userId, onOpen }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   });
+  // Lifting the finger at the end of a drag also counts as a tap, so taps right after a drag are ignored.
+  const draggedAt = useRef(0);
+  useEffect(() => {
+    if (!isDragging) return undefined;
+    navigator.vibrate?.(10);
+    return () => {
+      draggedAt.current = Date.now();
+    };
+  }, [isDragging]);
+  const open = () => {
+    if (isDragging || Date.now() - draggedAt.current < 400) return;
+    onOpen();
+  };
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const votes = memberIds.map((id) => feelingEmoji(pin.reactions[id])).filter(Boolean).join('');
@@ -28,12 +42,18 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
       className={`place-row ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
+      {/* Tap to open. Press and hold to drag (Space with a keyboard). */}
       <div
         className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''}`}
-        onClick={onOpen}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+        {...attributes}
+        {...listeners}
+        onClick={open}
+        onKeyDown={(e) => {
+          listeners?.onKeyDown?.(e);
+          if (e.key === 'Enter') open();
+        }}
+        // Stops the phone's own long-press menu from opening over the drag.
+        onContextMenu={(e) => e.preventDefault()}
       >
         <button
           type="button"
@@ -51,7 +71,7 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
           <div className="pin-name">{pin.name}</div>
           {pin.custom_info && <div className="pin-custom-info">{pin.custom_info}</div>}
           {isDone ? (
-            <div className="pin-rating">✅ Done</div>
+            <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>
           ) : shared ? (
             <div className="pin-votes" aria-label={`${vibe.label}. ${voteSummary}`}>
               <span className="vote-chips" aria-hidden="true">
@@ -68,22 +88,14 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
           ) : (
             <div className="pin-rating">{`${votes} ${vibe.label}`.trim()}</div>
           )}
+          {pin.booking && !isDone && (
+            <span className="date-chip" title="Booked">
+              <CalendarDays aria-hidden="true" />
+              <span className="sr-only">Booked for </span>
+              {formatChipDate(pin.booking.planned_at)}
+            </span>
+          )}
         </div>
-        {pin.booking && !isDone && (
-          <div className="pin-booked-badge" title="Booked">
-            🟢
-          </div>
-        )}
-        <button
-          ref={setActivatorNodeRef}
-          className="drag-handle"
-          aria-label={`Reorder ${pin.name}`}
-          onClick={(e) => e.stopPropagation()}
-          {...attributes}
-          {...listeners}
-        >
-          ⋮⋮
-        </button>
       </div>
     </div>
   );

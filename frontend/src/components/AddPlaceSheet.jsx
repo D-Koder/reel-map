@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
@@ -454,7 +455,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
             }}
             aria-label="Close"
           >
-            ✕
+            <X aria-hidden="true" />
           </button>
         </div>
 
@@ -751,7 +752,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 <div className="modal location-verify-modal" role="dialog" aria-label="Verify location" onClick={(e) => e.stopPropagation()}>
                   <div className="modal-header">
                     <div className="modal-title">Confirm location</div>
-                    <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close">✕</button>
+                    <button type="button" className="modal-close" onClick={() => setVerifyResults(null)} aria-label="Close"><X aria-hidden="true" /></button>
                   </div>
                   {verifyingLocation ? (
                     <div role="status" aria-label="Searching Google Maps">

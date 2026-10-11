@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories } from '../lib/constants';
 
@@ -60,7 +61,7 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
         <div className="modal-header">
           <div className="modal-title">Edit place</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            ✕
+            <X aria-hidden="true" />
           </button>
         </div>
 

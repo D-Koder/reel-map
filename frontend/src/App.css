@@ -33,6 +33,14 @@
   --vibe-mixed-bg: linear-gradient(135deg, #fef3e6 0%, #fef8f0 100%);
   --vibe-mixed-border: #f0c89b;
   --vibe-none-bg: linear-gradient(135deg, #f1f0ed 0%, #f5f4f1 100%);
+  --cat-cafe-bg: #f1e4d6;
+  --cat-cafe-fg: #8a5a2b;
+  --cat-food-bg: #fbe3d8;
+  --cat-food-fg: #b04318;
+  --cat-event-bg: #ebe2f6;
+  --cat-event-fg: #6b46a8;
+  --cat-other-bg: #e9ece4;
+  --cat-other-fg: #55604a;
 
   --header-h: 52px;
   --nav-h: 60px;
@@ -77,6 +85,14 @@
     --vibe-mixed-bg: linear-gradient(135deg, #33291a 0%, #2c251a 100%);
     --vibe-mixed-border: #5e4a26;
     --vibe-none-bg: linear-gradient(135deg, #262622 0%, #232320 100%);
+    --cat-cafe-bg: #3a2c1f;
+    --cat-cafe-fg: #e3b98c;
+    --cat-food-bg: #3d2519;
+    --cat-food-fg: #f0a07e;
+    --cat-event-bg: #2e2540;
+    --cat-event-fg: #c5aef0;
+    --cat-other-bg: #2a2e25;
+    --cat-other-fg: #b5c2a3;
   }
 }
 
@@ -293,41 +309,29 @@ button.collection-empty {
   position: relative;
   width: 100%;
   min-height: 68px;
-  background: var(--surface-muted);
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 4px 12px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px 10px 10px;
   cursor: pointer;
   display: flex;
   gap: 12px;
   align-items: center;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform 0.15s, border-color 0.2s;
+  /* No iOS long-press menu: holding the card picks it up instead. */
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s;
 }
 
-/* GRADIENT BACKGROUNDS BY CONSENSUS */
+/* Only places everyone is keen on get colour, so the best ideas stand out. */
 .pin-item.both-in {
   background: var(--vibe-both-bg);
   border-color: var(--vibe-both-border);
 }
 
-.pin-item.mixed-vibes {
-  background: var(--vibe-mixed-bg);
-  border-color: var(--vibe-mixed-border);
-}
-
-.pin-item.no-votes {
-  background: var(--surface-muted);
-  border-color: var(--border);
-}
-
-.pin-item.no-consensus {
-  background: var(--vibe-none-bg);
-  border-color: var(--border);
-}
-
-.pin-item.done > :not(.drag-handle) {
+.pin-item.done > * {
   opacity: 0.55;
 }
 
@@ -351,58 +355,30 @@ button.collection-empty {
 }
 
 .place-row:not(.dragging) .pin-item:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
+/* Picked up: lifts off the list. */
 .place-row.dragging {
   z-index: 50;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
-.drag-handle {
-  flex-shrink: 0;
-  width: 36px;
-  height: var(--tap);
-  border: none;
-  background: none;
-  color: var(--text-muted);
-  font-size: 16px;
-  letter-spacing: -3px;
-  cursor: grab;
-  touch-action: none; /* the handle owns its touches so dragging doesn't scroll */
-  border-radius: 8px;
-}
-
-.place-row.dragging .drag-handle {
+.place-row.dragging .pin-item {
+  transform: scale(1.03);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
   cursor: grabbing;
 }
 
-.pin-booked-badge {
-  font-size: 16px;
-  margin-left: auto;
-  animation: pulse 2s infinite;
-}
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
 
 .pin-thumbnail {
-  width: 44px;
-  height: 44px;
+  width: 54px;
+  height: 72px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #d85a30, #f0997b);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
 }
 
 .pin-thumbnail,
@@ -1140,7 +1116,7 @@ button.collection-empty {
   max-height: 92dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: slideUp 0.38s cubic-bezier(0.32, 0.72, 0, 1);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
 }
 
@@ -1260,15 +1236,13 @@ button.collection-empty {
 }
 
 .reel-thumbnail-small {
-  width: 56px;
-  height: 56px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #d85a30, #f0997b);
+  width: 72px;
+  height: 96px;
+  border-radius: 12px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
   cursor: pointer;
 }
 
@@ -2837,4 +2811,180 @@ select.step-input {
 @media (prefers-reduced-motion: reduce) {
   .confetti { display: none; }
   .celebrate-card, .celebrate-overlay { animation: none; }
+}
+
+/* ---------- REEL COVERS ---------- */
+.thumb {
+  position: relative;
+  color: var(--cat-other-fg);
+  background: var(--cat-other-bg);
+}
+
+.thumb.cat-cafe { color: var(--cat-cafe-fg); background: var(--cat-cafe-bg); }
+.thumb.cat-food { color: var(--cat-food-fg); background: var(--cat-food-bg); }
+.thumb.cat-event { color: var(--cat-event-fg); background: var(--cat-event-bg); }
+.thumb.has-image { background: var(--surface-muted); }
+
+.thumb-icon {
+  width: 44%;
+  height: auto;
+}
+
+/* Small play badge: the cover opens the reel. */
+.thumb-play {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+}
+
+.thumb-play svg {
+  width: 10px;
+  height: 10px;
+  margin-left: 1px;
+}
+
+/* ---------- BOOKED DATE CHIP ---------- */
+.date-chip {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.date-chip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pin-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success-text);
+}
+
+.pin-done svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- ICONS ---------- */
+.header-btn,
+.modal-close,
+.settings-close,
+.notification-close,
+.collection-icon,
+.map-search-clear,
+.inbox-dismiss,
+.fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-btn { color: var(--text); }
+
+.header-btn svg,
+.modal-close svg,
+.settings-close svg,
+.notification-close svg,
+.collection-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.map-search-clear svg,
+.inbox-dismiss svg {
+  width: 18px;
+  height: 18px;
+}
+
+.fab svg {
+  width: 26px;
+  height: 26px;
+}
+
+svg.nav-icon {
+  width: 24px;
+  height: 24px;
+  filter: none;
+  opacity: 1;
+}
+
+/* ---------- PRESS FEEDBACK ---------- */
+/* Everything tappable shrinks a touch while pressed, so taps feel physical. */
+.step-btn,
+.header-btn,
+.nav-tab,
+.map-filter,
+.modal-close,
+.settings-close,
+.notification-close,
+.collection-icon,
+.inbox-action,
+.inbox-dismiss,
+.toast-action,
+.fab {
+  transition: transform 0.12s ease, background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.step-btn:not(:disabled):active,
+.map-filter:active,
+.inbox-action:active,
+.toast-action:active {
+  transform: scale(0.96);
+}
+
+.header-btn:active,
+.nav-tab:active,
+.modal-close:active,
+.settings-close:active,
+.notification-close:active,
+.collection-icon:active,
+.inbox-dismiss:active {
+  transform: scale(0.9);
+  background: var(--surface-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-item,
+  .step-btn,
+  .header-btn,
+  .nav-tab,
+  .map-filter,
+  .fab {
+    transition: none;
+  }
+  .place-row:not(.dragging) .pin-item:active,
+  .place-row.dragging .pin-item,
+  .step-btn:not(:disabled):active,
+  .header-btn:active,
+  .nav-tab:active,
+  .fab:active {
+    transform: none;
+  }
 }
