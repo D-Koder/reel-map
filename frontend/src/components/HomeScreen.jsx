@@ -53,7 +53,7 @@ export default function HomeScreen({
       <div className="home-screen">
         {banner}
         {!reorderLearned && places.length > 1 && (
-          <div className="reorder-hint">Tip: press and hold a place to move it</div>
+          <div className="reorder-hint">Tip: drag ⋮⋮ to move a place</div>
         )}
 
         {collections.map((collection) => {

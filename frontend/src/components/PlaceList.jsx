@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import PlaceRow, { PlaceCard } from './PlaceRow';
 
-// One collection's places. Press and hold a card to move it: a single copy follows the finger,
+// One collection's places. Drag the ⋮⋮ handle to move a card: a single copy follows the finger,
 // and the card's spot stays in the list (faded) until it is dropped.
 export default function PlaceList({ pins, members, userId, onOpen, onReorder, onReordered, onCoverVisible, onCoverHidden }) {
-  // Press and hold to pick up. Moving before the hold ends scrolls the list instead.
   const sensors = useSensors(
-    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
-    useSensor(MouseSensor, { activationConstraint: { delay: 350, tolerance: 8 } }),
+    // A few pixels of movement starts a drag, so a slightly shaky tap on the handle still counts.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
       // Enter opens the place, so only Space picks it up.

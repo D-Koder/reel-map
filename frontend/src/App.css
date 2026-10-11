@@ -336,6 +336,32 @@ button.collection-empty {
 }
 
 /* ---------- DRAGGABLE ROWS ---------- */
+.drag-handle {
+  flex-shrink: 0;
+  width: 36px;
+  height: var(--tap);
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none; /* the handle owns its touches, so dragging doesn't scroll the list */
+  border-radius: 8px;
+}
+
+.drag-handle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  background: var(--surface-muted);
+}
+
 .reorder-hint {
   font-size: 14px;
   color: var(--text-muted);

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { CalendarDays, CircleCheck } from 'lucide-react';
+import { CalendarDays, CircleCheck, GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
@@ -7,7 +7,7 @@ import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, dragProps = {}, floating = false, dimmed = false }) {
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, handleProps = null, handleRef, floating = false, dimmed = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const votes = memberIds.map((id) => feelingEmoji(pin.reactions[id])).filter(Boolean).join('');
@@ -22,16 +22,13 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
     .join(', ');
 
   return (
-    // Tap to open. Press and hold to move (Space with a keyboard).
+    // Tap the card to open it. Drag the handle on the right to move it.
     <div
       className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''}`}
-      {...dragProps}
       onClick={onClick}
       onKeyDown={onKeyDown}
-      // Stops the phone's own long-press menu, and the browser's drag preview, from taking over the move.
-      onContextMenu={(e) => e.preventDefault()}
+      // Stops the browser's drag preview from appearing over the card.
       onDragStart={(e) => e.preventDefault()}
-      draggable={false}
     >
         <button
           type="button"
@@ -74,12 +71,24 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
             </span>
           )}
         </div>
+      {handleProps && (
+        <button
+          type="button"
+          ref={handleRef}
+          className="drag-handle"
+          aria-label={`Move ${pin.name}`}
+          onClick={(e) => e.stopPropagation()}
+          {...handleProps}
+        >
+          <GripVertical aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
 
 export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHidden }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   });
   // Tell the app when this card is on screen (or about to be), so its cover can be refreshed.
@@ -103,18 +112,12 @@ export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHi
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  // Lifting the finger at the end of a drag also counts as a tap, so taps right after a drag are ignored.
-  const draggedAt = useRef(0);
+  // A short buzz when the card is picked up.
   useEffect(() => {
-    if (!isDragging) return undefined;
-    navigator.vibrate?.(10);
-    return () => {
-      draggedAt.current = Date.now();
-    };
+    if (isDragging) navigator.vibrate?.(10);
   }, [isDragging]);
   const open = () => {
-    if (isDragging || Date.now() - draggedAt.current < 400) return;
-    onOpen();
+    if (!isDragging) onOpen();
   };
 
   return (
@@ -131,7 +134,8 @@ export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHi
         members={members}
         userId={userId}
         dimmed={isDragging}
-        dragProps={{ ...attributes, ...listeners }}
+        handleRef={setActivatorNodeRef}
+        handleProps={{ ...attributes, ...listeners }}
         onClick={open}
         onKeyDown={(e) => {
           listeners?.onKeyDown?.(e);
