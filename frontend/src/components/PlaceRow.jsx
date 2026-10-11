@@ -43,7 +43,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
           <PlaceThumb place={pin} className="pin-thumbnail" onBroken={onBroken} />
         </button>
         <div className="pin-info">
-          <div className="pin-name">{pin.name}</div>
+          <div className="pin-name">{pin.emoji && <span aria-hidden="true">{pin.emoji} </span>}{pin.name}</div>
           {pin.custom_info && <div className="pin-custom-info">{pin.custom_info}</div>}
           {isDone ? (
             <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>

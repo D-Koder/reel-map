@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
-import { categories } from '../lib/constants';
+import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 
-// Any member can open this to copy the place. Only whoever added it can change its name, category or collection.
+// Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection.
 export default function EditPlaceSheet({ place, collections = [], places = [], userId, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
+  const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
   const [saving, setSaving] = useState(false);
   const [copyTarget, setCopyTarget] = useState('');
@@ -73,7 +74,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ name: name.trim(), category });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), category });
     setSaving(false);
   };
 
@@ -110,6 +111,20 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
             required
             disabled={!isAdder}
           />
+        </label>
+
+        <label className="field">
+          <span className="modal-label">Emoji (optional)</span>
+          <input
+            className="step-input"
+            value={emoji}
+            onChange={(e) => setEmoji(e.target.value)}
+            placeholder={categoryIcon(category)}
+            maxLength={16}
+            disabled={!isAdder}
+            aria-describedby="emoji-hint"
+          />
+          <span id="emoji-hint" className="place-collection-note">Only for this collection. Leave empty for the category icon.</span>
         </label>
 
         <label className="field">

@@ -34,6 +34,8 @@ export default function PlaceThumb({ place, className, onBroken }) {
             </span>
           )}
         </>
+      ) : place.emoji ? (
+        <span className="thumb-emoji" aria-hidden="true">{place.emoji}</span>
       ) : (
         <Icon className="thumb-icon" aria-hidden="true" strokeWidth={1.75} />
       )}

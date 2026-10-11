@@ -2858,6 +2858,11 @@ select.step-input {
   height: auto;
 }
 
+.thumb-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
 /* Small play badge: the cover opens the reel. */
 .thumb-play {
   position: absolute;

@@ -100,7 +100,7 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
     image.className = 'map-pin-image';
     markerContent.append(image);
   } else {
-    markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
+    markerContent.textContent = place.emoji || (place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️');
   }
   button.append(markerContent);
 

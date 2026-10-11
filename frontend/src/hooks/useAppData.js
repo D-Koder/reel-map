@@ -55,6 +55,8 @@ function normalisePlace(row) {
     ...row,
     name: cp.custom_name || row.name,
     category: cp.category || row.category,
+    // Optional emoji chosen for this collection, shown next to the name.
+    emoji: cp.custom_emoji || null,
     collection_id: cp.collection_id,
     // Every collection this place is in, so the edit sheet can offer only the others.
     collectionIds: collections.map((c) => c.collection_id),
@@ -102,7 +104,7 @@ export function useAppData(userId, showToast) {
       supabase.from('place_order').select('place_id, collection_id, position'),
       supabase.rpc('get_streak'),
       // Each place's name and category in each collection. The places function doesn't return these.
-      supabase.from('collection_places').select('place_id, collection_id, custom_name, category'),
+      supabase.from('collection_places').select('place_id, collection_id, custom_name, custom_emoji, category'),
       supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
     ]);
     const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes].find((r) => r.error);
@@ -125,6 +127,7 @@ export function useAppData(userId, showToast) {
           ...cp,
           custom_name: entry?.custom_name ?? null,
           category: entry?.category ?? null,
+          custom_emoji: entry?.custom_emoji ?? null,
           booking: bookings[`${cp.collection_id}:${p.id}`] ?? null,
         };
       }),
@@ -240,13 +243,13 @@ export function useAppData(userId, showToast) {
       return { id: placeId };
     },
 
-    // Name and category are per collection (collection_places).
+    // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
-    updatePlace: async (place, { name, category }) => {
+    updatePlace: async (place, { name, emoji, category }) => {
       const { data, error } = await supabase
         .from('collection_places')
-        .update({ custom_name: name, category })
+        .update({ custom_name: name, custom_emoji: emoji || null, category })
         .eq('collection_id', place.collection_id)
         .eq('place_id', place.id)
         .select('place_id');
@@ -272,6 +275,7 @@ export function useAppData(userId, showToast) {
           added_by: userId,
           category: place.category,
           custom_name: place.name,
+          custom_emoji: place.emoji ?? null,
         })
       ),
 

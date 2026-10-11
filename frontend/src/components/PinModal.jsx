@@ -140,7 +140,7 @@ export default function PinModal({
       >
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
-          <div className="modal-title">{place.name}</div>
+          <div className="modal-title">{place.emoji && <span aria-hidden="true">{place.emoji} </span>}{place.name}</div>
           <div className="modal-header-actions">
             <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
               <Pencil aria-hidden="true" />
