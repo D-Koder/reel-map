@@ -429,6 +429,7 @@ function MainApp({ userId, showToast }) {
           key={editPin.id}
           place={editPin}
           collections={collections}
+          places={places}
           userId={userId}
           onCopy={async (targetId) => {
             const ok = await data.copyPlaceToCollection(editPin, targetId);

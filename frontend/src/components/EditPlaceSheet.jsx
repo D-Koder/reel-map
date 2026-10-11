@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories } from '../lib/constants';
+import { entriesAtSpot } from '../lib/places';
+import DuplicateWarning from './DuplicateWarning';
 
 // Any member can open this to copy the place. Only whoever added it can change its name, category or collection.
-export default function EditPlaceSheet({ place, collections = [], userId, onSave, onCopy, onMove, onClose }) {
+export default function EditPlaceSheet({ place, collections = [], places = [], userId, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
@@ -13,6 +15,8 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
   const [busyAction, setBusyAction] = useState(null); // 'copy' | 'move' | null
+  // Places already in the chosen collection that this one would duplicate.
+  const [moveDuplicates, setMoveDuplicates] = useState([]);
 
   const placeIn = place.collectionIds ?? [];
   const copyOptions = collections.filter((c) => !placeIn.includes(c.id));
@@ -27,7 +31,24 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
     if (ok) setCopyTarget('');
   };
 
-  const runMove = async () => {
+  // Same check as adding a place: the same place, or the same spot, already in that collection.
+  const findMoveDuplicates = () => {
+    const inTarget = places.filter((p) => p.collection_id === moveTarget);
+    const sameSpot = Number.isFinite(place.lat) && Number.isFinite(place.lng)
+      ? entriesAtSpot(inTarget, place.lat, place.lng)
+      : [];
+    const samePlace = inTarget.filter((p) => p.id === place.id);
+    return [...new Map([...samePlace, ...sameSpot].map((p) => [p.id, p])).values()];
+  };
+
+  const runMove = async (confirmed = false) => {
+    if (!confirmed) {
+      const matches = findMoveDuplicates();
+      if (matches.length) {
+        setMoveDuplicates(matches);
+        return;
+      }
+    }
     setBusyAction('move');
     const ok = await onMove(moveTarget);
     setBusyAction(null);
@@ -128,11 +149,25 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
                 <option value="">Choose a collection…</option>
                 {moveOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
               </select>
-              <button type="button" className="step-btn secondary" disabled={!moveTarget || !!busyAction} onClick={runMove}>
+              <button type="button" className="step-btn secondary" disabled={!moveTarget || !!busyAction} onClick={() => runMove()}>
                 {busyAction === 'move' ? <><span className="spinner" aria-hidden="true" />Moving…</> : 'Move'}
               </button>
             </div>
           </div>
+        )}
+
+        {moveDuplicates.length > 0 && (
+          <DuplicateWarning
+            matches={moveDuplicates}
+            title="That collection already has this location"
+            question="Move it there anyway, as a second place?"
+            confirmLabel="Yes, move it"
+            onCancel={() => setMoveDuplicates([])}
+            onConfirm={() => {
+              setMoveDuplicates([]);
+              runMove(true);
+            }}
+          />
         )}
 
         {isAdder && (

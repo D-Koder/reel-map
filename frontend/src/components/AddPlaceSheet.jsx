@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { entriesAtSpot } from '../lib/places';
+import DuplicateWarning from './DuplicateWarning';
 import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
@@ -47,19 +49,6 @@ function clearDraft() {
 }
 
 // Same tolerance as add_place_to_collection(): about 1m.
-const SAME_SPOT_DEGREES = 0.00001;
-
-// Saved places (one per entry) that sit at this exact location.
-function entriesAtSpot(places, latitude, longitude) {
-  const seen = new Set();
-  return places.filter((place) => {
-    if (seen.has(place.id) || !Number.isFinite(place.lat) || !Number.isFinite(place.lng)) return false;
-    if (Math.abs(place.lat - latitude) >= SAME_SPOT_DEGREES || Math.abs(place.lng - longitude) >= SAME_SPOT_DEGREES) return false;
-    seen.add(place.id);
-    return true;
-  });
-}
-
 // '' when empty, the full URL when valid, null when it isn't a web link. "example.com" gets https://.
 function normaliseEntryUrl(value) {
   const trimmed = value.trim();
@@ -881,43 +870,17 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
 
             {/* Same location already saved: confirm before adding another entry there. */}
             {duplicates.length > 0 && (
-              <div className="modal-overlay location-verify-overlay" onClick={() => setDuplicates([])}>
-                <div
-                  className="modal location-verify-modal"
-                  role="dialog"
-                  aria-label="This collection already has this location"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="modal-header">
-                    <div className="modal-title">This collection already has this location</div>
-                  </div>
-                  <p className="modal-label">Saved here already:</p>
-                  <div className="location-verify-results">
-                    {duplicates.map((place) => (
-                      <div key={place.id} className="location-verify-result">
-                        <strong>{place.name}</strong>
-                        <span>{place.custom_info || 'No custom info'}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="modal-label">Add this location again as a new place?</p>
-                  <div className="field-row">
-                    <button type="button" className="step-btn secondary full-width" onClick={() => setDuplicates([])}>
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="step-btn primary full-width"
-                      onClick={() => {
-                        setDuplicates([]);
-                        submit(null, true);
-                      }}
-                    >
-                      Yes, add it
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <DuplicateWarning
+                matches={duplicates}
+                title="This collection already has this location"
+                question="Add this location again as a new place?"
+                confirmLabel="Yes, add it"
+                onCancel={() => setDuplicates([])}
+                onConfirm={() => {
+                  setDuplicates([]);
+                  submit(null, true);
+                }}
+              />
             )}
 
             {/* Collection & Category */}
