@@ -289,8 +289,11 @@ function MainApp({ userId, showToast }) {
     );
   }
 
-  const openPin = places.find((p) => p.id === openPinId);
-  const editPin = places.find((p) => p.id === editPinId);
+  // A copied place is one row per collection, all sharing the place id, so pins are opened by
+  // "collection:place". A bare place id (from a notification or a just-saved reel) opens its first entry.
+  const findEntry = (key) => key && (places.find((p) => `${p.collection_id}:${p.id}` === key) ?? places.find((p) => p.id === key));
+  const openPin = findEntry(openPinId);
+  const editPin = findEntry(editPinId);
 
   return (
     <div className="app">
@@ -410,14 +413,14 @@ function MainApp({ userId, showToast }) {
 
       {openPin && !editPin && (
         <PinModal
-          key={openPin.id}
+          key={`${openPin.collection_id}:${openPin.id}`}
           place={openPin}
           userId={userId}
           members={membersOf[openPin.collection_id] ?? []}
           onSetVibe={(feeling) => data.setReaction(openPin, feeling)}
           onBook={(plannedAt) => data.book(openPin.id, plannedAt)}
           onMarkDone={() => markDone(openPin)}
-          onEdit={() => setEditPinId(openPin.id)}
+          onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
           onClose={closePin}
           showToast={showToast}
@@ -426,7 +429,7 @@ function MainApp({ userId, showToast }) {
 
       {editPin && (
         <EditPlaceSheet
-          key={editPin.id}
+          key={`${editPin.collection_id}:${editPin.id}`}
           place={editPin}
           collections={collections}
           places={places}

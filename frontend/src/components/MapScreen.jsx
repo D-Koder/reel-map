@@ -89,7 +89,7 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
   button.className = `map-pin mapbox-pin ${vibe.consensus}`;
   button.setAttribute('aria-label', group.length > 1 ? `${place.name}, ${group.length} places here` : place.name);
   button.title = place.name;
-  button.addEventListener('click', () => (group.length === 1 ? onOpenPin(place.id) : onPickVenue(group)));
+  button.addEventListener('click', () => (group.length === 1 ? onOpenPin(`${place.collection_id}:${place.id}`) : onPickVenue(group)));
 
   const markerContent = document.createElement('span');
   markerContent.className = `pin-marker ${vibe.consensus}`;
@@ -605,12 +605,12 @@ const openListedPlace = (place) => {
               <div className="location-verify-results">
                 {venuePicker.map((place) => (
                   <button
-                    key={place.id}
+                    key={`${place.collection_id}:${place.id}`}
                     type="button"
                     className="location-verify-result"
                     onClick={() => {
                       setVenuePicker(null);
-                      onOpenPin(place.id);
+                      onOpenPin(`${place.collection_id}:${place.id}`);
                     }}
                   >
                     <strong>{place.name}</strong>

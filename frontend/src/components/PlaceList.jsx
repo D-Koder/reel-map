@@ -45,7 +45,7 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
               pin={pin}
               members={members}
               userId={userId}
-              onOpen={() => onOpen(pin.id)}
+              onOpen={() => onOpen(`${pin.collection_id}:${pin.id}`)}
               onVisible={onCoverVisible}
               onHidden={onCoverHidden}
             />
