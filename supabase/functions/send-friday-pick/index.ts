@@ -11,11 +11,6 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 );
 
-webpush.setVapidDetails(
-  Deno.env.get('VAPID_SUBJECT')!,
-  Deno.env.get('VAPID_PUBLIC_KEY')!,
-  Deno.env.get('VAPID_PRIVATE_KEY')!,
-);
 
 type Subscription = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string };
 
@@ -58,6 +53,19 @@ async function pickPlaceFor(userId: string): Promise<{ id: string; name: string 
 Deno.serve(async (req) => {
   if (req.headers.get('Authorization') !== `Bearer ${Deno.env.get('FRIDAY_PICK_SECRET')}`) {
     return json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Set up VAPID inside the handler so a missing or bad secret returns a readable error instead of crashing.
+  const missing = ['VAPID_SUBJECT', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'].filter((name) => !Deno.env.get(name));
+  if (missing.length > 0) return json({ error: `Missing secrets: ${missing.join(', ')}` }, 500);
+  try {
+    webpush.setVapidDetails(
+      Deno.env.get('VAPID_SUBJECT')!,
+      Deno.env.get('VAPID_PUBLIC_KEY')!,
+      Deno.env.get('VAPID_PRIVATE_KEY')!,
+    );
+  } catch (err) {
+    return json({ error: `VAPID setup failed: ${(err as Error).message}` }, 500);
   }
 
   const { data: subscriptions, error } = await supabase

@@ -40,7 +40,7 @@ function FridayPickToggle({ userId }) {
     <div className="cascade-delete-toggle">
       <label>
         <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
-        🔔 Friday pick notifications
+        🔔 Notifications on this device
       </label>
       {error && <div className="toggle-hint">{error}</div>}
     </div>
