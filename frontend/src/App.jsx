@@ -9,10 +9,16 @@ import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import ShareCollectionModal from './components/ShareCollectionModal';
+import ReelInbox from './components/ReelInbox';
+import FridayPickCard from './components/FridayPickCard';
+import Celebration from './components/Celebration';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
 import { useNotifications } from './hooks/useNotifications';
+import { useOnline } from './hooks/useOnline';
+import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
+import { clearUserStorage } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
 import './App.css';
 
@@ -36,8 +42,12 @@ function Toast({ toast, onDismiss }) {
   );
 }
 
+// How long a delete can be undone. The delete is only sent once this runs out.
+const UNDO_MS = 5000;
+
 function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
+  const online = useOnline();
   const { acceptInvite } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -55,8 +65,89 @@ function MainApp({ userId, showToast }) {
   const [pendingShareUrl, setPendingShareUrl] = useState(null);
   // The shared link the open add sheet should start from.
   const [sharedReelUrl, setSharedReelUrl] = useState(null);
+  // The inbox reel the add sheet is finishing, removed from the inbox once it is added.
+  const [finishingInboxId, setFinishingInboxId] = useState(null);
+  // The place just marked as done, for the celebration.
+  const [celebrating, setCelebrating] = useState(null);
+
+  // Deletes wait UNDO_MS before they are sent, so the toast can offer Undo. Keys: "place:<collection>:<place>" or "collection:<id>".
+  const [hiddenKeys, setHiddenKeys] = useState(() => new Set());
+  const deleteTimers = useRef(new Map());
+  const setHidden = (key, hidden) =>
+    setHiddenKeys((current) => {
+      const next = new Set(current);
+      if (hidden) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
+  const deferDelete = (key, label, commit) => {
+    setHidden(key, true);
+    const run = async () => {
+      deleteTimers.current.delete(key);
+      await commit();
+      setHidden(key, false);
+    };
+    const timer = setTimeout(run, UNDO_MS);
+    deleteTimers.current.set(key, { timer, run });
+    showToast(`🗑️ Deleted ${label}`, {
+      label: 'Undo',
+      onClick: () => {
+        clearTimeout(timer);
+        deleteTimers.current.delete(key);
+        setHidden(key, false);
+        showToast('↩️ Restored');
+      },
+    }, UNDO_MS);
+  };
+
+  // Send waiting deletes right away if the app is hidden, closed or signed out, so none are lost.
+  useEffect(() => {
+    const flush = () => {
+      for (const { timer, run } of deleteTimers.current.values()) {
+        clearTimeout(timer);
+        run();
+      }
+    };
+    const onVisibility = () => document.visibilityState === 'hidden' && flush();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
+
+  const collections = useMemo(
+    () => data.collections.filter((c) => !hiddenKeys.has(`collection:${c.id}`)),
+    [data.collections, hiddenKeys]
+  );
+  const places = useMemo(
+    () => data.places.filter((p) => !hiddenKeys.has(`collection:${p.collection_id}`) && !hiddenKeys.has(`place:${p.collection_id}:${p.id}`)),
+    [data.places, hiddenKeys]
+  );
+
+  const inbox = useReelInbox({
+    userId,
+    collections,
+    places,
+    addPlace: data.addPlace,
+    online,
+    showToast,
+    onSaved: (placeId, name, collectionName) =>
+      showToast(`📍 "${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
+  });
+
+  // Coming back online: load anything that changed while offline.
+  const wasOnline = useRef(online);
+  useEffect(() => {
+    if (online && !wasOnline.current) data.refresh();
+    wasOnline.current = online;
+  }, [online, data]);
   const openAddAt = (draft) => {
     setSharedReelUrl(null);
+    setFinishingInboxId(null);
     setAddDraft(draft);
     setAddCollectionId(null);
     setAdding(true);
@@ -64,6 +155,7 @@ function MainApp({ userId, showToast }) {
 
   const openAddInCollection = (collectionId) => {
     setSharedReelUrl(null);
+    setFinishingInboxId(null);
     setAddDraft(null);
     setAddCollectionId(collectionId);
     setAdding(true);
@@ -72,9 +164,18 @@ function MainApp({ userId, showToast }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Opens the add sheet for a shared reel the background lookup couldn't finish.
+  const finishInboxItem = (item) => {
+    setSharedReelUrl(item.url);
+    setFinishingInboxId(item.id);
+    setAddDraft(null);
+    setAddCollectionId(item.collectionId);
+    setAdding(true);
+  };
+
   const membersOf = useMemo(
-    () => Object.fromEntries(data.collections.map((c) => [c.id, c.members])),
-    [data.collections]
+    () => Object.fromEntries(collections.map((c) => [c.id, c.members])),
+    [collections]
   );
 
   const streak = useMemo(() => {
@@ -117,25 +218,29 @@ function MainApp({ userId, showToast }) {
     if (link) setPendingShareUrl(link);
   }, []);
 
+  // A shared reel is saved straight away and looked up in the background: no sheet, no extra taps.
   useEffect(() => {
-    if (!pendingShareUrl || data.collections.length === 0) return;
-    setSharedReelUrl(pendingShareUrl);
+    if (!pendingShareUrl || collections.length === 0) return;
     setPendingShareUrl(null);
-    setAddDraft(null);
-    setAddCollectionId(null);
-    setAdding(true);
-  }, [pendingShareUrl, data.collections]);
+    setScreen('home');
+    inbox.enqueue(pendingShareUrl);
+  }, [pendingShareUrl, collections.length, inbox]);
 
-  const deletePlace = async (place) => {
-    if (!(await data.deletePlace(place.collection_id, place.id))) return;
+  const deletePlace = (place) => {
     closePin();
-    showToast(`🗑️ Deleted "${place.name}"`);
+    deferDelete(`place:${place.collection_id}:${place.id}`, `"${place.name}"`, () => data.deletePlace(place.collection_id, place.id));
+  };
+
+  const deleteCollection = (collectionId) => {
+    const collection = data.collections.find((c) => c.id === collectionId);
+    deferDelete(`collection:${collectionId}`, `"${collection?.name ?? 'collection'}"`, () => data.deleteCollection(collectionId));
+    return true;
   };
 
   const markDone = async (place) => {
     if (!(await data.markDone(place.id))) return;
-    showToast(`✅ Marked "${place.name}" as done!`);
     closePin();
+    setCelebrating({ name: place.name });
   };
 
   const handleTransferOwnership = async (collectionId, newOwnerId) => {
@@ -149,6 +254,7 @@ function MainApp({ userId, showToast }) {
   const handleDeleteUser = async (cascadeDelete = false) => {
     setIsDeleting(true);
     if (await data.deleteUser(cascadeDelete)) {
+      clearUserStorage(userId);
       showToast('Account deleted');
       setDeleteModalOpen(false);
       await supabase.auth.signOut();
@@ -171,8 +277,8 @@ function MainApp({ userId, showToast }) {
     );
   }
 
-  const openPin = data.places.find((p) => p.id === openPinId);
-  const editPin = data.places.find((p) => p.id === editPinId);
+  const openPin = places.find((p) => p.id === openPinId);
+  const editPin = places.find((p) => p.id === editPinId);
 
   return (
     <div className="app">
@@ -186,7 +292,7 @@ function MainApp({ userId, showToast }) {
           >
             🔔
             {unreadCount > 0 && (
-              <span style={{ marginLeft: 2, fontSize: 11, fontWeight: 700, color: '#fff', background: '#d4572a', borderRadius: 10, padding: '0 5px' }}>
+              <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 10, padding: '0 5px' }}>
                 {unreadCount}
               </span>
             )}
@@ -197,13 +303,25 @@ function MainApp({ userId, showToast }) {
         </div>
       </header>
 
+      {!online && (
+        <div className="offline-banner" role="status">
+          📶 You're offline. Showing your saved places — changes need a connection.
+        </div>
+      )}
+
       {/* Both panels stay mounted: on mobile only the active tab shows, on wide screens they sit side by side. */}
       <main className="content">
         <section className={`panel panel-home ${screen === 'home' ? 'active' : ''}`}>
           <HomeScreen
             userId={userId}
-            places={data.places}
-            collections={data.collections}
+            places={places}
+            collections={collections}
+            banner={
+              <>
+                <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.remove} />
+                <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />
+              </>
+            }
             membersOf={membersOf}
             streak={streak}
             onOpenPin={setOpenPinId}
@@ -214,14 +332,14 @@ function MainApp({ userId, showToast }) {
             }}
             onOpenSettings={() => setSettingsOpen(true)}
           />
-          {data.collections.length > 0 && (
+          {collections.length > 0 && (
             <button className="fab" onClick={() => openAddAt(null)} aria-label="Add a place">
               ＋
             </button>
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen ref={mapScreenRef} places={data.places} collections={data.collections}membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+          <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
         </section>
       </main>
 
@@ -247,13 +365,13 @@ function MainApp({ userId, showToast }) {
         onClose={() => setSettingsOpen(false)}
         userId={userId}
         profile={data.profile}
-        collections={data.collections}
+        collections={collections}
         onCreateCollection={data.createCollection}
         onUpdateCollection={data.updateCollection}
         onSetPrivacy={data.setCollectionPrivate}
         onUpdateProfile={data.updateProfile}
         onRemoveCollectionMember={data.removeCollectionMember}
-        onDeleteCollection={data.deleteCollection}
+        onDeleteCollection={deleteCollection}
         showToast={showToast}
         onShare={setShareModal}
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
@@ -263,7 +381,7 @@ function MainApp({ userId, showToast }) {
         open={deleteModalOpen}
         onClose={() => !isDeleting && setDeleteModalOpen(false)}
         userId={userId}
-        collections={data.collections}
+        collections={collections}
         onTransferOwnership={handleTransferOwnership}
         onConfirmDelete={handleDeleteUser}
         isDeleting={isDeleting}
@@ -296,7 +414,7 @@ function MainApp({ userId, showToast }) {
         <EditPlaceSheet
           key={editPin.id}
           place={editPin}
-          collections={data.collections}
+          collections={collections}
           userId={userId}
           onCopy={async (targetId) => {
             const ok = await data.copyPlaceToCollection(editPin, targetId);
@@ -324,11 +442,14 @@ function MainApp({ userId, showToast }) {
           initialCollectionId={addCollectionId}
           initialReelUrl={sharedReelUrl}
           onCreateCollection={data.createCollection}
-          collections={data.collections}
-          places={data.places}
+          collections={collections}
+          places={places}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {
+              rememberCollection(userId, fields.collectionId);
+              if (finishingInboxId) inbox.remove(finishingInboxId);
+              setFinishingInboxId(null);
               showToast(`📍 Added "${fields.name}"`);
               setAdding(false);
             }
@@ -337,8 +458,13 @@ function MainApp({ userId, showToast }) {
             setAdding(false);
             setAddDraft(null);
             setSharedReelUrl(null);
+            setFinishingInboxId(null);
           }}
         />
+      )}
+
+      {celebrating && (
+        <Celebration placeName={celebrating.name} streak={streak} onClose={() => setCelebrating(null)} />
       )}
 
       {shareModal && (
@@ -358,10 +484,10 @@ function App() {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
-  const showToast = useCallback((message, action) => {
+  const showToast = useCallback((message, action, duration) => {
     clearTimeout(toastTimer.current);
     setToast({ message, action, key: Date.now() });
-    toastTimer.current = setTimeout(() => setToast(null), action ? 4000 : 2500);
+    toastTimer.current = setTimeout(() => setToast(null), duration ?? (action ? 4000 : 2500));
   }, []);
 
   let body;

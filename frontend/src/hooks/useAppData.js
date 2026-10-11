@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { readJSON, writeJSON } from '../lib/storage';
 
 const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
 
@@ -79,9 +80,17 @@ function normaliseCollection(row) {
   };
 }
 
+// The last data that loaded, kept on this device so the app opens with no signal.
+const cacheKey = (userId) => `reelmap:data:${userId}`;
+
 export function useAppData(userId, showToast) {
-  const [state, setState] = useState({ loading: true, error: null, profile: null, collections: [], places: [] });
-  const [order, setOrder] = useState({}); // place_id -> my position
+  const [cached] = useState(() => readJSON(cacheKey(userId)));
+  const [state, setState] = useState(() =>
+    cached
+      ? { loading: false, error: null, profile: cached.profile, collections: cached.collections, places: cached.places }
+      : { loading: true, error: null, profile: null, collections: [], places: [] }
+  );
+  const [order, setOrder] = useState(() => cached?.order ?? {}); // place_id -> my position
   const refreshTimer = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -98,7 +107,8 @@ export function useAppData(userId, showToast) {
       return;
     }
     // Build order map by (collection_id, place_id)
-    setOrder(Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position])));
+    const nextOrder = Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position]));
+    setOrder(nextOrder);
 
     const places = placesRes.data.map(p => ({
       ...p,
@@ -107,9 +117,7 @@ export function useAppData(userId, showToast) {
       collection_places: p.collection_places ? p.collection_places.filter(cp => cp) : []
     }));
 
-    setState({
-      loading: false,
-      error: null,
+    const next = {
       profile: {
         ...profileRes.data,
         current_streak: streakRes.data?.[0]?.current_streak ?? 0,
@@ -117,7 +125,9 @@ export function useAppData(userId, showToast) {
       },
       collections: collectionsRes.data.map(normaliseCollection),
       places: places.flatMap(normalisePlace),
-    });
+    };
+    setState({ loading: false, error: null, ...next });
+    writeJSON(cacheKey(userId), { ...next, order: nextOrder });
   }, [userId]);
 
   // Coalesce bursts of realtime events (e.g. a place + its reaction) into one reload.

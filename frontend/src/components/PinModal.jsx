@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import useSheetDrag from '../lib/useSheetDrag';
-import { DEFAULT_AVATAR_URL, feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
+import { feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
+import Avatar from './Avatar';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -148,7 +149,8 @@ export default function PinModal({
             {canDelete && (
               <button
                 className="modal-close"
-                onClick={() => setConfirmingDelete(true)}
+                // A booked place asks first, to warn about the booking. Otherwise delete straight away: the toast has Undo.
+                onClick={() => (booking ? setConfirmingDelete(true) : onDelete())}
                 aria-label="Delete place"
                 title="Delete"
               >
@@ -188,7 +190,7 @@ export default function PinModal({
               const feeling = feelings.find((f) => f.id === place.reactions[person.id]);
               return (
                 <div className={`person-row ${mine ? 'mine' : ''}`} key={person.id}>
-                      <span className="person-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" /> : person.avatar === '🙂' ? <img src={DEFAULT_AVATAR_URL} alt="" /> : person.avatar}</span>
+                  <Avatar person={person} />
                   <span className="person-name">
                     {mine ? 'You' : person.display_name}
                     {person.id === place.shared_by && <span className="person-tag">shared reel</span>}

@@ -46,7 +46,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
         <div style={{ padding: '16px' }}>
           {/* Members Section */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#888780', marginBottom: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
               👥 MEMBERS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -58,7 +58,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                     alignItems: 'center',
                     gap: '8px',
                     padding: '8px',
-                    backgroundColor: '#f1efe8',
+                    backgroundColor: 'var(--surface-muted)',
                     borderRadius: '6px',
                   }}
                 >
@@ -70,7 +70,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                       borderRadius: '50%',
                       display: 'grid',
                       placeItems: 'center',
-                      backgroundColor: '#fff',
+                      backgroundColor: 'var(--card)',
                       fontSize: '20px',
                     }}
                   >
@@ -78,7 +78,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                   </span>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '500' }}>{member.display_name}</div>
-                    <div style={{ fontSize: '11px', color: '#888780' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       {member.role === 'owner' ? '👑 Owner' : 'Member'}
                     </div>
                   </div>
@@ -90,7 +90,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
           {/* Generate Link Section */}
           {isOwner && (
             <div>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#888780', marginBottom: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
                 🔗 INVITE LINK
               </div>
 
@@ -98,16 +98,16 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                 <div>
                   <div
                     style={{
-                      backgroundColor: '#f1efe8',
+                      backgroundColor: 'var(--surface-muted)',
                       borderRadius: '6px',
                       padding: '12px',
                       marginBottom: '8px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontFamily: 'monospace',
                       whiteSpace: 'nowrap',
-                      color: '#2c2c2a',
+                      color: 'var(--text)',
                     }}
                   >
                     {inviteUrl}
@@ -148,11 +148,11 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
           {!isOwner && (
             <div
               style={{
-                backgroundColor: '#e8faf1',
+                backgroundColor: 'var(--success-bg)',
                 borderRadius: '6px',
                 padding: '12px',
                 fontSize: '13px',
-                color: '#2c2c2a',
+                color: 'var(--text)',
               }}
             >
               Only the owner can share this collection. Ask {collection.members.find((m) => m.role === 'owner')?.display_name} to invite others.

@@ -477,7 +477,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 autoFocus
               />
               {urlError && (
-                <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
+                <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
                   ⚠️ {urlError}
                 </span>
               )}
@@ -871,7 +871,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   disabled={saving}
                 />
                 {entryUrlError && (
-                  <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
                     ⚠️ {entryUrlError}
                   </span>
                 )}
@@ -992,7 +992,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
             borderTop: '1px solid var(--border)'
           }}>
             <div style={{
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: '500',
               color: 'var(--text-muted)',
               marginBottom: '8px'
@@ -1004,7 +1004,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
               backgroundColor: '#1a1a1a',
               borderRadius: '6px',
               fontFamily: 'monospace',
-              fontSize: '11px',
+              fontSize: '12px',
               maxHeight: '150px',
               overflowY: 'auto',
               overflowX: 'hidden',
@@ -1018,7 +1018,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   lineHeight: '1.4',
                   wordBreak: 'break-all'
                 }}>
-                  <span style={{ color: '#888' }}>[{log.timestamp}]</span> {log.message}
+                  <span style={{ color: 'var(--text-muted)' }}>[{log.timestamp}]</span> {log.message}
                 </div>
               ))}
             </div>

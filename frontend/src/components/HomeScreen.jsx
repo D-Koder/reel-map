@@ -15,6 +15,7 @@ export default function HomeScreen({
   onCreateSample,
   onOpenSettings,
   onAddPlace,
+  banner = null,
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -44,6 +45,7 @@ export default function HomeScreen({
   return (
     <div className="screen">
       <div className="home-screen">
+        {banner}
         <div className="reorder-hint">Hold ⋮⋮ to reorder places</div>
 
         {collections.map((collection) => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
+import { clearUserStorage } from '../lib/storage';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 
 // On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
@@ -280,7 +281,11 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
       )}
 
       <div className="profile-actions">
-        <button className="step-btn secondary full-width" onClick={() => supabase.auth.signOut()}>
+        <button className="step-btn secondary full-width" onClick={() => {
+          // Don't leave this account's saved places on the device for the next person.
+          if (profile?.id) clearUserStorage(profile.id);
+          supabase.auth.signOut();
+        }}>
           Log out
         </button>
         <button className="step-btn danger full-width" onClick={onDeleteClick}>
