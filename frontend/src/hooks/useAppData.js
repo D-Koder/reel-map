@@ -8,7 +8,7 @@ const PLACE_SELECT = `
   id, name, category, reel_url, reel_thumbnail_url, created_at,
   address, lat, lng, hours, phone, booking_url, website_url, subtitle, menu_url, menu, source, source_id,
   reactions(user_id, feeling),
-  booking:bookings(booked_by, planned_at, done_at, marked_by),
+  booking:bookings(collection_id, booked_by, planned_at, done_at, marked_by),
   collection_places!collection_places_place_id_fkey(collection_id, added_by, added_at, position)
 `;
 
@@ -47,7 +47,7 @@ function normalisePlace(row) {
       added_by: null,
       added_at: null,
       position: null,
-      booking: row.booking?.[0] || null,
+      booking: null,
       reactions,
     }];
   }
@@ -61,7 +61,8 @@ function normalisePlace(row) {
     added_by: cp.added_by,
     added_at: cp.added_at,
     position: cp.position,
-    booking: row.booking?.[0] || null,
+    // Each collection has its own booking, so booking a place in one group doesn't show in another.
+    booking: cp.booking ?? null,
     reactions,
   }));
 }
@@ -94,7 +95,7 @@ export function useAppData(userId, showToast) {
   const refreshTimer = useRef(null);
 
   const refresh = useCallback(async () => {
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -102,8 +103,9 @@ export function useAppData(userId, showToast) {
       supabase.rpc('get_streak'),
       // Each place's name and category in each collection. The places function doesn't return these.
       supabase.from('collection_places').select('place_id, collection_id, custom_name, category'),
+      supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
     ]);
-    const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes].find((r) => r.error);
+    const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes].find((r) => r.error);
     if (failed) {
       setState((s) => ({ ...s, loading: false, error: friendlyError(failed.error) }));
       return;
@@ -113,13 +115,18 @@ export function useAppData(userId, showToast) {
     setOrder(nextOrder);
 
     const entries = Object.fromEntries(entriesRes.data.map((e) => [`${e.collection_id}:${e.place_id}`, e]));
+    const bookings = Object.fromEntries(bookingsRes.data.map((b) => [`${b.collection_id}:${b.place_id}`, b]));
     const places = placesRes.data.map(p => ({
       ...p,
       reactions: p.reactions || {},
-      booking: p.booking ? p.booking.filter(b => b) : null,
       collection_places: (p.collection_places ? p.collection_places.filter(cp => cp) : []).map((cp) => {
         const entry = entries[`${cp.collection_id}:${p.id}`];
-        return { ...cp, custom_name: entry?.custom_name ?? null, category: entry?.category ?? null };
+        return {
+          ...cp,
+          custom_name: entry?.custom_name ?? null,
+          category: entry?.category ?? null,
+          booking: bookings[`${cp.collection_id}:${p.id}`] ?? null,
+        };
       }),
     }));
 
@@ -281,15 +288,15 @@ export function useAppData(userId, showToast) {
     deletePlace: (collectionId, placeId) =>
       run(supabase.rpc('delete_place', { p_collection_id: collectionId, p_place_id: placeId })),
 
-    book: (placeId, plannedAt) =>
-      run(supabase.from('bookings').insert({ place_id: placeId, planned_at: new Date(plannedAt).toISOString() })),
+    // Bookings belong to the place's entry in one collection.
+    book: (place, plannedAt) =>
+      run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at: new Date(plannedAt).toISOString() })),
 
-    markDone: (placeId) => {
-      const place = state.places.find((p) => p.id === placeId);
-      if (!place?.booking) {
-        return run(supabase.from('bookings').insert({ place_id: placeId, planned_at: new Date().toISOString(), done_at: new Date().toISOString(), marked_by: userId }));
+    markDone: (place) => {
+      if (!place.booking) {
+        return run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at: new Date().toISOString(), done_at: new Date().toISOString(), marked_by: userId }));
       }
-      return run(supabase.from('bookings').update({ done_at: new Date().toISOString(), marked_by: userId }).eq('place_id', placeId));
+      return run(supabase.from('bookings').update({ done_at: new Date().toISOString(), marked_by: userId }).eq('collection_id', place.collection_id).eq('place_id', place.id));
     },
 
     reorder: (orderedIds, collectionId) => {

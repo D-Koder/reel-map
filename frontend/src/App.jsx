@@ -250,7 +250,7 @@ function MainApp({ userId, showToast }) {
   };
 
   const markDone = async (place) => {
-    if (!(await data.markDone(place.id))) return;
+    if (!(await data.markDone(place))) return;
     closePin();
     setCelebrating({ name: place.name });
   };
@@ -418,7 +418,7 @@ function MainApp({ userId, showToast }) {
           userId={userId}
           members={membersOf[openPin.collection_id] ?? []}
           onSetVibe={(feeling) => data.setReaction(openPin, feeling)}
-          onBook={(plannedAt) => data.book(openPin.id, plannedAt)}
+          onBook={(plannedAt) => data.book(openPin, plannedAt)}
           onMarkDone={() => markDone(openPin)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
