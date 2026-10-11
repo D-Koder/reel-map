@@ -17,6 +17,13 @@ async function invoke(handler, body) {
   return response;
 }
 
+// Swap the two word halves of a caption, so the end of the caption comes first.
+function flipCaption(caption) {
+  const words = String(caption || '').split(/\s+/).filter(Boolean);
+  const half = Math.ceil(words.length / 2);
+  return [...words.slice(half), ...words.slice(0, half)].join(' ');
+}
+
 function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
@@ -32,11 +39,11 @@ module.exports = async function handler(req, res) {
 
   const reel = reelResponse.body;
   const placeName = String(reel.placeName || '').replace(/^@/, '');
-  const locationLine = reel.caption.split(/\r?\n/).find((line) => /^\s*[📍📌]/u.test(line))?.trim();
-  const searchCaption = locationLine
-    ? `${locationLine}\n${reel.caption.replace(/^\s*[📍📌].*(?:\r?\n|$)/mu, '').trim()}`
-    : reel.caption;
-  const query = searchCaption || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
+  // again in front of it, and Maps returns a list of matches for the query.
+  const venue = reel.caption.match(/[📍📌]\s*([^\n#()🏷]+)/u)?.[1].trim();
+  const flipped = flipCaption(reel.caption);
+  const query = (venue ? `📍${venue} ${flipped}` : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   if (!query) {
     return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }

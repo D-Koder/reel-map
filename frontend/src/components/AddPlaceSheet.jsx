@@ -7,41 +7,74 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
 const NEW_COLLECTION = '__new__';
 
-const isValidInstagramUrl = (url) => {
+const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname.includes('instagram.com') && (urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/'));
+    if (urlObj.hostname.includes('instagram.com')) return urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/');
+    if (urlObj.hostname === 'vm.tiktok.com') return true;
+    return urlObj.hostname.endsWith('tiktok.com') && urlObj.pathname.includes('/video/');
   } catch {
     return false;
   }
 };
 
+// The unsent form is kept in this browser, so closing the sheet by accident doesn't lose it.
+const DRAFT_KEY = 'reelmap.addPlaceDraft';
+
+function readDraft() {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFT_KEY)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(draft) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage can be blocked; the form still works without a saved draft.
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Nothing to clear when storage is blocked.
+  }
+}
+
 export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null }) {
+  // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
+  const draftable = !initialPlace;
+  const [draft] = useState(() => (draftable ? readDraft() : null));
+
   // Step management. A place opened from a long-press on the map skips the reel step.
-  const [step, setStep] = useState(initialPlace ? 'details' : 'reel'); // 'reel' | 'details'
+  const [step, setStep] = useState(initialPlace ? 'details' : (draft?.step ?? 'reel')); // 'reel' | 'details'
 
   // Step 1: Reel Link
-  const [reelUrlInput, setReelUrlInput] = useState('');
+  const [reelUrlInput, setReelUrlInput] = useState(draft?.reelUrlInput ?? '');
   const [urlError, setUrlError] = useState('');
   const [loading, setLoading] = useState(false);
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
-  const [reelUrl, setReelUrl] = useState('');
-  const [scrapedData, setScrapedData] = useState(null);
-  const [mapsData, setMapsData] = useState(null);
-  const [name, setName] = useState(initialPlace?.name ?? '');
-  const [location, setLocation] = useState(initialPlace?.address ?? '');
+  const [reelUrl, setReelUrl] = useState(draft?.reelUrl ?? '');
+  const [scrapedData, setScrapedData] = useState(draft?.scrapedData ?? null);
+  const [mapsData, setMapsData] = useState(draft?.mapsData ?? null);
+  const [name, setName] = useState(initialPlace?.name ?? draft?.name ?? '');
+  const [location, setLocation] = useState(initialPlace?.address ?? draft?.location ?? '');
   // Exact spot tapped on the map. Used as the pin until a Google place is picked.
   const [pinCoords, setPinCoords] = useState(initialPlace
     ? { latitude: initialPlace.latitude, longitude: initialPlace.longitude, source: 'map_pin' }
     : null);
-  const [category, setCategory] = useState('food');
-  const [collectionId, setCollectionId] = useState(initialCollectionId ?? collections[0]?.id ?? '');
-  const [feeling, setFeeling] = useState('keen');
+  const [category, setCategory] = useState(draft?.category ?? 'food');
+  const [collectionId, setCollectionId] = useState(initialCollectionId ?? draft?.collectionId ?? collections[0]?.id ?? '');
+  const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
   const [saving, setSaving] = useState(false);
-  const [locationCandidates, setLocationCandidates] = useState([]);
-  const [locationSearchDone, setLocationSearchDone] = useState(false);
+  const [locationCandidates, setLocationCandidates] = useState(draft?.locationCandidates ?? []);
+  const [locationSearchDone, setLocationSearchDone] = useState(draft?.locationSearchDone ?? false);
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
@@ -51,6 +84,16 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
   const [newCollectionOpen, setNewCollectionOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [creatingCollection, setCreatingCollection] = useState(false);
+
+  // Save the form as it changes, so a draft survives the sheet closing by accident.
+  useEffect(() => {
+    if (!draftable) return;
+    writeDraft({
+      step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
+      locationCandidates, locationSearchDone,
+    });
+  }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
+    locationCandidates, locationSearchDone]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -67,7 +110,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
   const scrapeReel = async (url) => {
     setLoading(true);
     setApiLogs([]);
-    addLog('🔄 Starting to fetch Instagram data...', 'info');
+    addLog('🔄 Starting to fetch reel data...', 'info');
 
     try {
       const response = await fetch('/api/enrich-reel', {
@@ -224,12 +267,12 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
     setUrlError('');
 
     if (!trimmedUrl) {
-      setUrlError('Please paste an Instagram link');
+      setUrlError('Please paste an Instagram or TikTok link');
       return;
     }
 
-    if (!isValidInstagramUrl(trimmedUrl)) {
-      setUrlError('Invalid Instagram link. Make sure it contains instagram.com/reel/ or instagram.com/p/');
+    if (!isValidReelUrl(trimmedUrl)) {
+      setUrlError('Invalid link. Use an instagram.com/reel/ or /p/ link, or a tiktok.com/@user/video/ link');
       return;
     }
 
@@ -317,6 +360,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         venueDetails,
         feeling
       });
+      if (draftable) clearDraft();
     } catch (error) {
       addLog(`❌ Could not save place: ${error.message}`, 'error');
     } finally {
@@ -336,7 +380,16 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Add a place</div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+          {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
+          <button
+            type="button"
+            className="modal-close"
+            onClick={() => {
+              if (draftable) clearDraft();
+              onClose();
+            }}
+            aria-label="Close"
+          >
             ✕
           </button>
         </div>
@@ -345,7 +398,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         {step === 'reel' && (
           <div>
             <div className="field">
-              <span className="modal-label">Instagram link (optional)</span>
+              <span className="modal-label">Reel link (optional)</span>
               <input
                 className="step-input"
                 type="url"
@@ -355,7 +408,7 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                   setReelUrlInput(e.target.value);
                   setUrlError('');
                 }}
-                placeholder="https://www.instagram.com/reel/… or /p/…"
+                placeholder="Instagram reel or TikTok video link…"
                 disabled={loading}
                 autoFocus
               />
@@ -375,9 +428,9 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                 marginBottom: '16px'
               }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  Fetching Instagram data…
+                  Fetching reel data…
                 </div>
-                <div role="status" aria-label="Fetching Instagram data" style={{ marginBottom: '8px' }}>
+                <div role="status" aria-label="Fetching reel data" style={{ marginBottom: '8px' }}>
                   <span className="skeleton-bar" style={{ width: '70%' }} />
                   <span className="skeleton-bar" style={{ width: '45%' }} />
                   <span className="skeleton-bar" style={{ width: '90%' }} />
@@ -613,6 +666,20 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
               <div role="note" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
                 No Google Maps place selected. The map pin will be approximate.
               </div>
+            )}
+
+            {mapsData?.hours?.length > 0 && (
+              <details style={{ margin: '-8px 0 16px', fontSize: '13px' }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--text)', fontWeight: '500' }}>Opening hours</summary>
+                <ul style={{ listStyle: 'none', padding: '8px 0 0', margin: 0, display: 'grid', gap: '4px' }}>
+                  {mapsData.hours.map((row, index) => (
+                    <li key={`${row.days}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', color: 'var(--text-muted)' }}>
+                      <span>{row.days}</span>
+                      <span>{row.time}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
 
             {(verifyingLocation || verifyResults) && (

@@ -189,7 +189,11 @@ module.exports = async function handler(req, res) {
     const result = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const panel = document.querySelector('[role="main"]') || document.querySelector('main') || document;
-      const name = textOf(panel.querySelector('h1')) || textOf(document.querySelector('h1'));
+      // Some places have a section heading (e.g. "Hours") ahead of the name, so skip generic headings.
+      const headings = [...panel.querySelectorAll('h1'), ...document.querySelectorAll('h1')].map(textOf).filter(Boolean);
+      // The page title ("Frenchie - Google Maps") is the fallback when the name heading is empty.
+      const name = headings.find((text) => !/^(hours|menu|reviews|about|photos|overview)$/i.test(text)) ||
+        document.title.replace(/\s+-\s+Google Maps$/i, '').trim();
       const subtitle = textOf(panel.querySelector('button[jsaction*="category"]')) ||
         [...panel.querySelectorAll('button')].map(textOf).find((text) =>
           /restaurant|cafe|bar|hotel|store|shop|museum|park|venue/i.test(text)
@@ -324,7 +328,13 @@ module.exports = async function handler(req, res) {
           time: cells.slice(1).join(' ').replace(/[\uE000-\uF8FF]/g, '').trim(),
         };
       }).filter(Boolean);
-      return [...new Map(rows.map((row) => [row.days, row])).values()];
+      // Maps lists each section after the place's own hours (e.g. the Kitchen). Keep the first full week only.
+      const week = [];
+      for (const row of rows) {
+        if (week.some((existing) => existing.days === row.days)) break;
+        week.push(row);
+      }
+      return week;
     });
     console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, pageUrl: page.url(), rows: result.hours }));
 

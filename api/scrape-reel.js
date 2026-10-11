@@ -39,9 +39,10 @@ function parseCaptionDetails(caption) {
   };
 }
 
+// The 📍 can sit mid-line, e.g. "(📍@venue)", so match it anywhere and stop at
+// the first "(", "#" or 🏷 that follows the venue.
 function parseCaptionLocation(caption) {
-  const line = caption.split(/\r?\n/).find((text) => /^\s*[📍📌]/u.test(text))
-    ?.replace(/^\s*[📍📌]\s*/u, '').trim() ?? '';
+  const line = caption.match(/[📍📌]\s*([^\n#()🏷]+)/u)?.[1].trim() ?? '';
   const separator = line.match(/\s+[-–—]\s+/u);
   if (!separator || separator.index === undefined) return { placeName: '', location: line };
   return {
@@ -60,13 +61,56 @@ function isInstagramUrl(value) {
   }
 }
 
+function isTikTokUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return false;
+    if (url.hostname === 'vm.tiktok.com') return /^\/[^/]+\/?$/.test(url.pathname);
+    return ['tiktok.com', 'www.tiktok.com'].includes(url.hostname) &&
+      /^\/@[^/]+\/video\/\d+\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+// Runs inside the page. TikTok puts the caption in [data-e2e="video-desc"] and
+// has no og:description or <main>, so the Instagram selectors don't apply.
+function readTikTokPage(inputUrl) {
+  const parseCount = (value) => {
+    const match = String(value ?? '').trim().replace(/,/g, '').match(/^([\d.]+)\s*([KMB])?$/i);
+    if (!match) return null;
+    const multiplier = { K: 1_000, M: 1_000_000, B: 1_000_000_000 }[match[2]?.toUpperCase()] ?? 1;
+    return Math.round(Number(match[1]) * multiplier);
+  };
+  const caption = document.querySelector('[data-e2e="video-desc"]')?.innerText.trim() ?? '';
+  return {
+    success: true,
+    reelUrl: inputUrl,
+    caption,
+    creator: location.pathname.match(/^\/@([^/]+)/)?.[1] ?? null,
+    likes: parseCount(document.querySelector('[data-e2e="like-count"]')?.innerText),
+    comments: parseCount(document.querySelector('[data-e2e="comment-count"]')?.innerText),
+    placeName: '',
+    location: '',
+    date: '',
+    hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+    videoUrl: '',
+    // The video's src is a page-only blob: URL, so use the cover image, which is a real https link.
+    thumbnailUrl: document.querySelector('[data-e2e="browse-video"] video')?.poster ||
+      [...document.querySelectorAll('img')].find((image) => image.naturalWidth > 100 && image.src.startsWith('https://'))?.src ||
+      '',
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
-  if (!isInstagramUrl(reelUrl)) {
-    return res.status(400).json({ error: 'Enter a valid Instagram link (reel or post)' });
+  const isTikTok = isTikTokUrl(reelUrl);
+  if (!isTikTok && !isInstagramUrl(reelUrl)) {
+    return res.status(400).json({ error: 'Enter a valid Instagram reel/post or TikTok video link' });
   }
+  const platform = isTikTok ? 'TikTok' : 'Instagram';
 
   let browser;
   try {
@@ -85,14 +129,18 @@ module.exports = async function handler(req, res) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
     await page.goto(reelUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await page.waitForSelector('main', { timeout: 12000 });
-    await page.waitForFunction(() => {
-      const main = document.querySelector('main');
-      return main && (main.querySelector('svg[aria-label="Like"], svg[aria-label="Unlike"]') ||
-        main.querySelector('meta[property="og:image"]'));
-    }, { timeout: 12000 }).catch(() => {});
+    if (isTikTok) {
+      await page.waitForSelector('[data-e2e="video-desc"]', { timeout: 15000 }).catch(() => {});
+    } else {
+      await page.waitForSelector('main', { timeout: 12000 });
+      await page.waitForFunction(() => {
+        const main = document.querySelector('main');
+        return main && (main.querySelector('svg[aria-label="Like"], svg[aria-label="Unlike"]') ||
+          main.querySelector('meta[property="og:image"]'));
+      }, { timeout: 12000 }).catch(() => {});
+    }
 
-    const scraped = await page.evaluate((inputUrl) => {
+    const scraped = isTikTok ? await page.evaluate(readTikTokPage, reelUrl) : await page.evaluate((inputUrl) => {
       const parseCount = (value) => {
         const match = String(value ?? '').trim().replace(/,/g, '').match(/^([\d.]+)\s*([KMB])?$/i);
         if (!match) return null;
@@ -155,6 +203,8 @@ module.exports = async function handler(req, res) {
       };
     }, reelUrl);
 
+    if (isTikTok && !scraped.caption) throw new Error('TikTok caption was not found on the page');
+
     const captionDetails = parseCaptionDetails(scraped.caption || '');
     if (captionDetails.placeName) scraped.placeName = captionDetails.placeName;
     if (captionDetails.location) scraped.location = captionDetails.location;
@@ -163,7 +213,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(scraped);
   } catch (error) {
     console.error('Reel DOM scrape failed:', error);
-    return res.status(502).json({ error: 'Instagram did not provide the Reel page data. Try again or enter the place details manually.' });
+    return res.status(502).json({ error: `${platform} did not provide the video page data. Try again or enter the place details manually.` });
   } finally {
     if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
       globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
