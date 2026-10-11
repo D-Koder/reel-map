@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Embed test</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #fefdfb; color: #222; }
+      h2 { font-size: 16px; margin: 24px 0 8px; }
+      .card { max-width: 360px; border: 1px solid #ddd; border-radius: 12px; overflow: hidden; background: #fff; }
+      .frame { position: relative; width: 100%; aspect-ratio: 9 / 16; background: #111; }
+      .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+      .spinner { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
+      .fallback { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #111; }
+      .fallback.show { display: flex; }
+      .fallback img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; opacity: 0.4; }
+      .open { position: relative; background: #e05d44; color: #fff; padding: 10px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+      .result { font-size: 13px; padding: 8px 12px; color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1 style="font-size: 18px">Reel embed test</h1>
+    <p style="font-size: 13px">Each card tries the embed, shows a spinner, and falls back to an Open button if the embed does not load. The result line reports what happened.</p>
+
+    <h2>TikTok (iframe)</h2>
+    <div class="card" data-kind="iframe" data-open="https://www.tiktok.com/@eatwithkevin/video/7691441266743086388">
+      <div class="frame">
+        <div class="spinner">Loading…</div>
+        <iframe src="https://www.tiktok.com/embed/v2/7691441266743086388" allow="autoplay; fullscreen" title="TikTok reel"></iframe>
+        <div class="fallback">
+          <a class="open" href="https://www.tiktok.com/@eatwithkevin/video/7691441266743086388" target="_blank" rel="noreferrer">Open reel</a>
+        </div>
+      </div>
+      <div class="result" data-result>Testing…</div>
+    </div>
+
+    <h2>Instagram (iframe)</h2>
+    <div class="card" data-kind="iframe" data-open="https://www.instagram.com/reel/DcQICfPx5TV/">
+      <div class="frame">
+        <div class="spinner">Loading…</div>
+        <iframe src="https://www.instagram.com/reel/DcQICfPx5TV/embed/" allow="autoplay; fullscreen" title="Instagram reel"></iframe>
+        <div class="fallback">
+          <a class="open" href="https://www.instagram.com/reel/DcQICfPx5TV/" target="_blank" rel="noreferrer">Open reel</a>
+        </div>
+      </div>
+      <div class="result" data-result>Testing…</div>
+    </div>
+
+    <h2>Instagram (official embed script, for comparison)</h2>
+    <div class="card" style="max-width: 360px">
+      <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/reel/DcQICfPx5TV/" data-instgrm-version="14" style="margin: 0; width: 100%"></blockquote>
+      <div class="result" id="ig-script-result">Loading script…</div>
+    </div>
+    <script async src="https://www.instagram.com/embed.js"></script>
+
+    <script>
+      // Shows the spinner for up to 6 seconds. If the iframe fires load and is not blocked, the reel shows.
+      // Browsers do not report a blocked iframe, so a blocked one is detected by the timeout.
+      const TIMEOUT_MS = 6000;
+      document.querySelectorAll('[data-kind="iframe"]').forEach((card) => {
+        const iframe = card.querySelector('iframe');
+        const spinner = card.querySelector('.spinner');
+        const fallback = card.querySelector('.fallback');
+        const result = card.querySelector('[data-result]');
+        const start = performance.now();
+        let settled = false;
+
+        const done = (ok) => {
+          if (settled) return;
+          settled = true;
+          spinner.style.display = 'none';
+          if (!ok) fallback.classList.add('show');
+          const seconds = ((performance.now() - start) / 1000).toFixed(1);
+          result.textContent = ok ? `Embed loaded in ${seconds}s` : `Embed did not load within ${TIMEOUT_MS / 1000}s, showing Open button`;
+        };
+
+        iframe.addEventListener('load', () => done(true));
+        setTimeout(() => done(false), TIMEOUT_MS);
+      });
+
+      // The Instagram script adds the reel into the blockquote above, or fails.
+      setTimeout(() => {
+        const rendered = document.querySelector('.instagram-media iframe');
+        document.getElementById('ig-script-result').textContent = rendered
+          ? 'Official embed rendered'
+          : 'Official embed did not render within 6s';
+      }, 6000);
+    </script>
+  </body>
+</html>

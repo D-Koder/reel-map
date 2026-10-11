@@ -1,6 +1,49 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
+import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
+
+// On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
+function FridayPickToggle({ userId }) {
+  const [supported] = useState(() => isPushSupported());
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!supported) return;
+    getPushSubscription().then((sub) => setEnabled(Boolean(sub))).catch(() => {});
+  }, [supported]);
+
+  const toggle = async (event) => {
+    const wantOn = event.target.checked;
+    setBusy(true);
+    setError('');
+    try {
+      if (wantOn) await enableFridayPick(userId);
+      else await disableFridayPick();
+      setEnabled(wantOn);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!supported) {
+    return <div className="toggle-hint">Friday pick notifications need the app installed to your home screen.</div>;
+  }
+
+  return (
+    <div className="cascade-delete-toggle">
+      <label>
+        <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
+        🔔 Friday pick notifications
+      </label>
+      {error && <div className="toggle-hint">{error}</div>}
+    </div>
+  );
+}
 
 function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
   const [editing, setEditing] = useState(false);
@@ -329,6 +372,7 @@ export default function SettingsDrawer({
 
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
+          {userId && <FridayPickToggle userId={userId} />}
 
           <div className="settings-section">
             <div className="settings-section-title">📁 Collections</div>

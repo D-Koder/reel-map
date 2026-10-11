@@ -51,13 +51,19 @@ function MainApp({ userId, showToast }) {
   const [addDraft, setAddDraft] = useState(null);
   // Collection to pre-select when the add sheet opens from a collection's empty-state button.
   const [addCollectionId, setAddCollectionId] = useState(null);
+  // A reel link shared into the installed app, waiting for the collections to load before the add sheet opens.
+  const [pendingShareUrl, setPendingShareUrl] = useState(null);
+  // The shared link the open add sheet should start from.
+  const [sharedReelUrl, setSharedReelUrl] = useState(null);
   const openAddAt = (draft) => {
+    setSharedReelUrl(null);
     setAddDraft(draft);
     setAddCollectionId(null);
     setAdding(true);
   };
 
   const openAddInCollection = (collectionId) => {
+    setSharedReelUrl(null);
     setAddDraft(null);
     setAddCollectionId(collectionId);
     setAdding(true);
@@ -94,6 +100,31 @@ function MainApp({ userId, showToast }) {
       });
     }
   }, [acceptInvite, data]);
+
+  // Reel links shared to the installed app arrive as ?url=, ?text= or ?title= (see manifest share_target).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    // A Friday pick notification opens its place. The pin is looked up once places have loaded.
+    if (params.has('pick')) {
+      setOpenPinId(params.get('pick'));
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+    if (!['url', 'text', 'title'].some((key) => params.has(key))) return;
+    const shared = [params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' ');
+    const link = shared.match(/https?:\/\/\S+/)?.[0] ?? null;
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (link) setPendingShareUrl(link);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingShareUrl || data.collections.length === 0) return;
+    setSharedReelUrl(pendingShareUrl);
+    setPendingShareUrl(null);
+    setAddDraft(null);
+    setAddCollectionId(null);
+    setAdding(true);
+  }, [pendingShareUrl, data.collections]);
 
   const deletePlace = async (place) => {
     if (!(await data.deletePlace(place.collection_id, place.id))) return;
@@ -291,6 +322,7 @@ function MainApp({ userId, showToast }) {
         <AddPlaceSheet
           initialPlace={addDraft}
           initialCollectionId={addCollectionId}
+          initialReelUrl={sharedReelUrl}
           onCreateCollection={data.createCollection}
           collections={data.collections}
           places={data.places}
@@ -304,6 +336,7 @@ function MainApp({ userId, showToast }) {
           onClose={() => {
             setAdding(false);
             setAddDraft(null);
+            setSharedReelUrl(null);
           }}
         />
       )}

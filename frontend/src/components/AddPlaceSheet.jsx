@@ -71,16 +71,17 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null }) {
+export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
-  const draftable = !initialPlace;
+  // A link shared into the app starts a new add, so it doesn't use the saved draft either.
+  const draftable = !initialPlace && !initialReelUrl;
   const [draft] = useState(() => (draftable ? readDraft() : null));
 
   // Step management. A place opened from a long-press on the map skips the reel step.
   const [step, setStep] = useState(initialPlace ? 'details' : (draft?.step ?? 'reel')); // 'reel' | 'details'
 
   // Step 1: Reel Link
-  const [reelUrlInput, setReelUrlInput] = useState(draft?.reelUrlInput ?? '');
+  const [reelUrlInput, setReelUrlInput] = useState(initialReelUrl ?? draft?.reelUrlInput ?? '');
   const [urlError, setUrlError] = useState('');
   const [loading, setLoading] = useState(false);
   const [apiLogs, setApiLogs] = useState([]);
@@ -316,6 +317,13 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
     scrapeReel(trimmedUrl);
     setTimeout(() => setStep('details'), 300);
   };
+
+  // A link shared from Instagram or TikTok goes straight to the lookup, with no extra tap.
+  useEffect(() => {
+    if (initialReelUrl) handleConfirmReel();
+    // Runs once when the sheet opens with a shared link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSkipReel = () => {
     setReelUrl('');
