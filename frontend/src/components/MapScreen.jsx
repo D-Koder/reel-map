@@ -410,12 +410,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     setHiddenCollections(allCollectionsShown ? new Set(collections.map((c) => c.id)) : new Set());
   };
 
-  // Shows everything again when the filters hide every pin.
-  const showAllPins = () => {
-    setHiddenCategories(new Set());
-    setHiddenCollections(new Set());
-  };
-
   // Asked only when the user taps "Show my area", never on its own.
   const [locating, setLocating] = useState(false);
   const showMyArea = () => {
@@ -628,7 +622,7 @@ const openListedPlace = (place) => {
           </div>
         )}
 
-        {located.length === 0 ? (
+        {located.length === 0 && (
           <div className="map-empty" role="status">
             <div className="map-empty-emoji" aria-hidden="true">🗺️</div>
             <div className="map-empty-title">Your map is empty</div>
@@ -640,14 +634,6 @@ const openListedPlace = (place) => {
             </button>
             <button type="button" className="step-btn secondary full-width" onClick={showMyArea} disabled={locating}>
               {locating ? 'Finding you…' : '📍 Show my area'}
-            </button>
-          </div>
-        ) : visible.length === 0 && (
-          <div className="map-empty" role="status">
-            <div className="map-empty-title">Your filters hide every pin</div>
-            <p className="map-empty-text">Pick a collection above, or show them all.</p>
-            <button type="button" className="step-btn primary full-width" onClick={showAllPins}>
-              Show all {located.length} {located.length === 1 ? 'place' : 'places'}
             </button>
           </div>
         )}

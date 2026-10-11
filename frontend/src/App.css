@@ -354,19 +354,21 @@ button.collection-empty {
   border-radius: 12px;
 }
 
-.place-row:not(.dragging) .pin-item:active {
-  transform: scale(0.97);
+/* The card's spot stays in the list while it is moved, faded. */
+.pin-item.dimmed {
+  opacity: 0.35;
 }
 
-/* Picked up: lifts off the list. */
-.place-row.dragging {
-  z-index: 50;
-}
-
-.place-row.dragging .pin-item {
+/* The copy that follows the finger. */
+.pin-item.floating {
   transform: scale(1.03);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
   cursor: grabbing;
+  border-color: var(--accent);
+}
+
+.pin-item:not(.dimmed):active {
+  transform: scale(0.97);
 }
 
 
@@ -2979,8 +2981,7 @@ svg.nav-icon {
   .fab {
     transition: none;
   }
-  .place-row:not(.dragging) .pin-item:active,
-  .place-row.dragging .pin-item,
+  .pin-item:not(.dimmed):active,
   .step-btn:not(:disabled):active,
   .header-btn:active,
   .nav-tab:active,
