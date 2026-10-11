@@ -18,6 +18,7 @@ import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
 import { useNotifications } from './hooks/useNotifications';
 import { useOnline } from './hooks/useOnline';
+import { useReelCovers } from './hooks/useReelCovers';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { clearUserStorage } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
@@ -179,6 +180,16 @@ function MainApp({ userId, showToast }) {
     [collections]
   );
 
+  // Fresh covers replace the saved links. A place with no cover shows its colour tile.
+  const covers = useReelCovers(places);
+  const placesWithCovers = useMemo(
+    () => places.map((place) => {
+      const row = covers.map[place.reel_url];
+      return row ? { ...place, reel_thumbnail_url: row.thumbnail_url } : place;
+    }),
+    [places, covers.map]
+  );
+
   const streak = useMemo(() => {
     return data.profile?.current_streak ?? 0;
   }, [data.profile]);
@@ -315,8 +326,10 @@ function MainApp({ userId, showToast }) {
         <section className={`panel panel-home ${screen === 'home' ? 'active' : ''}`}>
           <HomeScreen
             userId={userId}
-            places={places}
+            places={placesWithCovers}
             collections={collections}
+            onCoverVisible={covers.requestCover}
+            onCoverHidden={covers.cancelCover}
             banner={
               <>
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.remove} />

@@ -6,10 +6,31 @@ import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constant
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 
-export default function PlaceRow({ pin, members, userId, onOpen }) {
+export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHidden }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   });
+  // Tell the app when this card is on screen (or about to be), so its cover can be refreshed.
+  // The latest callbacks are read through refs, so the observer doesn't have to be rebuilt on every render.
+  const rowRef = useRef(null);
+  const pinRef = useRef(pin);
+  pinRef.current = pin;
+  const callbacks = useRef({ onVisible, onHidden });
+  callbacks.current = { onVisible, onHidden };
+  useEffect(() => {
+    const node = rowRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) callbacks.current.onVisible?.(pinRef.current);
+        else callbacks.current.onHidden?.(pinRef.current);
+      },
+      // Start a little before the card reaches the screen, so the cover is ready when it arrives.
+      { rootMargin: '300px 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   // Lifting the finger at the end of a drag also counts as a tap, so taps right after a drag are ignored.
   const draggedAt = useRef(0);
   useEffect(() => {
@@ -38,7 +59,10 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        rowRef.current = node;
+        setNodeRef(node);
+      }}
       className={`place-row ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
@@ -65,7 +89,7 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
             if (pin.reel_url) window.open(pin.reel_url, '_blank', 'noopener,noreferrer');
           }}
         >
-          <PlaceThumb place={pin} className="pin-thumbnail" />
+          <PlaceThumb place={pin} className="pin-thumbnail" onBroken={() => onVisible?.(pin, true)} />
         </button>
         <div className="pin-info">
           <div className="pin-name">{pin.name}</div>

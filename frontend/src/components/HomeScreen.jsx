@@ -19,6 +19,8 @@ export default function HomeScreen({
   onCreateSample,
   onOpenSettings,
   onAddPlace,
+  onCoverVisible,
+  onCoverHidden,
   banner = null,
 }) {
   // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
@@ -103,7 +105,15 @@ export default function HomeScreen({
                 <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                   <div className="pin-list">
                     {pins.map((pin) => (
-                      <PlaceRow key={pin.id} pin={pin} members={members} userId={userId} onOpen={() => onOpenPin(pin.id)} />
+                      <PlaceRow
+                        key={pin.id}
+                        pin={pin}
+                        members={members}
+                        userId={userId}
+                        onOpen={() => onOpenPin(pin.id)}
+                        onVisible={onCoverVisible}
+                        onHidden={onCoverHidden}
+                      />
                     ))}
                   </div>
                 </SortableContext>
