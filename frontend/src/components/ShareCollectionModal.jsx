@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { Copy, Crown, Link, Mail, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
@@ -27,7 +27,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
   const handleCopyLink = () => {
     if (inviteUrl) {
       navigator.clipboard.writeText(inviteUrl);
-      showToast('📋 Copied to clipboard!');
+      showToast('Copied to clipboard!');
     }
   };
 
@@ -48,7 +48,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
           {/* Members Section */}
           <div style={{ marginBottom: '20px' }}>
             <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              👥 MEMBERS
+              <Users className="ico" aria-hidden="true" /> MEMBERS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {collection.members.map((member) => (
@@ -60,7 +60,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                     gap: '8px',
                     padding: '8px',
                     backgroundColor: 'var(--surface-muted)',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--radius-sm)',
                   }}
                 >
                   <span
@@ -80,7 +80,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '500' }}>{member.display_name}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {member.role === 'owner' ? '👑 Owner' : 'Member'}
+                      {member.role === 'owner' ? <><Crown className="ico" aria-hidden="true" /> Owner</> : 'Member'}
                     </div>
                   </div>
                 </div>
@@ -92,7 +92,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
           {isOwner && (
             <div>
               <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                🔗 INVITE LINK
+                <Link className="ico" aria-hidden="true" /> INVITE LINK
               </div>
 
               {inviteUrl ? (
@@ -100,7 +100,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                   <div
                     style={{
                       backgroundColor: 'var(--surface-muted)',
-                      borderRadius: '6px',
+                      borderRadius: 'var(--radius-sm)',
                       padding: '12px',
                       marginBottom: '8px',
                       overflow: 'hidden',
@@ -119,7 +119,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                       className="step-btn primary full-width"
                       style={{ flex: 1 }}
                     >
-                      📋 Copy Link
+                      <Copy className="ico" aria-hidden="true" /> Copy Link
                     </button>
                     <button
                       onClick={() => {
@@ -129,7 +129,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                       className="step-btn full-width"
                       style={{ flex: 1 }}
                     >
-                      📧 Email
+                      <Mail className="ico" aria-hidden="true" /> Email
                     </button>
                   </div>
                 </div>
@@ -139,7 +139,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                   disabled={loading}
                   className="step-btn primary full-width"
                 >
-                  {loading ? <><span className="spinner" aria-hidden="true" />Generating…</> : '✨ Generate Invite Link'}
+                  {loading ? <><span className="spinner" aria-hidden="true" />Generating…</> : <><Link className="ico" aria-hidden="true" /> Generate Invite Link</>}
                 </button>
               )}
             </div>
@@ -150,7 +150,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
             <div
               style={{
                 backgroundColor: 'var(--success-bg)',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 padding: '12px',
                 fontSize: '13px',
                 color: 'var(--text)',

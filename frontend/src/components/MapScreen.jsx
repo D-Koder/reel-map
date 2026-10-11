@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
@@ -600,7 +600,7 @@ const openListedPlace = (place) => {
         )}
 
         <div className="map-title">
-          📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}
+          <MapPin className="ico" aria-hidden="true" /> {visible.length} {visible.length === 1 ? 'place' : 'places'}
           {places.length - located.length > 0 && (
             <span className="map-title-note"> · {places.length - located.length} without a location yet</span>
           )}

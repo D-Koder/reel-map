@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Bell } from 'lucide-react';
 import { enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { readJSON, writeJSON } from '../lib/storage';
 
@@ -39,9 +40,9 @@ export default function FridayPickCard({ userId, placeCount, showToast }) {
     try {
       await enableFridayPick(userId);
       setEligible(false);
-      showToast('🔔 Friday picks are on. See you Friday!');
+      showToast('Friday picks are on. See you Friday!');
     } catch (error) {
-      showToast(`⚠️ ${error.message}`);
+      showToast(`${error.message}`);
     } finally {
       setBusy(false);
     }
@@ -55,7 +56,7 @@ export default function FridayPickCard({ userId, placeCount, showToast }) {
   return (
     <div className="friday-card" role="region" aria-label="Friday pick">
       <div className="friday-card-text">
-        <div className="friday-card-title">🔔 Want a date idea every Friday?</div>
+        <div className="friday-card-title"><Bell className="ico" aria-hidden="true" /> Want a date idea every Friday?</div>
         <div className="friday-card-body">We'll pick one of your saved places that isn't booked yet.</div>
       </div>
       <div className="friday-card-actions">

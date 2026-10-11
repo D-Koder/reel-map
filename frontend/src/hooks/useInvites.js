@@ -38,11 +38,11 @@ export function useInvites(userId, showToast) {
         const inviteCode = data.id;
         const inviteUrl = `${window.location.origin}?invite=${inviteCode}`;
 
-        if (typeof showToast === 'function') showToast('✅ Invite link copied!');
+        if (typeof showToast === 'function') showToast('Invite link copied!');
         return inviteUrl;
       } catch (error) {
         console.error('Failed to generate invite:', error);
-        if (typeof showToast === 'function') showToast(`❌ ${error.message}`);
+        if (typeof showToast === 'function') showToast(`${error.message}`);
         return null;
       }
     },
@@ -59,12 +59,12 @@ export function useInvites(userId, showToast) {
         if (error) throw error;
 
         if (typeof showToast === 'function') {
-          showToast(joined ? '🎉 Successfully joined the collection!' : '✅ You already have access to this collection');
+          showToast(joined ? 'Successfully joined the collection!' : 'You already have access to this collection');
         }
         return true;
       } catch (error) {
         console.error('Failed to accept invite:', error);
-        if (typeof showToast === 'function') showToast(`❌ ${error.message}`);
+        if (typeof showToast === 'function') showToast(`${error.message}`);
         return false;
       }
     },

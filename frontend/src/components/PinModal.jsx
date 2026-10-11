@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, PartyPopper, Pencil, Phone, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
@@ -100,7 +100,7 @@ export default function PinModal({
       setSaving(false);
       if (!ok) return;
     }
-    showToast(`✓ Step ${steps.indexOf(stepNum) + 1} complete`);
+    showToast(`Step ${steps.indexOf(stepNum) + 1} complete`);
     const next = steps[steps.indexOf(stepNum) + 1];
     setStep(next ?? 'final');
   };
@@ -111,17 +111,17 @@ export default function PinModal({
   };
 
   const openBooking = () => {
-    showToast(`🔗 Opening ${bookingLabel(place.booking_url)}...`);
+    showToast(`Opening ${bookingLabel(place.booking_url)}...`);
     window.open(place.booking_url, '_blank', 'noopener');
   };
 
   const callVenue = () => {
     if (place?.phone) window.location.href = `tel:${place.phone.replace(/[^\d+]/g, '')}`;
-    else showToast('📞 No phone number listed');
+    else showToast('No phone number listed');
   };
 
   const addToCalendar = () => {
-    showToast(`📅 Added "${calendarTitle}" to calendar`);
+    showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
   };
 
@@ -180,10 +180,10 @@ export default function PinModal({
           <div className="reel-info-small">
             <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
-            {booking && <div className="reel-booked">🟢 Booked by {nameOf(booking.booked_by)}</div>}
+            {booking && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Booked by {nameOf(booking.booked_by)}</div>}
             {place.reel_url && (
               <button className="reel-link" onClick={openReel}>
-                View Reel ↗
+                View Reel <ArrowUpRight className="ico" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -233,7 +233,7 @@ export default function PinModal({
 
         {booking && (
           <div className="modal-section">
-            <div className="modal-label">📅 Planned Date</div>
+            <div className="modal-label"><CalendarDays className="ico" aria-hidden="true" /> Planned Date</div>
             <button
               type="button"
               className="planned-date"
@@ -244,7 +244,7 @@ export default function PinModal({
                 start: booking.planned_at,
               })}
             >
-              {formatDateTime(booking.planned_at)} · 📅 Add to calendar
+              {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
           </div>
         )}
@@ -268,12 +268,12 @@ export default function PinModal({
           <div className="modal-section">
             {place.website_url && (
               <a className="step-btn secondary full-width" href={place.website_url} target="_blank" rel="noreferrer">
-                🌐 Open website ↗
+                <Globe className="ico" aria-hidden="true" /> Open website <ArrowUpRight className="ico" aria-hidden="true" />
               </a>
             )}
             {place.booking_url && (
               <a className="step-btn primary full-width" href={place.booking_url} target="_blank" rel="noreferrer">
-                🍽️ Reserve a table ↗
+                <UtensilsCrossed className="ico" aria-hidden="true" /> Reserve a table <ArrowUpRight className="ico" aria-hidden="true" />
               </a>
             )}
           </div>
@@ -282,7 +282,7 @@ export default function PinModal({
         {place?.url && (
           <div className="modal-section">
             <a className="step-btn secondary full-width" href={place.url} target="_blank" rel="noreferrer">
-              🔗 Open link ↗
+              <Link className="ico" aria-hidden="true" /> Open link <ArrowUpRight className="ico" aria-hidden="true" />
             </a>
           </div>
         )}
@@ -299,7 +299,7 @@ export default function PinModal({
         {place?.menu_url && (
           <div className="modal-section">
             <a className="step-btn secondary full-width" href={place.menu_url} target="_blank" rel="noreferrer">
-              🍽️ View menu ↗
+              <UtensilsCrossed className="ico" aria-hidden="true" /> View menu <ArrowUpRight className="ico" aria-hidden="true" />
             </a>
           </div>
         )}
@@ -330,17 +330,17 @@ export default function PinModal({
         )}
 
         {booking?.done_at ? (
-          <div className="step-complete">✅ Done — marked by {nameOf(booking.marked_by)}</div>
+          <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Done — marked by {nameOf(booking.marked_by)}</div>
         ) : wasBooked ? (
           <button className="step-btn primary full-width" disabled={doneLocked} onClick={onMarkDone}>
-            {doneLocked ? `⏳ Mark as Done in ${formatWait(unlockAt - now)}` : '✅ Mark as Done'}
+            {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
           </button>
         ) : (
           <>
             {step === 1 && (
               <div className="checklist-step">
                 <div className="step-number">{stepLabel(1)}</div>
-                <div className="step-title">✓ Check Hours</div>
+                <div className="step-title"><Clock className="ico" aria-hidden="true" /> Check Hours</div>
                 <div className="step-description">{hoursSummary}</div>
                 <div className="step-buttons">
                   <button className="step-btn primary" onClick={() => completeStep(1)}>
@@ -356,7 +356,7 @@ export default function PinModal({
             {step === 2 && (
               <div className="checklist-step">
                 <div className="step-number">{stepLabel(2)}</div>
-                <div className="step-title">🔗 Book Reservation</div>
+                <div className="step-title"><Link className="ico" aria-hidden="true" /> Book Reservation</div>
                 <div className="step-description">Choose when you'd like to visit. We'll help you find a table.</div>
                 <input
                   type="datetime-local"
@@ -367,11 +367,11 @@ export default function PinModal({
                 <div className="step-buttons">
                   {place?.booking_url && (
                     <button className="step-btn primary" onClick={openBooking}>
-                      🔗 {bookingLabel(place.booking_url)}
+                      <Link className="ico" aria-hidden="true" /> {bookingLabel(place.booking_url)}
                     </button>
                   )}
                   <button className="step-btn secondary" onClick={callVenue}>
-                    📞 Call
+                    <Phone className="ico" aria-hidden="true" /> Call
                   </button>
                 </div>
                 <button
@@ -387,7 +387,7 @@ export default function PinModal({
             {step === 3 && (
               <div className="checklist-step">
                 <div className="step-number">{stepLabel(3)}</div>
-                <div className="step-title">📅 Add to Calendar</div>
+                <div className="step-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar</div>
                 <div className="step-description">Add this date to your calendar so you don't forget!</div>
                 <input
                   type="text"
@@ -397,7 +397,7 @@ export default function PinModal({
                 />
                 <div className="step-buttons">
                   <button className="step-btn primary" onClick={addToCalendar}>
-                    📅 Add to Calendar
+                    <CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar
                   </button>
                   <button className="step-btn secondary" onClick={() => completeStep(3)}>
                     Done
@@ -409,13 +409,13 @@ export default function PinModal({
             {step === 'final' && (
               <div className="checklist-step">
                 <div className="step-number">All set!</div>
-                <div className="step-title">🎉 Ready to Go</div>
+                <div className="step-title"><PartyPopper className="ico" aria-hidden="true" /> Ready to Go</div>
                 <div className="step-description">
                   Everything is planned. You can mark this as "Done" once you've visited!
                 </div>
-                <div className="step-complete">✓ All steps completed</div>
+                <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> All steps completed</div>
                 <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={onMarkDone}>
-                  {doneLocked ? `⏳ Available in ${formatWait(unlockAt - now)}` : '✅ Mark as Done'}
+                  {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Available in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
                 </button>
               </div>
             )}

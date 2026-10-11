@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, Plus, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import { readJSON, writeJSON } from '../lib/storage';
 
@@ -33,14 +34,14 @@ export default function HomeScreen({
       <div className="screen">
         <div className="home-screen">
           <div className="empty-state">
-            <div className="empty-emoji">🗺️</div>
+            <div className="empty-emoji"><MapIcon aria-hidden="true" /></div>
             <h2>Start your first list</h2>
             <p>Collections hold the places you find in reels — date nights, brunch spots, gigs.</p>
             <button className="step-btn primary full-width" onClick={onOpenSettings}>
-              ＋ Create a collection
+              <Plus className="ico" aria-hidden="true" /> Create a collection
             </button>
             <button className="step-btn secondary full-width" onClick={onCreateSample}>
-              ✨ Add sample places to try it out
+              <MapPinPlus className="ico" aria-hidden="true" /> Add sample places to try it out
             </button>
           </div>
         </div>
@@ -53,7 +54,7 @@ export default function HomeScreen({
       <div className="home-screen">
         {banner}
         {!reorderLearned && places.length > 1 && (
-          <div className="reorder-hint">Tip: drag ⋮⋮ to move a place</div>
+          <div className="reorder-hint">Tip: drag <GripVertical className="ico" aria-hidden="true" /> to move a place</div>
         )}
 
         {collections.map((collection) => {
@@ -64,17 +65,17 @@ export default function HomeScreen({
               <div className="collection-header">
                 <div className="collection-title">
                   {collection.emoji} {collection.name}
-                  {collection.isPrivate && <span title="Private">🔒</span>}
+                  {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
                 </div>
                 <div className="collection-count">
-                  {members.length > 1 && `👥 ${members.length} · `}
+                  {members.length > 1 && <><Users className="ico" aria-hidden="true" /> {members.length} · </>}
                   {pins.length} {pins.length === 1 ? 'place' : 'places'}
                 </div>
               </div>
 
               {pins.length === 0 && (
                 <button type="button" className="collection-empty" onClick={() => onAddPlace(collection.id)}>
-                  No places yet — tap ＋ to add one.
+                  No places yet — tap <Plus className="ico" aria-hidden="true" /> to add one.
                 </button>
               )}
 
@@ -94,8 +95,8 @@ export default function HomeScreen({
 
         <div className="streak">
           {streak > 0
-            ? `🔥 Streak: ${streak} ${streak === 1 ? 'adventure' : 'adventures'} this month`
-            : '🌱 No adventures yet this month — book one!'}
+            ? <><Flame className="ico" aria-hidden="true" /> Streak: {streak} {streak === 1 ? 'adventure' : 'adventures'} this month</>
+            : <><Sprout className="ico" aria-hidden="true" /> No adventures yet this month — book one!</>}
         </div>
       </div>
     </div>

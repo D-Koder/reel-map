@@ -7,9 +7,9 @@ export const feelings = [
 export const feelingEmoji = (id) => feelings.find((f) => f.id === id)?.emoji;
 
 export const categories = [
-  { id: 'cafe', icon: '☕', label: '☕ Cafe' },
-  { id: 'food', icon: '🍽️', label: '🍽️ Food' },
-  { id: 'event', icon: '🎉', label: '🎉 Event' },
+  { id: 'cafe', icon: '☕', label: 'Cafe' },
+  { id: 'food', icon: '🍽️', label: 'Food' },
+  { id: 'event', icon: '🎉', label: 'Event' },
 ];
 
 export const AVATARS = ['🙂', '😎', '🧑', '👩', '👨', '🦊', '🐼', '🐨', '🌸', '⚡'];

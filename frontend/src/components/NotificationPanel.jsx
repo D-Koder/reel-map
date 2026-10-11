@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 
 export default function NotificationPanel({ open, onClose, notifications, onClear }) {
   return (
@@ -16,7 +16,7 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
         <div className="notification-content">
           {notifications.length === 0 ? (
             <div className="notification-empty">
-              <span className="notification-empty-icon">🔔</span>
+              <Bell className="notification-empty-icon" aria-hidden="true" />
               <span className="notification-empty-text">No notifications yet</span>
             </div>
           ) : (
@@ -24,7 +24,7 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
               <div className="notification-list">
                 {notifications.map((notif) => (
                   <div key={notif.id} className={`notification-item notification-${notif.type}`}>
-                    <span className="notification-icon">{notif.icon}</span>
+                    <notif.icon className="notification-icon" aria-hidden="true" />
                     <div className="notification-info">
                       <div className="notification-message">{notif.message}</div>
                       <div className="notification-time">{notif.time}</div>

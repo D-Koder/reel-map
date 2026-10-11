@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
-import { X } from 'lucide-react';
+import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
@@ -135,7 +135,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const scrapeReel = async (url) => {
     setLoading(true);
     setApiLogs([]);
-    addLog('🔄 Starting to fetch reel data...', 'info');
+    addLog('Starting to fetch reel data...', 'info');
 
     try {
       const response = await fetch('/api/enrich-reel', {
@@ -157,18 +157,18 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
             // Keep the SDK error when the function response isn't JSON.
           }
         }
-        addLog(`❌ API Error: ${detail}`, 'error');
+        addLog(`API Error: ${detail}`, 'error');
         throw new Error(detail);
       }
 
       if (data?.success) {
-        addLog(`✅ Successfully scraped reel data`, 'success');
+        addLog(`Successfully scraped reel data`, 'success');
         applyReelData(data);
       } else {
-        addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
+        addLog(`Response not successful: ${JSON.stringify(data)}`, 'error');
       }
     } catch (error) {
-      addLog(`❌ Scrape failed: ${error.message}`, 'error');
+      addLog(`Scrape failed: ${error.message}`, 'error');
       console.error('Scrape error:', error);
     }
     setLoading(false);
@@ -179,23 +179,23 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
     setScrapedData(data);
     setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
     setLocation(data.location || '');
-    addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
-    addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+    addLog(`Location: ${data.location || 'Not found'}`, 'success');
+    addLog(`Likes: ${data.likes || 0}`, 'success');
     if (data.maps) {
       const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
       if (data.maps.details) {
         setMapsData(data.maps.details);
         setName(data.maps.details.name || data.placeName || name);
         setLocation(data.maps.details.address || data.location || '');
-        addLog(`✅ Google Maps matched ${data.maps.details.name}.`, 'success');
-        addLog(`📍 Address: ${data.maps.details.address || 'Not listed'}`, 'success');
+        addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
+        addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
       } else if (candidates.length) {
         setLocationCandidates(candidates);
         setLocationSearchDone(true);
-        addLog(`🔍 Searched with: "${data.maps.query}"`, 'info');
-        addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
+        addLog(`Searched with: "${data.maps.query}"`, 'info');
+        addLog(`Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
       } else if (data.maps.error) {
-        addLog(`⚠️ Google Maps: ${data.maps.error}`, 'error');
+        addLog(`Google Maps: ${data.maps.error}`, 'error');
       }
     }
   };
@@ -234,11 +234,11 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
       setLocationSearchDone(false);
       setVerifyResults(null);
       setVerifyCandidate(null);
-      addLog(`✅ Selected ${data.name}; scraped its place details.`, 'success');
-      addLog(`📍 Address: ${data.address || 'Not listed'}`, 'success');
-      addLog(`🗺️ Google Maps: ${data.mapsUrl || candidate.url}`, 'success');
+      addLog(`Selected ${data.name}; scraped its place details.`, 'success');
+      addLog(`Address: ${data.address || 'Not listed'}`, 'success');
+      addLog(`Google Maps: ${data.mapsUrl || candidate.url}`, 'success');
     } catch (error) {
-      addLog(`❌ Could not fetch selected place: ${error.message}`, 'error');
+      addLog(`Could not fetch selected place: ${error.message}`, 'error');
     } finally {
       setLoadingCandidateUrl(null);
     }
@@ -269,7 +269,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
       setVerifyResults(candidates);
       if (candidates.length === 1) setVerifyCandidate(candidates[0]);
     } catch (error) {
-      addLog(`❌ Could not verify address: ${error.message}`, 'error');
+      addLog(`Could not verify address: ${error.message}`, 'error');
       setVerifyResults(null);
     } finally {
       setVerifyingLocation(false);
@@ -348,12 +348,12 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
     try {
       // Google place first, then the spot tapped on the map. Mapbox is only a fallback.
       let venueDetails = mapsData ?? pinCoords;
-      if (!mapsData && pinCoords) addLog('📍 Using the spot you tapped on the map.', 'info');
+      if (!mapsData && pinCoords) addLog('Using the spot you tapped on the map.', 'info');
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
         if (!MAPBOX_TOKEN) {
-          addLog('⚠️ Mapbox token is missing; saved address will not have a map pin.', 'error');
+          addLog('Mapbox token is missing; saved address will not have a map pin.', 'error');
         } else {
-          addLog(`📍 Finding map coordinates for: ${name.trim()}, ${location.trim()}`, 'info');
+          addLog(`Finding map coordinates for: ${name.trim()}, ${location.trim()}`, 'info');
           try {
             const query = [name.trim(), location.trim()].filter(Boolean).join(', ');
             const geocodeUrl = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
@@ -374,12 +374,12 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 name: venueDetails?.name || name.trim(),
                 source: 'mapbox',
               };
-              addLog(`✅ Coordinates: ${feature.center[1].toFixed(5)}, ${feature.center[0].toFixed(5)} (${feature.place_name || feature.text || 'Mapbox result'})`, 'success');
+              addLog(`Coordinates: ${feature.center[1].toFixed(5)}, ${feature.center[0].toFixed(5)} (${feature.place_name || feature.text || 'Mapbox result'})`, 'success');
             } else {
-              addLog('⚠️ No coordinates found. Place will save without a map pin; add a full street address and try again.', 'error');
+              addLog('No coordinates found. Place will save without a map pin; add a full street address and try again.', 'error');
             }
           } catch (error) {
-            addLog(`⚠️ Address geocoding failed: ${error.message}. Place will save without a map pin.`, 'error');
+            addLog(`Address geocoding failed: ${error.message}. Place will save without a map pin.`, 'error');
           }
         }
       }
@@ -389,14 +389,14 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         ? entriesAtSpot(places.filter((place) => place.collection_id === collectionId), venueDetails.latitude, venueDetails.longitude)
         : [];
       if (matches.length && !confirmedDuplicate) {
-        addLog(`⚠️ This collection already has ${matches.length === 1 ? 'this location' : `${matches.length} places at this location`}. Waiting for you to confirm.`, 'info');
+        addLog(`This collection already has ${matches.length === 1 ? 'this location' : `${matches.length} places at this location`}. Waiting for you to confirm.`, 'info');
         setDuplicates(matches);
         return;
       }
 
-      addLog('💾 Saving place…', 'info');
+      addLog('Saving place…', 'info');
       const collectionName = collections.find((c) => c.id === collectionId)?.name ?? collectionId;
-      addLog(`🧾 Saving to "${collectionName}": ${JSON.stringify({
+      addLog(`Saving to "${collectionName}": ${JSON.stringify({
         name: name.trim(),
         category,
         address: location.trim() || null,
@@ -426,7 +426,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
       });
       if (draftable) clearDraft();
     } catch (error) {
-      addLog(`❌ Could not save place: ${error.message}`, 'error');
+      addLog(`Could not save place: ${error.message}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -478,7 +478,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
               />
               {urlError && (
                 <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
-                  ⚠️ {urlError}
+                  <TriangleAlert className="ico" aria-hidden="true" /> {urlError}
                 </span>
               )}
             </div>
@@ -488,7 +488,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
               <div style={{
                 padding: '12px',
                 backgroundColor: 'var(--surface-muted)',
-                borderRadius: '8px',
+                borderRadius: 'var(--radius-sm)',
                 marginBottom: '16px'
               }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
@@ -504,14 +504,14 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                     width: '60px',
                     height: '60px',
                     backgroundColor: 'var(--border)',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--radius-sm)',
                     animation: 'pulse 2s infinite'
                   }} />
                   <div style={{ flex: 1 }}>
                     <div style={{
                       height: '12px',
                       backgroundColor: 'var(--border)',
-                      borderRadius: '4px',
+                      borderRadius: 'var(--radius-sm)',
                       marginBottom: '8px',
                       width: '80%',
                       animation: 'pulse 2s infinite'
@@ -519,7 +519,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                     <div style={{
                       height: '10px',
                       backgroundColor: 'var(--border)',
-                      borderRadius: '4px',
+                      borderRadius: 'var(--radius-sm)',
                       width: '60%',
                       animation: 'pulse 2s infinite'
                     }} />
@@ -557,7 +557,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
               <div style={{
                 padding: '12px',
                 backgroundColor: 'var(--surface-muted)',
-                borderRadius: '8px',
+                borderRadius: 'var(--radius-sm)',
                 marginBottom: '16px',
                 display: 'flex',
                 gap: '12px',
@@ -571,7 +571,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   width: '60px',
                   height: '60px',
                   backgroundColor: 'var(--border)',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--radius-sm)',
                   flexShrink: 0,
                   border: 0,
                   padding: 0,
@@ -600,9 +600,9 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                     fontSize: '12px',
                     color: 'var(--text-muted)'
                   }}>
-                    {scrapedData.likes != null && `❤️ ${Number(scrapedData.likes).toLocaleString()}`}
+                    {scrapedData.likes != null && <><Heart className="ico" aria-hidden="true" /> {Number(scrapedData.likes).toLocaleString()}</>}
                     {scrapedData.likes != null && scrapedData.comments != null && ' · '}
-                    {scrapedData.comments != null && `💬 ${Number(scrapedData.comments).toLocaleString()}`}
+                    {scrapedData.comments != null && <><MessageCircle className="ico" aria-hidden="true" /> {Number(scrapedData.comments).toLocaleString()}</>}
                     {scrapedData.likes == null && scrapedData.comments == null && 'Counts unavailable'}
                   </div>
                 </div>
@@ -628,7 +628,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   onMouseEnter={(e) => e.target.style.opacity = '1'}
                   onMouseLeave={(e) => e.target.style.opacity = '0.7'}
                 >
-                  ↗️
+                  <ArrowUpRight className="ico" aria-hidden="true" />
                 </button>
               </div>
             )}
@@ -700,7 +700,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                         width: '100%',
                         padding: '10px 12px',
                         border: '1px solid var(--border)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius-sm)',
                         background: 'var(--surface)',
                         color: 'var(--text)',
                         textAlign: 'left',
@@ -870,7 +870,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 />
                 {entryUrlError && (
                   <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
-                    ⚠️ {entryUrlError}
+                    <TriangleAlert className="ico" aria-hidden="true" /> {entryUrlError}
                   </span>
                 )}
               </label>
@@ -974,7 +974,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
             <div style={{
               padding: '10px',
               backgroundColor: '#1a1a1a',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-sm)',
               fontFamily: 'monospace',
               fontSize: '12px',
               maxHeight: '150px',

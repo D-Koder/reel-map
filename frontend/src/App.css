@@ -46,6 +46,10 @@
   --nav-h: 60px;
   --tap: 44px;
   --gutter: 16px;
+  /* Three corner sizes only: chips and inputs, cards and sheets, pills. Circles use 50%. */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -130,6 +134,15 @@ button {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Line icon sitting inline with text; sizes with the font. */
+.ico {
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  flex-shrink: 0;
+  stroke-width: 2;
 }
 
 /* ---------- APP SHELL (mobile first) ---------- */
@@ -283,7 +296,7 @@ button {
   color: var(--text-muted);
   background: var(--surface-muted);
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 /* Tappable version of the empty-collection hint */
@@ -301,7 +314,7 @@ button.collection-empty {
   color: var(--text-muted);
   padding: 16px;
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
@@ -311,7 +324,7 @@ button.collection-empty {
   min-height: 68px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 10px 12px 10px 10px;
   cursor: pointer;
   display: flex;
@@ -349,7 +362,7 @@ button.collection-empty {
   color: var(--text-muted);
   cursor: grab;
   touch-action: none; /* the handle owns its touches, so dragging doesn't scroll the list */
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .drag-handle svg {
@@ -377,7 +390,7 @@ button.collection-empty {
 
 .place-row {
   position: relative;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 /* The card's spot stays in the list while it is moved, faded. */
@@ -402,7 +415,7 @@ button.collection-empty {
 .pin-thumbnail {
   width: 54px;
   height: 72px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -469,7 +482,7 @@ button.collection-empty {
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--inverse-bg);
   color: var(--surface);
   font-size: 12px;
@@ -484,7 +497,7 @@ button.collection-empty {
   background: var(--success-bg);
   color: var(--success-text);
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 15px;
   font-weight: 600;
   text-align: center;
@@ -531,7 +544,7 @@ button.collection-empty {
   max-width: min(90%, 440px);
   padding: 10px 14px;
   transform: translateX(-50%);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--surface-glass);
   color: var(--text);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
@@ -563,7 +576,7 @@ button.collection-empty {
   min-height: 42px;
   background: var(--surface-glass);
   border: 0.5px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -592,7 +605,7 @@ button.collection-empty {
   margin-top: 6px;
   padding: 8px 14px;
   background: var(--surface-glass);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   color: var(--text-muted);
 }
@@ -604,7 +617,7 @@ button.collection-empty {
   max-height: 55vh;
   overflow-y: auto;
   background: var(--surface-glass);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
 }
 
@@ -662,7 +675,7 @@ button.collection-empty {
   padding: 0 14px;
   background: var(--surface-glass);
   border: 0.5px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
@@ -698,7 +711,7 @@ button.collection-empty {
   color: var(--text);
   background: var(--surface-glass);
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -712,7 +725,7 @@ button.collection-empty {
   width: min(260px, 42%);
   max-height: min(55%, 360px);
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--surface-glass);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
 }
@@ -768,9 +781,9 @@ button.collection-empty {
 .map-place-empty { display: block; padding: 10px; }
 
 .location-verify-overlay { z-index: 300; align-items: center; }
-.location-verify-modal { width: min(440px, calc(100% - 24px)); max-height: 80dvh; border-radius: 16px; }
+.location-verify-modal { width: min(440px, calc(100% - 24px)); max-height: 80dvh; border-radius: var(--radius-md); }
 .location-verify-results { display: grid; gap: 8px; margin: 12px 0 16px; }
-.location-verify-result { padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--text); text-align: left; cursor: pointer; }
+.location-verify-result { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--text); text-align: left; cursor: pointer; }
 .location-verify-result.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .location-verify-result strong,
 .location-verify-result span { display: block; }
@@ -799,7 +812,7 @@ button.collection-empty {
   color: var(--text-muted);
   background: var(--surface-glass);
   padding: 3px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   letter-spacing: 0.5px;
   white-space: nowrap;
   pointer-events: none;
@@ -872,7 +885,7 @@ button.collection-empty {
   background: none;
   padding: 0;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -881,7 +894,7 @@ button.collection-empty {
   flex: 0 0 auto;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
 }
@@ -988,7 +1001,7 @@ button.collection-empty {
   min-height: 56px;
   padding: 6px 6px 6px 12px;
   background: var(--surface-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   margin-bottom: 8px;
   font-size: 15px;
 }
@@ -999,7 +1012,7 @@ button.collection-empty {
   cursor: pointer;
   font-weight: 500;
   padding: 6px 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1026,7 +1039,7 @@ button.collection-empty {
   width: 100%;
   border: 1px solid var(--border);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
 }
 
@@ -1067,7 +1080,7 @@ button.collection-empty {
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 0 16px;
   font-size: 15px;
   font-weight: 600;
@@ -1101,7 +1114,7 @@ button.collection-empty {
 .modal {
   background: var(--card);
   width: 100%;
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   padding: 8px calc(var(--gutter) + var(--safe-right)) calc(var(--gutter) + var(--safe-bottom))
     calc(var(--gutter) + var(--safe-left));
   max-height: 92vh;
@@ -1124,7 +1137,7 @@ button.collection-empty {
 .sheet-handle {
   width: 36px;
   height: 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--border);
   /* Bigger touch area for swipe-to-close; the bar itself stays the same size. */
   box-sizing: content-box;
@@ -1145,7 +1158,7 @@ button.collection-empty {
 
 .place-collection-chip {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   font-size: 15px;
 }
@@ -1161,7 +1174,7 @@ button.collection-empty {
   display: block;
   height: 12px;
   margin-bottom: 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 50%, var(--surface-muted) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
@@ -1170,7 +1183,7 @@ button.collection-empty {
 .skeleton-card {
   height: 54px;
   margin-bottom: 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--surface-muted) 25%, var(--border) 50%, var(--surface-muted) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
@@ -1223,14 +1236,14 @@ button.collection-empty {
   gap: 12px;
   padding: 12px;
   background: var(--surface-muted);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
 }
 
 .reel-thumbnail-small {
   width: 72px;
   height: 96px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1267,7 +1280,7 @@ button.collection-empty {
   margin-top: 2px;
   padding: 0 12px;
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--accent);
   cursor: pointer;
@@ -1278,7 +1291,7 @@ button.collection-empty {
 /* PEOPLE */
 .people-list {
   border: 0.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -1323,7 +1336,7 @@ button.collection-empty {
   color: var(--accent);
   background: var(--accent-soft);
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .person-feeling {
@@ -1370,7 +1383,7 @@ select.step-input {
 .segmented {
   display: flex;
   background: var(--surface-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 3px;
   gap: 2px;
 }
@@ -1379,7 +1392,7 @@ select.step-input {
   width: var(--tap);
   height: 38px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: none;
   font-size: 20px;
   cursor: pointer;
@@ -1423,7 +1436,7 @@ select.step-input {
   color: var(--text);
   padding: 12px;
   background: var(--success-bg);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 
 .hours-table {
@@ -1450,7 +1463,7 @@ select.step-input {
 .checklist-step {
   padding: 16px;
   background: var(--surface-muted);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .step-number {
@@ -1482,7 +1495,7 @@ select.step-input {
   min-height: 48px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
   margin-bottom: 10px;
   background: var(--card);
@@ -1498,7 +1511,7 @@ select.step-input {
   min-height: 48px;
   padding: 0 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -1544,7 +1557,7 @@ select.step-input {
   gap: 8px;
   padding: 12px;
   background: var(--success-bg);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--success-text);
   font-size: 14px;
   font-weight: 600;
@@ -1567,7 +1580,7 @@ select.step-input {
   width: 100%;
   max-width: 400px;
   background: var(--card);
-  border-radius: 18px;
+  border-radius: var(--radius-md);
   padding: 20px 16px 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -1588,7 +1601,7 @@ select.step-input {
 .confirm-warning {
   margin-top: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
   color: var(--warn-text);
@@ -1662,7 +1675,7 @@ select.step-input {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -1681,7 +1694,7 @@ select.step-input {
   width: 100%;
   max-width: 400px;
   background: var(--card);
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   padding: 28px 20px 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
@@ -1689,6 +1702,13 @@ select.step-input {
 .auth-logo {
   font-size: 40px;
   text-align: center;
+  color: var(--accent);
+}
+
+.auth-logo svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 1.75;
 }
 
 .auth-title {
@@ -1709,7 +1729,7 @@ select.step-input {
   font-size: 15px;
   line-height: 1.45;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
 }
 
@@ -1756,7 +1776,7 @@ select.step-input {
   aspect-ratio: 1;
   min-height: var(--tap);
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--surface-muted);
   font-size: 22px;
   cursor: pointer;
@@ -1811,13 +1831,13 @@ select.step-input {
   gap: 12px;
   padding: 12px;
   background: var(--surface-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
 }
 
 .profile-edit-card {
   background: var(--surface-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 16px;
   margin-bottom: 12px;
 }
@@ -1873,7 +1893,7 @@ select.step-input {
   padding: 8px;
   background: var(--surface-base);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
 
@@ -1900,7 +1920,7 @@ select.step-input {
 
 .avatar-option {
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 2px solid var(--border);
   background: var(--surface-base);
   font-size: 24px;
@@ -1930,7 +1950,7 @@ select.step-input {
   color: var(--danger-text);
   background: var(--danger-bg);
   padding: 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
 }
 
@@ -1952,7 +1972,7 @@ select.step-input {
 
 .cascade-delete-toggle {
   background: var(--surface-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   margin-bottom: 12px;
 }
@@ -1983,7 +2003,7 @@ select.step-input {
   color: var(--text-muted);
   background: var(--surface-muted);
   border: 1px dashed var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   line-height: 1.45;
 }
@@ -1999,6 +2019,13 @@ select.step-input {
 
 .empty-emoji {
   font-size: 48px;
+  color: var(--accent);
+}
+
+.empty-emoji svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 1.5;
 }
 
 .empty-state h2 {
@@ -2181,7 +2208,10 @@ select.step-input {
 }
 
 .notification-empty-icon {
-  font-size: 48px;
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.5;
+  color: var(--text-muted);
   opacity: 0.6;
 }
 
@@ -2203,7 +2233,7 @@ select.step-input {
   gap: 12px;
   padding: 12px;
   background: var(--surface-muted);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border-left: 3px solid var(--border);
 }
 
@@ -2218,9 +2248,11 @@ select.step-input {
 }
 
 .notification-icon {
-  font-size: 20px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   margin-top: 2px;
+  color: var(--text-muted);
 }
 
 .notification-info {
@@ -2245,7 +2277,7 @@ select.step-input {
   min-height: 44px;
   background: var(--surface-muted);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 0 16px;
   font-size: 14px;
   font-weight: 600;
@@ -2286,7 +2318,7 @@ select.step-input {
   background: var(--inverse-bg);
   color: white;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -2367,7 +2399,7 @@ select.step-input {
 
   .modal {
     max-width: 440px;
-    border-radius: 20px;
+    border-radius: var(--radius-md);
     padding-bottom: var(--gutter);
     max-height: 88vh;
     max-height: 88dvh;
@@ -2424,7 +2456,7 @@ select.step-input {
 .orphan-warning {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   margin: 12px 0;
   font-size: 14px;
@@ -2440,7 +2472,7 @@ select.step-input {
 
 .orphan-item {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   background: var(--surface-muted);
 }
@@ -2470,7 +2502,7 @@ select.step-input {
 .transfer-btn {
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--text);
   cursor: pointer;
@@ -2497,7 +2529,7 @@ select.step-input {
   padding: 8px 12px;
   background: var(--success-bg);
   border: 1px solid var(--success);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--success-text);
   font-size: 15px;
   text-align: center;
@@ -2506,7 +2538,7 @@ select.step-input {
 .no-members {
   padding: 8px 12px;
   background: var(--surface-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 15px;
   text-align: center;
@@ -2557,7 +2589,7 @@ select.step-input {
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card);
 }
 
@@ -2571,13 +2603,19 @@ select.step-input {
   flex: none;
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 22px;
   background: var(--surface-muted);
+}
+
+.inbox-thumb svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
 }
 
 .inbox-thumb img {
@@ -2612,7 +2650,7 @@ select.step-input {
   min-height: var(--tap);
   padding: 0 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: white;
   font-size: 15px;
@@ -2638,7 +2676,7 @@ select.step-input {
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--vibe-both-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--vibe-both-bg);
 }
 
@@ -2723,7 +2761,7 @@ select.step-input {
 
 .vote-nudge {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: 12px;
@@ -2753,7 +2791,7 @@ select.step-input {
   position: relative;
   width: min(340px, 100%);
   padding: 24px 20px 20px;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   background: var(--card);
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
@@ -2855,7 +2893,7 @@ select.step-input {
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--success-bg);
   color: var(--success-text);
   font-size: 13px;

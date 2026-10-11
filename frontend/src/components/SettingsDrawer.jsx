@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, LockOpen, Settings, Share2, X } from 'lucide-react';
+import { Bell, Camera, Folder, Lock, LockOpen, Pencil, Settings, Share2, User, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -40,7 +40,7 @@ function FridayPickToggle({ userId }) {
     <div className="cascade-delete-toggle">
       <label>
         <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
-        🔔 Notifications on this device
+        <Bell className="ico" aria-hidden="true" /> Notifications on this device
       </label>
       {error && <div className="toggle-hint">{error}</div>}
     </div>
@@ -92,7 +92,7 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
               {collection.emoji} {collection.name}
             </span>
             <span className="collection-meta">
-              {isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · 👥 {collection.members.length}
+              {isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}
             </span>
           </>
         )}
@@ -195,7 +195,7 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
 
   return (
     <div className="settings-section">
-      <div className="settings-section-title">🙂 You</div>
+      <div className="settings-section-title"><User className="ico" aria-hidden="true" /> You</div>
 
       {!editMode ? (
         <div className="profile-display-card">
@@ -259,7 +259,7 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
           )}
 
           <label className="step-btn secondary profile-upload-btn full-width">
-            {uploading ? <><span className="spinner" aria-hidden="true" />Uploading photo…</> : '📸 Upload Profile Photo'}
+            {uploading ? <><span className="spinner" aria-hidden="true" />Uploading photo…</> : <><Camera className="ico" aria-hidden="true" /> Upload Profile Photo</>}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
           </label>
           {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}
@@ -277,7 +277,7 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
         </div>
       ) : (
         <button className="step-btn secondary full-width" onClick={() => setEditMode(true)}>
-          ✏️ Edit Profile
+          <Pencil className="ico" aria-hidden="true" /> Edit Profile
         </button>
       )}
 
@@ -321,7 +321,7 @@ export default function SettingsDrawer({
   }, []);
 
   const rename = async (collection, name) => {
-    if (await onUpdateCollection(collection.id, { name })) showToast(`📝 Renamed to "${name}"`);
+    if (await onUpdateCollection(collection.id, { name })) showToast(`Renamed to "${name}"`);
   };
 
   const togglePrivacy = async (collection) => {
@@ -339,7 +339,7 @@ export default function SettingsDrawer({
     const result = await onSetPrivacy(collection.id, makePrivate, makePrivate && others.length > 0);
     if (result.ok) {
       const removedNote = makePrivate && result.removed ? ` · removed ${result.removed}` : '';
-      showToast(makePrivate ? `🔒 Now private${removedNote}` : '🔓 Now shared');
+      showToast(makePrivate ? `Now private${removedNote}` : 'Now shared');
     }
   };
 
@@ -361,7 +361,7 @@ export default function SettingsDrawer({
     if (!name) return;
     if (await onCreateCollection(name)) {
       setNewName('');
-      showToast(`✨ Added "${name}"`);
+      showToast(`Added "${name}"`);
     }
   };
 
@@ -379,7 +379,7 @@ export default function SettingsDrawer({
           {userId && <FridayPickToggle userId={userId} />}
 
           <div className="settings-section">
-            <div className="settings-section-title">📁 Collections</div>
+            <div className="settings-section-title"><Folder className="ico" aria-hidden="true" /> Collections</div>
             {collections.map((c) => (
               <CollectionRow
                 key={`${c.id}-${c.name}`}

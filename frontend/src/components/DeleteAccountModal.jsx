@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { Check, TriangleAlert, Users, X } from 'lucide-react';
 
 export default function DeleteAccountModal({ open, onClose, userId, collections, onTransferOwnership, onConfirmDelete, isDeleting }) {
   const ownedCollections = collections.filter(c => c.ownerId === userId);
@@ -14,8 +14,8 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
 
   const handleDelete = async () => {
     const msg = cascadeDelete
-      ? '⚠️ This will permanently delete your account AND all shared collections you own. This cannot be undone.'
-      : '⚠️ This will permanently delete your account and all your data. Collections you own will become orphaned. This cannot be undone.';
+      ? 'This will permanently delete your account AND all shared collections you own. This cannot be undone.'
+      : 'This will permanently delete your account and all your data. Collections you own will become orphaned. This cannot be undone.';
     if (confirm(msg)) {
       await onConfirmDelete(cascadeDelete);
     }
@@ -35,7 +35,7 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
           {ownedCollections.length === 0 ? (
             <>
               <p>Your account and all associated data will be permanently deleted.</p>
-              <p className="warning">⚠️ This action cannot be undone.</p>
+              <p className="warning"><TriangleAlert className="ico" aria-hidden="true" /> This action cannot be undone.</p>
               <button
                 className="step-btn danger full-width"
                 onClick={handleDelete}
@@ -60,8 +60,8 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                 </label>
                 <p className="toggle-hint">
                   {cascadeDelete
-                    ? '🗑️ All shared collections will be permanently deleted'
-                    : '🔒 Collections will become orphaned (members can still view)'}
+                    ? 'All shared collections will be permanently deleted'
+                    : 'Collections will become orphaned (members can still view)'}
                 </p>
               </div>
 
@@ -83,11 +83,11 @@ export default function DeleteAccountModal({ open, onClose, userId, collections,
                         {collection.emoji} {collection.name}
                       </div>
                       <div className="orphan-collection-members">
-                        👥 {collection.members.length} member{collection.members.length !== 1 ? 's' : ''}
+                        <Users className="ico" aria-hidden="true" /> {collection.members.length} member{collection.members.length !== 1 ? 's' : ''}
                       </div>
 
                       {isTransferred ? (
-                        <div className="transfer-success">✓ Transferred</div>
+                        <div className="transfer-success"><Check className="ico" aria-hidden="true" /> Transferred</div>
                       ) : otherMembers.length > 0 ? (
                         <div className="transfer-options">
                           {otherMembers.map(member => (

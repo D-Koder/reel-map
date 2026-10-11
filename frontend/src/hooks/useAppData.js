@@ -172,7 +172,7 @@ export function useAppData(userId, showToast) {
     async (request) => {
       const { data, error } = await request;
       if (error) {
-        showToast(`⚠️ ${friendlyError(error)}`);
+        showToast(`${friendlyError(error)}`);
         await refresh(); // undo any optimistic change
         return null;
       }
@@ -227,8 +227,8 @@ export function useAppData(userId, showToast) {
       }).abortSignal(AbortSignal.timeout(20000));
       if (error) {
         showToast(error.name === 'AbortError' || error.name === 'TimeoutError'
-          ? '⚠️ Saving took too long. Check your connection and try again.'
-          : `⚠️ ${friendlyError(error)}`);
+          ? 'Saving took too long. Check your connection and try again.'
+          : `${friendlyError(error)}`);
         return null;
       }
       const placeId = data;
@@ -237,10 +237,10 @@ export function useAppData(userId, showToast) {
           .from('reactions')
           .insert({ place_id: placeId, user_id: userId, feeling })
           .abortSignal(AbortSignal.timeout(10000));
-        if (reactionError) showToast(`⚠️ Place saved, but vibe didn't save: ${friendlyError(reactionError)}`);
+        if (reactionError) showToast(`Place saved, but vibe didn't save: ${friendlyError(reactionError)}`);
       }
       void refresh().catch((refreshError) => {
-        showToast(`⚠️ Place saved, but refresh failed: ${refreshError.message}`);
+        showToast(`Place saved, but refresh failed: ${refreshError.message}`);
       });
       return { id: placeId };
     },
@@ -256,12 +256,12 @@ export function useAppData(userId, showToast) {
         .eq('place_id', place.id)
         .select('place_id');
       if (error) {
-        showToast(`⚠️ ${friendlyError(error)}`);
+        showToast(`${friendlyError(error)}`);
         await refresh();
         return null;
       }
       if (!data?.length) {
-        showToast('⚠️ Only the person who added this place can change it');
+        showToast('Only the person who added this place can change it');
         return null;
       }
       await refresh();
@@ -322,7 +322,7 @@ export function useAppData(userId, showToast) {
         p_confirm: confirm,
       });
       if (error) {
-        showToast(`⚠️ ${friendlyError(error)}`);
+        showToast(`${friendlyError(error)}`);
         await refresh();
         return { ok: false };
       }

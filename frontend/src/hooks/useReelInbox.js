@@ -93,16 +93,16 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
     const { places, collections, showToast } = latest.current;
     const collectionName = collections.find((c) => c.id === collectionId)?.name ?? 'your collection';
     if (places.some((p) => p.reel_url === url && p.collection_id === collectionId)) {
-      showToast(`👍 Already saved in ${collectionName}`);
+      showToast(`Already saved in ${collectionName}`);
       return true;
     }
     if (latest.current.items.some((i) => i.url === url)) {
-      showToast('👍 Already saving this reel');
+      showToast('Already saving this reel');
       return true;
     }
     const item = { id: newId(), url, collectionId, status: navigator.onLine ? 'saving' : 'offline', addedAt: Date.now() };
     setItems((list) => [...list, item]);
-    showToast(navigator.onLine ? `✓ Saved! Finding the place…` : `✓ Saved! We'll find the place when you're online.`);
+    showToast(navigator.onLine ? `Saved! Finding the place…` : `Saved! We'll find the place when you're online.`);
     if (navigator.onLine) process(item);
     return true;
   }, [pickCollection, process]);

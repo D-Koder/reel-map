@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS } from '../lib/constants';
 
@@ -59,7 +60,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={submit}>
-        <div className="auth-logo">🗺️</div>
+        <div className="auth-logo"><MapPin aria-hidden="true" /></div>
         <h1 className="auth-title">{TITLES[mode]}</h1>
         <p className="auth-subtitle">Save places from reels and plan them together.</p>
 

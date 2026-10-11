@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, House, MapPin, Plus, Settings } from 'lucide-react';
+import { Bell, House, MapPin, Plus, Settings, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
 import MapScreen from './components/MapScreen';
 import PinModal from './components/PinModal';
@@ -94,13 +94,13 @@ function MainApp({ userId, showToast }) {
     };
     const timer = setTimeout(run, UNDO_MS);
     deleteTimers.current.set(key, { timer, run });
-    showToast(`🗑️ Deleted ${label}`, {
+    showToast(`Deleted ${label}`, {
       label: 'Undo',
       onClick: () => {
         clearTimeout(timer);
         deleteTimers.current.delete(key);
         setHidden(key, false);
-        showToast('↩️ Restored');
+        showToast('Restored');
       },
     }, UNDO_MS);
   };
@@ -140,7 +140,7 @@ function MainApp({ userId, showToast }) {
     online,
     showToast,
     onSaved: (placeId, name, collectionName) =>
-      showToast(`📍 "${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
+      showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
   });
 
   // Coming back online: load anything that changed while offline.
@@ -262,7 +262,7 @@ function MainApp({ userId, showToast }) {
 
   const handleTransferOwnership = async (collectionId, newOwnerId) => {
     if (await data.transferOwnership(collectionId, newOwnerId)) {
-      showToast('✓ Ownership transferred');
+      showToast('Ownership transferred');
       return true;
     }
     return false;
@@ -303,7 +303,7 @@ function MainApp({ userId, showToast }) {
   return (
     <div className="app">
       <header className="header">
-        <span className="header-title">🗺️ Reel Map</span>
+        <span className="header-title"><MapPin className="ico" aria-hidden="true" /> Reel Map</span>
         <div className="header-buttons">
           <button
             className="header-btn"
@@ -312,7 +312,7 @@ function MainApp({ userId, showToast }) {
           >
             <Bell aria-hidden="true" />
             {unreadCount > 0 && (
-              <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 10, padding: '0 5px' }}>
+              <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 5px' }}>
                 {unreadCount}
               </span>
             )}
@@ -325,7 +325,7 @@ function MainApp({ userId, showToast }) {
 
       {!online && (
         <div className="offline-banner" role="status">
-          📶 You're offline. Showing your saved places — changes need a connection.
+          <WifiOff className="ico" aria-hidden="true" /> You're offline. Showing your saved places — changes need a connection.
         </div>
       )}
 
@@ -350,7 +350,7 @@ function MainApp({ userId, showToast }) {
             onReorder={data.reorder}
             onAddPlace={openAddInCollection}
             onCreateSample={async () => {
-              if (await data.createSampleData()) showToast('✨ Added sample places');
+              if (await data.createSampleData()) showToast('Added sample places');
             }}
             onOpenSettings={() => setSettingsOpen(true)}
           />
@@ -441,17 +441,17 @@ function MainApp({ userId, showToast }) {
           userId={userId}
           onCopy={async (targetId) => {
             const ok = await data.copyPlaceToCollection(editPin, targetId);
-            if (ok) showToast('📋 Copied to collection');
+            if (ok) showToast('Copied to collection');
             return ok;
           }}
           onMove={async (targetId) => {
             const ok = await data.movePlaceToCollection(editPin, targetId);
-            if (ok) showToast('➡️ Moved to collection');
+            if (ok) showToast('Moved to collection');
             return ok;
           }}
           onSave={async (patch) => {
             if (await data.updatePlace(editPin, patch)) {
-              showToast(`✏️ Saved "${patch.name}"`);
+              showToast(`Saved "${patch.name}"`);
               setEditPinId(null);
             }
           }}
@@ -474,7 +474,7 @@ function MainApp({ userId, showToast }) {
               rememberCollection(userId, fields.collectionId);
               if (finishingInboxId) inbox.remove(finishingInboxId);
               setFinishingInboxId(null);
-              showToast(`📍 Added "${fields.name}"`);
+              showToast(`Added "${fields.name}"`);
               setAdding(false);
             }
           }}
@@ -519,7 +519,7 @@ function App() {
   if (configError) {
     body = (
       <div className="center-screen">
-        <p className="config-error">⚙️ {configError}</p>
+        <p className="config-error"><TriangleAlert className="ico" aria-hidden="true" /> {configError}</p>
       </div>
     );
   } else if (session === undefined) {
@@ -530,7 +530,7 @@ function App() {
         mode="reset"
         onPasswordReset={() => {
           doneRecovering();
-          showToast('🔑 Password updated');
+          showToast('Password updated');
         }}
       />
     );

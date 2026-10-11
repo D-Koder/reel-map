@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { Film, X } from 'lucide-react';
 
 const MESSAGES = {
   saving: 'Finding the place in this reel…',
@@ -19,7 +19,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
         return (
           <div key={item.id} className={`inbox-card ${item.status}`} role="status">
             <span className="inbox-thumb" aria-hidden="true">
-              {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" /> : '🎬'}
+              {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" /> : <Film aria-hidden="true" />}
             </span>
             <div className="inbox-info">
               {item.name && <div className="inbox-name">{item.name}</div>}

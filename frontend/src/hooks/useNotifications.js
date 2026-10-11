@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { Bell, CalendarCheck, CircleCheck, Lock, LogOut, MapPin, MessageCircle, Trash2, UserPlus } from 'lucide-react';
 
 const ICONS = {
-  place_added: '📍',
-  place_reacted: '💬',
-  place_booked: '🟢',
-  place_done: '✅',
-  place_removed: '🗑️',
-  collection_joined: '👋',
-  collection_left: '🚪',
-  collection_private: '🔒',
+  place_added: MapPin,
+  place_reacted: MessageCircle,
+  place_booked: CalendarCheck,
+  place_done: CircleCheck,
+  place_removed: Trash2,
+  collection_joined: UserPlus,
+  collection_left: LogOut,
+  collection_private: Lock,
 };
 
 function formatTime(iso) {
@@ -65,7 +66,7 @@ export function useNotifications(userId) {
     id: n.id,
     type: n.type,
     message: n.message,
-    icon: ICONS[n.type] ?? '🔔',
+    icon: ICONS[n.type] ?? Bell,
     time: formatTime(n.created_at),
     read: Boolean(n.read_at),
   }));
