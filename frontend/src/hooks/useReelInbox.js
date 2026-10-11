@@ -56,7 +56,8 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
       if (!details?.name) {
         // No confident venue match: the user picks it in the add sheet.
         const guess = data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '';
-        update(item.id, { status: 'needs-place', collectionId, name: guess, thumbnailUrl });
+        // Keep what the lookup found, so Finish fills the add sheet without looking it up again.
+        update(item.id, { status: 'needs-place', collectionId, name: guess, thumbnailUrl, reelData: data });
         return;
       }
 
@@ -72,7 +73,7 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
         feeling: 'keen',
       });
       if (!created) {
-        update(item.id, { status: 'failed', collectionId, name: details.name, thumbnailUrl });
+        update(item.id, { status: 'failed', collectionId, name: details.name, thumbnailUrl, reelData: data });
         return;
       }
       remove(item.id);

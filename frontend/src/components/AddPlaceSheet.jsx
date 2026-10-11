@@ -61,7 +61,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null }) {
+export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -163,28 +163,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
 
       if (data?.success) {
         addLog(`✅ Successfully scraped reel data`, 'success');
-        setScrapedData(data);
-        setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
-        setLocation(data.location || '');
-        addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
-        addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
-        if (data.maps) {
-          const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
-          if (data.maps.details) {
-            setMapsData(data.maps.details);
-            setName(data.maps.details.name || data.placeName || name);
-            setLocation(data.maps.details.address || data.location || '');
-            addLog(`✅ Google Maps matched ${data.maps.details.name}.`, 'success');
-            addLog(`📍 Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-          } else if (candidates.length) {
-            setLocationCandidates(candidates);
-            setLocationSearchDone(true);
-            addLog(`🔍 Searched with: "${data.maps.query}"`, 'info');
-            addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
-          } else if (data.maps.error) {
-            addLog(`⚠️ Google Maps: ${data.maps.error}`, 'error');
-          }
-        }
+        applyReelData(data);
       } else {
         addLog(`⚠️ Response not successful: ${JSON.stringify(data)}`, 'error');
       }
@@ -193,6 +172,32 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
       console.error('Scrape error:', error);
     }
     setLoading(false);
+  };
+
+  // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
+  const applyReelData = (data) => {
+    setScrapedData(data);
+    setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
+    setLocation(data.location || '');
+    addLog(`📍 Location: ${data.location || 'Not found'}`, 'success');
+    addLog(`❤️ Likes: ${data.likes || 0}`, 'success');
+    if (data.maps) {
+      const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
+      if (data.maps.details) {
+        setMapsData(data.maps.details);
+        setName(data.maps.details.name || data.placeName || name);
+        setLocation(data.maps.details.address || data.location || '');
+        addLog(`✅ Google Maps matched ${data.maps.details.name}.`, 'success');
+        addLog(`📍 Address: ${data.maps.details.address || 'Not listed'}`, 'success');
+      } else if (candidates.length) {
+        setLocationCandidates(candidates);
+        setLocationSearchDone(true);
+        addLog(`🔍 Searched with: "${data.maps.query}"`, 'info');
+        addLog(`🔎 Found ${candidates.length} Google Maps match${candidates.length === 1 ? '' : 'es'}; choose the right place below.`, 'success');
+      } else if (data.maps.error) {
+        addLog(`⚠️ Google Maps: ${data.maps.error}`, 'error');
+      }
+    }
   };
 
   const requestLocationApi = async (payload) => {
@@ -309,8 +314,13 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   };
 
   // A link shared from Instagram or TikTok goes straight to the lookup, with no extra tap.
+  // When the background lookup already ran (Finish on a saved reel), its results fill the form instead.
   useEffect(() => {
-    if (initialReelUrl) handleConfirmReel();
+    if (initialReelUrl && initialReelData) {
+      setReelUrl(initialReelUrl);
+      applyReelData(initialReelData);
+      setStep('details');
+    } else if (initialReelUrl) handleConfirmReel();
     // Runs once when the sheet opens with a shared link.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

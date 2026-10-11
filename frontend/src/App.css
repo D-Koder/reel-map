@@ -702,42 +702,6 @@ button.collection-empty {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Shown over the map when it has no pins, or the filters hide them all. */
-.map-empty {
-  position: absolute;
-  z-index: 25;
-  left: 50%;
-  bottom: calc(56px + var(--safe-bottom));
-  transform: translateX(-50%);
-  width: min(340px, calc(100% - 2 * var(--gutter)));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 16px 16px;
-  border-radius: 16px;
-  background: var(--surface-glass);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.16);
-  text-align: center;
-}
-
-.map-empty-emoji {
-  font-size: 36px;
-  line-height: 1;
-}
-
-.map-empty-title {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.map-empty-text {
-  margin-bottom: 4px;
-  font-size: 15px;
-  line-height: 1.45;
-  color: var(--text-muted);
-}
-
 .map-place-list {
   position: absolute;
   z-index: 20;

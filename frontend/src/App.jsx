@@ -67,6 +67,8 @@ function MainApp({ userId, showToast }) {
   const [pendingShareUrl, setPendingShareUrl] = useState(null);
   // The shared link the open add sheet should start from.
   const [sharedReelUrl, setSharedReelUrl] = useState(null);
+  // What the background lookup found for a saved reel, so Finish doesn't look it up again.
+  const [sharedReelData, setSharedReelData] = useState(null);
   // The inbox reel the add sheet is finishing, removed from the inbox once it is added.
   const [finishingInboxId, setFinishingInboxId] = useState(null);
   // The place just marked as done, for the celebration.
@@ -149,6 +151,7 @@ function MainApp({ userId, showToast }) {
   }, [online, data]);
   const openAddAt = (draft) => {
     setSharedReelUrl(null);
+    setSharedReelData(null);
     setFinishingInboxId(null);
     setAddDraft(draft);
     setAddCollectionId(null);
@@ -157,6 +160,7 @@ function MainApp({ userId, showToast }) {
 
   const openAddInCollection = (collectionId) => {
     setSharedReelUrl(null);
+    setSharedReelData(null);
     setFinishingInboxId(null);
     setAddDraft(null);
     setAddCollectionId(collectionId);
@@ -169,6 +173,7 @@ function MainApp({ userId, showToast }) {
   // Opens the add sheet for a shared reel the background lookup couldn't finish.
   const finishInboxItem = (item) => {
     setSharedReelUrl(item.url);
+    setSharedReelData(item.reelData ?? null);
     setFinishingInboxId(item.id);
     setAddDraft(null);
     setAddCollectionId(item.collectionId);
@@ -459,6 +464,7 @@ function MainApp({ userId, showToast }) {
           initialPlace={addDraft}
           initialCollectionId={addCollectionId}
           initialReelUrl={sharedReelUrl}
+          initialReelData={sharedReelData}
           onCreateCollection={data.createCollection}
           collections={collections}
           places={places}
@@ -476,6 +482,7 @@ function MainApp({ userId, showToast }) {
             setAdding(false);
             setAddDraft(null);
             setSharedReelUrl(null);
+            setSharedReelData(null);
             setFinishingInboxId(null);
           }}
         />

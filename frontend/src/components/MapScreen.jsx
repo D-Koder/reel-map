@@ -410,29 +410,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     setHiddenCollections(allCollectionsShown ? new Set(collections.map((c) => c.id)) : new Set());
   };
 
-  // Asked only when the user taps "Show my area", never on its own.
-  const [locating, setLocating] = useState(false);
-  const showMyArea = () => {
-    if (!navigator.geolocation) {
-      showToast?.('📍 Location isn’t available on this device');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocating(false);
-        const center = [coords.longitude, coords.latitude];
-        setSearchBias(center);
-        locationRequestedRef.current = true;
-        mapRef.current?.flyTo({ center, zoom: 13, essential: true });
-      },
-      () => {
-        setLocating(false);
-        showToast?.('📍 Couldn’t get your location. You can search for your area instead.');
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 },
-    );
-  };
 
 const openListedPlace = (place) => {
   const map = mapRef.current;
@@ -619,22 +596,6 @@ const openListedPlace = (place) => {
                 ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {located.length === 0 && (
-          <div className="map-empty" role="status">
-            <div className="map-empty-emoji" aria-hidden="true">🗺️</div>
-            <div className="map-empty-title">Your map is empty</div>
-            <p className="map-empty-text">
-              Share a Reel to Reel Map from Instagram or TikTok, or hold your finger on the map to drop a pin.
-            </p>
-            <button type="button" className="step-btn primary full-width" onClick={() => onAddAt(null)}>
-              ＋ Add a place
-            </button>
-            <button type="button" className="step-btn secondary full-width" onClick={showMyArea} disabled={locating}>
-              {locating ? 'Finding you…' : '📍 Show my area'}
-            </button>
           </div>
         )}
 
