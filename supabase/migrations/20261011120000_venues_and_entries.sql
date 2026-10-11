@@ -218,3 +218,8 @@ $$;
 
 revoke all on function public.get_user_places() from public, anon;
 grant execute on function public.get_user_places() to authenticated;
+
+-- 6. Entries at one location can share a Google place (source, source_id), so drop the
+--    one-per-place rule. The venue keeps the source details.
+alter table public.places drop constraint if exists places_source_unique;
+drop index if exists public.places_source_unique;

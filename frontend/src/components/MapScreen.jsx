@@ -234,11 +234,13 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const map = mapRef.current;
   if (!map || !mapReady || !map.isStyleLoaded()) return undefined;
 
-  // Don't reset bounds if we're just closing a modal
-  if (!isClosingModal.current) {  // ← ADD THIS CHECK
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
+  // Always redraw the markers. Closing a modal used to skip this, and the cleanup
+  // below had already removed them, so the pins disappeared.
+  markersRef.current.forEach((marker) => marker.remove());
+  markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
 
+  // Don't refit the map when we're just closing a modal.
+  if (!isClosingModal.current) {
     if (visible.length === 1 && !hasFittedBounds.current) {
       map.flyTo({ center: [visible[0].lng, visible[0].lat], zoom: 14, essential: true });
     } else if (visible.length > 1) {
@@ -548,6 +550,7 @@ const openListedPlace = (place) => {
               {visible.map((place) => (
                 <button key={place.id} type="button" className="map-place-item" onClick={() => openListedPlace(place)}>
                   <span className="map-place-item-name">{place.name}</span>
+                  {place.custom_info && <span className="map-place-item-info">{place.custom_info}</span>}
                   {place.address && <span className="map-place-item-address">{place.address}</span>}
                 </button>
               ))}

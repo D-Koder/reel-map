@@ -116,6 +116,8 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const [newCollectionOpen, setNewCollectionOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [creatingCollection, setCreatingCollection] = useState(false);
+  // Manual adds (no reel) say so in the header.
+  const sheetTitle = step === 'details' && !reelUrl ? 'Manual add a place' : 'Add a place';
 
   // Save the form as it changes, so a draft survives the sheet closing by accident.
   useEffect(() => {
@@ -326,7 +328,8 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const submit = async (e, confirmedDuplicate = false) => {
     e?.preventDefault();
     if (!name.trim() || !collectionId) return;
-    const link = normaliseEntryUrl(entryUrl);
+    // Reel adds have no link field; the reel itself is the link.
+    const link = reelUrl ? '' : normaliseEntryUrl(entryUrl);
     if (link === null) {
       setEntryUrlError('Enter a valid web link, for example https://example.com');
       return;
@@ -373,12 +376,12 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         }
       }
 
-      // Same location already saved: ask before adding another entry there.
+      // Warn only when this collection already has the location. Other collections don't count.
       const matches = Number.isFinite(venueDetails?.latitude) && Number.isFinite(venueDetails?.longitude)
-        ? entriesAtSpot(places, venueDetails.latitude, venueDetails.longitude)
+        ? entriesAtSpot(places.filter((place) => place.collection_id === collectionId), venueDetails.latitude, venueDetails.longitude)
         : [];
       if (matches.length && !confirmedDuplicate) {
-        addLog(`⚠️ ${matches.length} saved place${matches.length === 1 ? ' is' : 's are'} already at this location. Waiting for you to confirm.`, 'info');
+        addLog(`⚠️ This collection already has ${matches.length === 1 ? 'this location' : `${matches.length} places at this location`}. Waiting for you to confirm.`, 'info');
         setDuplicates(matches);
         return;
       }
@@ -428,11 +431,11 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         className="modal edit-sheet"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Add a place"
+        aria-label={sheetTitle}
       >
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
-          <div className="modal-title">Add a place</div>
+          <div className="modal-title">{sheetTitle}</div>
           {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
           <button
             type="button"
@@ -524,7 +527,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 onClick={handleSkipReel}
                 disabled={loading}
               >
-                Skip
+                Manual
               </button>
               <button
                 type="button"
@@ -641,12 +644,13 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
               />
             </label>
 
-            {/* Location Field */}
-            <label className="field">
-              <span className="modal-label">Address · used for map pin</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Address: the input and Verify sit on one row, with a hint underneath */}
+            <div className="field">
+              <span className="modal-label">Address</span>
+              <div className="address-row">
                 <input
                   className="step-input"
+                  aria-label="Address"
                   value={location}
                   onChange={(e) => {
                     setLocation(e.target.value);
@@ -658,21 +662,20 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                   placeholder="Street address, suburb, city"
                   maxLength={100}
                   disabled={saving}
-                  style={{ flex: 1 }}
                 />
+                {!reelUrl && (
+                  <button
+                    type="button"
+                    className="step-btn secondary"
+                    onClick={verifyLocation}
+                    disabled={saving || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                  >
+                    {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
+                  </button>
+                )}
               </div>
-              {!reelUrl && (
-                <button
-                  type="button"
-                  className="step-btn secondary"
-                  onClick={verifyLocation}
-                  disabled={saving || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
-                  style={{ marginTop: '8px' }}
-                >
-                  {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching Google Maps…</> : 'Verify location'}
-                </button>
-              )}
-            </label>
+              <span className="field-hint">Used for the map pin. Verify to pick the exact Google Maps place.</span>
+            </div>
 
             {locationCandidates.length > 0 && (
               <div role="group" aria-label="Google Maps matches" style={{ margin: '-8px 0 16px' }}>
@@ -843,26 +846,29 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 disabled={saving}
               />
             </label>
-            <label className="field">
-              <span className="modal-label">Link (optional)</span>
-              <input
-                className="step-input"
-                type="text"
-                inputMode="url"
-                value={entryUrl}
-                onChange={(e) => {
-                  setEntryUrl(e.target.value);
-                  setEntryUrlError('');
-                }}
-                placeholder="https://"
-                disabled={saving}
-              />
-              {entryUrlError && (
-                <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
-                  ⚠️ {entryUrlError}
-                </span>
-              )}
-            </label>
+            {/* A reel is already a link, so the link field only appears for manual adds. */}
+            {!reelUrl && (
+              <label className="field">
+                <span className="modal-label">Link (optional)</span>
+                <input
+                  className="step-input"
+                  type="text"
+                  inputMode="url"
+                  value={entryUrl}
+                  onChange={(e) => {
+                    setEntryUrl(e.target.value);
+                    setEntryUrlError('');
+                  }}
+                  placeholder="https://"
+                  disabled={saving}
+                />
+                {entryUrlError && (
+                  <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
+                    ⚠️ {entryUrlError}
+                  </span>
+                )}
+              </label>
+            )}
 
             {/* Same location already saved: confirm before adding another entry there. */}
             {duplicates.length > 0 && (
@@ -870,24 +876,18 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 <div
                   className="modal location-verify-modal"
                   role="dialog"
-                  aria-label="Already saved here"
+                  aria-label="This collection already has this location"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="modal-header">
-                    <div className="modal-title">Already saved here</div>
+                    <div className="modal-title">This collection already has this location</div>
                   </div>
-                  <p className="modal-label">
-                    {duplicates.length === 1 ? 'This location already has a place:' : 'This location already has places:'}
-                  </p>
+                  <p className="modal-label">Saved here already:</p>
                   <div className="location-verify-results">
                     {duplicates.map((place) => (
                       <div key={place.id} className="location-verify-result">
                         <strong>{place.name}</strong>
-                        <span>
-                          {place.custom_info || 'No custom info'}
-                          {' · '}
-                          {collections.find((c) => c.id === place.collection_id)?.name ?? 'Collection'}
-                        </span>
+                        <span>{place.custom_info || 'No custom info'}</span>
                       </div>
                     ))}
                   </div>

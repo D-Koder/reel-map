@@ -691,6 +691,7 @@ button.collection-empty {
 }
 
 .map-place-item-name,
+.map-place-item-info,
 .map-place-item-address {
   display: block;
   overflow: hidden;
@@ -699,6 +700,7 @@ button.collection-empty {
 }
 
 .map-place-item-name { font-size: 13px; font-weight: 600; }
+.map-place-item-info { margin-top: 2px; font-size: 12px; color: var(--text); }
 .map-place-item-address,
 .map-place-empty { margin-top: 3px; color: var(--text-muted); font-size: 11px; }
 .map-place-empty { display: block; padding: 10px; }
@@ -711,6 +713,12 @@ button.collection-empty {
 .location-verify-result strong,
 .location-verify-result span { display: block; }
 .location-verify-result span { margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+
+/* Address input with its Verify button on one row. */
+.address-row { display: flex; gap: 8px; align-items: center; }
+.address-row .step-input { flex: 1; min-width: 0; }
+.address-row .step-btn { flex-shrink: 0; white-space: nowrap; }
+.field-hint { display: block; margin-top: 6px; color: var(--text-muted); font-size: 12px; }
 
 .profile-avatar-image { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .profile-upload-btn { display: inline-grid; place-items: center; position: relative; margin: 8px 0; padding: 0 12px; cursor: pointer; }
