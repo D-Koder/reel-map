@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Map: add and book demo</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --text: #1d1d1b; --muted: #6b6a64;
+    --border: #dcdad2; --accent: #185fa5; --accent-soft: #e6f1fb;
+    --ok: #3b6d11; --ok-soft: #eaf3de; --warn: #854f0b; --warn-soft: #faeeda;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1c1a; --card: #272725; --text: #ecebe6; --muted: #a3a197;
+      --border: #3d3d39; --accent: #85b7eb; --accent-soft: #0c2e4d;
+      --ok: #97c459; --ok-soft: #27380f; --warn: #ef9f27; --warn-soft: #3d2a08;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1c1a; --card: #272725; --text: #ecebe6; --muted: #a3a197;
+    --border: #3d3d39; --accent: #85b7eb; --accent-soft: #0c2e4d;
+    --ok: #97c459; --ok-soft: #27380f; --warn: #ef9f27; --warn-soft: #3d2a08;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .place { cursor: pointer; width: 100%; text-align: left; background: var(--card); color: var(--text); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; font: inherit; }
+  .place:hover { border-color: var(--accent); }
+  .place strong { display: block; font-size: 15px; }
+  .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input[type="text"], select {
+    width: 100%; padding: 9px 10px; font: inherit; color: var(--text); background: var(--bg);
+    border: 0.5px solid var(--border); border-radius: 8px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .radios { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .radios label { margin: 0; color: var(--text); background: var(--bg); border: 0.5px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+  .radios input { margin-right: 6px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; padding: 8px 14px; border: 0.5px solid var(--border); background: var(--card); color: var(--text); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .events { list-style: none; padding: 0; margin: 10px 0 0; }
+  .events li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 14px; }
+  .events li:last-child { border-bottom: none; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+  .pill.booked { background: var(--accent-soft); color: var(--accent); }
+  .pill.done { background: var(--ok-soft); color: var(--ok); }
+  .small { font-size: 13px; }
+  .draft-list { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
+  .draft-list li { margin-bottom: 4px; }
+  .link { background: none; border: none; color: var(--accent); padding: 0; }
+  .error { color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-top: 10px; }
+  .back { margin-bottom: 16px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 14px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+  // In-memory demo state. Nothing is saved between reloads.
+  const state = {
+    view: 'list',
+    selectedId: null,
+    error: '',
+    nextId: 100,
+    draftEvents: [],
+    draft: { kind: 'restaurant', name: '', address: '', category: 'Restaurant', hours: '', evTitle: '', evDay: 'Mon', evTime: '' },
+    places: [
+      {
+        id: 1, kind: 'venue', name: 'Melbourne Museum', address: '11 Nicholson St, Carlton', category: 'Museum',
+        hours: 'Daily 10am to 5pm',
+        events: [
+          { id: 11, title: 'Night activity', when: 'Mon 6pm', booked: false, done: false },
+          { id: 12, title: 'Buffet', when: 'Thu 12pm', booked: false, done: false }
+        ]
+      },
+      {
+        id: 2, kind: 'restaurant', name: 'Brunswick Cafe', address: '214 Sydney Rd, Brunswick', category: 'Cafe',
+        hours: 'Mon to Sun 8am to 4pm',
+        events: [
+          { id: 21, title: 'Visit', when: 'Mon to Sun 8am to 4pm', booked: false, done: false }
+        ]
+      }
+    ]
+  };
+
+  const app = document.getElementById('app');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Read whatever is typed in the form so a re-render doesn't wipe it.
+  function readForm() {
+    const val = (id) => (document.getElementById(id)?.value ?? '').trim();
+    const kind = document.querySelector('input[name="kind"]:checked')?.value ?? state.draft.kind;
+    return { kind, name: val('f-name'), address: val('f-address'), category: val('f-category'), hours: val('f-hours'), evTitle: val('f-evtitle'), evDay: val('f-evday') || 'Mon', evTime: val('f-evtime') };
+  }
+
+  function setKind(kind) {
+    state.draft = { ...readForm(), kind };
+    state.error = '';
+    render();
+  }
+
+  function addDraftEvent() {
+    const f = readForm();
+    if (!f.evTitle) { state.error = 'Give the event a name first.'; state.draft = f; return render(); }
+    if (!f.evTime) { state.error = 'Add a time for the event, for example 6pm.'; state.draft = f; return render(); }
+    state.draftEvents.push({ id: state.nextId++, title: f.evTitle, when: `${f.evDay} ${f.evTime}`, booked: false, done: false });
+    state.draft = { ...f, evTitle: '', evTime: '' };
+    state.error = '';
+    render();
+  }
+
+  function removeDraftEvent(i) {
+    state.draft = readForm();
+    state.draftEvents.splice(i, 1);
+    render();
+  }
+
+  function savePlace() {
+    const f = readForm();
+    state.draft = f;
+    if (!f.name) { state.error = 'Enter the place name.'; return render(); }
+    let events;
+    if (f.kind === 'restaurant') {
+      if (!f.hours) { state.error = 'Enter the opening hours. The Visit uses them.'; return render(); }
+      events = [{ id: state.nextId++, title: 'Visit', when: f.hours, booked: false, done: false }];
+    } else {
+      if (state.draftEvents.length === 0) { state.error = 'Add at least one event, or choose Restaurant or cafe.'; return render(); }
+      events = state.draftEvents.map((e) => ({ ...e }));
+    }
+    const place = { id: state.nextId++, kind: f.kind, name: f.name, address: f.address, category: f.category || 'Venue', hours: f.kind === 'restaurant' ? f.hours : '', events };
+    state.places.push(place);
+    state.draft = { kind: 'restaurant', name: '', address: '', category: 'Restaurant', hours: '', evTitle: '', evDay: 'Mon', evTime: '' };
+    state.draftEvents = [];
+    state.error = '';
+    state.selectedId = place.id;
+    state.view = 'detail';
+    render();
+  }
+
+  function openPlace(id) { state.selectedId = id; state.view = 'detail'; render(); window.scrollTo(0, 0); }
+  function backToList() { state.view = 'list'; state.selectedId = null; render(); }
+
+  function findEvent(placeId, eventId) {
+    const place = state.places.find((p) => p.id === placeId);
+    return place && place.events.find((e) => e.id === eventId);
+  }
+
+  function book(placeId, eventId) {
+    const ev = findEvent(placeId, eventId);
+    if (ev) ev.booked = true;
+    render();
+  }
+
+  function markDone(placeId, eventId) {
+    const ev = findEvent(placeId, eventId);
+    if (ev && ev.booked) ev.done = true;
+    render();
+  }
+
+  function renderList() {
+    const places = state.places.map((p) => {
+      const count = p.events.length;
+      const summary = p.kind === 'restaurant' ? 'Restaurant · Visit' : `Venue · ${count} event${count === 1 ? '' : 's'}`;
+      return `<button class="place" onclick="openPlace(${p.id})">
+        <strong>${esc(p.name)}</strong>
+        <span class="muted">${esc(p.address || 'No address')}</span>
+        <div style="margin-top:6px"><span class="tag">${esc(p.category)}</span><span class="muted">${summary}</span></div>
+      </button>`;
+    }).join('');
+
+    const d = state.draft;
+    const isRestaurant = d.kind === 'restaurant';
+    const draftList = state.draftEvents.length
+      ? `<ul class="draft-list">${state.draftEvents.map((e, i) => `<li>${esc(e.title)}, ${esc(e.when)} <button class="link" onclick="removeDraftEvent(${i})">remove</button></li>`).join('')}</ul>`
+      : '<p class="muted small" style="margin:8px 0 0">No events added yet.</p>';
+
+    const eventBuilder = isRestaurant ? '' : `
+      <div class="card" style="margin-top:12px;background:var(--bg)">
+        <h2 style="font-size:15px">Add an event</h2>
+        <label for="f-evtitle">Event name</label>
+        <input type="text" id="f-evtitle" value="${esc(d.evTitle)}" placeholder="Night activity">
+        <div class="row" style="margin-top:8px">
+          <div><label for="f-evday">Day</label>
+            <select id="f-evday">${DAYS.map((x) => `<option ${x === d.evDay ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+          <div style="grid-column: span 2"><label for="f-evtime">Time</label>
+            <input type="text" id="f-evtime" value="${esc(d.evTime)}" placeholder="6pm"></div>
+        </div>
+        <div class="actions"><button onclick="addDraftEvent()">+ Add event</button></div>
+        ${draftList}
+      </div>`;
+
+    return `
+      <h1>Reel Map</h1>
+      <p class="muted">Demo: add a restaurant or a venue with events, then open its info page.</p>
+      <div class="grid" style="margin-top:16px">
+        <section>
+          <h2>Your places</h2>
+          ${places}
+        </section>
+        <section class="card">
+          <h2>Add a place</h2>
+          <div class="radios" role="radiogroup">
+            <label><input type="radio" name="kind" value="restaurant" ${isRestaurant ? 'checked' : ''} onchange="setKind('restaurant')">Restaurant or cafe</label>
+            <label><input type="radio" name="kind" value="venue" ${!isRestaurant ? 'checked' : ''} onchange="setKind('venue')">Venue with events</label>
+          </div>
+          <label for="f-name">Place name</label>
+          <input type="text" id="f-name" value="${esc(d.name)}" placeholder="Melbourne Museum">
+          <label for="f-address">Address</label>
+          <input type="text" id="f-address" value="${esc(d.address)}" placeholder="11 Nicholson St, Carlton">
+          <label for="f-category">Type</label>
+          <select id="f-category">
+            ${['Restaurant', 'Cafe', 'Museum', 'Bar', 'Venue'].map((c) => `<option ${c === d.category ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+          ${isRestaurant ? `
+            <label for="f-hours">Opening hours (this becomes the Visit)</label>
+            <input type="text" id="f-hours" value="${esc(d.hours)}" placeholder="Mon to Sun 8am to 4pm">
+          ` : `<input type="hidden" id="f-hours" value="">`}
+          ${eventBuilder}
+          ${state.error ? `<div class="error">${esc(state.error)}</div>` : ''}
+          <div class="actions"><button class="primary" onclick="savePlace()">Save place</button></div>
+        </section>
+      </div>`;
+  }
+
+  function renderDetail() {
+    const p = state.places.find((x) => x.id === state.selectedId);
+    if (!p) { state.view = 'list'; return renderList(); }
+    const isRestaurant = p.kind === 'restaurant';
+
+    const rows = p.events.map((e) => {
+      const status = e.done
+        ? '<span class="pill done">Done</span>'
+        : e.booked ? '<span class="pill booked">Booked</span>' : '<span class="pill">Not booked</span>';
+      return `<li>
+        <div><strong style="font-weight:500">${esc(e.title)}</strong><br><span class="muted small">${esc(e.when)}</span></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${status}
+          <button onclick="book(${p.id}, ${e.id})" ${e.booked ? 'disabled' : ''}>${e.booked ? 'Booked' : 'Book'}</button>
+          <button class="primary" onclick="markDone(${p.id}, ${e.id})" ${!e.booked || e.done ? 'disabled' : ''}>${e.done ? 'Done' : 'Mark as Done'}</button>
+        </div>
+      </li>`;
+    }).join('');
+
+    return `
+      <div class="back"><button onclick="backToList()">← All places</button></div>
+      <div class="card">
+        <h1>${esc(p.name)}</h1>
+        <p class="muted" style="margin:4px 0 12px">${esc(p.address || 'No address')}</p>
+        <div><span class="tag">${esc(p.category)}</span><span class="tag" style="background:var(--bg);color:var(--muted)">${isRestaurant ? 'Restaurant or cafe' : 'Venue with events'}</span></div>
+        ${isRestaurant ? `<p class="small" style="margin:14px 0 0"><strong style="font-weight:500">Opening hours:</strong> ${esc(p.hours)}</p>` : ''}
+        <h2 style="margin-top:18px">${isRestaurant ? 'Visit' : 'Events here'}</h2>
+        <ul class="events">${rows}</ul>
+        <p class="note">${isRestaurant
+          ? 'Restaurants get one automatic Visit, so there is no event to choose. You book the visit and mark it done the same way.'
+          : 'Each event is booked and marked done on its own. Marking the Thursday buffet done does not affect the Monday night activity.'}</p>
+      </div>`;
+  }
+
+  function render() {
+    app.innerHTML = state.view === 'detail' ? renderDetail() : renderList();
+  }
+
+  render();
+</script>
+</body>
+</html>
