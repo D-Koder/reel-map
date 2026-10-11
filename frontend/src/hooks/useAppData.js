@@ -178,8 +178,8 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling }) => {
-      // Call the add_place_to_collection() function which handles deduplication and linking
+    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling, customInfo, url }) => {
+      // Call the add_place_to_collection() function. It reuses the venue for this location and always adds a new entry.
       const { data, error } = await supabase.rpc('add_place_to_collection', {
         p_collection_id: collectionId,
         p_name: name,
@@ -194,6 +194,8 @@ export function useAppData(userId, showToast) {
         p_reel_thumbnail_url: reelThumbnailUrl || null,
         p_source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
         p_source_id: venueDetails?.mapsUrl || null,
+        p_custom_info: customInfo || null,
+        p_url: url || null,
       }).abortSignal(AbortSignal.timeout(20000));
       if (error) {
         showToast(error.name === 'AbortError' || error.name === 'TimeoutError'

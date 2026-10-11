@@ -77,6 +77,44 @@ function showPressRing(map, point) {
   ).onfinish = () => ring.remove();
 }
 
+// One marker per location. Entries at the same spot share it, and the count shows how many.
+// Tapping opens the entry, or a list of entries when there is more than one.
+function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
+  const place = group[0];
+  const members = membersOf[place.collection_id] ?? [];
+  const vibe = getVibe(members.map((member) => member.id), place.reactions);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `map-pin mapbox-pin ${vibe.consensus}`;
+  button.setAttribute('aria-label', group.length > 1 ? `${place.name}, ${group.length} places here` : place.name);
+  button.title = place.name;
+  button.addEventListener('click', () => (group.length === 1 ? onOpenPin(place.id) : onPickVenue(group)));
+
+  const markerContent = document.createElement('span');
+  markerContent.className = `pin-marker ${vibe.consensus}`;
+  if (place.reel_thumbnail_url) {
+    const image = document.createElement('img');
+    image.src = place.reel_thumbnail_url;
+    image.alt = '';
+    image.className = 'map-pin-image';
+    markerContent.append(image);
+  } else {
+    markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
+  }
+  button.append(markerContent);
+
+  if (group.length > 1) {
+    const count = document.createElement('span');
+    count.className = 'map-pin-count';
+    count.textContent = String(group.length);
+    button.append(count);
+  }
+
+  return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
+    .setLngLat([place.lng, place.lat])
+    .addTo(map);
+}
+
 const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, onOpenPin, onAddAt }, ref) {
   // Ids unchecked in the chip rows. Empty means everything shows; unchecking every chip shows nothing.
   // Tracking what is hidden means a collection created later shows by default.
@@ -118,6 +156,18 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       return true;
     });
   }, [located, hiddenCategories, hiddenCollections]);
+  // Entries at the same location share one icon.
+  const venueGroups = useMemo(() => {
+    const groups = new Map();
+    visible.forEach((place) => {
+      const key = `${place.lat.toFixed(5)},${place.lng.toFixed(5)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(place);
+    });
+    return [...groups.values()];
+  }, [visible]);
+  // The list shown when a location icon with several entries is tapped.
+  const [venuePicker, setVenuePicker] = useState(null);
   const allCategoriesShown = categories.every((c) => !hiddenCategories.has(c.id));
   const allCollectionsShown = collections.every((c) => !hiddenCollections.has(c.id));
 
@@ -187,33 +237,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Don't reset bounds if we're just closing a modal
   if (!isClosingModal.current) {  // ← ADD THIS CHECK
     markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = visible.map((place) => {
-      const members = membersOf[place.collection_id] ?? [];
-      const vibe = getVibe(members.map((member) => member.id), place.reactions);
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `map-pin mapbox-pin ${vibe.consensus}`;
-      button.setAttribute('aria-label', place.name);
-      button.title = place.name;
-      button.addEventListener('click', () => onOpenPin(place.id));
-
-      const markerContent = document.createElement('span');
-      markerContent.className = `pin-marker ${vibe.consensus}`;
-      if (place.reel_thumbnail_url) {
-        const image = document.createElement('img');
-        image.src = place.reel_thumbnail_url;
-        image.alt = '';
-        image.className = 'map-pin-image';
-        markerContent.append(image);
-      } else {
-        markerContent.textContent = place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️';
-      }
-      button.append(markerContent);
-
-      return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
-        .setLngLat([place.lng, place.lat])
-        .addTo(map);
-    });
+    markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
 
     if (visible.length === 1 && !hasFittedBounds.current) {
       map.flyTo({ center: [visible[0].lng, visible[0].lat], zoom: 14, essential: true });
@@ -233,7 +257,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
   };
-}, [visible, membersOf, onOpenPin, mapReady]);
+}, [visible, venueGroups, membersOf, onOpenPin, mapReady]);
 
   // Asked once, when the search box is first tapped. Used only when the map has no view yet.
   const requestUserLocation = () => {
@@ -403,33 +427,7 @@ const openListedPlace = (place) => {
     markersRef.current = [];
 
     // Re-create markers
-    markersRef.current = visible.map((p) => {
-      const members = membersOf[p.collection_id] ?? [];
-      const vibe = getVibe(members.map((member) => member.id), p.reactions);
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `map-pin mapbox-pin ${vibe.consensus}`;
-      button.setAttribute('aria-label', p.name);
-      button.title = p.name;
-      button.addEventListener('click', () => onOpenPin(p.id));
-
-      const markerContent = document.createElement('span');
-      markerContent.className = `pin-marker ${vibe.consensus}`;
-      if (p.reel_thumbnail_url) {
-        const image = document.createElement('img');
-        image.src = p.reel_thumbnail_url;
-        image.alt = '';
-        image.className = 'map-pin-image';
-        markerContent.append(image);
-      } else {
-        markerContent.textContent = p.category === 'cafe' ? '☕' : p.category === 'event' ? '🎉' : '🍽️';
-      }
-      button.append(markerContent);
-
-      return new mapboxgl.Marker({ element: button, anchor: 'bottom' })
-        .setLngLat([p.lng, p.lat])
-        .addTo(map);
-    });
+    markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
   };
 
   map.once('moveend', handleMoveEnd);
@@ -558,6 +556,39 @@ const openListedPlace = (place) => {
           )}
         </div>
 
+
+        {venuePicker && (
+          <div className="modal-overlay" onClick={() => setVenuePicker(null)}>
+            <div
+              className="modal location-verify-modal"
+              role="dialog"
+              aria-label="Places at this location"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title">{venuePicker[0].address || venuePicker[0].name}</div>
+                <button type="button" className="modal-close" onClick={() => setVenuePicker(null)} aria-label="Close">✕</button>
+              </div>
+              <p className="modal-label">{venuePicker.length} places saved here. Choose one:</p>
+              <div className="location-verify-results">
+                {venuePicker.map((place) => (
+                  <button
+                    key={place.id}
+                    type="button"
+                    className="location-verify-result"
+                    onClick={() => {
+                      setVenuePicker(null);
+                      onOpenPin(place.id);
+                    }}
+                  >
+                    <strong>{place.name}</strong>
+                    <span>{place.custom_info || 'No custom info'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="map-title">
           📍 {visible.length} {visible.length === 1 ? 'place' : 'places'}

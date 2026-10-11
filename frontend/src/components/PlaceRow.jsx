@@ -40,6 +40,7 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
         </button>
         <div className="pin-info">
           <div className="pin-name">{pin.name}</div>
+          {pin.custom_info && <div className="pin-custom-info">{pin.custom_info}</div>}
           <div className="pin-rating">{isDone ? '✅ Done' : `${votes} ${vibe.label}`.trim()}</div>
         </div>
         {pin.booking && !isDone && (

@@ -162,6 +162,7 @@ export default function PinModal({
         </div>
 
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
+        {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
 
         <div className="reel-context">
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
@@ -266,6 +267,14 @@ export default function PinModal({
                 🍽️ Reserve a table ↗
               </a>
             )}
+          </div>
+        )}
+
+        {place?.url && (
+          <div className="modal-section">
+            <a className="step-btn secondary full-width" href={place.url} target="_blank" rel="noreferrer">
+              🔗 Open link ↗
+            </a>
           </div>
         )}
 

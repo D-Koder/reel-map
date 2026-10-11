@@ -45,7 +45,33 @@ function clearDraft() {
   }
 }
 
-export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null }) {
+// Same tolerance as add_place_to_collection(): about 1m.
+const SAME_SPOT_DEGREES = 0.00001;
+
+// Saved places (one per entry) that sit at this exact location.
+function entriesAtSpot(places, latitude, longitude) {
+  const seen = new Set();
+  return places.filter((place) => {
+    if (seen.has(place.id) || !Number.isFinite(place.lat) || !Number.isFinite(place.lng)) return false;
+    if (Math.abs(place.lat - latitude) >= SAME_SPOT_DEGREES || Math.abs(place.lng - longitude) >= SAME_SPOT_DEGREES) return false;
+    seen.add(place.id);
+    return true;
+  });
+}
+
+// '' when empty, the full URL when valid, null when it isn't a web link. "example.com" gets https://.
+function normaliseEntryUrl(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   const draftable = !initialPlace;
   const [draft] = useState(() => (draftable ? readDraft() : null));
@@ -72,6 +98,12 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
   const [category, setCategory] = useState(draft?.category ?? 'food');
   const [collectionId, setCollectionId] = useState(initialCollectionId ?? draft?.collectionId ?? collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
+  // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
+  const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
+  const [entryUrl, setEntryUrl] = useState(draft?.entryUrl ?? '');
+  const [entryUrlError, setEntryUrlError] = useState('');
+  // Saved places already at this location. Shown as a warning before a second entry is added.
+  const [duplicates, setDuplicates] = useState([]);
   const [saving, setSaving] = useState(false);
   const [locationCandidates, setLocationCandidates] = useState(draft?.locationCandidates ?? []);
   const [locationSearchDone, setLocationSearchDone] = useState(draft?.locationSearchDone ?? false);
@@ -90,10 +122,10 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone,
+      locationCandidates, locationSearchDone, customInfo, entryUrl,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -290,9 +322,16 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
     setStep('details');
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  // confirmedDuplicate is true when the user has already chosen "Yes, add it" on the warning.
+  const submit = async (e, confirmedDuplicate = false) => {
+    e?.preventDefault();
     if (!name.trim() || !collectionId) return;
+    const link = normaliseEntryUrl(entryUrl);
+    if (link === null) {
+      setEntryUrlError('Enter a valid web link, for example https://example.com');
+      return;
+    }
+    setEntryUrlError('');
     setSaving(true);
 
     try {
@@ -334,6 +373,16 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         }
       }
 
+      // Same location already saved: ask before adding another entry there.
+      const matches = Number.isFinite(venueDetails?.latitude) && Number.isFinite(venueDetails?.longitude)
+        ? entriesAtSpot(places, venueDetails.latitude, venueDetails.longitude)
+        : [];
+      if (matches.length && !confirmedDuplicate) {
+        addLog(`⚠️ ${matches.length} saved place${matches.length === 1 ? ' is' : 's are'} already at this location. Waiting for you to confirm.`, 'info');
+        setDuplicates(matches);
+        return;
+      }
+
       addLog('💾 Saving place…', 'info');
       const collectionName = collections.find((c) => c.id === collectionId)?.name ?? collectionId;
       addLog(`🧾 Saving to "${collectionName}": ${JSON.stringify({
@@ -349,6 +398,8 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         thumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl) || null,
         source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
         vibe: feeling,
+        customInfo: customInfo.trim() || null,
+        url: link || null,
       })}`, 'info');
       await onAdd({
         name: name.trim(),
@@ -358,7 +409,9 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
         reelUrl: reelUrl.trim(),
         reelThumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl),
         venueDetails,
-        feeling
+        feeling,
+        customInfo: customInfo.trim(),
+        url: link,
       });
       if (draftable) clearDraft();
     } catch (error) {
@@ -772,6 +825,86 @@ export default function AddPlaceSheet({ collections, onAdd, onCreateCollection, 
                     </button>
                     <button type="button" className="step-btn primary full-width" onClick={createNewCollection} disabled={creatingCollection}>
                       {creatingCollection ? <><span className="spinner" aria-hidden="true" />Creating…</> : 'OK'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Custom info and link for this entry. Optional, shown on the pin. */}
+            <label className="field">
+              <span className="modal-label">Custom info (optional)</span>
+              <input
+                className="step-input"
+                value={customInfo}
+                onChange={(e) => setCustomInfo(e.target.value)}
+                placeholder="e.g. Pottery class"
+                maxLength={120}
+                disabled={saving}
+              />
+            </label>
+            <label className="field">
+              <span className="modal-label">Link (optional)</span>
+              <input
+                className="step-input"
+                type="text"
+                inputMode="url"
+                value={entryUrl}
+                onChange={(e) => {
+                  setEntryUrl(e.target.value);
+                  setEntryUrlError('');
+                }}
+                placeholder="https://"
+                disabled={saving}
+              />
+              {entryUrlError && (
+                <span style={{ fontSize: '12px', color: '#e74c3c', marginTop: '4px', display: 'block' }}>
+                  ⚠️ {entryUrlError}
+                </span>
+              )}
+            </label>
+
+            {/* Same location already saved: confirm before adding another entry there. */}
+            {duplicates.length > 0 && (
+              <div className="modal-overlay location-verify-overlay" onClick={() => setDuplicates([])}>
+                <div
+                  className="modal location-verify-modal"
+                  role="dialog"
+                  aria-label="Already saved here"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="modal-header">
+                    <div className="modal-title">Already saved here</div>
+                  </div>
+                  <p className="modal-label">
+                    {duplicates.length === 1 ? 'This location already has a place:' : 'This location already has places:'}
+                  </p>
+                  <div className="location-verify-results">
+                    {duplicates.map((place) => (
+                      <div key={place.id} className="location-verify-result">
+                        <strong>{place.name}</strong>
+                        <span>
+                          {place.custom_info || 'No custom info'}
+                          {' · '}
+                          {collections.find((c) => c.id === place.collection_id)?.name ?? 'Collection'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="modal-label">Add this location again as a new place?</p>
+                  <div className="field-row">
+                    <button type="button" className="step-btn secondary full-width" onClick={() => setDuplicates([])}>
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="step-btn primary full-width"
+                      onClick={() => {
+                        setDuplicates([]);
+                        submit(null, true);
+                      }}
+                    >
+                      Yes, add it
                     </button>
                   </div>
                 </div>

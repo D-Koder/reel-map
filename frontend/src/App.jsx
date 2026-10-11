@@ -293,6 +293,7 @@ function MainApp({ userId, showToast }) {
           initialCollectionId={addCollectionId}
           onCreateCollection={data.createCollection}
           collections={data.collections}
+          places={data.places}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {

@@ -386,6 +386,38 @@ button.collection-empty {
   font-size: 13px;
 }
 
+.pin-custom-info {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* How many entries share a location icon on the map. */
+.mapbox-pin {
+  position: relative;
+}
+
+.map-pin-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid white;
+  box-sizing: content-box;
+}
+
 .streak {
   background: var(--success-bg);
   color: var(--success-text);
