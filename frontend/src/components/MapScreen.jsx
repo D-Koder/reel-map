@@ -121,6 +121,14 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const allCategoriesShown = categories.every((c) => !hiddenCategories.has(c.id));
   const allCollectionsShown = collections.every((c) => !hiddenCollections.has(c.id));
 
+  // Collections load after the first render. Start with all of them unchecked, once, when they arrive.
+  const collectionsSeeded = useRef(false);
+  useEffect(() => {
+    if (collectionsSeeded.current || !collections.length) return;
+    collectionsSeeded.current = true;
+    setHiddenCollections(new Set(collections.map((c) => c.id)));
+  }, [collections]);
+
   useEffect(() => {
     if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
 
