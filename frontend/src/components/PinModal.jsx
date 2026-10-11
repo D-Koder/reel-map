@@ -244,7 +244,8 @@ export default function PinModal({
             <div className="modal-label">Address</div>
             <a
               className="venue-address"
-              href={`https://www.google.com/maps/search/?api=1&query=${Number.isFinite(place.lat) && Number.isFinite(place.lng) ? `${place.lat},${place.lng}` : encodeURIComponent(place.address)}`}
+              // Search by name and address so Google opens the business, not a dropped pin at the coordinates.
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.venue_name ?? place.name}, ${place.address}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Open ${place.address} in Google Maps`}

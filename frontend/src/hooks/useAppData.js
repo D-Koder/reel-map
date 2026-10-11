@@ -54,6 +54,8 @@ function normalisePlace(row) {
   return collections.map((cp) => ({
     ...row,
     name: cp.custom_name || row.name,
+    // The place's real name, for looking it up on Google Maps even when it's been renamed here.
+    venue_name: row.name,
     category: cp.category || row.category,
     // Optional emoji chosen for this collection, shown next to the name.
     emoji: cp.custom_emoji || null,
