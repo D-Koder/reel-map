@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import PlaceRow, { PlaceCard } from './PlaceRow';
 
 // One collection's places. Drag the ⋮⋮ handle to move a card: a single copy follows the finger,
@@ -31,8 +31,8 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      // Only up and down: the floating card stays in the list's column.
-      modifiers={[restrictToVerticalAxis]}
+      // Only up and down, and never outside this collection's list.
+      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
       onDragStart={({ active }) => setActiveId(active.id)}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}

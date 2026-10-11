@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories } from '../lib/constants';
 
-// Only whoever added the place can open this; vibes are set in the place sheet.
+// Any member can open this to copy the place. Only whoever added it can change its name, category or collection.
 export default function EditPlaceSheet({ place, collections = [], userId, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
@@ -17,7 +17,8 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
   const placeIn = place.collectionIds ?? [];
   const copyOptions = collections.filter((c) => !placeIn.includes(c.id));
   const moveOptions = collections.filter((c) => c.id !== place.collection_id);
-  const canMove = place.added_by === userId;
+  const isAdder = place.added_by === userId;
+  const canMove = isAdder;
 
   const runCopy = async () => {
     setBusyAction('copy');
@@ -65,6 +66,10 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
           </button>
         </div>
 
+        {!isAdder && (
+          <p className="place-collection-note">Only the person who added this place can change it. You can still copy it to your collections.</p>
+        )}
+
         <label className="field">
           <span className="modal-label">Name</span>
           <input
@@ -74,12 +79,13 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
             placeholder="Place name"
             maxLength={80}
             required
+            disabled={!isAdder}
           />
         </label>
 
         <label className="field">
           <span className="modal-label">Category</span>
-          <select className="step-input" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select className="step-input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={!isAdder}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -129,9 +135,11 @@ export default function EditPlaceSheet({ place, collections = [], userId, onSave
           </div>
         )}
 
-        <button type="submit" className="step-btn primary full-width" disabled={saving}>
-          {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
-        </button>
+        {isAdder && (
+          <button type="submit" className="step-btn primary full-width" disabled={saving}>
+            {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
+          </button>
+        )}
       </form>
     </div>
   );

@@ -50,8 +50,8 @@ export default function PinModal({
   const nameOf = (id) => (id === userId ? 'you' : members.find((m) => m.id === id)?.display_name ?? 'someone else');
   const adderName = place.added_by === userId ? 'you' : members.find((m) => m.id === place.added_by)?.display_name ?? 'someone';
 
-  // Whoever added the place edits it. Delete: the booker if booked, otherwise whoever added it.
-  const canEdit = place.added_by === userId;
+  // Every member can open the place sheet to copy it. Only whoever added it can change it (the sheet enforces that).
+  // Delete: the booker if booked, otherwise whoever added it.
   const canDelete = booking ? booking.booked_by === userId : place.added_by === userId;
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -142,11 +142,9 @@ export default function PinModal({
         <div className="modal-header">
           <div className="modal-title">{place.name}</div>
           <div className="modal-header-actions">
-            {canEdit && (
-              <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit">
-                <Pencil aria-hidden="true" />
-              </button>
-            )}
+            <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
+              <Pencil aria-hidden="true" />
+            </button>
             {canDelete && (
               <button
                 className="modal-close"

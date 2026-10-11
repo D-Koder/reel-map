@@ -94,14 +94,16 @@ export function useAppData(userId, showToast) {
   const refreshTimer = useRef(null);
 
   const refresh = useCallback(async () => {
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
       supabase.from('place_order').select('place_id, collection_id, position'),
       supabase.rpc('get_streak'),
+      // Each place's name and category in each collection. The places function doesn't return these.
+      supabase.from('collection_places').select('place_id, collection_id, custom_name, category'),
     ]);
-    const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes].find((r) => r.error);
+    const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes].find((r) => r.error);
     if (failed) {
       setState((s) => ({ ...s, loading: false, error: friendlyError(failed.error) }));
       return;
@@ -110,11 +112,15 @@ export function useAppData(userId, showToast) {
     const nextOrder = Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position]));
     setOrder(nextOrder);
 
+    const entries = Object.fromEntries(entriesRes.data.map((e) => [`${e.collection_id}:${e.place_id}`, e]));
     const places = placesRes.data.map(p => ({
       ...p,
       reactions: p.reactions || {},
       booking: p.booking ? p.booking.filter(b => b) : null,
-      collection_places: p.collection_places ? p.collection_places.filter(cp => cp) : []
+      collection_places: (p.collection_places ? p.collection_places.filter(cp => cp) : []).map((cp) => {
+        const entry = entries[`${cp.collection_id}:${p.id}`];
+        return { ...cp, custom_name: entry?.custom_name ?? null, category: entry?.category ?? null };
+      }),
     }));
 
     const next = {
@@ -228,14 +234,27 @@ export function useAppData(userId, showToast) {
     },
 
     // Name and category are per collection (collection_places).
-    updatePlace: (place, { name, category }) =>
-      run(
-        supabase
-          .from('collection_places')
-          .update({ custom_name: name, category })
-          .eq('collection_id', place.collection_id)
-          .eq('place_id', place.id)
-      ),
+    // Only whoever added the place can change it. The database quietly skips other people's rows, so
+    // an update that changes nothing is reported as a failure instead of looking like it saved.
+    updatePlace: async (place, { name, category }) => {
+      const { data, error } = await supabase
+        .from('collection_places')
+        .update({ custom_name: name, category })
+        .eq('collection_id', place.collection_id)
+        .eq('place_id', place.id)
+        .select('place_id');
+      if (error) {
+        showToast(`⚠️ ${friendlyError(error)}`);
+        await refresh();
+        return null;
+      }
+      if (!data?.length) {
+        showToast('⚠️ Only the person who added this place can change it');
+        return null;
+      }
+      await refresh();
+      return true;
+    },
 
     // Copy: anyone who can see the place can add it to a collection they belong to.
     copyPlaceToCollection: (place, targetCollectionId) =>
