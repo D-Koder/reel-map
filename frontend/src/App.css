@@ -848,6 +848,14 @@ button.collection-empty {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
+.pin-marker-icon {
+  width: 17px;
+  height: 17px;
+  color: #fff;
+  stroke-width: 2.25;
+  transform: rotate(45deg);
+}
+
 .pin-marker-emoji {
   transform: rotate(45deg);
   display: flex;

@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { MapPin, X } from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { Coffee, MapPin, PartyPopper, UtensilsCrossed, X } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
@@ -8,6 +9,18 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const MELBOURNE_CENTER = [144.9631, -37.8136];
 const LONG_PRESS_MS = 1000;
 const LONG_PRESS_MAX_MOVE_PX = 10;
+
+// Markers are plain DOM, so each category's icon is rendered to SVG markup once and reused.
+const PIN_ICONS = { cafe: Coffee, event: PartyPopper, food: UtensilsCrossed };
+const pinIconMarkup = {};
+function categoryPinIcon(category) {
+  const key = PIN_ICONS[category] ? category : 'food';
+  if (!pinIconMarkup[key]) {
+    const Icon = PIN_ICONS[key];
+    pinIconMarkup[key] = renderToStaticMarkup(<Icon className="pin-marker-icon" aria-hidden="true" />);
+  }
+  return pinIconMarkup[key];
+}
 
 // Turns a tapped spot into a street address for the add sheet. Returns '' if Mapbox can't.
 async function reverseGeocode(lng, lat) {
@@ -99,8 +112,10 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
     image.alt = '';
     image.className = 'map-pin-image';
     markerContent.append(image);
+  } else if (place.emoji) {
+    markerContent.textContent = place.emoji;
   } else {
-    markerContent.textContent = place.emoji || (place.category === 'cafe' ? '☕' : place.category === 'event' ? '🎉' : '🍽️');
+    markerContent.innerHTML = categoryPinIcon(place.category);
   }
   button.append(markerContent);
 
@@ -188,10 +203,18 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     try {
       map = new mapboxgl.Map({
         container: mapContainer.current,
-        // Dark map when the phone is in dark mode, so the screen doesn't flash bright at night.
-        style: window.matchMedia?.('(prefers-color-scheme: dark)').matches
-          ? 'mapbox://styles/mapbox/dark-v11'
-          : 'mapbox://styles/mapbox/streets-v12',
+        // Muted basemap so the pins stand out. Night lighting when the phone is in dark mode,
+        // so the screen doesn't flash bright at night.
+        style: 'mapbox://styles/mapbox/standard',
+        config: {
+          basemap: {
+            theme: 'faded',
+            lightPreset: window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'night' : 'day',
+            showPointOfInterestLabels: false,
+            showTransitLabels: false,
+            show3dObjects: false,
+          },
+        },
         center: MELBOURNE_CENTER,
         zoom: 11,
         attributionControl: true,
@@ -236,7 +259,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
 
   useEffect(() => {
   const map = mapRef.current;
-  if (!map || !mapReady || !map.isStyleLoaded()) return undefined;
+  if (!map || !mapReady) return undefined;
 
   // Always redraw the markers. Closing a modal used to skip this, and the cleanup
   // below had already removed them, so the pins disappeared.
