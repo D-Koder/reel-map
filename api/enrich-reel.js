@@ -1,4 +1,4 @@
-const scrapeReel = require('./scrape-reel');
+const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl } = require('./_lib/reel-url');
 const { fetchInstagramCover } = require('./_lib/instagram-cover');
@@ -127,9 +127,11 @@ module.exports = async function handler(req, res) {
   }
 };
 
-// req.backgroundOnly is set by /api/save-reel, which runs this while the app is closed. Nobody can
-// pick a place then, so Maps details are only read when the search found exactly one place.
+// { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody
+// can pick a place then, so Maps details are only read when the search found exactly one place.
+// (It can only narrow what a lookup does, so anyone sending it is harmless.)
 async function enrich(req, res, getBrowser) {
+  const backgroundOnly = Boolean(req.backgroundOnly || req.body?.background === true);
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const cacheKey = canonicalInstagramUrl(reelUrl);
@@ -174,7 +176,7 @@ async function enrich(req, res, getBrowser) {
 
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
   let selectedCandidate = null;
-  if (req.backgroundOnly) {
+  if (backgroundOnly) {
     selectedCandidate = candidates.length === 1 ? candidates[0] : null;
   } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
@@ -184,7 +186,7 @@ async function enrich(req, res, getBrowser) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && !req.backgroundOnly && typeof req.selectCandidate !== 'function') {
+  if (!selectedCandidate && !backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
       : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);

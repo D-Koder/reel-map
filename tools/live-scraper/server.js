@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Local live-log runner for the Instagram and Google Maps scrapers.
-// Calls the same handlers the app uses (api/scrape-reel.js, api/scrape-location.js,
+// Calls the same handlers the app uses (api/_lib/scrape-reel.js, api/scrape-location.js,
 // api/enrich-reel.js) and streams their console output to the browser over SSE.
 // Binds to 127.0.0.1 only because it launches real scrapers.
 
@@ -14,7 +14,7 @@ const HOST = '127.0.0.1';
 const MAX_BODY_BYTES = 64 * 1024;
 
 const apiDir = path.join(__dirname, '..', '..', 'api');
-const scrapeReel = require(path.join(apiDir, 'scrape-reel.js'));
+const scrapeReel = require(path.join(apiDir, '_lib', 'scrape-reel.js'));
 const scrapeLocation = require(path.join(apiDir, 'scrape-location.js'));
 const enrichReel = require(path.join(apiDir, 'enrich-reel.js'));
 

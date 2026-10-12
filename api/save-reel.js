@@ -10,14 +10,23 @@ const { canonicalInstagramUrl } = require('./_lib/reel-url');
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-// Runs /api/enrich-reel after the Shortcut has its answer. Vercel keeps the function alive for the
-// promise (up to maxDuration in vercel.json); elsewhere it just runs on without being waited for.
-function lookInBackground(sharedText) {
+// Asks /api/enrich-reel to look the reel up after the Shortcut has its answer. It is a request rather
+// than a require so this function doesn't carry its own copy of Chrome. Vercel keeps this function
+// alive for the request (up to maxDuration in vercel.json); elsewhere it just runs on.
+function lookInBackground(req, sharedText) {
   const reelUrl = canonicalInstagramUrl(String(sharedText).match(/https?:\/\/[^\s]+/)?.[0]);
-  if (!reelUrl) return;
-  const enrichReel = require('./enrich-reel');
-  const ignore = { status() { return this; }, json() { return this; } };
-  const work = enrichReel({ method: 'POST', body: { reelUrl }, backgroundOnly: true }, ignore)
+  const host = req.headers?.['x-forwarded-host'] || req.headers?.host;
+  if (!reelUrl || !host) return;
+  const protocol = /^(localhost|127\.)/.test(host) ? 'http' : 'https';
+  const work = fetch(`${protocol}://${host}/api/enrich-reel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reelUrl, background: true }),
+    signal: AbortSignal.timeout(115000),
+  })
+    .then((response) => {
+      if (!response.ok) console.warn(`Background reel lookup returned HTTP ${response.status}`);
+    })
     .catch((error) => console.warn('Background reel lookup failed:', error.message));
   globalThis[Symbol.for('@vercel/request-context')]?.get?.()?.waitUntil?.(work);
 }
@@ -61,7 +70,7 @@ module.exports = async function handler(req, res) {
   if (response.ok) {
     if (connecting) return reply(res, 200, '✅ Reel Map connected');
     if (result === 'duplicate') return reply(res, 200, '👍 Already saved to Reel Map');
-    lookInBackground(url);
+    lookInBackground(req, url);
     return reply(res, 200, '✅ Saved to Reel Map');
   }
 

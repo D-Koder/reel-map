@@ -1,7 +1,7 @@
-const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
-const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
-const { fetchInstagramPage } = require('./_lib/instagram-page');
-const { captionVenue } = require('./_lib/caption');
+const { openPage, closePage, closeBrowser, browserFor } = require('./browser');
+const { fetchInstagramOembed } = require('./instagram-oembed');
+const { fetchInstagramPage } = require('./instagram-page');
+const { captionVenue } = require('./caption');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
 const SKIP = ['media', 'font'];

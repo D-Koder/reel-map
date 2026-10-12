@@ -3,7 +3,7 @@
 A local page that runs the app's real Instagram and Google Maps scrapers and streams their logs live.
 
 It calls the same handlers as the app:
-- `api/scrape-reel.js` (Instagram reel)
+- `api/_lib/scrape-reel.js` (Instagram reel)
 - `api/scrape-location.js` (Google Maps search and place details)
 - `api/enrich-reel.js` (the full Instagram + Maps pipeline)
 

@@ -14,7 +14,7 @@
  */
 
 const fs = require('node:fs');
-const scrapeReel = require('./api/scrape-reel');
+const scrapeReel = require('./api/_lib/scrape-reel');
 const enrichReel = require('./api/enrich-reel');
 
 process.env.PUPPETEER_EXECUTABLE_PATH ||= require('puppeteer').executablePath();

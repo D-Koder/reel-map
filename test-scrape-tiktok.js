@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Smoke-test the TikTok branch of the custom Puppeteer scraper. */
 
-const scrapeReel = require('./api/scrape-reel');
+const scrapeReel = require('./api/_lib/scrape-reel');
 process.env.PUPPETEER_EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH ||
   require('puppeteer').executablePath();
 const reelUrl = process.argv[2] || 'https://www.tiktok.com/@eatswithclaire/video/7543957031141657874';
