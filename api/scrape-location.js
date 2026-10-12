@@ -1,5 +1,7 @@
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
+
+// Maps results are read as text, so images (map tiles, photos), video and fonts are skipped.
+const SKIP = ['image', 'media', 'font'];
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -32,20 +34,12 @@ module.exports = async function handler(req, res) {
     }
   }
   let browser;
+  let owned = false;
+  let page;
   try {
-    const isVercel = Boolean(process.env.VERCEL);
     console.log(`[scrape-location] Search query: ${query}`);
-    browser = await puppeteer.launch({
-      args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
-      defaultViewport: { width: 1280, height: 900 },
-      executablePath: isVercel ? await chromium.executablePath() : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-    );
+    ({ browser, owned } = await browserFor(req));
+    page = await openPage(browser, SKIP);
     await page.goto(action === 'details' ? selectedPlaceUrl : mapsUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 25000,
@@ -357,11 +351,7 @@ module.exports = async function handler(req, res) {
       mapsUrl,
     });
   } finally {
-    if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
-      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
-      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__.push(browser);
-    } else {
-      await browser?.close().catch(() => {});
-    }
+    if (owned) await closeBrowser(browser);
+    else await closePage(page);
   }
 };

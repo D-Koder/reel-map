@@ -3,6 +3,7 @@ const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl } = require('./_lib/reel-url');
 const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
 const { readCache, writeCache, DAY } = require('./_lib/lookup-cache');
+const { launchBrowser, closeBrowser } = require('./_lib/browser');
 
 // How long saved lookups are reused. Captions don't change; opening hours and phone numbers can.
 const REEL_CACHE_DAYS = 30;
@@ -10,7 +11,7 @@ const PLACE_CACHE_DAYS = 14;
 // Instagram cover links expire after a few days, so a cached cover older than this is asked for again.
 const COVER_MAX_AGE = DAY;
 
-async function invoke(handler, body) {
+async function invoke(handler, body, getBrowser) {
   const response = {
     statusCode: 200,
     status(code) {
@@ -22,7 +23,7 @@ async function invoke(handler, body) {
       return this;
     },
   };
-  await handler({ method: 'POST', body }, response);
+  await handler({ method: 'POST', body, getBrowser }, response);
   return response;
 }
 
@@ -74,7 +75,7 @@ function normalize(value) {
 
 // The Reel's caption, creator and cover, from the shared cache when anyone has looked it up before.
 // Returns { reel } on success, or { status, body } with the scraper's error.
-async function readReel(reelUrl, cacheKey) {
+async function readReel(reelUrl, cacheKey, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   if (cached?.data?.reel) {
     const reel = { ...cached.data.reel, reelUrl };
@@ -85,7 +86,7 @@ async function readReel(reelUrl, cacheKey) {
     return { reel, search: cached.data.search ?? null, fromCache: true };
   }
 
-  const reelResponse = await invoke(scrapeReel, { reelUrl });
+  const reelResponse = await invoke(scrapeReel, { reelUrl }, getBrowser);
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
     return { status: reelResponse.statusCode, body: reelResponse.body || { error: 'Could not read Instagram Reel' } };
   }
@@ -93,7 +94,7 @@ async function readReel(reelUrl, cacheKey) {
 }
 
 // Google Maps details for one result, shared by everyone who saves that place.
-async function readDetails(candidate, query, reel) {
+async function readDetails(candidate, query, reel, getBrowser) {
   const cached = await readCache('place_lookups', candidate.url, PLACE_CACHE_DAYS);
   if (cached?.data) return { details: cached.data, detailsError: null };
 
@@ -104,7 +105,7 @@ async function readDetails(candidate, query, reel) {
     placeAddress: candidate.address,
     placeName: candidate.name,
     location: candidate.address || reel.location,
-  });
+  }, getBrowser);
   if (detailsResponse.statusCode >= 400) {
     return { details: null, detailsError: detailsResponse.body?.error || 'Could not read Google Maps details' };
   }
@@ -112,15 +113,26 @@ async function readDetails(candidate, query, reel) {
   return { details: detailsResponse.body, detailsError: null };
 }
 
-// req.backgroundOnly is set by /api/save-reel, which runs this while the app is closed. Nobody can
-// pick a place then, so Maps details are only read when the search found exactly one place.
+// One Chrome for every step of this lookup (reel, Maps search, Maps details), started only when a
+// step needs it. Starting Chrome takes a second or two each time, so this saves up to two starts.
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  let launching = null;
+  const getBrowser = () => (launching ??= launchBrowser());
+  try {
+    return await enrich(req, res, getBrowser);
+  } finally {
+    if (launching) await closeBrowser(await launching.catch(() => null));
+  }
+};
 
+// req.backgroundOnly is set by /api/save-reel, which runs this while the app is closed. Nobody can
+// pick a place then, so Maps details are only read when the search found exactly one place.
+async function enrich(req, res, getBrowser) {
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const cacheKey = canonicalInstagramUrl(reelUrl);
-  const read = await readReel(reelUrl, cacheKey);
+  const read = await readReel(reelUrl, cacheKey, getBrowser);
   if (!read.reel) return res.status(read.status).json(read.body);
 
   const { reel } = read;
@@ -146,7 +158,7 @@ module.exports = async function handler(req, res) {
       placeName: reel.placeName,
       location: reel.location,
       caption: reel.caption,
-    });
+    }, getBrowser);
     if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
       // The Reel is still worth keeping: the next lookup only needs to retry the search.
       if (!read.fromCache) await saveReel(null);
@@ -178,11 +190,11 @@ module.exports = async function handler(req, res) {
   }
 
   const { details, detailsError } = selectedCandidate
-    ? await readDetails(selectedCandidate, query, reel)
+    ? await readDetails(selectedCandidate, query, reel, getBrowser)
     : { details: null, detailsError: null };
 
   return res.status(200).json({
     ...reel,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
-};
+}

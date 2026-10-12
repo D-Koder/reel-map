@@ -1,6 +1,8 @@
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
 const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
+
+// The video file and fonts are never read. Images are kept: the cover can come from an <img>.
+const SKIP = ['media', 'font'];
 
 function parseCount(value) {
   const match = String(value ?? '').trim().replace(/,/g, '').match(/^([\d.]+)\s*([KMB])?$/i);
@@ -148,21 +150,11 @@ module.exports = async function handler(req, res) {
   }
 
   let browser;
+  let owned = false;
+  let page;
   try {
-    const isVercel = Boolean(process.env.VERCEL);
-    browser = await puppeteer.launch({
-      args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
-      defaultViewport: { width: 1280, height: 900 },
-      executablePath: isVercel
-        ? await chromium.executablePath()
-        : process.env.PUPPETEER_EXECUTABLE_PATH,
-      headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-    );
+    ({ browser, owned } = await browserFor(req));
+    page = await openPage(browser, SKIP);
     await page.goto(reelUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
     if (isTikTok) {
       await page.waitForSelector('[data-e2e="video-desc"]', { timeout: 15000 }).catch(() => {});
@@ -250,11 +242,7 @@ module.exports = async function handler(req, res) {
     console.error('Reel DOM scrape failed:', error);
     return res.status(502).json({ error: `${platform} did not provide the video page data. Try again or enter the place details manually.` });
   } finally {
-    if (process.env.REEL_ENRICHMENT_VISIBLE === '1' && browser) {
-      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__ ??= [];
-      globalThis.__REEL_ENRICHMENT_TEST_BROWSERS__.push(browser);
-    } else {
-      await browser?.close().catch(() => {});
-    }
+    if (owned) await closeBrowser(browser);
+    else await closePage(page);
   }
 };
