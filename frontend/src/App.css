@@ -1,49 +1,67 @@
 /* ---------- TOKENS ---------- */
+/* Night Out theme: warm paper by day, navy at night. Tomato and butter carry the fun;
+   cards stay quiet so photos and votes do the talking. */
 :root {
   color-scheme: light dark;
-  --bg: #f5f5f0;
-  --surface: #fefdfb;
-  --surface-glass: rgba(254, 253, 251, 0.96);
+  --font-body: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #efebe2;
+  --surface: #f6f3ec;
+  --surface-glass: rgba(246, 243, 236, 0.96);
   --card: #ffffff;
-  --surface-muted: #f1efe8;
-  --surface-hover: #e8e6dd;
-  --border: #d3d1c7;
-  --text: #2c2c2a;
+  --surface-muted: #ece7dc;
+  --surface-hover: #e3ddd0;
+  --border: #ddd6c7;
+  --text: #1a1a18;
   /* 4.5:1 or better on every light surface */
-  --text-muted: #6b6a63;
+  --text-muted: #66645d;
+  /* Outlines and hard shadows on the playful bits (+ button, primary buttons, ticket stub). */
+  --ink: #1a1a18;
+  --hard-shadow: #1a1a18;
   /* White text on these passes 4.5:1 */
-  --accent: #c2491f;
-  --accent-strong: #a33b1a;
-  --accent-soft: #fde8df;
-  --accent-softer: #fffaf6;
-  --accent-light: #fde8df;
-  --inverse-bg: #2c2c2a;
+  --accent: #d4421d;
+  --accent-strong: #b5361a;
+  /* Orange for text and icons on the page background (5:1 or better). */
+  --accent-text: #b5361a;
+  /* Brighter tomato for large fills with an icon only (3.5:1 with white). */
+  --accent-bright: #f0532d;
+  --accent-soft: #fde3d9;
+  --accent-softer: #fff6f1;
+  --accent-light: #fde3d9;
+  --butter: #ffd23f;
+  --lilac: #cdbfff;
+  --mint: #a6e9c6;
+  --inverse-bg: #1a1a18;
+  /* Orange text on the inverse colour (toasts). */
+  --accent-on-inverse: #ff8a63;
   --success: #2e9e5b;
-  --success-bg: #eaf3de;
-  --success-text: #3b6d11;
-  --warn-bg: #fff4e5;
-  --warn-border: #f0c89b;
+  --success-bg: #dff5e9;
+  --success-text: #1f6b45;
+  --warn-bg: #fff4e0;
+  --warn-border: #f0c88a;
   --warn-text: #8a4b08;
   --danger: #c62f2f;
   --danger-strong: #a32424;
   --danger-bg: #fdecec;
   --danger-text: #a12a2a;
-  --vibe-both-bg: linear-gradient(135deg, #f5ddd4 0%, #fde8df 100%);
-  --vibe-both-border: #f0b8a0;
-  --vibe-mixed-bg: linear-gradient(135deg, #fef3e6 0%, #fef8f0 100%);
-  --vibe-mixed-border: #f0c89b;
-  --vibe-none-bg: linear-gradient(135deg, #f1f0ed 0%, #f5f4f1 100%);
-  --cat-cafe-bg: #f1e4d6;
-  --cat-cafe-fg: #8a5a2b;
-  --cat-food-bg: #fbe3d8;
-  --cat-food-fg: #b04318;
-  --cat-event-bg: #ebe2f6;
-  --cat-event-fg: #6b46a8;
-  --cat-other-bg: #e9ece4;
-  --cat-other-fg: #55604a;
+  --vibe-both-bg: #fff0e8;
+  --vibe-both-border: #f4ad93;
+  --vibe-mixed-bg: #fff8e6;
+  --vibe-mixed-border: #efd38a;
+  --vibe-none-bg: var(--card);
+  --cat-cafe-bg: #ffe9a3;
+  --cat-cafe-fg: #6b4e00;
+  --cat-food-bg: #ffd6c8;
+  --cat-food-fg: #9a3412;
+  --cat-event-bg: #e3dbff;
+  --cat-event-fg: #5b3fb0;
+  --cat-other-bg: #e5ecd9;
+  --cat-other-fg: #4d5a3c;
 
-  --header-h: 52px;
-  --nav-h: 60px;
+  --header-h: 56px;
+  --nav-h: 64px;
   --tap: 44px;
   --gutter: 16px;
   /* Three corner sizes only: chips and inputs, cards and sheets, pills. Circles use 50%. */
@@ -56,27 +74,33 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-/* Dark theme follows the phone's setting. */
+/* Dark theme follows the phone's setting: navy, like a night out, not plain black. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161614;
-    --surface: #1e1e1b;
-    --surface-glass: rgba(30, 30, 27, 0.96);
-    --card: #262622;
-    --surface-muted: #2c2c28;
-    --surface-hover: #36362f;
-    --border: #44443d;
-    --text: #ecece8;
-    --text-muted: #a8a79e;
-    --accent: #c2491f;
-    --accent-strong: #d9663d;
+    --bg: #0b0e1e;
+    --surface: #10142a;
+    --surface-glass: rgba(16, 20, 42, 0.96);
+    --card: #1b2140;
+    --surface-muted: #222a4d;
+    --surface-hover: #2a3358;
+    --border: #2e365c;
+    --text: #f3efe6;
+    --text-muted: #a7aecb;
+    --ink: #f3efe6;
+    /* Tomato hard shadow; black would vanish on navy. */
+    --hard-shadow: #f0532d;
+    --accent: #d4421d;
+    --accent-strong: #e8582f;
+    --accent-text: #ff8a63;
+    --accent-bright: #f0532d;
     --accent-soft: #3d2519;
-    --accent-softer: #2a201b;
+    --accent-softer: #2a1d24;
     --accent-light: #3d2519;
-    --inverse-bg: #45453f;
+    --inverse-bg: #f3efe6;
+    --accent-on-inverse: #b5361a;
     --success: #4cc27a;
-    --success-bg: #1f3324;
-    --success-text: #8fd6a4;
+    --success-bg: #173a2c;
+    --success-text: #8fe3b5;
     --warn-bg: #352a17;
     --warn-border: #6b5222;
     --warn-text: #f0c98a;
@@ -84,18 +108,18 @@
     --danger-strong: #e04848;
     --danger-bg: #3a1d1d;
     --danger-text: #f2a3a3;
-    --vibe-both-bg: linear-gradient(135deg, #3d2519 0%, #33221a 100%);
-    --vibe-both-border: #6b3a26;
-    --vibe-mixed-bg: linear-gradient(135deg, #33291a 0%, #2c251a 100%);
+    --vibe-both-bg: #2e2233;
+    --vibe-both-border: #7a3f2c;
+    --vibe-mixed-bg: #2a2a33;
     --vibe-mixed-border: #5e4a26;
-    --vibe-none-bg: linear-gradient(135deg, #262622 0%, #232320 100%);
-    --cat-cafe-bg: #3a2c1f;
-    --cat-cafe-fg: #e3b98c;
+    --vibe-none-bg: var(--card);
+    --cat-cafe-bg: #3a3120;
+    --cat-cafe-fg: #ffd97a;
     --cat-food-bg: #3d2519;
-    --cat-food-fg: #f0a07e;
-    --cat-event-bg: #2e2540;
-    --cat-event-fg: #c5aef0;
-    --cat-other-bg: #2a2e25;
+    --cat-food-fg: #ffb59c;
+    --cat-event-bg: #2c2752;
+    --cat-event-fg: #cdbfff;
+    --cat-other-bg: #26302a;
     --cat-other-fg: #b5c2a3;
   }
 }
@@ -113,7 +137,7 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -242,7 +266,7 @@ button {
 }
 
 .nav-tab.active {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .nav-tab.active .nav-icon {
@@ -912,19 +936,19 @@ button.collection-empty {
 }
 
 .pin-marker.both-in {
-  background: linear-gradient(135deg, #d85a30, #f0997b);
+  background: var(--accent-bright);
 }
 
 .pin-marker.mixed-vibes {
-  background: linear-gradient(135deg, #f0b839, #f5d084);
+  background: var(--butter);
 }
 
 .pin-marker.no-votes {
-  background: linear-gradient(135deg, #c9c6bd, #e2dfd6);
+  background: #c9c4b6;
 }
 
 .pin-marker.no-consensus {
-  background: linear-gradient(135deg, #b0aca3, #d0ccc3);
+  background: #a7a294;
 }
 
 /* ---------- SETTINGS DRAWER ---------- */
@@ -1290,7 +1314,7 @@ button.collection-empty {
   border: 1px solid var(--accent);
   border-radius: var(--radius-pill);
   background: var(--card);
-  color: var(--accent);
+  color: var(--accent-text);
   cursor: pointer;
   font-size: 15px;
   font-weight: 600;
@@ -1341,7 +1365,7 @@ button.collection-empty {
 .person-tag {
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--accent-soft);
   padding: 2px 6px;
   border-radius: var(--radius-pill);
@@ -1373,7 +1397,7 @@ button.collection-empty {
 
 select.step-input {
   appearance: none;
-  background: white
+  background: var(--card)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888780' stroke-width='1.5'/%3E%3C/svg%3E")
     no-repeat right 12px center;
   padding-right: 32px;
@@ -1695,7 +1719,7 @@ select.step-input {
   align-items: center;
   justify-content: center;
   padding: calc(24px + var(--safe-top)) var(--gutter) calc(24px + var(--safe-bottom));
-  background: linear-gradient(160deg, var(--accent-soft) 0%, var(--bg) 45%, var(--success-bg) 100%);
+  background: var(--surface);
 }
 
 .auth-card {
@@ -1710,7 +1734,7 @@ select.step-input {
 .auth-logo {
   font-size: 40px;
   text-align: center;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .auth-logo svg {
@@ -1770,7 +1794,7 @@ select.step-input {
 }
 
 .link-btn strong {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .avatar-grid {
@@ -2027,7 +2051,7 @@ select.step-input {
 
 .empty-emoji {
   font-size: 48px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .empty-emoji svg {
@@ -2324,7 +2348,7 @@ select.step-input {
   width: max-content;
   max-width: calc(100% - 2 * var(--gutter));
   background: var(--inverse-bg);
-  color: white;
+  color: var(--surface);
   padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 14px;
@@ -2339,7 +2363,7 @@ select.step-input {
 .toast-action {
   border: none;
   background: none;
-  color: #f0997b;
+  color: var(--accent-on-inverse);
   font-size: 14px;
   font-weight: 700;
   min-height: 32px;
@@ -2525,7 +2549,7 @@ select.step-input {
 
 .transfer-btn:active {
   background: var(--inverse-bg);
-  color: white;
+  color: var(--surface);
 }
 
 .transfer-btn:disabled {
@@ -3134,7 +3158,7 @@ svg.nav-icon {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--accent-text);
   font: inherit;
   font-size: 14px;
   text-decoration: underline;
@@ -3154,3 +3178,136 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 }
 .shortcut-connected span { font-size: 14px; font-weight: 400; color: var(--text-muted); }
 .shortcut-status { margin: 0; font-size: 14px; color: var(--text-muted); }
+
+/* ---------- NIGHT OUT THEME ---------- */
+/* Playful where people act (the + button, primary buttons, booked dates), quiet where they read
+   (cards, lists). Colours and fonts come from the tokens at the top. */
+
+/* Display font for names and headings. */
+.header-title,
+.collection-title,
+.modal-title,
+.settings-header,
+.notification-header,
+.empty-state h2,
+.auth-title,
+.map-place-list-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Wordmark: "reel map." with a tomato full stop. */
+.header-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.wordmark-dot {
+  color: var(--accent-bright);
+}
+
+.collection-title {
+  font-size: 20px;
+}
+
+.modal-title {
+  font-size: 20px;
+}
+
+.empty-state h2,
+.auth-title {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+/* + button: a sticker with a hard shadow. Pressing pushes it into its shadow. */
+.fab {
+  background: var(--accent-bright);
+  border: 1.5px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--hard-shadow);
+}
+
+.fab:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hard-shadow);
+}
+
+/* Buttons are pills. The main action gets the sticker treatment too. */
+.step-btn {
+  border-radius: var(--radius-pill);
+}
+
+.step-btn.primary {
+  border: 1.5px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--hard-shadow);
+}
+
+.step-btn.primary:not(:disabled):active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hard-shadow);
+}
+
+.step-btn.secondary {
+  border: 1.5px solid var(--border);
+}
+
+/* Bottom bar: the active tab is ink and bold, not orange, so the + button stays the only bright thing. */
+.nav-tab.active {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Place cards stay calm: hairline border, no shadow. Only the card being moved gets a sticker shadow. */
+.pin-item {
+  background: var(--card);
+}
+
+.pin-item.floating {
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--hard-shadow);
+}
+
+.pin-custom-info {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Booked date reads like a printed ticket. */
+.date-chip {
+  background: var(--mint);
+  color: #0b2a1c;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vote-nudge {
+  background: none;
+  padding: 0;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* Your monthly streak: a lilac pill. */
+.streak {
+  background: var(--lilac);
+  color: #1a1a18;
+  border-radius: var(--radius-pill);
+}
+
+/* Sheets slide up with an ink edge, like a card pulled from a pocket. */
+.modal {
+  border-top: 1.5px solid var(--ink);
+}
+
+.planned-date {
+  font-family: var(--font-mono);
+}
+
+.auth-card {
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--hard-shadow);
+}

@@ -348,7 +348,7 @@ function MainApp({ userId, showToast }) {
   return (
     <div className="app">
       <header className="header">
-        <span className="header-title"><MapPin className="ico" aria-hidden="true" /> Reel Map</span>
+        <span className="header-title">reel map<span className="wordmark-dot" aria-hidden="true">.</span></span>
         <div className="header-buttons">
           <button
             className="header-btn"
