@@ -618,7 +618,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     {scrapedData.likes != null && <><Heart className="ico" aria-hidden="true" /> {Number(scrapedData.likes).toLocaleString()}</>}
                     {scrapedData.likes != null && scrapedData.comments != null && ' · '}
                     {scrapedData.comments != null && <><MessageCircle className="ico" aria-hidden="true" /> {Number(scrapedData.comments).toLocaleString()}</>}
-                    {scrapedData.likes == null && scrapedData.comments == null && 'Counts unavailable'}
+                    {/* The quick lookup has no counts, so the creator is shown instead. */}
+                    {scrapedData.likes == null && scrapedData.comments == null && (scrapedData.creator ? `@${scrapedData.creator}` : 'Counts unavailable')}
                   </div>
                 </div>
                 <button

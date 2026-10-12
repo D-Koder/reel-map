@@ -4,6 +4,7 @@ const { canonicalInstagramUrl } = require('./_lib/reel-url');
 const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
 const { readCache, writeCache, DAY } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
+const { captionVenue } = require('./_lib/caption');
 
 // How long saved lookups are reused. Captions don't change; opening hours and phone numbers can.
 const REEL_CACHE_DAYS = 30;
@@ -139,7 +140,7 @@ async function enrich(req, res, getBrowser) {
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query.
-  const venue = reel.caption.match(/[📍📌]\s*([^\n#()🏷]+)/u)?.[1].trim();
+  const venue = captionVenue(reel.caption);
   const flipped = flipCaption(reel.caption);
   const query = (venue ? `📍${venue} ${flipped}` : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   const saveReel = (search) => writeCache('reel_lookups', cacheKey, { reel: { ...reel, reelUrl: cacheKey }, search });

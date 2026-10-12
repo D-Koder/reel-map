@@ -1,5 +1,6 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
 const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
+const { captionVenue } = require('./_lib/caption');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
 const SKIP = ['media', 'font'];
@@ -42,10 +43,9 @@ function parseCaptionDetails(caption) {
   };
 }
 
-// The 📍 can sit mid-line, e.g. "(📍@venue)", so match it anywhere and stop at
-// the first "(", "#" or 🏷 that follows the venue.
+// "Venue - Suburb" splits into a name and a location; anything else is all location.
 function parseCaptionLocation(caption) {
-  const line = caption.match(/[📍📌]\s*([^\n#()🏷]+)/u)?.[1].trim() ?? '';
+  const line = captionVenue(caption);
   const separator = line.match(/\s+[-–—]\s+/u);
   if (!separator || separator.index === undefined) return { placeName: '', location: line };
   return {
@@ -233,8 +233,9 @@ module.exports = async function handler(req, res) {
     if (isTikTok && !scraped.caption) throw new Error('TikTok caption was not found on the page');
 
     const captionDetails = parseCaptionDetails(scraped.caption || '');
-    if (captionDetails.placeName) scraped.placeName = captionDetails.placeName;
-    if (captionDetails.location) scraped.location = captionDetails.location;
+    // The caption rule always wins over the in-page guess, which takes any first pin (even "📌 Details:").
+    scraped.placeName = captionDetails.placeName;
+    scraped.location = captionDetails.location;
 
     scraped.thumbnailUrl = normalizeImageUrl(scraped.thumbnailUrl);
     return res.status(200).json(scraped);

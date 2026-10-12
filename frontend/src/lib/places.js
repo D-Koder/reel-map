@@ -101,11 +101,23 @@ export function bestPlaceMatch(candidates, hints = []) {
   return null;
 }
 
+// The venue written after a pin in a caption. 📍 wins over 📌, because captions also use 📌 for
+// headings like "📌 Details:". Same rule as captionVenue in api/_lib/caption.js.
+export function captionVenue(caption) {
+  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷]+)/gu)]
+    .map(([, pin, text]) => ({
+      pin,
+      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '').trim(),
+    }))
+    .filter(({ text }) => text && !text.endsWith(':'));
+  return (found.find(({ pin }) => pin === '📍') ?? found[0])?.text ?? '';
+}
+
 // Name hints from a reel lookup, best first: the tagged place, the 📍 venue, then the first part of the location.
 export function reelPlaceHints(reel) {
   return [
     String(reel?.placeName ?? '').replace(/^@/, ''),
-    reel?.caption?.match(/[📍📌]\s*([^\n#()🏷,]+)/u)?.[1],
+    captionVenue(reel?.caption).split(',')[0].trim(),
     reel?.location?.split(',')[0],
   ].filter(Boolean);
 }
