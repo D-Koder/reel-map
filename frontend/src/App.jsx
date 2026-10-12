@@ -16,6 +16,7 @@ import Celebration from './components/Celebration';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
+import { useNearbyAlerts } from './hooks/useNearbyAlerts';
 import { useNotifications } from './hooks/useNotifications';
 import { useOnline } from './hooks/useOnline';
 import { useReelCovers } from './hooks/useReelCovers';
@@ -48,6 +49,7 @@ function Toast({ toast, onDismiss }) {
 
 // How long a delete can be undone. The delete is only sent once this runs out.
 const SHOW_LOCATION_KEY = 'reelmap:show-my-location';
+const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
 function MainApp({ userId, showToast }) {
@@ -70,6 +72,13 @@ function MainApp({ userId, showToast }) {
   const toggleMyLocation = (on) => {
     setShowMyLocation(on);
     writeJSON(SHOW_LOCATION_KEY, on);
+  };
+  // Tell me when I'm near a place I'm keen on. Off until turned on, so the app doesn't ask
+  // for location the moment it opens. This device only.
+  const [nearAlerts, setNearAlerts] = useState(() => readJSON(NEAR_ALERTS_KEY, false));
+  const toggleNearAlerts = (on) => {
+    setNearAlerts(on);
+    writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll } = useNotifications(userId);
@@ -157,6 +166,7 @@ function MainApp({ userId, showToast }) {
     collections,
     places,
     addPlace: data.addPlace,
+    createCollection: data.createCollection,
     online,
     showToast,
     onSaved: (placeId, name, collectionName) =>
@@ -164,7 +174,18 @@ function MainApp({ userId, showToast }) {
   });
 
   // Reels saved by the iPhone Shortcut while the app was closed join the inbox.
-  useShortcutReels({ userId, ready: collections.length > 0, enqueue: inbox.enqueue });
+  useNearbyAlerts({
+    userId,
+    places,
+    enabled: nearAlerts,
+    onNear: (place, metres) => {
+      const message = `You're ${metres < 50 ? 'right by' : `${metres} m from`} ${place.name}. You're keen on it!`;
+      showToast(message, { label: 'Open', onClick: () => setOpenPinId(`${place.collection_id}:${place.id}`) }, 8000);
+      navigator.vibrate?.([30, 60, 30]);
+    },
+  });
+
+  useShortcutReels({ userId, ready: !data.loading, enqueue: inbox.enqueue });
 
   // Coming back online: load anything that changed while offline.
   const wasOnline = useRef(online);
@@ -208,13 +229,15 @@ function MainApp({ userId, showToast }) {
     [collections]
   );
 
-  // A fresh cover replaces the saved link. When the lookup finds none, the saved link stays:
-  // it may still load, and if it doesn't the card shows its colour tile.
+  // A fresh cover goes first, with the saved link kept as a backup: Instagram's fresh links
+  // sometimes refuse to load on other sites. If neither loads, the card shows its colour tile.
   const covers = useReelCovers(places);
   const placesWithCovers = useMemo(
     () => places.map((place) => {
       const fresh = covers.map[place.reel_url]?.thumbnail_url;
-      return fresh ? { ...place, reel_thumbnail_url: fresh } : place;
+      return fresh && fresh !== place.reel_thumbnail_url
+        ? { ...place, reel_thumbnail_url: fresh, saved_thumbnail_url: place.reel_thumbnail_url }
+        : place;
     }),
     [places, covers.map]
   );
@@ -266,11 +289,11 @@ function MainApp({ userId, showToast }) {
 
   // A shared reel is saved straight away and looked up in the background: no sheet, no extra taps.
   useEffect(() => {
-    if (!pendingShareUrl || collections.length === 0) return;
+    if (!pendingShareUrl || data.loading) return;
     setPendingShareUrl(null);
     setScreen('home');
     inbox.enqueue(pendingShareUrl);
-  }, [pendingShareUrl, collections.length, inbox]);
+  }, [pendingShareUrl, data.loading, inbox]);
 
   // Takes you to what a notification is about: a place opens its card, so you see the update;
   // a collection is scrolled to on Home.
@@ -475,6 +498,8 @@ function MainApp({ userId, showToast }) {
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
         showMyLocation={showMyLocation}
         onToggleMyLocation={toggleMyLocation}
+        nearAlerts={nearAlerts}
+        onToggleNearAlerts={toggleNearAlerts}
       />
 
       <DeleteAccountModal

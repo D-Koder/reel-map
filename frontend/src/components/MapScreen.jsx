@@ -206,6 +206,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const [nearby, setNearby] = useState(null);
   const pressMarkerRef = useRef(null);
   const [searchText, setSearchText] = useState('');
+  // The text a suggestion was picked for. The list stays closed until the text changes.
+  const pickedTextRef = useRef(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
   // Groups the suggestions for one search and the pick that follows, for Mapbox billing.
@@ -466,7 +468,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
         here = [position.coords.longitude, position.coords.latitude];
         marker.setLngLat(here);
         if (!marker.getElement().isConnected) marker.addTo(map);
-        setSearchBias(here);
+        // Only the first fix: search ranking doesn't need every step you take.
+        setSearchBias((current) => current ?? here);
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 },
@@ -510,7 +513,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Runs again when the user's location arrives, so results re-rank.
   useEffect(() => {
     const text = searchText.trim();
-    if (text.length < 3) {
+    if (text.length < 3 || pickedTextRef.current === searchText) {
       setSearchResults([]);
       setSearchStatus('');
       return undefined;
@@ -538,6 +541,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   }, [searchText, searchBias]);
 
   const clearSearch = () => {
+    pickedTextRef.current = null;
     setSearchText('');
     setSearchResults([]);
     setSearchStatus('');
@@ -551,7 +555,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     if (!map) return;
     const sessionToken = searchSessionRef.current ?? crypto.randomUUID();
     searchSessionRef.current = null;
-    // The typed text stays as it is. Only the suggestion list closes.
+    // The typed text stays as it is. Only the suggestion list closes, and stays closed.
+    pickedTextRef.current = searchText;
     setSearchResults([]);
     setSearchStatus('retrieving');
     let coords;

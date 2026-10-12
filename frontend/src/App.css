@@ -3839,9 +3839,10 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 }
 
 /* ---------- SHEETS ABOVE THE KEYBOARD ---------- */
-/* The overlay covers only the visible part of the screen (see lib/viewport.js),
-   so a bottom sheet sits on top of the iPhone keyboard instead of behind it. */
-.modal-overlay {
+/* While the keyboard is up, the overlay covers only the visible part of the screen
+   (see lib/viewport.js), so a bottom sheet sits on top of the keyboard instead of behind it.
+   Only then: the rest of the time the overlay stays still while the page bounces. */
+.keyboard-open .modal-overlay {
   inset: auto 0 auto 0;
   top: var(--vv-top, 0px);
   height: var(--vv-height, 100%);
@@ -3964,4 +3965,13 @@ button.profile-open {
   justify-content: center;
   gap: 6px;
   margin: 0;
+}
+
+.ticket-tag-maybe {
+  background: var(--mint);
+}
+
+/* Springs back smoothly when a pull-down is let go too early. */
+.modal {
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }

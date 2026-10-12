@@ -5,7 +5,15 @@ import { readJSON, writeJSON } from '../lib/storage';
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
 
-// The collection a place was last added to. Shared reels go there.
+// Reels shared while scrolling land in this built-in collection, to sort out later.
+export const INBOX_COLLECTION = { name: 'TBD', emoji: '📥' };
+
+// My TBD collection, if I have one.
+export function findInboxCollection(collections, userId) {
+  return collections.find((c) => c.ownerId === userId && c.name === INBOX_COLLECTION.name) ?? null;
+}
+
+// The collection a place was last added to by hand.
 export function rememberCollection(userId, collectionId) {
   if (collectionId) writeJSON(lastCollectionKey(userId), collectionId);
 }
@@ -13,25 +21,39 @@ export function rememberCollection(userId, collectionId) {
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
 // Reels shared into the app. Each one is kept on this device straight away, so it is never lost,
-// then looked up in the background and added to the last collection used.
+// then looked up in the background and added to TBD (made the first time it's needed).
 // Item status: 'saving' | 'offline' (waits for a connection) | 'needs-place' (lookup found no venue) | 'failed'.
-export function useReelInbox({ userId, collections, places, addPlace, online, showToast, onSaved }) {
+export function useReelInbox({ userId, collections, places, addPlace, createCollection, online, showToast, onSaved }) {
   const [items, setItems] = useState(() => readJSON(inboxKey(userId), []));
   const running = useRef(new Set());
   // The latest props, for lookups that finish after a re-render.
   const latest = useRef();
-  latest.current = { collections, places, addPlace, showToast, onSaved, items };
+  latest.current = { collections, places, addPlace, createCollection, showToast, onSaved, items };
+  // One TBD at a time, even when several reels arrive together.
+  const creatingInbox = useRef(null);
 
   useEffect(() => writeJSON(inboxKey(userId), items), [userId, items]);
 
   const update = (id, patch) => setItems((list) => list.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   const remove = useCallback((id) => setItems((list) => list.filter((item) => item.id !== id)), []);
 
-  const pickCollection = useCallback(() => {
-    const { collections } = latest.current;
-    const last = readJSON(lastCollectionKey(userId));
-    return collections.find((c) => c.id === last)?.id ?? collections[0]?.id ?? null;
-  }, [userId]);
+  const pickCollection = useCallback(
+    () => findInboxCollection(latest.current.collections, userId)?.id ?? null,
+    [userId]
+  );
+
+  // TBD's id, making the collection if I don't have one yet.
+  const inboxCollectionId = useCallback(async () => {
+    const existing = pickCollection();
+    if (existing) return existing;
+    creatingInbox.current ??= Promise.resolve(
+      latest.current.createCollection(INBOX_COLLECTION.name, INBOX_COLLECTION.emoji)
+    ).finally(() => {
+      creatingInbox.current = null;
+    });
+    const created = await creatingInbox.current;
+    return typeof created === 'string' ? created : null;
+  }, [pickCollection]);
 
   const process = useCallback(async (item) => {
     if (running.current.has(item.id)) return;
@@ -41,7 +63,8 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
       // The collection may have been deleted while this reel waited.
       const collectionId = latest.current.collections.some((c) => c.id === item.collectionId)
         ? item.collectionId
-        : pickCollection();
+        : await inboxCollectionId();
+      if (!collectionId) throw new Error('No collection to save into');
       const response = await fetch('/api/enrich-reel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,15 +107,15 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
     } finally {
       running.current.delete(item.id);
     }
-  }, [pickCollection, remove]);
+  }, [inboxCollectionId, remove]);
 
-  // Returns false when there's nowhere to save it yet (no collections).
   const enqueue = useCallback((url) => {
+    // Null until TBD exists. The lookup makes it.
     const collectionId = pickCollection();
-    if (!collectionId) return false;
     const { places, collections, showToast } = latest.current;
-    const collectionName = collections.find((c) => c.id === collectionId)?.name ?? 'your collection';
-    if (places.some((p) => p.reel_url === url && p.collection_id === collectionId)) {
+    const saved = places.find((p) => p.reel_url === url);
+    if (saved) {
+      const collectionName = collections.find((c) => c.id === saved.collection_id)?.name ?? 'your collection';
       showToast(`Already saved in ${collectionName}`);
       return true;
     }
@@ -108,13 +131,12 @@ export function useReelInbox({ userId, collections, places, addPlace, online, sh
   }, [pickCollection, process]);
 
   // Picks up reels that were waiting for a connection, or were mid-lookup when the app closed.
-  const hasCollections = collections.length > 0;
   useEffect(() => {
-    if (!online || !hasCollections) return;
+    if (!online) return;
     items.filter((item) => item.status === 'saving' || item.status === 'offline').forEach(process);
-    // Only when the connection or collections change; `items` changes on every status update.
+    // Only when the connection changes; `items` changes on every status update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, hasCollections, process]);
+  }, [online, process]);
 
   return { items, enqueue, retry: process, remove };
 }

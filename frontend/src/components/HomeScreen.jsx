@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarCheck, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sprout, Users } from 'lucide-react';
+import { CalendarCheck, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import PlaceThumb from './PlaceThumb';
 import { formatDateTime } from '../lib/constants';
@@ -13,7 +13,8 @@ const MONTHS_AHEAD = 3;
 // Up next picks one thing, in this order:
 // 1. the soonest booking still to come,
 // 2. the soonest unbooked event in the next three months,
-// 3. a food or cafe place I'm keen on and nobody has booked (most keen votes first).
+// 3. a food or cafe place I'm keen on and nobody has booked (most keen votes first),
+// 4. else one I said maybe to, so there's still something to look at.
 export function pickUpNext(places, userId, now = new Date()) {
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
@@ -35,10 +36,14 @@ export function pickUpNext(places, userId, now = new Date()) {
   if (event) return { kind: 'event', place: event, date: eventDay(event) };
 
   const keenCount = (p) => Object.values(p.reactions ?? {}).filter((v) => v === 'keen').length;
-  const keen = unbooked
-    .filter((p) => (p.category === 'food' || p.category === 'cafe') && p.reactions?.[userId] === 'keen')
+  const eatOut = unbooked.filter((p) => p.category === 'food' || p.category === 'cafe');
+  const mostKeen = (vote) => eatOut
+    .filter((p) => p.reactions?.[userId] === vote)
     .sort((a, b) => keenCount(b) - keenCount(a))[0];
+  const keen = mostKeen('keen');
   if (keen) return { kind: 'keen', place: keen };
+  const maybe = mostKeen('maybe');
+  if (maybe) return { kind: 'maybe', place: maybe };
   return null;
 }
 
@@ -46,6 +51,7 @@ const TAGS = {
   booked: { Icon: CalendarCheck, label: 'Booked' },
   event: { Icon: PartyPopper, label: 'Coming up' },
   keen: { Icon: Flame, label: "You're keen" },
+  maybe: { Icon: Sparkles, label: 'Still deciding' },
 };
 
 function formatEventDay(date) {

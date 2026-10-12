@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -450,6 +450,19 @@ function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteC
   );
 }
 
+// Tell me when I'm near a place I'm keen on, while the app is open.
+function NearAlertsToggle({ on, onChange }) {
+  return (
+    <div className="cascade-delete-toggle">
+      <label>
+        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+        <Flame className="ico" aria-hidden="true" /> Tell me when I'm near a place I'm keen on
+      </label>
+      <div className="toggle-hint">Works while Reel Map is open. Phones don't let web apps check your location in the background.</div>
+    </div>
+  );
+}
+
 // Show or hide my blue dot on the map. This device only; the location is never saved.
 function LocationToggle({ on, onChange }) {
   return (
@@ -480,6 +493,8 @@ export default function SettingsDrawer({
   onOpenDeleteModal,
   showMyLocation = true,
   onToggleMyLocation,
+  nearAlerts = false,
+  onToggleNearAlerts,
 }) {
   const [newName, setNewName] = useState('');
   const [email, setEmail] = useState('');
@@ -546,6 +561,7 @@ export default function SettingsDrawer({
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <FridayPickToggle userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
+          {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
 
           <div className="settings-section">
