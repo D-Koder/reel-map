@@ -57,10 +57,22 @@ async function copyText(text, label, showToast) {
   }
 }
 
+// The shared "Save to Reel Map" Shortcut (an iCloud link). The Shortcut's name must match SHORTCUT_NAME.
+const SHORTCUT_URL = import.meta.env.VITE_SHORTCUT_URL;
+const SHORTCUT_NAME = 'Save to Reel Map';
+
+// Runs the Shortcut with "reelmap-key:<key>". The Shortcut saves the key on the phone,
+// so it is never pasted by hand. Running it again (after a new key) replaces the saved one.
+function connectShortcut(key) {
+  const params = new URLSearchParams({ name: SHORTCUT_NAME, input: 'text', text: `reelmap-key:${key}` });
+  window.location.href = `shortcuts://run-shortcut?${params.toString().replace(/\+/g, '%20')}`;
+}
+
 // Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
 // The key is only loaded once the section is opened.
 function ShortcutSetup({ showToast }) {
   const [open, setOpen] = useState(false);
+  const [manual, setManual] = useState(false);
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,7 +87,7 @@ function ShortcutSetup({ showToast }) {
   }, [open, key]);
 
   const resetKey = async () => {
-    if (!window.confirm('Make a new key? Your current Shortcut stops working until you paste the new key into it.')) return;
+    if (!window.confirm('Make a new key? Your Shortcut stops working until you tap Connect again.')) return;
     setBusy(true);
     const { data, error: rpcError } = await supabase.rpc('reset_shortcut_key');
     setBusy(false);
@@ -84,7 +96,7 @@ function ShortcutSetup({ showToast }) {
       return;
     }
     setKey(data);
-    showToast('🔑 New key made. Paste it into your Shortcut.');
+    showToast('🔑 New key made. Tap Connect to update your Shortcut.');
   };
 
   return (
@@ -96,27 +108,42 @@ function ShortcutSetup({ showToast }) {
         <div className="shortcut-setup">
           <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
 
-          <div className="shortcut-field">
-            <span className="input-label">1. Your web address</span>
-            <code className="shortcut-code">{endpoint}</code>
-            <button type="button" className="step-btn secondary" onClick={() => copyText(endpoint, 'address', showToast)}>Copy</button>
-          </div>
+          {SHORTCUT_URL && (
+            <a className="step-btn full-width" href={SHORTCUT_URL} target="_blank" rel="noreferrer">1. ⬇️ Get the Shortcut</a>
+          )}
+          <button type="button" className="step-btn full-width" disabled={!key} onClick={() => connectShortcut(key)}>
+            {SHORTCUT_URL ? '2. ' : ''}🔗 Connect it to my account
+          </button>
+          {error && <span className="toggle-hint">{error}</span>}
+          <p className="toggle-hint">
+            Connect opens Shortcuts and saves your key there. You'll see "✅ Reel Map connected".
+            Then share a reel → tap <strong>{SHORTCUT_NAME}</strong>.
+          </p>
 
-          <div className="shortcut-field">
-            <span className="input-label">2. Your secret key (don't share it)</span>
-            {error ? <span className="toggle-hint">{error}</span> : <code className="shortcut-code">{key ? `${key.slice(0, 6)}••••••••` : 'Loading…'}</code>}
-            <button type="button" className="step-btn secondary" disabled={!key} onClick={() => copyText(key, 'key', showToast)}>Copy</button>
-          </div>
-
-          <ol className="shortcut-steps">
-            <li>Open the <strong>Shortcuts</strong> app. Edit your Reel Map shortcut (or tap <strong>＋</strong> for a new one).</li>
-            <li>Tap <strong>ⓘ</strong>. Turn on <strong>Show in Share Sheet</strong>. Set it to receive <strong>URLs</strong> and <strong>Text</strong>.</li>
-            <li>Delete any <strong>Open URLs</strong> step. That step is what opens Reel Map.</li>
-            <li>Add <strong>Get Contents of URL</strong>. Paste address 1. Tap <strong>Show More</strong>: Method <strong>POST</strong>, Request Body <strong>JSON</strong>.</li>
-            <li>Add 2 Text fields: <strong>key</strong> = paste key 2. <strong>url</strong> = pick <strong>Shortcut Input</strong>.</li>
-            <li>Add <strong>Show Notification</strong>. Set it to show <strong>Contents of URL</strong>.</li>
-            <li>Done ✅ Share a reel → tap your shortcut → you'll see "Saved to Reel Map".</li>
-          </ol>
+          <button type="button" className="settings-link-btn" aria-expanded={manual} onClick={() => setManual((v) => !v)}>
+            {manual ? 'Hide' : 'Set it up by hand instead'}
+          </button>
+          {manual && (
+            <>
+              <div className="shortcut-field">
+                <span className="input-label">Your web address</span>
+                <code className="shortcut-code">{endpoint}</code>
+                <button type="button" className="step-btn secondary" onClick={() => copyText(endpoint, 'address', showToast)}>Copy</button>
+              </div>
+              <div className="shortcut-field">
+                <span className="input-label">Your secret key (don't share it)</span>
+                <code className="shortcut-code">{key ? `${key.slice(0, 6)}••••••••` : 'Loading…'}</code>
+                <button type="button" className="step-btn secondary" disabled={!key} onClick={() => copyText(key, 'key', showToast)}>Copy</button>
+              </div>
+              <ol className="shortcut-steps">
+                <li>In <strong>Shortcuts</strong>, edit your Reel Map shortcut. Delete any <strong>Open URLs</strong> step.</li>
+                <li>Tap <strong>ⓘ</strong>. Turn on <strong>Show in Share Sheet</strong> for <strong>URLs</strong> and <strong>Text</strong>.</li>
+                <li>Add <strong>Get Contents of URL</strong> with the address. Method <strong>POST</strong>, Request Body <strong>JSON</strong>.</li>
+                <li>Add 2 Text fields: <strong>key</strong> = your key. <strong>url</strong> = <strong>Shortcut Input</strong>.</li>
+                <li>Add <strong>Show Notification</strong> with <strong>Contents of URL</strong>.</li>
+              </ol>
+            </>
+          )}
 
           <button type="button" className="step-btn secondary full-width" disabled={busy} onClick={resetKey}>🔑 Make a new key</button>
         </div>

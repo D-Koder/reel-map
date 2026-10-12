@@ -3082,3 +3082,17 @@ svg.nav-icon {
   .map-pin-focused .pin-marker,
   .collection-flash { animation: none; }
 }
+
+.settings-link-btn {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+a.step-btn { display: block; text-align: center; text-decoration: none; }
