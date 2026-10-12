@@ -264,6 +264,16 @@ USER SUPPORT:
 
 
 ===============================================
+PLANNED: IMPORT + NEARBY ALERTS
+===============================================
+
+See 06-IDEAS-IMPORT-AND-NEARBY-ALERTS.txt for details.
+  • Import from Notes / pasted lists (best when places are in one city)
+  • Import Google Maps links and saved lists
+  • 🔔 "Alert me when I'm nearby" toggle on each place
+
+
+===============================================
 VERSIONING TIMELINE
 ===============================================
 

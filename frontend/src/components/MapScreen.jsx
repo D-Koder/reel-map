@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Coffee, MapPin, PartyPopper, UtensilsCrossed, X } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
@@ -75,6 +75,57 @@ async function retrievePlace(mapboxId, sessionToken, signal) {
   return { lng, lat };
 }
 
+// Straight-line distance in metres between two [lng, lat] points.
+function distanceMetres(lng1, lat1, lng2, lat2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(a));
+}
+
+function formatDistance(metres) {
+  return metres < 1000 ? `${Math.round(metres / 10) * 10 || 5} m` : `${(metres / 1000).toFixed(1)} km`;
+}
+
+// Our category from Mapbox's POI categories, e.g. ["coffee", "cafe"] → 'cafe'.
+function guessCategory(poiCategories = []) {
+  const text = poiCategories.join(' ').toLowerCase();
+  if (/caf|coffee|tea|bakery|dessert/.test(text)) return 'cafe';
+  if (/venue|theat|cinema|museum|gallery|stadium|arena|club|concert|entertainment|attraction|park/.test(text)) return 'event';
+  return 'food';
+}
+
+// Named places (shops, cafes, venues) around a held spot, nearest first. Up to 10, Mapbox's limit.
+async function nearbyPlaces(lng, lat, signal) {
+  const url = new URL(`${SEARCH_BASE}/reverse`);
+  url.searchParams.set('longitude', String(lng));
+  url.searchParams.set('latitude', String(lat));
+  url.searchParams.set('types', 'poi');
+  url.searchParams.set('limit', '10');
+  url.searchParams.set('language', 'en');
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox reverse returned HTTP ${response.status}`);
+  const data = await response.json();
+  return (data.features || [])
+    .map((feature) => {
+      const [placeLng, placeLat] = feature.geometry?.coordinates ?? [];
+      const props = feature.properties ?? {};
+      return {
+        id: props.mapbox_id ?? `${placeLng},${placeLat},${props.name}`,
+        name: props.name,
+        address: props.full_address || props.place_formatted || '',
+        lng: placeLng,
+        lat: placeLat,
+        category: guessCategory(props.poi_category),
+        distance: distanceMetres(lng, lat, placeLng, placeLat),
+      };
+    })
+    .filter((place) => place.name && Number.isFinite(place.lng) && Number.isFinite(place.lat))
+    .sort((a, b) => a.distance - b.distance);
+}
+
 // Ring that grows and fades at the tapped point, confirming the hold registered. Removes itself when done.
 function showPressRing(map, point) {
   const ring = document.createElement('div');
@@ -144,7 +195,16 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const markersRef = useRef([]);
   const hasFittedBounds = useRef(false);
   const isClosingModal = useRef(false);
-  const pendingZoomPlaceIdRef = useRef(null);  // ← ADD THIS LINE
+  // Marker element for each place id, so a focused place's pin can be highlighted.
+  const markerElsRef = useRef(new Map());
+  // The entry ("collection:place") picked from the list or a notification: its pin bounces and a label pops up.
+  const [focusedKey, setFocusedKey] = useState(null);
+  // A focus asked for before the map finished loading.
+  const pendingFocusRef = useRef(null);
+  const popupRef = useRef(null);
+  // The "What's here?" picker after a long-press: { lng, lat, status, results, address }.
+  const [nearby, setNearby] = useState(null);
+  const pressMarkerRef = useRef(null);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState(''); // '' | 'searching' | 'none' | 'error'
@@ -154,13 +214,41 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // The user's position ([lng, lat]) ranks search results. null until they allow location.
   const [searchBias, setSearchBias] = useState(null);
   const locationRequestedRef = useRef(false);
-  useImperativeHandle(ref, () => ({
-    markModalClosing: () => { isClosingModal.current = true; },
-  }), []);
   const located = useMemo(
     () => places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)),
     [places]
   );
+
+  const flyToPlace = (map, place) => {
+    map.resize();
+    map.flyTo({ center: [place.lng, place.lat], zoom: Math.max(map.getZoom(), 15), essential: true });
+  };
+
+  // Shows a place on the map: turns its filters back on, flies there and pops up its label.
+  // Returns false when the place has no location.
+  const focusPlace = useCallback((place) => {
+    if (!Number.isFinite(place?.lat) || !Number.isFinite(place?.lng)) return false;
+    const show = (setHidden, id) => setHidden((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+    show(setHiddenCategories, place.category);
+    show(setHiddenCollections, place.collection_id);
+    // Focusing should not be undone by the first-load fit to all pins.
+    hasFittedBounds.current = true;
+    setFocusedKey(`${place.collection_id}:${place.id}`);
+    const map = mapRef.current;
+    if (map && mapReady) flyToPlace(map, place);
+    else pendingFocusRef.current = place;
+    return true;
+  }, [mapReady]);
+
+  useImperativeHandle(ref, () => ({
+    markModalClosing: () => { isClosingModal.current = true; },
+    focusPlace,
+  }), [focusPlace]);
   // Category and collection filters combine: a place must match both.
   // A place in several collections shows once: the map has one row per collection the place is in.
   const visible = useMemo(() => {
@@ -240,6 +328,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       hasFittedBounds.current = false;
       searchMarkerRef.current?.remove();
       searchMarkerRef.current = null;
+      pressMarkerRef.current?.remove();
+      pressMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -264,7 +354,12 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Always redraw the markers. Closing a modal used to skip this, and the cleanup
   // below had already removed them, so the pins disappeared.
   markersRef.current.forEach((marker) => marker.remove());
-  markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
+  markerElsRef.current = new Map();
+  markersRef.current = venueGroups.map((group) => {
+    const marker = createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker });
+    group.forEach((place) => markerElsRef.current.set(place.id, marker.getElement()));
+    return marker;
+  });
 
   // Don't refit the map when we're just closing a modal.
   if (!isClosingModal.current) {
@@ -287,6 +382,67 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     markersRef.current = [];
   };
 }, [visible, venueGroups, membersOf, onOpenPin, mapReady]);
+
+  // A focus asked for while the map was loading runs once it is ready.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !pendingFocusRef.current) return;
+    flyToPlace(map, pendingFocusRef.current);
+    pendingFocusRef.current = null;
+  }, [mapReady]);
+
+  // The focused pin bounces and sits above the others. Runs after the markers are redrawn.
+  const focusedPlace = focusedKey && (located.find((p) => `${p.collection_id}:${p.id}` === focusedKey)
+    ?? located.find((p) => p.id === focusedKey.split(':')[1]));
+  useEffect(() => {
+    markerElsRef.current.forEach((element, placeId) => {
+      const focused = placeId === focusedPlace?.id;
+      element.classList.toggle('map-pin-focused', focused);
+      element.style.zIndex = focused ? '5' : '';
+    });
+  }, [focusedPlace?.id, venueGroups, membersOf, mapReady]);
+
+  // The label over the focused pin. Tapping "Open" opens the place; tapping the map closes the label.
+  const onOpenPinRef = useRef(onOpenPin);
+  onOpenPinRef.current = onOpenPin;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !focusedPlace) return undefined;
+    const content = document.createElement('div');
+    content.className = 'map-focus-label';
+    const title = document.createElement('strong');
+    title.textContent = focusedPlace.name;
+    content.append(title);
+    const detail = focusedPlace.custom_info || focusedPlace.address;
+    if (detail) {
+      const line = document.createElement('span');
+      line.textContent = detail;
+      content.append(line);
+    }
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'map-focus-open';
+    open.textContent = 'Open place →';
+    open.addEventListener('click', () => onOpenPinRef.current(focusedKey));
+    content.append(open);
+
+    let removing = false;
+    const popup = new mapboxgl.Popup({ offset: 46, maxWidth: '240px', className: 'map-focus-popup', focusAfterOpen: false })
+      .setLngLat([focusedPlace.lng, focusedPlace.lat])
+      .setDOMContent(content)
+      .addTo(map);
+    popup.on('close', () => {
+      if (!removing) setFocusedKey(null);
+    });
+    popupRef.current = popup;
+    return () => {
+      removing = true;
+      popup.remove();
+      popupRef.current = null;
+    };
+    // Rebuilt only when what it shows changes, not on every places refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, focusedKey, focusedPlace?.name, focusedPlace?.lat, focusedPlace?.lng, focusedPlace?.custom_info, focusedPlace?.address]);
 
   // Asked once, when the search box is first tapped. Used only when the map has no view yet.
   const requestUserLocation = () => {
@@ -363,10 +519,39 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     map.flyTo({ center: [place.lng, place.lat], zoom: 16, essential: true });
   };
 
-  // Press and hold the map for 1s to add a place at that spot.
+  const closeNearby = () => {
+    setNearby(null);
+    pressMarkerRef.current?.remove();
+    pressMarkerRef.current = null;
+  };
+
+  // After a long-press: lists the named places around the spot, nearest first, plus the spot itself.
+  const openNearby = async (lng, lat) => {
+    const map = mapRef.current;
+    pressMarkerRef.current?.remove();
+    if (map) pressMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' }).setLngLat([lng, lat]).addTo(map);
+    setNearby({ lng, lat, status: 'loading', results: [], address: '' });
+    const [results, address] = await Promise.all([
+      nearbyPlaces(lng, lat, AbortSignal.timeout(8000)).catch(() => null),
+      reverseGeocode(lng, lat),
+    ]);
+    // Ignore the answer if the picker was closed or another spot was held meanwhile.
+    setNearby((current) => (current?.lng === lng && current?.lat === lat
+      ? { ...current, status: results ? 'done' : 'error', results: results ?? [], address }
+      : current));
+  };
+
+  const pickNearby = (place) => {
+    closeNearby();
+    onAddAt(place
+      ? { name: place.name, address: place.address, latitude: place.lat, longitude: place.lng, category: place.category }
+      : { address: nearby.address, latitude: nearby.lat, longitude: nearby.lng });
+  };
+
+  // Press and hold the map for 1s to see what's there and add it.
   // Dragging or pinching cancels the press.
-  const onAddAtRef = useRef(onAddAt);
-  onAddAtRef.current = onAddAt;
+  const openNearbyRef = useRef(openNearby);
+  openNearbyRef.current = openNearby;
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return undefined;
@@ -381,12 +566,11 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       startPoint = event.point;
       cancel();
       const { lng, lat } = event.lngLat;
-      timer = setTimeout(async () => {
+      timer = setTimeout(() => {
         timer = null;
         if (navigator.vibrate) navigator.vibrate(30);
         showPressRing(map, startPoint);
-        const address = await reverseGeocode(lng, lat);
-        onAddAtRef.current?.({ address, latitude: lat, longitude: lng });
+        openNearbyRef.current(lng, lat);
       }, LONG_PRESS_MS);
     };
     const checkMove = (event) => {
@@ -435,33 +619,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
 
 
 const openListedPlace = (place) => {
-  const map = mapRef.current;
-  if (!map) return;
-
-  isClosingModal.current = false;
-  hasFittedBounds.current = false;
-  pendingZoomPlaceIdRef.current = place.id;
-
-  // Zoom to location
-  map.flyTo({ center: [place.lng, place.lat], zoom: 15, essential: true });
-
-  // Re-render pins when zoom animation finishes
-  const handleMoveEnd = () => {
-    // Only process if this is still the pending zoom
-    if (pendingZoomPlaceIdRef.current !== place.id) {
-      return;
-    }
-
-    // Clear old markers
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    // Re-create markers
-    markersRef.current = venueGroups.map((group) => createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker }));
+    focusPlace(place);
   };
-
-  map.once('moveend', handleMoveEnd);
-};
 
   return (
     <div className="screen map-screen">
@@ -586,6 +745,43 @@ const openListedPlace = (place) => {
                 {!visible.length && <span className="map-place-empty">No places match this filter.</span>}
               </div>
             )}
+          </div>
+        )}
+
+        {nearby && (
+          <div className="modal-overlay" onClick={closeNearby}>
+            <div
+              className="modal location-verify-modal"
+              role="dialog"
+              aria-label="Places near this spot"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title"><MapPin className="ico" aria-hidden="true" /> What's here?</div>
+                <button type="button" className="modal-close" onClick={closeNearby} aria-label="Close"><X aria-hidden="true" /></button>
+              </div>
+              <p className="modal-label">Tap a place to add it.</p>
+              <div className="location-verify-results nearby-results">
+                {nearby.status === 'loading' && [0, 1, 2].map((i) => (
+                  <div key={i} className="location-verify-result" aria-hidden="true">
+                    <span className="skeleton-bar" style={{ width: '65%' }} />
+                    <span className="skeleton-bar" style={{ width: '40%', height: '10px' }} />
+                  </div>
+                ))}
+                {nearby.results.map((place) => (
+                  <button key={place.id} type="button" className="location-verify-result" onClick={() => pickNearby(place)}>
+                    <strong>{place.name} <span className="nearby-distance">{formatDistance(place.distance)}</span></strong>
+                    {place.address && <span>{place.address}</span>}
+                  </button>
+                ))}
+                {nearby.status === 'done' && !nearby.results.length && <p className="map-search-note">No named places right here.</p>}
+                {nearby.status === 'error' && <p className="map-search-note">Couldn't load nearby places.</p>}
+                <button type="button" className="location-verify-result nearby-spot" disabled={nearby.status === 'loading'} onClick={() => pickNearby(null)}>
+                  <strong><MapPin className="ico" aria-hidden="true" /> Just this spot</strong>
+                  <span>{nearby.address || 'The exact spot you held'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Bell, X } from 'lucide-react';
 
-export default function NotificationPanel({ open, onClose, notifications, onClear }) {
+// `canOpen(notif)` says whether a notification leads somewhere; tapping it calls `onOpen(notif)`.
+export default function NotificationPanel({ open, onClose, notifications, onClear, canOpen = () => false, onOpen }) {
   return (
     <>
       <div className={`overlay-bg ${open ? 'open' : ''}`} onClick={onClose} />
@@ -22,15 +23,30 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
           ) : (
             <>
               <div className="notification-list">
-                {notifications.map((notif) => (
-                  <div key={notif.id} className={`notification-item notification-${notif.type}`}>
-                    <notif.icon className="notification-icon" aria-hidden="true" />
-                    <div className="notification-info">
-                      <div className="notification-message">{notif.message}</div>
-                      <div className="notification-time">{notif.time}</div>
-                    </div>
-                  </div>
-                ))}
+                {notifications.map((notif) => {
+                  const body = (
+                    <>
+                      <notif.icon className="notification-icon" aria-hidden="true" />
+                      <div className="notification-info">
+                        <div className="notification-message">{notif.message}</div>
+                        <div className="notification-time">{notif.time}</div>
+                      </div>
+                    </>
+                  );
+                  return canOpen(notif) ? (
+                    <button
+                      key={notif.id}
+                      type="button"
+                      className={`notification-item notification-${notif.type} notification-link`}
+                      onClick={() => onOpen(notif)}
+                    >
+                      {body}
+                      <span className="notification-go" aria-hidden="true">›</span>
+                    </button>
+                  ) : (
+                    <div key={notif.id} className={`notification-item notification-${notif.type}`}>{body}</div>
+                  );
+                })}
               </div>
               {notifications.length > 0 && (
                 <button className="notification-clear-btn" onClick={onClear}>

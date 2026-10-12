@@ -55,3 +55,57 @@ export async function checkedGoogleMapsLink(place, signal) {
     return link;
   }
 }
+
+// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
+const squash = (text) => String(text ?? '')
+  .toLocaleLowerCase()
+  .normalize('NFKD')
+  .replace(/[̀-ͯ]/g, '')
+  .replace(/[^\p{L}\p{N}]+/gu, '');
+
+// Whole words of a name, squashed: "Yo Art Frozen (The Glen)" → ["yo", "art", "frozen", "the", "glen"].
+const words = (text) => String(text ?? '').split(/[^\p{L}\p{N}]+/u).map(squash).filter(Boolean);
+
+// True when some run of whole words in the name spells the key: "Yo Art Frozen" has "yo"+"art" = "yoart",
+// but "Yoarthi" and "Theyo ar type" don't (they only contain the letters inside other words).
+function hasWholeWords(name, key) {
+  const list = words(name);
+  for (let start = 0; start < list.length; start += 1) {
+    let joined = '';
+    for (let end = start; end < list.length && joined.length < key.length; end += 1) {
+      joined += list[end];
+      if (joined === key) return true;
+    }
+  }
+  return false;
+}
+
+// The Google Maps result to pick without asking, or null when it isn't clear.
+// One result → that one. Otherwise each hint (best first) is tried in two rounds:
+//   1. whole words: "YoArt" → "Yo Art Frozen Yoghurt (The Glen)", not "Yoarthi" or "Theyo ar type";
+//   2. letters anywhere in the name, when no name has the whole words.
+// A round only picks when exactly one result matches; a tie asks the user.
+// Same rule as bestCandidate in api/enrich-reel.js.
+export function bestPlaceMatch(candidates, hints = []) {
+  if (!candidates?.length) return null;
+  if (candidates.length === 1) return candidates[0];
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const whole = candidates.filter((candidate) => hasWholeWords(candidate.name, key));
+    if (whole.length === 1) return whole[0];
+    if (whole.length > 1) continue;
+    const partial = candidates.filter((candidate) => squash(candidate.name).includes(key));
+    if (partial.length === 1) return partial[0];
+  }
+  return null;
+}
+
+// Name hints from a reel lookup, best first: the tagged place, the 📍 venue, then the first part of the location.
+export function reelPlaceHints(reel) {
+  return [
+    String(reel?.placeName ?? '').replace(/^@/, ''),
+    reel?.caption?.match(/[📍📌]\s*([^\n#()🏷,]+)/u)?.[1],
+    reel?.location?.split(',')[0],
+  ].filter(Boolean);
+}

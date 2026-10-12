@@ -24,6 +24,41 @@ function flipCaption(caption) {
   return [...words.slice(half), ...words.slice(0, half)].join(' ');
 }
 
+// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
+function squash(value) {
+  return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+// True when some run of whole words in the name spells the key: "Yo Art Frozen" spells "yoart",
+// but "Yoarthi" and "Theyo ar type" only contain the letters inside other words.
+function hasWholeWords(name, key) {
+  const list = String(name || '').split(/[^\p{L}\p{N}]+/u).map(squash).filter(Boolean);
+  for (let start = 0; start < list.length; start += 1) {
+    let joined = '';
+    for (let end = start; end < list.length && joined.length < key.length; end += 1) {
+      joined += list[end];
+      if (joined === key) return true;
+    }
+  }
+  return false;
+}
+
+// The result to pick without asking, trying the best hint first: a single whole-word match
+// ("YoArt" → "Yo Art Frozen Yoghurt"), else a single name containing the letters. A tie asks the user.
+// Same rule as bestPlaceMatch in frontend/src/lib/places.js.
+function bestCandidate(candidates, hints) {
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const whole = candidates.filter((candidate) => hasWholeWords(candidate.name, key));
+    if (whole.length === 1) return whole[0];
+    if (whole.length > 1) continue;
+    const partial = candidates.filter((candidate) => squash(candidate.name).includes(key));
+    if (partial.length === 1) return partial[0];
+  }
+  return null;
+}
+
 function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
@@ -73,8 +108,10 @@ module.exports = async function handler(req, res) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && typeof req.selectCandidate !== 'function' && candidates.length === 1) {
-    selectedCandidate = candidates[0];
+  if (!selectedCandidate && typeof req.selectCandidate !== 'function') {
+    selectedCandidate = candidates.length === 1
+      ? candidates[0]
+      : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
   }
 
   let details = null;

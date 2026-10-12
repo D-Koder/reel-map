@@ -20,6 +20,8 @@ import { useNotifications } from './hooks/useNotifications';
 import { useOnline } from './hooks/useOnline';
 import { useReelCovers } from './hooks/useReelCovers';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
+import { useShortcutReels } from './hooks/useShortcutReels';
+import { notificationTarget } from './lib/notificationTarget';
 import { clearUserStorage } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
 import './App.css';
@@ -54,12 +56,14 @@ function MainApp({ userId, showToast }) {
   const [screen, setScreen] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, unreadCount, markAllRead, clearAll } = useNotifications(userId);
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll } = useNotifications(userId);
+  // A notification id from a tapped push (?notification=), opened once notifications have loaded.
+  const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
   const mapScreenRef = useRef(null);
   const [editPinId, setEditPinId] = useState(null);
   const [adding, setAdding] = useState(false);
-  // Set when the add sheet is opened from a map long-press: { address, latitude, longitude }.
+  // Set when the add sheet is opened from a map long-press: { name?, address, latitude, longitude, category? }.
   const [addDraft, setAddDraft] = useState(null);
   // Collection to pre-select when the add sheet opens from a collection's empty-state button.
   const [addCollectionId, setAddCollectionId] = useState(null);
@@ -143,6 +147,9 @@ function MainApp({ userId, showToast }) {
       showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
   });
 
+  // Reels saved by the iPhone Shortcut while the app was closed join the inbox.
+  useShortcutReels({ userId, ready: collections.length > 0, enqueue: inbox.enqueue });
+
   // Coming back online: load anything that changed while offline.
   const wasOnline = useRef(online);
   useEffect(() => {
@@ -223,6 +230,11 @@ function MainApp({ userId, showToast }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     // A Friday pick notification opens its place. The pin is looked up once places have loaded.
+    if (params.has('notification')) {
+      setPendingNotificationId(params.get('notification'));
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
     if (params.has('pick')) {
       setOpenPinId(params.get('pick'));
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -242,6 +254,39 @@ function MainApp({ userId, showToast }) {
     setScreen('home');
     inbox.enqueue(pendingShareUrl);
   }, [pendingShareUrl, collections.length, inbox]);
+
+  // Takes you to what a notification is about: a place opens its card, so you see the update;
+  // a collection is scrolled to on Home.
+  const openTarget = (target) => {
+    if (!target) return false;
+    setNotificationsOpen(false);
+    if (target.place) {
+      setOpenPinId(`${target.place.collection_id}:${target.place.id}`);
+    } else {
+      setScreen('home');
+      requestAnimationFrame(() => {
+        const board = document.getElementById(`collection-${target.collection.id}`);
+        if (!board) return;
+        board.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        board.classList.remove('collection-flash');
+        void board.offsetWidth; // restart the highlight animation
+        board.classList.add('collection-flash');
+      });
+    }
+    return true;
+  };
+  const targetOf = (notification) => notificationTarget(notification, places, collections);
+
+  useEffect(() => {
+    if (!pendingNotificationId || !notificationsLoaded) return;
+    setPendingNotificationId(null);
+    if (!openTarget(targetOf(notifications.find((n) => n.id === pendingNotificationId)))) {
+      setNotificationsOpen(true);
+      markAllRead();
+    }
+    // openTarget and targetOf read the latest places on each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingNotificationId, notificationsLoaded]);
 
   const deletePlace = (place) => {
     closePin();
@@ -414,6 +459,8 @@ function MainApp({ userId, showToast }) {
         onClose={() => setNotificationsOpen(false)}
         notifications={notifications}
         onClear={clearAll}
+        canOpen={(notif) => Boolean(targetOf(notif))}
+        onOpen={(notif) => openTarget(targetOf(notif))}
       />
 
       {openPin && !editPin && (

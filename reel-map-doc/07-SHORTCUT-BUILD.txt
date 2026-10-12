@@ -1,0 +1,78 @@
+===============================================
+REEL MAP - BUILD THE "SAVE TO REEL MAP" SHORTCUT (ONE TIME)
+===============================================
+
+WHY
+  You build this Shortcut once and share it as an iCloud link.
+  Everyone else taps "Get the Shortcut", then "Connect" in Settings. No pasting.
+
+HOW CONNECT WORKS
+  Settings → Connect opens:
+    shortcuts://run-shortcut?name=Save%20to%20Reel%20Map&input=text&text=reelmap-key:<key>
+  The Shortcut sees text starting with "reelmap-key:", saves the key in a file on the phone,
+  then tells the server { key, connect: true } and shows "✅ Reel Map connected".
+  Settings then switches from "Get the Shortcut + Connect" to "✅ Shortcut connected + Reconnect".
+  (The app can't see installed Shortcuts, so this report is how it knows.)
+  Making a new key in Settings clears "connected" → tap Connect again → the file is replaced.
+
+-----------------------------------------------
+STEPS (Shortcuts app on iPhone)
+-----------------------------------------------
+  1. Tap ＋. Name it exactly:  Save to Reel Map
+     (Connect finds it by this name.)
+
+  2. Tap ⓘ → turn on "Show in Share Sheet".
+     Receive: URLs and Text. "If there's no input": Continue.
+
+  3. Add "Match Text"
+       Pattern: ^reelmap-key:     in: Shortcut Input
+     Then add "If"
+       Input: Matches   Condition: has any value
+     (The If can't offer "begins with" because the Shortcut accepts many input types,
+      so Match does the check and the If tests its result.)
+
+     Inside the If:
+       a. "Replace Text": replace  reelmap-key:  with (nothing)  in Shortcut Input
+       b. "Save File": Updated Text
+            → turn OFF "Ask Where to Save"
+            → Subpath: reelmap-key.txt
+            → turn ON "Overwrite If File Exists"
+       c. "Get Contents of URL"
+            URL: https://<your-app-domain>/api/save-reel
+            Method: POST   Request Body: JSON
+              key (Text) = Updated Text
+              connect (Boolean) = True
+       d. "Show Notification": Contents of URL   (shows "✅ Reel Map connected")
+       e. "Stop This Shortcut"
+
+     After "End If" (this is the normal share path):
+
+  4. "Get File" from Shortcuts folder
+       → Subpath: reelmap-key.txt
+       → turn OFF "Error If Not Found"
+
+  5. "If" File  does not have any value
+       → "Show Notification": Open Reel Map → Settings → Connect first
+       → "Stop This Shortcut"
+     End If
+
+  6. "Get Contents of URL"
+       URL: https://<your-app-domain>/api/save-reel
+       Method: POST   Request Body: JSON
+         key (Text) = File   (from step 4)
+         url (Text) = Shortcut Input
+
+  7. "Show Notification": Contents of URL
+     (Shows "✅ Saved to Reel Map", "👍 Already saved…" or what went wrong.)
+
+  8. Test: in Reel Map → Settings → Connect. Then share a reel → Save to Reel Map.
+
+-----------------------------------------------
+SHARE IT
+-----------------------------------------------
+  9. Long-press the Shortcut → Share → Copy iCloud Link.
+ 10. In Vercel → Settings → Environment Variables add:
+       VITE_SHORTCUT_URL = <the iCloud link>
+     Redeploy. Settings now shows "1. Get the Shortcut".
+
+  The iCloud link has no key in it, so it is safe to share with anyone.

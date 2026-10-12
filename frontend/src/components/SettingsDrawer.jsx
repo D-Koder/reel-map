@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Camera, Folder, Lock, LockOpen, Pencil, Settings, Share2, User, Users, X } from 'lucide-react';
+import { Bell, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, Lock, LockOpen, Pencil, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -43,6 +43,147 @@ function FridayPickToggle({ userId }) {
         <Bell className="ico" aria-hidden="true" /> Notifications on this device
       </label>
       {error && <div className="toggle-hint">{error}</div>}
+    </div>
+  );
+}
+
+// Copies text and says so in a toast. Falls back to a prompt the user can copy from.
+async function copyText(text, label, showToast) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`Copied ${label}`);
+  } catch {
+    window.prompt(`Copy your ${label}:`, text);
+  }
+}
+
+// The shared "Save to Reel Map" Shortcut (an iCloud link, safe to share: it holds no key).
+// VITE_SHORTCUT_URL overrides it. The Shortcut's name must match SHORTCUT_NAME.
+const SHORTCUT_URL = import.meta.env.VITE_SHORTCUT_URL || 'https://www.icloud.com/shortcuts/de02d20f85984aefbb0840cc8b3c6d25';
+const SHORTCUT_NAME = 'Save to Reel Map';
+
+// Runs the Shortcut with "reelmap-key:<key>". The Shortcut saves the key on the phone,
+// so it is never pasted by hand. Running it again (after a new key) replaces the saved one.
+function connectShortcut(key) {
+  const params = new URLSearchParams({ name: SHORTCUT_NAME, input: 'text', text: `reelmap-key:${key}` });
+  window.location.href = `shortcuts://run-shortcut?${params.toString().replace(/\+/g, '%20')}`;
+}
+
+// Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
+// The app can't see which Shortcuts are installed, so the Shortcut reports in after Connect
+// (shortcut_keys.connected_at). Not connected: Get the Shortcut + Connect. Connected: a tick + Reconnect.
+function ShortcutSetup({ showToast }) {
+  const [open, setOpen] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [key, setKey] = useState('');
+  const [connectedAt, setConnectedAt] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const endpoint = `${window.location.origin}/api/save-reel`;
+
+  // Loads the key (made on first use) and whether the Shortcut has reported in.
+  // Runs again when you come back from Shortcuts, so the tick shows straight away.
+  useEffect(() => {
+    if (!open) return undefined;
+    const load = async () => {
+      if (document.visibilityState === 'hidden') return;
+      const { data, error: rpcError } = await supabase.rpc('get_shortcut_key');
+      if (rpcError) {
+        setError('Could not load your key. Try again later.');
+        return;
+      }
+      setError('');
+      setKey(data);
+      const { data: row } = await supabase.from('shortcut_keys').select('connected_at').maybeSingle();
+      setConnectedAt(row?.connected_at ?? null);
+    };
+    load();
+    document.addEventListener('visibilitychange', load);
+    return () => document.removeEventListener('visibilitychange', load);
+  }, [open]);
+
+  const resetKey = async () => {
+    if (!window.confirm('Make a new key? Your Shortcut stops working until you tap Connect again.')) return;
+    setBusy(true);
+    const { data, error: rpcError } = await supabase.rpc('reset_shortcut_key');
+    setBusy(false);
+    if (rpcError) {
+      showToast('Could not make a new key');
+      return;
+    }
+    setKey(data);
+    setConnectedAt(null);
+    showToast('New key made. Tap Connect to update your Shortcut.');
+  };
+
+  return (
+    <div className="settings-section">
+      <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Smartphone className="ico" aria-hidden="true" /> Save reels without leaving Instagram {open ? <ChevronDown className="ico" aria-hidden="true" /> : <ChevronRight className="ico" aria-hidden="true" />}
+      </button>
+      {open && (
+        <div className="shortcut-setup">
+          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
+
+          {error && <span className="toggle-hint">{error}</span>}
+          {connectedAt ? (
+            <>
+              <div className="shortcut-connected" role="status">
+                <strong><CircleCheck className="ico" aria-hidden="true" /> Shortcut connected</strong>
+                <span>Share a reel → tap <strong>{SHORTCUT_NAME}</strong></span>
+              </div>
+              <button type="button" className="step-btn secondary full-width" disabled={!key} onClick={() => connectShortcut(key)}>
+                <Link className="ico" aria-hidden="true" /> Reconnect
+              </button>
+              <p className="toggle-hint">New phone, or the Shortcut stopped working? Get it again, then tap Reconnect.</p>
+              {SHORTCUT_URL && (
+                <a className="settings-link-btn" href={SHORTCUT_URL} target="_blank" rel="noreferrer"><Download className="ico" aria-hidden="true" /> Get the Shortcut again</a>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="shortcut-status">Not set up on this account yet.</p>
+              {SHORTCUT_URL && (
+                <a className="step-btn full-width" href={SHORTCUT_URL} target="_blank" rel="noreferrer">1. <Download className="ico" aria-hidden="true" /> Get the Shortcut</a>
+              )}
+              <button type="button" className="step-btn full-width" disabled={!key} onClick={() => connectShortcut(key)}>
+                {SHORTCUT_URL ? '2. ' : ''}<Link className="ico" aria-hidden="true" /> Connect it to my account
+              </button>
+              <p className="toggle-hint">
+                Already have the Shortcut? Just tap Connect. Shortcuts opens, saves your key and shows
+                "✅ Reel Map connected". Then come back here.
+              </p>
+            </>
+          )}
+
+          <button type="button" className="settings-link-btn" aria-expanded={manual} onClick={() => setManual((v) => !v)}>
+            {manual ? 'Hide' : 'Set it up by hand instead'}
+          </button>
+          {manual && (
+            <>
+              <div className="shortcut-field">
+                <span className="input-label">Your web address</span>
+                <code className="shortcut-code">{endpoint}</code>
+                <button type="button" className="step-btn secondary" onClick={() => copyText(endpoint, 'address', showToast)}>Copy</button>
+              </div>
+              <div className="shortcut-field">
+                <span className="input-label">Your secret key (don't share it)</span>
+                <code className="shortcut-code">{key ? `${key.slice(0, 6)}••••••••` : 'Loading…'}</code>
+                <button type="button" className="step-btn secondary" disabled={!key} onClick={() => copyText(key, 'key', showToast)}>Copy</button>
+              </div>
+              <ol className="shortcut-steps">
+                <li>In <strong>Shortcuts</strong>, edit your Reel Map shortcut. Delete any <strong>Open URLs</strong> step.</li>
+                <li>Tap <strong>ⓘ</strong>. Turn on <strong>Show in Share Sheet</strong> for <strong>URLs</strong> and <strong>Text</strong>.</li>
+                <li>Add <strong>Get Contents of URL</strong> with the address. Method <strong>POST</strong>, Request Body <strong>JSON</strong>.</li>
+                <li>Add 2 Text fields: <strong>key</strong> = your key. <strong>url</strong> = <strong>Shortcut Input</strong>.</li>
+                <li>Add <strong>Show Notification</strong> with <strong>Contents of URL</strong>.</li>
+              </ol>
+            </>
+          )}
+
+          <button type="button" className="step-btn secondary full-width" disabled={busy} onClick={resetKey}><KeyRound className="ico" aria-hidden="true" /> Make a new key</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -377,6 +518,7 @@ export default function SettingsDrawer({
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <FridayPickToggle userId={userId} />}
+          {userId && <ShortcutSetup showToast={showToast} />}
 
           <div className="settings-section">
             <div className="settings-section-title"><Folder className="ico" aria-hidden="true" /> Collections</div>
