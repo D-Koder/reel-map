@@ -14,7 +14,7 @@ const MONTHS_AHEAD = 3;
 // 1. the soonest booking still to come,
 // 2. the soonest unbooked event in the next three months,
 // 3. a food or cafe place I'm keen on and nobody has booked (most keen votes first),
-// 4. else one I said maybe to, so there's still something to look at.
+// 4. else a random restaurant I said maybe to (a new pick each day).
 export function pickUpNext(places, userId, now = new Date()) {
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
@@ -37,13 +37,16 @@ export function pickUpNext(places, userId, now = new Date()) {
 
   const keenCount = (p) => Object.values(p.reactions ?? {}).filter((v) => v === 'keen').length;
   const eatOut = unbooked.filter((p) => p.category === 'food' || p.category === 'cafe');
-  const mostKeen = (vote) => eatOut
-    .filter((p) => p.reactions?.[userId] === vote)
+  const keen = eatOut
+    .filter((p) => p.reactions?.[userId] === 'keen')
     .sort((a, b) => keenCount(b) - keenCount(a))[0];
-  const keen = mostKeen('keen');
   if (keen) return { kind: 'keen', place: keen };
-  const maybe = mostKeen('maybe');
-  if (maybe) return { kind: 'maybe', place: maybe };
+  // A random restaurant I said maybe to. Random per day, so it doesn't change every time Home redraws.
+  const maybes = unbooked.filter((p) => p.category === 'food' && p.reactions?.[userId] === 'maybe');
+  if (maybes.length) {
+    const day = Math.floor(startOfToday.getTime() / 86400000);
+    return { kind: 'maybe', place: maybes[(day * 7919) % maybes.length] };
+  }
   return null;
 }
 

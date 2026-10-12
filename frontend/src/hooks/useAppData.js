@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { readJSON, writeJSON } from '../lib/storage';
 
@@ -89,6 +89,19 @@ function normaliseCollection(row) {
 
 // The last data that loaded, kept on this device so the app opens with no signal.
 const cacheKey = (userId) => `reelmap:data:${userId}`;
+// My order for collections, as a list of ids. Kept here too, so it works before the
+// profiles.collection_order column exists (see 20261013110000_collection_order.sql).
+const collectionOrderKey = (userId) => `reelmap:collection-order:${userId}`;
+
+// Collections in my order. Ones I haven't placed yet (new or just joined) keep their usual order, after.
+export function orderCollections(collections, order) {
+  const list = order ?? [];
+  const rank = new Map(list.map((id, index) => [id, index]));
+  return collections
+    .map((collection, index) => ({ collection, index }))
+    .sort((a, b) => (rank.get(a.collection.id) ?? list.length + a.index) - (rank.get(b.collection.id) ?? list.length + b.index))
+    .map(({ collection }) => collection);
+}
 
 export function useAppData(userId, showToast) {
   const [cached] = useState(() => readJSON(cacheKey(userId)));
@@ -101,6 +114,9 @@ export function useAppData(userId, showToast) {
   const refreshTimer = useRef(null);
   // False until the database has the event_date column (see 20261013090000_event_dates.sql).
   const [eventDatesReady, setEventDatesReady] = useState(false);
+  const [collectionOrder, setCollectionOrder] = useState(() => readJSON(collectionOrderKey(userId), []));
+  // False until the database has profiles.collection_order; until then the order stays on this device.
+  const orderSyncReady = useRef(false);
 
   const refresh = useCallback(async () => {
     const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes] = await Promise.all([
@@ -113,6 +129,13 @@ export function useAppData(userId, showToast) {
       supabase.from('collection_places').select('place_id, collection_id, custom_name, custom_emoji, category'),
       supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
     ]);
+    // Read on its own, so the app still loads before the column has been added.
+    const collectionOrderRes = await supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle();
+    orderSyncReady.current = !collectionOrderRes.error;
+    if (Array.isArray(collectionOrderRes.data?.collection_order)) {
+      setCollectionOrder(collectionOrderRes.data.collection_order);
+      writeJSON(collectionOrderKey(userId), collectionOrderRes.data.collection_order);
+    }
     // Read on its own, so the app still loads before the event_date column has been added.
     const eventDatesRes = await supabase.from('collection_places').select('place_id, collection_id, event_date');
     setEventDatesReady(!eventDatesRes.error);
@@ -351,6 +374,16 @@ export function useAppData(userId, showToast) {
       return { ok: true, removed: data ?? 0 };
     },
 
+    // Saves my order for collections: on this device straight away, and to my account when it can.
+    reorderCollections: async (ids) => {
+      setCollectionOrder(ids);
+      writeJSON(collectionOrderKey(userId), ids);
+      if (!orderSyncReady.current) return true;
+      const { error } = await supabase.from('profiles').update({ collection_order: ids }).eq('id', userId);
+      if (error) showToast(`Order saved on this phone only: ${friendlyError(error)}`);
+      return true;
+    },
+
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
     removeCollectionMember: (collectionId, memberId) => run(
       supabase.from('collection_members').delete().eq('collection_id', collectionId).eq('user_id', memberId)
@@ -365,5 +398,8 @@ export function useAppData(userId, showToast) {
     createSampleData: () => run(supabase.rpc('create_sample_data')),
   };
 
-  return { ...state, places, eventDatesReady, ...actions };
+  // Same array until the collections or the order change, so effects that use it don't re-run.
+  const collections = useMemo(() => orderCollections(state.collections, collectionOrder), [state.collections, collectionOrder]);
+
+  return { ...state, collections, places, eventDatesReady, ...actions };
 }

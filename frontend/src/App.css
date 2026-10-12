@@ -3975,3 +3975,27 @@ button.profile-open {
 .modal {
   transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
+
+/* Up/down arrows stacked at the start of each collection row in Settings. */
+.collection-move {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+  margin-left: -6px;
+}
+
+.collection-move .collection-icon {
+  width: 32px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+}
+
+.collection-move .collection-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.collection-move .collection-icon:disabled {
+  opacity: 0.25;
+  cursor: default;
+}

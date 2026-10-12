@@ -500,6 +500,7 @@ function MainApp({ userId, showToast }) {
         onToggleMyLocation={toggleMyLocation}
         nearAlerts={nearAlerts}
         onToggleNearAlerts={toggleNearAlerts}
+        onReorderCollections={data.reorderCollections}
       />
 
       <DeleteAccountModal

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
+import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 
 // On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
@@ -189,7 +190,8 @@ function ShortcutSetup({ showToast }) {
   );
 }
 
-function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
+// isInbox: my TBD collection, where shared reels land. It can't be renamed or deleted.
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [managing, setManaging] = useState(false);
   const [draft, setDraft] = useState(collection.name);
@@ -208,9 +210,9 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
   return (
     <div className="collection-item">
       <div
-        className={`collection-name ${isOwner ? '' : 'readonly'}`}
-        onClick={() => isOwner && !editing && setEditing(true)}
-        title={isOwner ? 'Tap to rename' : undefined}
+        className={`collection-name ${isOwner && !isInbox ? '' : 'readonly'}`}
+        onClick={() => isOwner && !isInbox && !editing && setEditing(true)}
+        title={isOwner && !isInbox ? 'Tap to rename' : undefined}
       >
         {editing ? (
           <input
@@ -234,10 +236,20 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
               {collection.emoji} {collection.name}
             </span>
             <span className="collection-meta">
-              {isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}
+              {isInbox
+                ? 'Shared reels land here'
+                : <>{isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}</>}
             </span>
           </>
         )}
+      </div>
+      <div className="collection-move" role="group" aria-label={`Move ${collection.name}`}>
+        <button type="button" className="collection-icon" onClick={() => onMove(-1)} disabled={!canMoveUp} aria-label={`Move ${collection.name} up`}>
+          <ChevronUp aria-hidden="true" />
+        </button>
+        <button type="button" className="collection-icon" onClick={() => onMove(1)} disabled={!canMoveDown} aria-label={`Move ${collection.name} down`}>
+          <ChevronDown aria-hidden="true" />
+        </button>
       </div>
       {isOwner && (
         <div className="collection-icons">
@@ -272,7 +284,9 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
               {member.role !== 'owner' && <button type="button" className="collection-icon" aria-label={`Remove ${member.display_name}`} onClick={() => onRemoveMember(collection, member)}>−</button>}
             </div>
           ))}
-          <button type="button" className="step-btn danger full-width" onClick={() => onDelete(collection)}>Delete collection</button>
+          {isInbox
+            ? <p className="toggle-hint">TBD is built in, so it can't be deleted.</p>
+            : <button type="button" className="step-btn danger full-width" onClick={() => onDelete(collection)}>Delete collection</button>}
         </div>
       )}
     </div>
@@ -495,8 +509,10 @@ export default function SettingsDrawer({
   onToggleMyLocation,
   nearAlerts = false,
   onToggleNearAlerts,
+  onReorderCollections,
 }) {
   const [newName, setNewName] = useState('');
+  const inboxId = findInboxCollection(collections, userId)?.id;
   const [email, setEmail] = useState('');
 
   React.useEffect(() => {
@@ -533,6 +549,7 @@ export default function SettingsDrawer({
   };
 
   const deleteCollection = async (collection) => {
+    if (collection.id === inboxId) return;
     if (window.confirm(`Delete "${collection.name}" and remove it for all members?`)) {
       await onDeleteCollection(collection.id);
     }
@@ -566,11 +583,19 @@ export default function SettingsDrawer({
 
           <div className="settings-section">
             <div className="settings-section-title"><Folder className="ico" aria-hidden="true" /> Collections</div>
-            {collections.map((c) => (
+            {collections.map((c, index) => (
               <CollectionRow
                 key={`${c.id}-${c.name}`}
                 collection={c}
                 isOwner={c.ownerId === userId}
+                isInbox={c.id === inboxId}
+                canMoveUp={index > 0}
+                canMoveDown={index < collections.length - 1}
+                onMove={(step) => {
+                  const ids = collections.map((x) => x.id);
+                  [ids[index], ids[index + step]] = [ids[index + step], ids[index]];
+                  onReorderCollections?.(ids);
+                }}
                 onRename={rename}
                 onTogglePrivacy={togglePrivacy}
                 onShare={onShare}
