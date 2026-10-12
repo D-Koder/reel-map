@@ -2,8 +2,13 @@
 -- 3 reactions in 2 collections made 6 rows before grouping, and its collection list repeated
 -- (one copy per reaction). Each list is now read on its own. Same columns and same results, minus
 -- the repeats. Safe to run more than once.
+--
+-- Written for the live tables, which differ from older migrations here: places has no deleted_at,
+-- lat/lng are double precision and menu is jsonb. The return type may change, so drop first.
 
-create or replace function public.get_user_places()
+drop function if exists public.get_user_places();
+
+create function public.get_user_places()
 returns table (
   id uuid,
   venue_id uuid,
@@ -13,15 +18,15 @@ returns table (
   reel_thumbnail_url text,
   created_at timestamptz,
   address text,
-  lat numeric,
-  lng numeric,
+  lat double precision,
+  lng double precision,
   hours jsonb,
   phone text,
   booking_url text,
   website_url text,
   subtitle text,
   menu_url text,
-  menu text,
+  menu jsonb,
   source text,
   source_id text,
   custom_info text,
@@ -81,7 +86,6 @@ as $$
        from public.collection_places cp where cp.place_id = p.id) as collection_places
   from public.places p
   join my_places mp on mp.place_id = p.id
-  where p.deleted_at is null
   order by p.created_at;
 $$;
 
