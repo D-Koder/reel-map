@@ -104,6 +104,15 @@ export function orderCollections(collections, order) {
     .map(({ collection }) => collection);
 }
 
+// Every collection entry I can see, with its event day when the database has that column
+// (see 20261013090000_event_dates.sql). Before then, it is read again without it.
+async function readEntries() {
+  const columns = 'place_id, collection_id, custom_name, custom_emoji, category';
+  const withDates = await supabase.from('collection_places').select(`${columns}, event_date`);
+  if (!withDates.error) return { ...withDates, hasEventDates: true };
+  return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false };
+}
+
 export function useAppData(userId, showToast) {
   const [cached] = useState(() => readJSON(cacheKey(userId)));
   const [state, setState] = useState(() =>
@@ -123,30 +132,29 @@ export function useAppData(userId, showToast) {
   const [inbox, setInbox] = useState({ ready: false, id: null });
 
   const refresh = useCallback(async () => {
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes] = await Promise.all([
+    // Everything is asked for at once, so opening the app is one round trip instead of four.
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
       supabase.from('place_order').select('place_id, collection_id, position'),
       supabase.rpc('get_streak'),
-      // Each place's name and category in each collection. The places function doesn't return these.
-      supabase.from('collection_places').select('place_id, collection_id, custom_name, custom_emoji, category'),
+      // Each place's name, category and event day in each collection. The places function doesn't return these.
+      readEntries(),
       supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
+      // Read on its own, so the app still loads before the column has been added.
+      supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle(),
+      supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
     ]);
-    // Read on its own, so the app still loads before the column has been added.
-    const collectionOrderRes = await supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle();
     orderSyncReady.current = !collectionOrderRes.error;
     if (Array.isArray(collectionOrderRes.data?.collection_order)) {
       setCollectionOrder(collectionOrderRes.data.collection_order);
       writeJSON(collectionOrderKey(userId), collectionOrderRes.data.collection_order);
     }
-    const inboxRes = await supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1);
     setInbox({ ready: !inboxRes.error, id: inboxRes.data?.[0]?.id ?? null });
-    // Read on its own, so the app still loads before the event_date column has been added.
-    const eventDatesRes = await supabase.from('collection_places').select('place_id, collection_id, event_date');
-    setEventDatesReady(!eventDatesRes.error);
+    setEventDatesReady(entriesRes.hasEventDates);
     const eventDates = Object.fromEntries(
-      (eventDatesRes.data ?? []).map((e) => [`${e.collection_id}:${e.place_id}`, e.event_date])
+      (entriesRes.data ?? []).map((e) => [`${e.collection_id}:${e.place_id}`, e.event_date ?? null])
     );
     const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes].find((r) => r.error);
     if (failed) {
@@ -188,8 +196,16 @@ export function useAppData(userId, showToast) {
     writeJSON(cacheKey(userId), { ...next, order: nextOrder });
   }, [userId]);
 
+  // True when a change came in while the app was in the background, so it reloads on return.
+  const missedChange = useRef(false);
+
   // Coalesce bursts of realtime events (e.g. a place + its reaction) into one reload.
+  // While the app is in the background nothing reloads; one reload runs when it comes back.
   const scheduleRefresh = useCallback(() => {
+    if (document.visibilityState === 'hidden') {
+      missedChange.current = true;
+      return;
+    }
     clearTimeout(refreshTimer.current);
     refreshTimer.current = setTimeout(refresh, 250);
   }, [refresh]);
@@ -201,8 +217,23 @@ export function useAppData(userId, showToast) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRefresh)
     );
     channel.subscribe();
+    // Phones can drop the live connection in the background and miss changes without telling us,
+    // so after a long time away it reloads once anyway.
+    let hiddenAt = 0;
+    const onVisible = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
+      const longAway = hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000;
+      if (!missedChange.current && !longAway) return;
+      missedChange.current = false;
+      scheduleRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearTimeout(refreshTimer.current);
+      document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
   }, [userId, refresh, scheduleRefresh]);

@@ -2,9 +2,25 @@
 // POST { key, url } (JSON or form) → plain text the Shortcut shows as a notification.
 // POST { key, connect: true } is sent once by the Shortcut after Connect, so Settings can show it is set up.
 // The reel waits in public.shared_reels until the app next opens (see migration 20261012130000_shortcut_inbox.sql).
+// Meanwhile an Instagram reel is looked up in the background and the result is cached, so the app
+// finds it ready when it opens (see lookInBackground below).
+
+const { canonicalInstagramUrl } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+// Runs /api/enrich-reel after the Shortcut has its answer. Vercel keeps the function alive for the
+// promise (up to maxDuration in vercel.json); elsewhere it just runs on without being waited for.
+function lookInBackground(sharedText) {
+  const reelUrl = canonicalInstagramUrl(String(sharedText).match(/https?:\/\/[^\s]+/)?.[0]);
+  if (!reelUrl) return;
+  const enrichReel = require('./enrich-reel');
+  const ignore = { status() { return this; }, json() { return this; } };
+  const work = enrichReel({ method: 'POST', body: { reelUrl }, backgroundOnly: true }, ignore)
+    .catch((error) => console.warn('Background reel lookup failed:', error.message));
+  globalThis[Symbol.for('@vercel/request-context')]?.get?.()?.waitUntil?.(work);
+}
 
 function reply(res, status, message) {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -42,7 +58,9 @@ module.exports = async function handler(req, res) {
   const result = await response.json().catch(() => null);
   if (response.ok) {
     if (connecting) return reply(res, 200, '✅ Reel Map connected');
-    return reply(res, 200, result === 'duplicate' ? '👍 Already saved to Reel Map' : '✅ Saved to Reel Map');
+    if (result === 'duplicate') return reply(res, 200, '👍 Already saved to Reel Map');
+    lookInBackground(url);
+    return reply(res, 200, '✅ Saved to Reel Map');
   }
 
   // Postgres error codes raised by save_shared_reel().

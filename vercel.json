@@ -13,6 +13,9 @@
     },
     "api/enrich-reel.js": {
       "maxDuration": 120
+    },
+    "api/save-reel.js": {
+      "maxDuration": 120
     }
   }
 }

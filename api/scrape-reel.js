@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
+const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
 
 function parseCount(value) {
   const match = String(value ?? '').trim().replace(/,/g, '').match(/^([\d.]+)\s*([KMB])?$/i);
@@ -102,6 +103,33 @@ function readTikTokPage(inputUrl) {
   };
 }
 
+async function readInstagramQuickly(reelUrl) {
+  try {
+    const oembed = await fetchInstagramOembed(reelUrl);
+    if (!oembed.ok || !oembed.caption) return null;
+    const details = parseCaptionDetails(oembed.caption);
+    return {
+      success: true,
+      reelUrl,
+      caption: oembed.caption,
+      creator: oembed.creator,
+      // oEmbed doesn't give counts or the date. Nothing that saves a place uses them.
+      likes: null,
+      comments: null,
+      placeName: details.placeName,
+      location: details.location,
+      date: '',
+      hashtags: [...oembed.caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+      videoUrl: '',
+      thumbnailUrl: normalizeImageUrl(oembed.thumbnailUrl),
+      source: 'oembed',
+    };
+  } catch (error) {
+    console.warn('Instagram oEmbed failed, falling back to the browser:', error.message);
+    return null;
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -111,6 +139,13 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Enter a valid Instagram reel/post or TikTok video link' });
   }
   const platform = isTikTok ? 'TikTok' : 'Instagram';
+
+  // Instagram's oEmbed has the caption, creator and cover in about a second. Start Chrome only
+  // when it has no caption to search with (blocked, private, or deleted Reels).
+  if (!isTikTok) {
+    const quick = await readInstagramQuickly(reelUrl);
+    if (quick) return res.status(200).json(quick);
+  }
 
   let browser;
   try {

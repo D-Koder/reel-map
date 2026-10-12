@@ -1,5 +1,14 @@
 const scrapeReel = require('./scrape-reel');
 const scrapeLocation = require('./scrape-location');
+const { canonicalInstagramUrl } = require('./_lib/reel-url');
+const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
+const { readCache, writeCache, DAY } = require('./_lib/lookup-cache');
+
+// How long saved lookups are reused. Captions don't change; opening hours and phone numbers can.
+const REEL_CACHE_DAYS = 30;
+const PLACE_CACHE_DAYS = 14;
+// Instagram cover links expire after a few days, so a cached cover older than this is asked for again.
+const COVER_MAX_AGE = DAY;
 
 async function invoke(handler, body) {
   const response = {
@@ -63,44 +72,98 @@ function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
+// The Reel's caption, creator and cover, from the shared cache when anyone has looked it up before.
+// Returns { reel } on success, or { status, body } with the scraper's error.
+async function readReel(reelUrl, cacheKey) {
+  const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
+  if (cached?.data?.reel) {
+    const reel = { ...cached.data.reel, reelUrl };
+    if (cached.ageMs > COVER_MAX_AGE) {
+      const oembed = await fetchInstagramOembed(reelUrl, 5000).catch(() => null);
+      if (oembed?.ok && oembed.thumbnailUrl) reel.thumbnailUrl = oembed.thumbnailUrl;
+    }
+    return { reel, search: cached.data.search ?? null, fromCache: true };
+  }
+
+  const reelResponse = await invoke(scrapeReel, { reelUrl });
+  if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
+    return { status: reelResponse.statusCode, body: reelResponse.body || { error: 'Could not read Instagram Reel' } };
+  }
+  return { reel: reelResponse.body, search: null, fromCache: false };
+}
+
+// Google Maps details for one result, shared by everyone who saves that place.
+async function readDetails(candidate, query, reel) {
+  const cached = await readCache('place_lookups', candidate.url, PLACE_CACHE_DAYS);
+  if (cached?.data) return { details: cached.data, detailsError: null };
+
+  const detailsResponse = await invoke(scrapeLocation, {
+    action: 'details',
+    query,
+    placeUrl: candidate.url,
+    placeAddress: candidate.address,
+    placeName: candidate.name,
+    location: candidate.address || reel.location,
+  });
+  if (detailsResponse.statusCode >= 400) {
+    return { details: null, detailsError: detailsResponse.body?.error || 'Could not read Google Maps details' };
+  }
+  await writeCache('place_lookups', candidate.url, detailsResponse.body);
+  return { details: detailsResponse.body, detailsError: null };
+}
+
+// req.backgroundOnly is set by /api/save-reel, which runs this while the app is closed. Nobody can
+// pick a place then, so Maps details are only read when the search found exactly one place.
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
-  const reelResponse = await invoke(scrapeReel, { reelUrl });
-  if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
-    return res.status(reelResponse.statusCode).json(reelResponse.body || { error: 'Could not read Instagram Reel' });
-  }
+  // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
+  const cacheKey = canonicalInstagramUrl(reelUrl);
+  const read = await readReel(reelUrl, cacheKey);
+  if (!read.reel) return res.status(read.status).json(read.body);
 
-  const reel = reelResponse.body;
+  const { reel } = read;
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query.
   const venue = reel.caption.match(/[📍📌]\s*([^\n#()🏷]+)/u)?.[1].trim();
   const flipped = flipCaption(reel.caption);
   const query = (venue ? `📍${venue} ${flipped}` : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  const saveReel = (search) => writeCache('reel_lookups', cacheKey, { reel: { ...reel, reelUrl: cacheKey }, search });
   if (!query) {
+    if (!read.fromCache) await saveReel(null);
     return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
 
-  const searchResponse = await invoke(scrapeLocation, {
-    action: 'search',
-    query,
-    placeName: reel.placeName,
-    location: reel.location,
-    caption: reel.caption,
-  });
-  if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
-    return res.status(200).json({
-      ...reel,
-      maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
+  let candidates;
+  if (read.search?.query === query) {
+    candidates = read.search.candidates;
+  } else {
+    const searchResponse = await invoke(scrapeLocation, {
+      action: 'search',
+      query,
+      placeName: reel.placeName,
+      location: reel.location,
+      caption: reel.caption,
     });
+    if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
+      // The Reel is still worth keeping: the next lookup only needs to retry the search.
+      if (!read.fromCache) await saveReel(null);
+      return res.status(200).json({
+        ...reel,
+        maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
+      });
+    }
+    candidates = searchResponse.body.candidates || [];
+    await saveReel({ query, candidates });
   }
 
-  const candidates = searchResponse.body.candidates || [];
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
   let selectedCandidate = null;
-  if (typeof req.selectCandidate === 'function') {
+  if (req.backgroundOnly) {
+    selectedCandidate = candidates.length === 1 ? candidates[0] : null;
+  } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
     selectedCandidate = candidates.find((candidate) => candidate.url === choice?.url) || null;
   } else if (req.body?.mapsPlaceUrl) {
@@ -108,26 +171,15 @@ module.exports = async function handler(req, res) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && typeof req.selectCandidate !== 'function') {
+  if (!selectedCandidate && !req.backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
       : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
   }
 
-  let details = null;
-  let detailsError = null;
-  if (selectedCandidate) {
-    const detailsResponse = await invoke(scrapeLocation, {
-      action: 'details',
-      query,
-      placeUrl: selectedCandidate.url,
-      placeAddress: selectedCandidate.address,
-      placeName: selectedCandidate.name,
-      location: selectedCandidate.address || reel.location,
-    });
-    if (detailsResponse.statusCode >= 400) detailsError = detailsResponse.body?.error || 'Could not read Google Maps details';
-    else details = detailsResponse.body;
-  }
+  const { details, detailsError } = selectedCandidate
+    ? await readDetails(selectedCandidate, query, reel)
+    : { details: null, detailsError: null };
 
   return res.status(200).json({
     ...reel,
