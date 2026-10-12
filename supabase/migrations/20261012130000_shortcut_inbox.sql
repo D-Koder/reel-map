@@ -1,6 +1,7 @@
 -- Save a reel from the iPhone share sheet without opening the app.
 -- The Shortcut sends { key, url } to /api/save-reel, which calls save_shared_reel() below.
 -- The reel waits in shared_reels until the app next opens, then goes through the normal inbox lookup.
+-- Safe to run more than once.
 
 -- One secret key per user. It identifies the user to the Shortcut, so it is only readable by its owner.
 create table if not exists public.shortcut_keys (
@@ -11,6 +12,7 @@ create table if not exists public.shortcut_keys (
 
 alter table public.shortcut_keys enable row level security;
 
+drop policy if exists "Users read their own shortcut key" on public.shortcut_keys;
 create policy "Users read their own shortcut key"
   on public.shortcut_keys for select to authenticated
   using (user_id = (select auth.uid()));
@@ -27,10 +29,12 @@ create index if not exists shared_reels_user_created_idx on public.shared_reels 
 
 alter table public.shared_reels enable row level security;
 
+drop policy if exists "Users read their own shared reels" on public.shared_reels;
 create policy "Users read their own shared reels"
   on public.shared_reels for select to authenticated
   using (user_id = (select auth.uid()));
 
+drop policy if exists "Users delete their own shared reels" on public.shared_reels;
 create policy "Users delete their own shared reels"
   on public.shared_reels for delete to authenticated
   using (user_id = (select auth.uid()));

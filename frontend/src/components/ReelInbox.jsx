@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 const MESSAGES = {
   saving: 'Finding the place in this reel…',
   offline: "Saved. We'll find the place when you're back online.",
-  'needs-place': "We couldn't tell which place this is yet.",
+  'needs-place': "We couldn't tell which place this is. Tap Finish to pick it.",
   failed: "Couldn't save this reel.",
 };
 

@@ -255,18 +255,13 @@ function MainApp({ userId, showToast }) {
     inbox.enqueue(pendingShareUrl);
   }, [pendingShareUrl, collections.length, inbox]);
 
-  // Takes you to what a notification is about: a place is shown on the map with its label popped up,
+  // Takes you to what a notification is about: a place opens its card, so you see the update;
   // a collection is scrolled to on Home.
   const openTarget = (target) => {
     if (!target) return false;
     setNotificationsOpen(false);
     if (target.place) {
-      const { place } = target;
-      setScreen('map');
-      // Wait a frame so the map panel is visible and sized before flying.
-      requestAnimationFrame(() => {
-        if (!mapScreenRef.current?.focusPlace(place)) setOpenPinId(`${place.collection_id}:${place.id}`);
-      });
+      setOpenPinId(`${target.place.collection_id}:${target.place.id}`);
     } else {
       setScreen('home');
       requestAnimationFrame(() => {
