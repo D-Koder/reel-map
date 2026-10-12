@@ -32,7 +32,9 @@ module.exports = async function handler(req, res) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return reply(res, 500, '⚠️ Reel Map is missing its Supabase settings');
 
   const body = typeof req.body === 'object' && req.body ? req.body : {};
-  const key = typeof body.key === 'string' ? body.key.trim() : '';
+  // Keys are letters and digits only. A file read back by Shortcuts can carry a newline,
+  // and a key saved without its prefix removed still starts with "reelmap-key:".
+  const key = typeof body.key === 'string' ? body.key.replace(/^\s*reelmap-key:/i, '').replace(/\s+/g, '') : '';
   const url = typeof body.url === 'string' ? body.url.trim() : '';
   const connecting = body.connect === true || body.connect === 'true';
   if (!key) return reply(res, 401, '⚠️ Open Reel Map → Settings → Connect first');
