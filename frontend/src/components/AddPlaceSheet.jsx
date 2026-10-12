@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { entriesAtSpot } from '../lib/places';
+import { bestPlaceMatch, entriesAtSpot, reelPlaceHints } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import { X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
@@ -81,6 +81,9 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const [scrapedData, setScrapedData] = useState(draft?.scrapedData ?? null);
   const [mapsData, setMapsData] = useState(draft?.mapsData ?? null);
   const [name, setName] = useState(initialPlace?.name ?? draft?.name ?? '');
+  // True once the user types a name. Picking a Google place then keeps it; otherwise the place's name
+  // replaces the guess from the caption (like "0 likes, 0 comments - …").
+  const nameTypedRef = useRef(false);
   const [location, setLocation] = useState(initialPlace?.address ?? draft?.location ?? '');
   // Exact spot tapped on the map. Used as the pin until a Google place is picked.
   const [pinCoords, setPinCoords] = useState(initialPlace
@@ -189,6 +192,11 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         setLocation(data.maps.details.address || data.location || '');
         addLog(`✅ Google Maps matched ${data.maps.details.name}.`, 'success');
         addLog(`📍 Address: ${data.maps.details.address || 'Not listed'}`, 'success');
+      } else if (bestPlaceMatch(candidates, reelPlaceHints(data))) {
+        // One result, or one whose name matches the reel's place: pick it without asking.
+        const best = bestPlaceMatch(candidates, reelPlaceHints(data));
+        addLog(`✅ Picked ${best.name}, the clear match.`, 'success');
+        selectLocationCandidate(best);
       } else if (candidates.length) {
         setLocationCandidates(candidates);
         setLocationSearchDone(true);
@@ -228,7 +236,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         location: candidate.address || location || scrapedData?.location || '',
       });
       setMapsData(data);
-      if (!preserveName || !name.trim()) setName(data.name || candidate.name);
+      if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
       setLocation(data.address || candidate.address || location);
       setLocationCandidates([]);
       setLocationSearchDone(false);
@@ -266,8 +274,13 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
       // Name + address first. If Google finds nothing, retry with the address alone.
       let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
       if (!candidates.length) candidates = await searchCandidates(address);
+      // One result, or one whose name matches the name or the address's first part: use it straight away.
+      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]]);
+      if (best) {
+        await selectLocationCandidate({ ...best, searchQuery: address }, true);
+        return;
+      }
       setVerifyResults(candidates);
-      if (candidates.length === 1) setVerifyCandidate(candidates[0]);
     } catch (error) {
       addLog(`❌ Could not verify address: ${error.message}`, 'error');
       setVerifyResults(null);
@@ -640,6 +653,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 className="step-input"
                 value={name}
                 onChange={(e) => {
+                  nameTypedRef.current = true;
                   setName(e.target.value);
                   setMapsData(null);
                   setLocationCandidates([]);

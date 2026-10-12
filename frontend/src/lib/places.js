@@ -55,3 +55,35 @@ export async function checkedGoogleMapsLink(place, signal) {
     return link;
   }
 }
+
+// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
+const squash = (text) => String(text ?? '')
+  .toLocaleLowerCase()
+  .normalize('NFKD')
+  .replace(/[̀-ͯ]/g, '')
+  .replace(/[^\p{L}\p{N}]+/gu, '');
+
+// The Google Maps result to pick without asking, or null when it isn't clear.
+// One result → that one. Otherwise each hint (best first) is tried, and a result whose name
+// contains it is picked only when it is the only one: "YoArt" picks "Yo Art Frozen Yoghurt (The Glen)"
+// but not when "Yo Art Cafe" is also listed. Same rule as bestCandidate in api/enrich-reel.js.
+export function bestPlaceMatch(candidates, hints = []) {
+  if (!candidates?.length) return null;
+  if (candidates.length === 1) return candidates[0];
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const matches = candidates.filter((candidate) => squash(candidate.name).includes(key));
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
+
+// Name hints from a reel lookup, best first: the tagged place, the 📍 venue, then the first part of the location.
+export function reelPlaceHints(reel) {
+  return [
+    String(reel?.placeName ?? '').replace(/^@/, ''),
+    reel?.caption?.match(/[📍📌]\s*([^\n#()🏷,]+)/u)?.[1],
+    reel?.location?.split(',')[0],
+  ].filter(Boolean);
+}

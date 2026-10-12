@@ -24,6 +24,23 @@ function flipCaption(caption) {
   return [...words.slice(half), ...words.slice(0, half)].join(' ');
 }
 
+// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
+function squash(value) {
+  return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+// The result whose name contains a hint ("YoArt" → "Yo Art Frozen Yoghurt (The Glen)"), tried best hint
+// first, and only when exactly one result matches. Same rule as bestPlaceMatch in frontend/src/lib/places.js.
+function bestCandidate(candidates, hints) {
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const matches = candidates.filter((candidate) => squash(candidate.name).includes(key));
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
+
 function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
@@ -73,8 +90,10 @@ module.exports = async function handler(req, res) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && typeof req.selectCandidate !== 'function' && candidates.length === 1) {
-    selectedCandidate = candidates[0];
+  if (!selectedCandidate && typeof req.selectCandidate !== 'function') {
+    selectedCandidate = candidates.length === 1
+      ? candidates[0]
+      : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
   }
 
   let details = null;
