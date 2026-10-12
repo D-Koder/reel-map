@@ -1,7 +1,7 @@
 const scrapeReel = require('./scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl } = require('./_lib/reel-url');
-const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
+const { fetchInstagramCover } = require('./_lib/instagram-cover');
 const { readCache, writeCache, DAY } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue } = require('./_lib/caption');
@@ -80,9 +80,9 @@ async function readReel(reelUrl, cacheKey, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   if (cached?.data?.reel) {
     const reel = { ...cached.data.reel, reelUrl };
-    if (cached.ageMs > COVER_MAX_AGE) {
-      const oembed = await fetchInstagramOembed(reelUrl, 5000).catch(() => null);
-      if (oembed?.ok && oembed.thumbnailUrl) reel.thumbnailUrl = oembed.thumbnailUrl;
+    if (cached.ageMs > COVER_MAX_AGE || !reel.thumbnailUrl) {
+      const cover = await fetchInstagramCover(reelUrl, 5000).catch(() => null);
+      if (cover?.thumbnailUrl) reel.thumbnailUrl = cover.thumbnailUrl;
     }
     return { reel, search: cached.data.search ?? null, fromCache: true };
   }

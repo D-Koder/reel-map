@@ -1,5 +1,6 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
 const { fetchInstagramOembed } = require('./_lib/instagram-oembed');
+const { fetchInstagramPage } = require('./_lib/instagram-page');
 const { captionVenue } = require('./_lib/caption');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
@@ -105,31 +106,37 @@ function readTikTokPage(inputUrl) {
   };
 }
 
+// Two plain requests at once, no browser: oEmbed (full caption) and the public page's preview tags
+// (cover, likes, comments). Returns null, so Chrome runs, when there's no caption or no cover.
 async function readInstagramQuickly(reelUrl) {
-  try {
-    const oembed = await fetchInstagramOembed(reelUrl);
-    if (!oembed.ok || !oembed.caption) return null;
-    const details = parseCaptionDetails(oembed.caption);
-    return {
-      success: true,
-      reelUrl,
-      caption: oembed.caption,
-      creator: oembed.creator,
-      // oEmbed doesn't give counts or the date. Nothing that saves a place uses them.
-      likes: null,
-      comments: null,
-      placeName: details.placeName,
-      location: details.location,
-      date: '',
-      hashtags: [...oembed.caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
-      videoUrl: '',
-      thumbnailUrl: normalizeImageUrl(oembed.thumbnailUrl),
-      source: 'oembed',
-    };
-  } catch (error) {
-    console.warn('Instagram oEmbed failed, falling back to the browser:', error.message);
+  const [oembedResult, pageResult] = await Promise.allSettled([fetchInstagramOembed(reelUrl), fetchInstagramPage(reelUrl)]);
+  const oembed = oembedResult.status === 'fulfilled' && oembedResult.value.ok ? oembedResult.value : {};
+  const page = pageResult.status === 'fulfilled' ? pageResult.value : {};
+  if (oembedResult.status === 'rejected') console.warn('Instagram oEmbed failed:', oembedResult.reason?.message);
+  if (pageResult.status === 'rejected') console.warn('Instagram page read failed:', pageResult.reason?.message);
+
+  const caption = oembed.caption || page.caption || '';
+  const thumbnailUrl = normalizeImageUrl(oembed.thumbnailUrl || page.thumbnailUrl);
+  if (!caption || !thumbnailUrl) {
+    console.warn(`Quick Instagram lookup incomplete (caption: ${Boolean(caption)}, cover: ${Boolean(thumbnailUrl)}); using the browser`);
     return null;
   }
+  const details = parseCaptionDetails(caption);
+  return {
+    success: true,
+    reelUrl,
+    caption,
+    creator: oembed.creator || page.creator || null,
+    likes: page.likes ?? null,
+    comments: page.comments ?? null,
+    placeName: details.placeName,
+    location: details.location,
+    date: '',
+    hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+    videoUrl: '',
+    thumbnailUrl,
+    source: 'quick',
+  };
 }
 
 module.exports = async function handler(req, res) {
