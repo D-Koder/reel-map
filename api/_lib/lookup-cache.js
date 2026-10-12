@@ -9,8 +9,11 @@ const DAY = 24 * 60 * 60 * 1000;
 
 const enabled = () => Boolean(SUPABASE_URL && SERVICE_KEY);
 
+// Works with the newer secret key (sb_secret_…), which goes in apikey only,
+// and the legacy service_role key (eyJ…), which also goes in Authorization.
 function headers(extra = {}) {
-  return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', ...extra };
+  const auth = SERVICE_KEY.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${SERVICE_KEY}` };
+  return { apikey: SERVICE_KEY, ...auth, 'Content-Type': 'application/json', ...extra };
 }
 
 // The saved data for `key`, or null when it is missing or older than `maxAgeDays`.
