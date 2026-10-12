@@ -61,7 +61,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -94,6 +94,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
   const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
+  const [eventDate, setEventDate] = useState(draft?.eventDate ?? '');
   const [entryUrl, setEntryUrl] = useState(draft?.entryUrl ?? '');
   const [entryUrlError, setEntryUrlError] = useState('');
   // Saved places already at this location. Shown as a warning before a second entry is added.
@@ -118,10 +119,10 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone, customInfo, entryUrl,
+      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone, customInfo, entryUrl]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -436,6 +437,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
         feeling,
         customInfo: customInfo.trim(),
         url: link,
+        eventDate: category === 'event' ? eventDate || null : null,
       });
       if (draftable) clearDraft();
     } catch (error) {
@@ -942,6 +944,19 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
                 </select>
               </label>
             </div>
+
+            {category === 'event' && eventDatesReady && (
+              <label className="field">
+                <span className="modal-label">Event date (optional)</span>
+                <input
+                  className="step-input"
+                  type="date"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  disabled={saving}
+                />
+              </label>
+            )}
 
             {/* Vibe/Feeling */}
             <div className="field">

@@ -67,6 +67,8 @@ function normalisePlace(row) {
     position: cp.position,
     // Each collection has its own booking, so booking a place in one group doesn't show in another.
     booking: cp.booking ?? null,
+    // The day an event is on, if someone set one. Only used for events.
+    event_date: cp.event_date ?? null,
     reactions,
   }));
 }
@@ -97,6 +99,8 @@ export function useAppData(userId, showToast) {
   );
   const [order, setOrder] = useState(() => cached?.order ?? {}); // place_id -> my position
   const refreshTimer = useRef(null);
+  // False until the database has the event_date column (see 20261013090000_event_dates.sql).
+  const [eventDatesReady, setEventDatesReady] = useState(false);
 
   const refresh = useCallback(async () => {
     const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes] = await Promise.all([
@@ -109,6 +113,12 @@ export function useAppData(userId, showToast) {
       supabase.from('collection_places').select('place_id, collection_id, custom_name, custom_emoji, category'),
       supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
     ]);
+    // Read on its own, so the app still loads before the event_date column has been added.
+    const eventDatesRes = await supabase.from('collection_places').select('place_id, collection_id, event_date');
+    setEventDatesReady(!eventDatesRes.error);
+    const eventDates = Object.fromEntries(
+      (eventDatesRes.data ?? []).map((e) => [`${e.collection_id}:${e.place_id}`, e.event_date])
+    );
     const failed = [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes].find((r) => r.error);
     if (failed) {
       setState((s) => ({ ...s, loading: false, error: friendlyError(failed.error) }));
@@ -131,6 +141,7 @@ export function useAppData(userId, showToast) {
           category: entry?.category ?? null,
           custom_emoji: entry?.custom_emoji ?? null,
           booking: bookings[`${cp.collection_id}:${p.id}`] ?? null,
+          event_date: eventDates[`${cp.collection_id}:${p.id}`] ?? null,
         };
       }),
     }));
@@ -206,7 +217,7 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling, customInfo, url }) => {
+    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling, customInfo, url, eventDate }) => {
       // Call the add_place_to_collection() function. It reuses the venue for this location and always adds a new entry.
       const { data, error } = await supabase.rpc('add_place_to_collection', {
         p_collection_id: collectionId,
@@ -232,6 +243,14 @@ export function useAppData(userId, showToast) {
         return null;
       }
       const placeId = data;
+      if (eventDate && category === 'event' && eventDatesReady) {
+        const { error: dateError } = await supabase
+          .from('collection_places')
+          .update({ event_date: eventDate })
+          .eq('collection_id', collectionId)
+          .eq('place_id', placeId);
+        if (dateError) showToast(`Place saved, but the event date didn't save: ${friendlyError(dateError)}`);
+      }
       if (feeling) {
         const { error: reactionError } = await supabase
           .from('reactions')
@@ -248,10 +267,12 @@ export function useAppData(userId, showToast) {
     // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
-    updatePlace: async (place, { name, emoji, category }) => {
+    updatePlace: async (place, { name, emoji, category, eventDate }) => {
+      const patch = { custom_name: name, custom_emoji: emoji || null, category };
+      if (eventDatesReady) patch.event_date = category === 'event' ? eventDate || null : null;
       const { data, error } = await supabase
         .from('collection_places')
-        .update({ custom_name: name, custom_emoji: emoji || null, category })
+        .update(patch)
         .eq('collection_id', place.collection_id)
         .eq('place_id', place.id)
         .select('place_id');
@@ -344,5 +365,5 @@ export function useAppData(userId, showToast) {
     createSampleData: () => run(supabase.rpc('create_sample_data')),
   };
 
-  return { ...state, places, ...actions };
+  return { ...state, places, eventDatesReady, ...actions };
 }

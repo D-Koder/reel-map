@@ -6,12 +6,13 @@ import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 
 // Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection.
-export default function EditPlaceSheet({ place, collections = [], places = [], userId, onSave, onCopy, onMove, onClose }) {
+export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
   const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
+  const [eventDate, setEventDate] = useState(place.event_date ?? '');
   const [saving, setSaving] = useState(false);
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
@@ -74,7 +75,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), category });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventDate });
     setSaving(false);
   };
 
@@ -137,6 +138,20 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
             ))}
           </select>
         </label>
+
+        {category === 'event' && eventDatesReady && (
+          <label className="field">
+            <span className="modal-label">Event date (optional)</span>
+            <input
+              className="step-input"
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              disabled={!isAdder}
+            />
+            <span className="place-collection-note">Events in the next 3 months show in Up next.</span>
+          </label>
+        )}
 
         <div className="field">
           <span className="modal-label">Collections</span>

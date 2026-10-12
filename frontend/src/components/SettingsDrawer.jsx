@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, Lock, LockOpen, Pencil, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, Bell, Camera, ChevronDown, ChevronRight, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -278,8 +279,12 @@ function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare
   );
 }
 
-function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
+function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteClick }) {
   const [editMode, setEditMode] = useState(false);
+  // Closing Settings closes Edit profile too.
+  useEffect(() => {
+    if (!drawerOpen) setEditMode(false);
+  }, [drawerOpen]);
   const [name, setName] = useState(profile.display_name);
   const [pickingAvatar, setPickingAvatar] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -338,30 +343,72 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
     <div className="settings-section">
       <div className="settings-section-title"><User className="ico" aria-hidden="true" /> You</div>
 
-      {!editMode ? (
-        <div className="profile-display-card">
-          <div className="profile-avatar">
-            <AvatarComponent />
+      {/* The card opens Edit profile as its own panel, over Settings. */}
+      <button type="button" className="profile-display-card profile-open" onClick={() => setEditMode(true)} aria-label="Edit profile">
+        <span className="profile-avatar">
+          <AvatarComponent />
+        </span>
+        <span className="profile-info">
+          <span className="profile-name">{profile.display_name}</span>
+          <span className="profile-email">{email}</span>
+        </span>
+        <ChevronRight className="profile-open-chevron" aria-hidden="true" />
+      </button>
+
+      {createPortal(
+        <div className={`settings-drawer profile-panel ${editMode ? 'open' : ''}`} role="dialog" aria-label="Edit profile" aria-hidden={!editMode}>
+          <div className="settings-header">
+            <button type="button" className="settings-close" onClick={handleCancel} aria-label="Back to settings">
+              <ArrowLeft aria-hidden="true" />
+            </button>
+            <span className="profile-panel-title">Edit profile</span>
+            <span className="settings-close" aria-hidden="true" />
           </div>
-          <div className="profile-info">
-            <div className="profile-name">{profile.display_name}</div>
-            <div className="profile-email">{email}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="profile-edit-card">
-          <div className="profile-edit-header">
+
+          <div className="settings-content profile-panel-body">
             <button
-              className="profile-avatar profile-avatar-editable"
+              type="button"
+              className="profile-avatar profile-avatar-editable profile-avatar-large"
               onClick={() => setPickingAvatar((v) => !v)}
               aria-label="Change avatar"
               aria-expanded={pickingAvatar}
-              title="Tap to change avatar"
             >
               <AvatarComponent />
             </button>
-            <div className="profile-edit-fields">
-              <label className="input-label">Display Name</label>
+
+            <div className="profile-photo-buttons">
+              <button type="button" className="step-btn secondary" onClick={() => setPickingAvatar((v) => !v)} aria-expanded={pickingAvatar}>
+                Pick an emoji
+              </button>
+              <label className="step-btn secondary profile-upload-btn">
+                {uploading ? <><span className="spinner" aria-hidden="true" />Uploading…</> : <><Camera className="ico" aria-hidden="true" /> Upload photo</>}
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
+              </label>
+            </div>
+            {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}
+
+            {pickingAvatar && (
+              <div className="avatar-picker-section">
+                <div className="avatar-grid">
+                  {AVATARS.map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      className={`avatar-option ${profile.avatar === a ? 'selected' : ''}`}
+                      onClick={() => {
+                        onUpdateProfile({ avatar: a });
+                        setPickingAvatar(false);
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className="field">
+              <span className="input-label">Display name</span>
               <input
                 className="step-input"
                 value={name}
@@ -371,55 +418,20 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
                   if (e.key === 'Enter') handleSave();
                   if (e.key === 'Escape') handleCancel();
                 }}
-                autoFocus
                 aria-label="Profile name"
               />
-              <label className="input-label">Email</label>
+            </label>
+            <div className="field">
+              <span className="input-label">Email</span>
               <div className="input-readonly">{email}</div>
             </div>
+
+            <button type="button" className="step-btn primary full-width" onClick={handleSave}>
+              Save changes
+            </button>
           </div>
-
-          {pickingAvatar && (
-            <div className="avatar-picker-section">
-              <div className="avatar-picker-label">Choose an emoji avatar</div>
-              <div className="avatar-grid">
-                {AVATARS.map((a) => (
-                  <button
-                    key={a}
-                    className={`avatar-option ${profile.avatar === a ? 'selected' : ''}`}
-                    onClick={() => {
-                      onUpdateProfile({ avatar: a });
-                      setPickingAvatar(false);
-                    }}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <label className="step-btn secondary profile-upload-btn full-width">
-            {uploading ? <><span className="spinner" aria-hidden="true" />Uploading photo…</> : <><Camera className="ico" aria-hidden="true" /> Upload Profile Photo</>}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} disabled={uploading} hidden />
-          </label>
-          {photoError && <div className="profile-photo-error" role="alert">{photoError}</div>}
-        </div>
-      )}
-
-      {editMode ? (
-        <div className="profile-edit-actions">
-          <button className="step-btn secondary" onClick={handleCancel}>
-            Cancel
-          </button>
-          <button className="step-btn" onClick={handleSave}>
-            Save Changes
-          </button>
-        </div>
-      ) : (
-        <button className="step-btn secondary full-width" onClick={() => setEditMode(true)}>
-          <Pencil className="ico" aria-hidden="true" /> Edit Profile
-        </button>
+        </div>,
+        document.body
       )}
 
       <div className="profile-actions">
@@ -434,6 +446,19 @@ function ProfileSection({ profile, email, onUpdateProfile, onDeleteClick }) {
           Delete Account
         </button>
       </div>
+    </div>
+  );
+}
+
+// Show or hide my blue dot on the map. This device only; the location is never saved.
+function LocationToggle({ on, onChange }) {
+  return (
+    <div className="cascade-delete-toggle">
+      <label>
+        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+        <LocateFixed className="ico" aria-hidden="true" /> Show my location on the map
+      </label>
+      <div className="toggle-hint">Only you see it. Reel Map never saves your location.</div>
     </div>
   );
 }
@@ -453,6 +478,8 @@ export default function SettingsDrawer({
   showToast,
   onShare,
   onOpenDeleteModal,
+  showMyLocation = true,
+  onToggleMyLocation,
 }) {
   const [newName, setNewName] = useState('');
   const [email, setEmail] = useState('');
@@ -516,8 +543,9 @@ export default function SettingsDrawer({
         </div>
 
         <div className="settings-content">
-          {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
+          {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <FridayPickToggle userId={userId} />}
+          {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {userId && <ShortcutSetup showToast={showToast} />}
 
           <div className="settings-section">

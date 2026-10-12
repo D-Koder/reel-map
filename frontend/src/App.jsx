@@ -22,7 +22,7 @@ import { useReelCovers } from './hooks/useReelCovers';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
-import { clearUserStorage } from './lib/storage';
+import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
 import './App.css';
 
@@ -47,6 +47,7 @@ function Toast({ toast, onDismiss }) {
 }
 
 // How long a delete can be undone. The delete is only sent once this runs out.
+const SHOW_LOCATION_KEY = 'reelmap:show-my-location';
 const UNDO_MS = 5000;
 
 function MainApp({ userId, showToast }) {
@@ -54,7 +55,22 @@ function MainApp({ userId, showToast }) {
   const online = useOnline();
   const { acceptInvite } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
+  // Wide screens show the list and the map side by side (see the 900px rule in App.css).
+  const [isWide, setIsWide] = useState(() => window.matchMedia?.('(min-width: 900px)').matches ?? false);
+  useEffect(() => {
+    const query = window.matchMedia?.('(min-width: 900px)');
+    if (!query) return undefined;
+    const update = () => setIsWide(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Show my location on the map. Kept on this device only; the location itself is never saved.
+  const [showMyLocation, setShowMyLocation] = useState(() => readJSON(SHOW_LOCATION_KEY, true));
+  const toggleMyLocation = (on) => {
+    setShowMyLocation(on);
+    writeJSON(SHOW_LOCATION_KEY, on);
+  };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll } = useNotifications(userId);
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
@@ -192,12 +208,13 @@ function MainApp({ userId, showToast }) {
     [collections]
   );
 
-  // Fresh covers replace the saved links. A place with no cover shows its colour tile.
+  // A fresh cover replaces the saved link. When the lookup finds none, the saved link stays:
+  // it may still load, and if it doesn't the card shows its colour tile.
   const covers = useReelCovers(places);
   const placesWithCovers = useMemo(
     () => places.map((place) => {
-      const row = covers.map[place.reel_url];
-      return row ? { ...place, reel_thumbnail_url: row.thumbnail_url } : place;
+      const fresh = covers.map[place.reel_url]?.thumbnail_url;
+      return fresh ? { ...place, reel_thumbnail_url: fresh } : place;
     }),
     [places, covers.map]
   );
@@ -341,7 +358,7 @@ function MainApp({ userId, showToast }) {
 
   // A copied place is one row per collection, all sharing the place id, so pins are opened by
   // "collection:place". A bare place id (from a notification or a just-saved reel) opens its first entry.
-  const findEntry = (key) => key && (places.find((p) => `${p.collection_id}:${p.id}` === key) ?? places.find((p) => p.id === key));
+  const findEntry = (key) => key && (placesWithCovers.find((p) => `${p.collection_id}:${p.id}` === key) ?? placesWithCovers.find((p) => p.id === key));
   const openPin = findEntry(openPinId);
   const editPin = findEntry(editPinId);
 
@@ -407,7 +424,7 @@ function MainApp({ userId, showToast }) {
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+          <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
         </section>
       </main>
 
@@ -456,6 +473,8 @@ function MainApp({ userId, showToast }) {
         showToast={showToast}
         onShare={setShareModal}
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
+        showMyLocation={showMyLocation}
+        onToggleMyLocation={toggleMyLocation}
       />
 
       <DeleteAccountModal
@@ -499,6 +518,7 @@ function MainApp({ userId, showToast }) {
           place={editPin}
           collections={collections}
           places={places}
+          eventDatesReady={data.eventDatesReady}
           userId={userId}
           onCopy={async (targetId) => {
             const ok = await data.copyPlaceToCollection(editPin, targetId);
@@ -529,6 +549,7 @@ function MainApp({ userId, showToast }) {
           onCreateCollection={data.createCollection}
           collections={collections}
           places={places}
+          eventDatesReady={data.eventDatesReady}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {

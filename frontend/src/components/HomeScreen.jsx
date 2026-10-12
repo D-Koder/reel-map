@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, Plus, Sprout, Users } from 'lucide-react';
+import { CalendarCheck, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import PlaceThumb from './PlaceThumb';
 import { formatDateTime } from '../lib/constants';
@@ -8,26 +8,73 @@ import { readJSON, writeJSON } from '../lib/storage';
 // Set after the first reorder, so the hint stops showing on this device.
 const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
 
-// The soonest booked plan that hasn't happened yet, shown as a ticket stub above the lists.
-function UpNext({ places, collections, onOpenPin }) {
-  const startOfToday = new Date();
+const MONTHS_AHEAD = 3;
+
+// Up next picks one thing, in this order:
+// 1. the soonest booking still to come,
+// 2. the soonest unbooked event in the next three months,
+// 3. a food or cafe place I'm keen on and nobody has booked (most keen votes first).
+export function pickUpNext(places, userId, now = new Date()) {
+  const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
-  const next = places
-    .filter((p) => p.booking?.planned_at && !p.booking.done_at && new Date(p.booking.planned_at) >= startOfToday)
+  const horizon = new Date(startOfToday);
+  horizon.setMonth(horizon.getMonth() + MONTHS_AHEAD);
+  const open = places.filter((p) => !p.booking?.done_at);
+
+  const booked = open
+    .filter((p) => p.booking?.planned_at && new Date(p.booking.planned_at) >= startOfToday)
     .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at))[0];
-  if (!next) return null;
-  const collection = collections.find((c) => c.id === next.collection_id);
+  if (booked) return { kind: 'booked', place: booked };
+
+  const unbooked = open.filter((p) => !p.booking?.planned_at);
+  // event_date is a plain day ("2026-10-17"), read as local midnight.
+  const eventDay = (p) => new Date(`${p.event_date}T00:00:00`);
+  const event = unbooked
+    .filter((p) => p.category === 'event' && p.event_date && eventDay(p) >= startOfToday && eventDay(p) <= horizon)
+    .sort((a, b) => eventDay(a) - eventDay(b))[0];
+  if (event) return { kind: 'event', place: event, date: eventDay(event) };
+
+  const keenCount = (p) => Object.values(p.reactions ?? {}).filter((v) => v === 'keen').length;
+  const keen = unbooked
+    .filter((p) => (p.category === 'food' || p.category === 'cafe') && p.reactions?.[userId] === 'keen')
+    .sort((a, b) => keenCount(b) - keenCount(a))[0];
+  if (keen) return { kind: 'keen', place: keen };
+  return null;
+}
+
+const TAGS = {
+  booked: { Icon: CalendarCheck, label: 'Booked' },
+  event: { Icon: PartyPopper, label: 'Coming up' },
+  keen: { Icon: Flame, label: "You're keen" },
+};
+
+function formatEventDay(date) {
+  return date.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// One plan worth looking at, shown as a ticket stub above the lists.
+function UpNext({ places, collections, userId, onOpenPin }) {
+  const pick = pickUpNext(places, userId);
+  if (!pick) return null;
+  const { kind, place } = pick;
+  const collection = collections.find((c) => c.id === place.collection_id);
+  const { Icon, label } = TAGS[kind];
+  const when = kind === 'booked'
+    ? formatDateTime(place.booking.planned_at)
+    : kind === 'event'
+      ? formatEventDay(pick.date)
+      : 'Not booked yet';
 
   return (
-    <button type="button" className="ticket" onClick={() => onOpenPin(`${next.collection_id}:${next.id}`)}>
+    <button type="button" className="ticket" onClick={() => onOpenPin(`${place.collection_id}:${place.id}`)}>
       <span className="ticket-cover">
-        <PlaceThumb place={next} className="ticket-thumb" />
-        <span className="ticket-tag"><CalendarDays className="ico" aria-hidden="true" /> Up next</span>
+        <PlaceThumb place={place} className="ticket-thumb" />
+        <span className={`ticket-tag ticket-tag-${kind}`}><Icon className="ico" aria-hidden="true" /> {label}</span>
       </span>
       <span className="ticket-stub">
-        <span className="ticket-title">{next.name}</span>
+        <span className="ticket-title">{place.name}</span>
         <span className="ticket-when">
-          {formatDateTime(next.booking.planned_at)}
+          {when}
           {collection && ` · ${collection.name}`}
         </span>
       </span>
@@ -82,7 +129,7 @@ export default function HomeScreen({
     <div className="screen">
       <div className="home-screen">
         {banner}
-        <UpNext places={places} collections={collections} onOpenPin={onOpenPin} />
+        <UpNext places={places} collections={collections} userId={userId} onOpenPin={onOpenPin} />
         {!reorderLearned && places.length > 1 && (
           <div className="reorder-hint">Tip: drag <GripVertical className="ico" aria-hidden="true" /> to move a place</div>
         )}

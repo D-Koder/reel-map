@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Coffee, MapPin, PartyPopper, UtensilsCrossed, X } from 'lucide-react';
+import { Coffee, LocateFixed, MapPin, PartyPopper, UtensilsCrossed, X } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
@@ -182,7 +182,7 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
     .addTo(map);
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, onOpenPin, onAddAt, showToast }, ref) {
+const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, showMyLocation = true, onScreen = true, onOpenPin, onAddAt, showToast }, ref) {
   // Ids unchecked in the chip rows. Empty means everything shows; unchecking every chip shows nothing.
   // Tracking what is hidden means a collection created later shows by default.
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
@@ -443,6 +443,57 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     // Rebuilt only when what it shows changes, not on every places refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, focusedKey, focusedPlace?.name, focusedPlace?.lat, focusedPlace?.lng, focusedPlace?.custom_info, focusedPlace?.address]);
+
+  // My location: a blue dot that follows the phone, plus a button that flies to it.
+  // Starts the first time the map is on screen, so the permission prompt makes sense.
+  // Turned off in Settings. The location stays on this device.
+  const [locationStarted, setLocationStarted] = useState(false);
+  const toastRef = useRef(showToast);
+  toastRef.current = showToast;
+  useEffect(() => {
+    if (onScreen && showMyLocation) setLocationStarted(true);
+  }, [onScreen, showMyLocation]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !showMyLocation || !locationStarted || !navigator.geolocation) return undefined;
+    const dot = document.createElement('div');
+    dot.className = 'my-location-dot';
+    dot.setAttribute('aria-label', 'You are here');
+    const marker = new mapboxgl.Marker({ element: dot });
+    let here = null;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        here = [position.coords.longitude, position.coords.latitude];
+        marker.setLngLat(here);
+        if (!marker.getElement().isConnected) marker.addTo(map);
+        setSearchBias(here);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 },
+    );
+    const button = {
+      onAdd() {
+        this.el = document.createElement('div');
+        this.el.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+        this.el.innerHTML = '<button type="button" class="my-location-btn" aria-label="Go to my location" title="Go to my location">'
+          + renderToStaticMarkup(<LocateFixed aria-hidden="true" />) + '</button>';
+        this.el.firstChild.addEventListener('click', () => {
+          if (here) map.flyTo({ center: here, zoom: Math.max(map.getZoom(), 14) });
+          else toastRef.current?.("Can't find your location yet. Check location access for this app.");
+        });
+        return this.el;
+      },
+      onRemove() {
+        this.el.remove();
+      },
+    };
+    map.addControl(button, 'bottom-right');
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      marker.remove();
+      map.removeControl(button);
+    };
+  }, [mapReady, showMyLocation, locationStarted]);
 
   // Asked once, when the search box is first tapped. Used only when the map has no view yet.
   const requestUserLocation = () => {
