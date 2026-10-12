@@ -61,7 +61,7 @@
   --cat-other-fg: #4d5a3c;
 
   --header-h: 56px;
-  --nav-h: 64px;
+  --nav-h: 72px;
   --tap: 44px;
   --gutter: 16px;
   /* Three corner sizes only: chips and inputs, cards and sheets, pills. Circles use 50%. */
@@ -3747,4 +3747,93 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   .nudge-button {
     transition: none;
   }
+}
+
+/* ---------- NIGHT OUT: TAB BAR AND PAGE SHELL ---------- */
+/* One flat page colour behind everything, like a printed flyer. */
+.header {
+  border-bottom: none;
+}
+
+/* Home · + · Map. The + sits in the middle of the tab bar on phones. */
+.bottom-nav {
+  justify-content: space-around;
+  align-items: center;
+  padding-left: calc(24px + var(--safe-left));
+  padding-right: calc(24px + var(--safe-right));
+  border-top: 1px solid var(--border);
+}
+
+.nav-tab {
+  flex: 0 0 72px;
+  align-self: stretch;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.fab-nav {
+  position: static;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+}
+
+.fab-nav svg {
+  width: 24px;
+  height: 24px;
+}
+
+.fab-nav:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* The floating + is only for wide screens, where the tab bar is hidden. */
+.fab-float {
+  display: none;
+}
+
+.panel-home .home-screen {
+  padding-bottom: var(--gutter);
+}
+
+@media (min-width: 900px) {
+  .fab-float {
+    display: inline-flex;
+  }
+
+  .panel-home .home-screen {
+    padding-bottom: 88px;
+  }
+}
+
+/* Collection heading: big name, quiet count, no pill. */
+.collection-header {
+  align-items: baseline;
+}
+
+.collection-title {
+  font-size: 22px;
+}
+
+.collection-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  padding: 0;
+}
+
+/* Cards stay white even when everyone is keen. The orange "All 10 keen" says it. */
+.pin-item.both-in {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.all-keen {
+  padding: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: inherit;
 }

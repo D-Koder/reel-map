@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, House, MapPin, Plus, Settings, TriangleAlert, WifiOff } from 'lucide-react';
+import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
 import MapScreen from './components/MapScreen';
 import PinModal from './components/PinModal';
@@ -363,7 +363,7 @@ function MainApp({ userId, showToast }) {
             )}
           </button>
           <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
-            <Settings aria-hidden="true" />
+            <SlidersHorizontal aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -399,8 +399,9 @@ function MainApp({ userId, showToast }) {
             }}
             onOpenSettings={() => setSettingsOpen(true)}
           />
+          {/* Wide screens have no tab bar, so the + floats over the list there. */}
           {collections.length > 0 && (
-            <button className="fab" onClick={() => openAddAt(null)} aria-label="Add a place">
+            <button className="fab fab-float" onClick={() => openAddAt(null)} aria-label="Add a place">
               <Plus aria-hidden="true" strokeWidth={2.5} />
             </button>
           )}
@@ -413,18 +414,31 @@ function MainApp({ userId, showToast }) {
       <nav className="bottom-nav">
         {[
           { id: 'home', Icon: House, label: 'Home' },
-          { id: 'map', Icon: MapPin, label: 'Map' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`nav-tab ${screen === tab.id ? 'active' : ''}`}
-            onClick={() => setScreen(tab.id)}
-            aria-current={screen === tab.id ? 'page' : undefined}
-          >
-            <tab.Icon className="nav-icon" aria-hidden="true" strokeWidth={screen === tab.id ? 2.4 : 1.8} />
-            <span className="nav-label">{tab.label}</span>
-          </button>
-        ))}
+          { id: 'add' },
+          { id: 'map', Icon: MapIcon, label: 'Map' },
+        ].map((tab) =>
+          tab.id === 'add' ? (
+            <button
+              key="add"
+              className="fab fab-nav"
+              onClick={() => openAddAt(null)}
+              disabled={collections.length === 0}
+              aria-label="Add a place"
+            >
+              <Plus aria-hidden="true" strokeWidth={2.5} />
+            </button>
+          ) : (
+            <button
+              key={tab.id}
+              className={`nav-tab ${screen === tab.id ? 'active' : ''}`}
+              onClick={() => setScreen(tab.id)}
+              aria-current={screen === tab.id ? 'page' : undefined}
+            >
+              <tab.Icon className="nav-icon" aria-hidden="true" strokeWidth={screen === tab.id ? 2.4 : 1.8} />
+              <span className="nav-label">{tab.label}</span>
+            </button>
+          )
+        )}
       </nav>
 
       <SettingsDrawer

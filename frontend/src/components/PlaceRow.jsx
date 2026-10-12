@@ -36,7 +36,7 @@ function VoteLine({ members, reactions, userId }) {
   let count = null;
   let nudge = null;
   if (votes.length === members.length && keen === members.length) {
-    nudge = <b className="all-keen">All keen!</b>;
+    nudge = <b className="all-keen">{members.length === 2 ? 'Both keen' : `All ${members.length} keen`}</b>;
   } else {
     count = votes.length ? `${keen}/${votes.length} keen` : 'No votes';
     if (!myVote) nudge = <b className="vote-nudge">Your vote?</b>;
