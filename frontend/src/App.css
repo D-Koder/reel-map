@@ -3096,3 +3096,15 @@ svg.nav-icon {
 }
 
 a.step-btn { display: block; text-align: center; text-decoration: none; }
+
+.shortcut-connected {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--success-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+.shortcut-connected span { font-size: 14px; font-weight: 400; color: var(--text-muted); }
+.shortcut-status { margin: 0; font-size: 14px; color: var(--text-muted); }

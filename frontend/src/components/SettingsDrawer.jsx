@@ -69,22 +69,37 @@ function connectShortcut(key) {
 }
 
 // Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
-// The key is only loaded once the section is opened.
+// The app can't see which Shortcuts are installed, so the Shortcut reports in after Connect
+// (shortcut_keys.connected_at). Not connected: Get the Shortcut + Connect. Connected: a tick + Reconnect.
 function ShortcutSetup({ showToast }) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState(false);
   const [key, setKey] = useState('');
+  const [connectedAt, setConnectedAt] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const endpoint = `${window.location.origin}/api/save-reel`;
 
+  // Loads the key (made on first use) and whether the Shortcut has reported in.
+  // Runs again when you come back from Shortcuts, so the tick shows straight away.
   useEffect(() => {
-    if (!open || key) return;
-    supabase.rpc('get_shortcut_key').then(({ data, error: rpcError }) => {
-      if (rpcError) setError('Could not load your key. Try again later.');
-      else setKey(data);
-    });
-  }, [open, key]);
+    if (!open) return undefined;
+    const load = async () => {
+      if (document.visibilityState === 'hidden') return;
+      const { data, error: rpcError } = await supabase.rpc('get_shortcut_key');
+      if (rpcError) {
+        setError('Could not load your key. Try again later.');
+        return;
+      }
+      setError('');
+      setKey(data);
+      const { data: row } = await supabase.from('shortcut_keys').select('connected_at').maybeSingle();
+      setConnectedAt(row?.connected_at ?? null);
+    };
+    load();
+    document.addEventListener('visibilitychange', load);
+    return () => document.removeEventListener('visibilitychange', load);
+  }, [open]);
 
   const resetKey = async () => {
     if (!window.confirm('Make a new key? Your Shortcut stops working until you tap Connect again.')) return;
@@ -96,6 +111,7 @@ function ShortcutSetup({ showToast }) {
       return;
     }
     setKey(data);
+    setConnectedAt(null);
     showToast('🔑 New key made. Tap Connect to update your Shortcut.');
   };
 
@@ -108,17 +124,36 @@ function ShortcutSetup({ showToast }) {
         <div className="shortcut-setup">
           <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
 
-          {SHORTCUT_URL && (
-            <a className="step-btn full-width" href={SHORTCUT_URL} target="_blank" rel="noreferrer">1. ⬇️ Get the Shortcut</a>
-          )}
-          <button type="button" className="step-btn full-width" disabled={!key} onClick={() => connectShortcut(key)}>
-            {SHORTCUT_URL ? '2. ' : ''}🔗 Connect it to my account
-          </button>
           {error && <span className="toggle-hint">{error}</span>}
-          <p className="toggle-hint">
-            Connect opens Shortcuts and saves your key there. You'll see "✅ Reel Map connected".
-            Then share a reel → tap <strong>{SHORTCUT_NAME}</strong>.
-          </p>
+          {connectedAt ? (
+            <>
+              <div className="shortcut-connected" role="status">
+                ✅ Shortcut connected
+                <span>Share a reel → tap <strong>{SHORTCUT_NAME}</strong></span>
+              </div>
+              <button type="button" className="step-btn secondary full-width" disabled={!key} onClick={() => connectShortcut(key)}>
+                🔗 Reconnect
+              </button>
+              <p className="toggle-hint">New phone, or the Shortcut stopped working? Get it again, then tap Reconnect.</p>
+              {SHORTCUT_URL && (
+                <a className="settings-link-btn" href={SHORTCUT_URL} target="_blank" rel="noreferrer">⬇️ Get the Shortcut again</a>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="shortcut-status">Not set up on this account yet.</p>
+              {SHORTCUT_URL && (
+                <a className="step-btn full-width" href={SHORTCUT_URL} target="_blank" rel="noreferrer">1. ⬇️ Get the Shortcut</a>
+              )}
+              <button type="button" className="step-btn full-width" disabled={!key} onClick={() => connectShortcut(key)}>
+                {SHORTCUT_URL ? '2. ' : ''}🔗 Connect it to my account
+              </button>
+              <p className="toggle-hint">
+                Already have the Shortcut? Just tap Connect. Shortcuts opens, saves your key and shows
+                "✅ Reel Map connected". Then come back here.
+              </p>
+            </>
+          )}
 
           <button type="button" className="settings-link-btn" aria-expanded={manual} onClick={() => setManual((v) => !v)}>
             {manual ? 'Hide' : 'Set it up by hand instead'}

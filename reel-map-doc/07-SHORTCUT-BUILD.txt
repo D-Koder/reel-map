@@ -10,8 +10,10 @@ HOW CONNECT WORKS
   Settings → Connect opens:
     shortcuts://run-shortcut?name=Save%20to%20Reel%20Map&input=text&text=reelmap-key:<key>
   The Shortcut sees text starting with "reelmap-key:", saves the key in a file on the phone,
-  and says "✅ Reel Map connected". Every reel shared after that uses the saved key.
-  Making a new key in Settings → tap Connect again → the file is replaced.
+  then tells the server { key, connect: true } and shows "✅ Reel Map connected".
+  Settings then switches from "Get the Shortcut + Connect" to "✅ Shortcut connected + Reconnect".
+  (The app can't see installed Shortcuts, so this report is how it knows.)
+  Making a new key in Settings clears "connected" → tap Connect again → the file is replaced.
 
 -----------------------------------------------
 STEPS (Shortcuts app on iPhone)
@@ -31,8 +33,13 @@ STEPS (Shortcuts app on iPhone)
             → turn OFF "Ask Where to Save"
             → Subpath: reelmap-key.txt
             → turn ON "Overwrite If File Exists"
-       c. "Show Notification": ✅ Reel Map connected
-       d. "Stop This Shortcut"
+       c. "Get Contents of URL"
+            URL: https://<your-app-domain>/api/save-reel
+            Method: POST   Request Body: JSON
+              key (Text) = Updated Text
+              connect (Boolean) = True
+       d. "Show Notification": Contents of URL   (shows "✅ Reel Map connected")
+       e. "Stop This Shortcut"
 
      After "End If" (this is the normal share path):
 
