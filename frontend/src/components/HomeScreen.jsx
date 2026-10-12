@@ -1,10 +1,39 @@
 import React, { useState } from 'react';
-import { Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, Plus, Sprout, Users } from 'lucide-react';
+import { CalendarDays, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, Plus, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
+import PlaceThumb from './PlaceThumb';
+import { formatDateTime } from '../lib/constants';
 import { readJSON, writeJSON } from '../lib/storage';
 
 // Set after the first reorder, so the hint stops showing on this device.
 const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
+
+// The soonest booked plan that hasn't happened yet, shown as a ticket stub above the lists.
+function UpNext({ places, collections, onOpenPin }) {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const next = places
+    .filter((p) => p.booking?.planned_at && !p.booking.done_at && new Date(p.booking.planned_at) >= startOfToday)
+    .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at))[0];
+  if (!next) return null;
+  const collection = collections.find((c) => c.id === next.collection_id);
+
+  return (
+    <button type="button" className="ticket" onClick={() => onOpenPin(`${next.collection_id}:${next.id}`)}>
+      <span className="ticket-cover">
+        <PlaceThumb place={next} className="ticket-thumb" />
+        <span className="ticket-tag"><CalendarDays className="ico" aria-hidden="true" /> Up next</span>
+      </span>
+      <span className="ticket-stub">
+        <span className="ticket-title">{next.name}</span>
+        <span className="ticket-when">
+          {formatDateTime(next.booking.planned_at)}
+          {collection && ` · ${collection.name}`}
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export default function HomeScreen({
   userId,
@@ -53,6 +82,7 @@ export default function HomeScreen({
     <div className="screen">
       <div className="home-screen">
         {banner}
+        <UpNext places={places} collections={collections} onOpenPin={onOpenPin} />
         {!reorderLearned && places.length > 1 && (
           <div className="reorder-hint">Tip: drag <GripVertical className="ico" aria-hidden="true" /> to move a place</div>
         )}

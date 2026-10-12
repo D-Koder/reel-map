@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, PartyPopper, Pencil, Phone, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, PartyPopper, Pencil, Phone, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
-import { feelings, formatDate, formatDateTime, getVibe, toLocalInputValue } from '../lib/constants';
+import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
@@ -33,6 +33,92 @@ function defaultReservation() {
   d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
   d.setHours(19, 0, 0, 0);
   return toLocalInputValue(d);
+}
+
+// Your vote sits on top. Below it, everyone grouped by their vote (you first in yours),
+// and the people who haven't voted yet with a Nudge that shares a message to the group chat.
+function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe, showToast }) {
+  const myVote = reactions[userId];
+  const others = members.filter((m) => m.id !== userId);
+  const waiting = others.filter((m) => !reactions[m.id]);
+  const everyoneElseIn = others.length > 0 && waiting.length === 0;
+  const nameOf = (person) => (person.id === userId ? 'You' : person.display_name);
+
+  const nudge = async () => {
+    const text = `Are you keen on ${placeName}? Vote in Reel Map`;
+    const url = window.location.origin;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Reel Map', text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text}: ${url}`);
+      showToast('Nudge copied. Paste it in your group chat.');
+    } catch (error) {
+      // Closing the share sheet is not an error.
+      if (error?.name !== 'AbortError') showToast("Couldn't share the nudge. Try again.");
+    }
+  };
+
+  const chip = (person) => (
+    <span key={person.id} className={`vote-person ${person.id === userId ? 'me' : ''}`}>
+      <Avatar person={person} className="vote-person-avatar" />
+      {nameOf(person)}
+      {person.id === sharedBy && <span className="person-tag">shared reel</span>}
+    </span>
+  );
+
+  return (
+    <div className="modal-section vote-board">
+      <div className={`my-vote ${myVote ? 'voted' : ''}`}>
+        <div className="my-vote-label">
+          {myVote ? 'Your vote' : everyoneElseIn ? 'Your vote? Everyone else is in.' : 'Your vote?'}
+        </div>
+        <div className="vote-buttons" role="radiogroup" aria-label="Your vote">
+          {feelings.map((f) => (
+            <button
+              type="button"
+              key={f.id}
+              role="radio"
+              aria-checked={myVote === f.id}
+              className={`vote-button ${myVote === f.id ? 'selected' : ''}`}
+              onClick={() => onSetVibe(f.id)}
+            >
+              <span aria-hidden="true">{f.emoji}</span> {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {members.length > 1 && (
+        <>
+          {feelings.map((f) => {
+            const group = members
+              .filter((m) => reactions[m.id] === f.id)
+              .sort((a, b) => (b.id === userId) - (a.id === userId));
+            if (!group.length) return null;
+            return (
+              <div className="vote-group" key={f.id}>
+                <div className="vote-group-head"><span><span aria-hidden="true">{f.emoji}</span> {f.label} · {group.length}</span></div>
+                <div className="vote-people">{group.map(chip)}</div>
+              </div>
+            );
+          })}
+          {waiting.length > 0 && (
+            <div className="vote-group">
+              <div className="vote-group-head">
+                <span><Hourglass className="ico" aria-hidden="true" /> Not voted · {waiting.length}</span>
+                <button type="button" className="nudge-button" onClick={nudge}>
+                  <BellRing className="ico" aria-hidden="true" /> {waiting.length > 1 ? 'Nudge all' : 'Nudge'}
+                </button>
+              </div>
+              <div className="vote-people">{waiting.map(chip)}</div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function PinModal({
@@ -133,10 +219,6 @@ export default function PinModal({
 
   const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
-  const vibe = getVibe(
-    members.map((m) => m.id),
-    place.reactions
-  );
   const stepLabel = (n) => `Step ${steps.indexOf(n) + 1} of ${steps.length}`;
 
   return (
@@ -189,47 +271,15 @@ export default function PinModal({
           </div>
         </div>
 
-        <div className="modal-section">
-          <div className="modal-label">Who's keen · {vibe.label}</div>
-          <div className="people-list">
-            {members.map((person) => {
-              const mine = person.id === userId;
-              const feeling = feelings.find((f) => f.id === place.reactions[person.id]);
-              return (
-                <div className={`person-row ${mine ? 'mine' : ''}`} key={person.id}>
-                  <Avatar person={person} />
-                  <span className="person-name">
-                    {mine ? 'You' : person.display_name}
-                    {person.id === place.shared_by && <span className="person-tag">shared reel</span>}
-                  </span>
-                  {mine ? (
-                    <div className="segmented" role="radiogroup" aria-label="Your vibe">
-                      {feelings.map((f) => (
-                        <button
-                          type="button"
-                          key={f.id}
-                          role="radio"
-                          aria-checked={feeling?.id === f.id}
-                          aria-label={f.label}
-                          title={f.label}
-                          className={`segment ${feeling?.id === f.id ? 'selected' : ''}`}
-                          onClick={() => onSetVibe(f.id)}
-                        >
-                          {f.emoji}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="person-feeling">
-                      <span className="person-feeling-emoji">{feeling?.emoji ?? '—'}</span>
-                      {feeling?.label ?? 'No vote'}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <VoteBoard
+          members={members}
+          reactions={place.reactions}
+          userId={userId}
+          sharedBy={place.shared_by}
+          placeName={place.name}
+          onSetVibe={onSetVibe}
+          showToast={showToast}
+        />
 
         {booking && (
           <div className="modal-section">

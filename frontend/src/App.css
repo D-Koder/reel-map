@@ -3311,3 +3311,440 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   border: 1.5px solid var(--ink);
   box-shadow: 4px 4px 0 var(--hard-shadow);
 }
+
+/* ---------- PLACE CARD ---------- */
+/* Name, place, info and votes sit beside the photo; the booked date hangs off the photo's foot. */
+.pin-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pin-name {
+  margin-bottom: 0;
+}
+
+.pin-where {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pin-where svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.pin-where span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pin-custom-info {
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.place-thumb-link {
+  position: relative;
+}
+
+/* Room for the date tab under the photo. */
+.place-thumb-link:has(.date-tab) {
+  margin-bottom: 10px;
+}
+
+.date-tab {
+  position: absolute;
+  left: 50%;
+  bottom: -11px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--mint);
+  color: #0b2a1c;
+  border: 1.5px solid var(--ink);
+  /* A ring in the card's colour keeps the tab off busy photos. */
+  box-shadow: 0 0 0 2px var(--card);
+  font: 500 10px/1.4 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vote-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.face-stack {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.face {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  border: 1.5px solid var(--card);
+  font-size: 12px;
+}
+
+.face + .face {
+  margin-left: -4px;
+}
+
+.face:nth-child(1) { z-index: 4; }
+.face:nth-child(2) { z-index: 3; }
+.face:nth-child(3) { z-index: 2; }
+.face:nth-child(4) { z-index: 1; }
+
+.face-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+.face-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* You: an orange ring. Not voted yet: a dashed ring and a "?" badge. */
+.face.me {
+  box-shadow: 0 0 0 2px var(--accent-text);
+}
+
+.face.pending {
+  box-shadow: none;
+  border: 1.5px dashed var(--accent-text);
+}
+
+.face-badge {
+  position: absolute;
+  left: -6px;
+  bottom: -5px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.face.pending .face-badge {
+  width: 12px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font: 800 9px/1 var(--font-body);
+}
+
+.face.more {
+  font: 700 10px/1 var(--font-body);
+  color: var(--text-muted);
+}
+
+.vote-status {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.vote-count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The nudge and "All keen!" never shrink. */
+.vote-status b,
+.vote-waiting {
+  flex-shrink: 0;
+}
+
+.all-keen {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* ---------- UP NEXT TICKET ---------- */
+.ticket {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: 3px 3px 0 var(--hard-shadow);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ticket:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--hard-shadow);
+}
+
+.ticket-cover {
+  position: relative;
+  display: block;
+  height: 120px;
+  overflow: hidden;
+}
+
+.ticket-thumb {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ticket-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ticket-thumb .thumb-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.ticket-tag {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--butter);
+  color: #1a1a18;
+  border: 1.5px solid #1a1a18;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* The tear line, with notches cut into both sides. */
+.ticket-stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px 12px;
+  border-top: 2px dashed var(--ink);
+}
+
+.ticket-stub::before,
+.ticket-stub::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+}
+
+.ticket-stub::before {
+  left: -10px;
+  clip-path: inset(0 0 0 50%);
+}
+
+.ticket-stub::after {
+  right: -10px;
+  clip-path: inset(0 50% 0 0);
+}
+
+.ticket-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ticket-when {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- VOTES IN THE PLACE SHEET ---------- */
+.vote-board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.my-vote {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1.5px dashed var(--accent-text);
+  border-radius: var(--radius-md);
+}
+
+.my-vote.voted {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.my-vote-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.my-vote.voted .my-vote-label {
+  color: var(--text-muted);
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.vote-button {
+  flex: 1;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s;
+}
+
+.vote-button.selected {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+}
+
+.vote-button:active {
+  transform: scale(0.96);
+}
+
+.vote-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vote-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  font: 500 12px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.vote-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vote-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.vote-person.me {
+  box-shadow: inset 0 0 0 1.5px var(--accent-text);
+  font-weight: 700;
+}
+
+.vote-person-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  background: var(--card);
+}
+
+.vote-person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nudge-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid #1a1a18;
+  border-radius: var(--radius-pill);
+  background: var(--butter);
+  color: #1a1a18;
+  font: 700 13px var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.nudge-button:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket,
+  .vote-button,
+  .nudge-button {
+    transition: none;
+  }
+}
