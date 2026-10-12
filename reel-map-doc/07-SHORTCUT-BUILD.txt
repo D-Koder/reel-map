@@ -24,8 +24,12 @@ STEPS (Shortcuts app on iPhone)
   2. Tap ⓘ → turn on "Show in Share Sheet".
      Receive: URLs and Text. "If there's no input": Continue.
 
-  3. Add "If"
-       Input: Shortcut Input   Condition: begins with   Text: reelmap-key:
+  3. Add "Match Text"
+       Pattern: ^reelmap-key:     in: Shortcut Input
+     Then add "If"
+       Input: Matches   Condition: has any value
+     (The If can't offer "begins with" because the Shortcut accepts many input types,
+      so Match does the check and the If tests its result.)
 
      Inside the If:
        a. "Replace Text": replace  reelmap-key:  with (nothing)  in Shortcut Input
