@@ -61,8 +61,9 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
     <div className="auth-screen">
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-logo"><MapPin aria-hidden="true" /></div>
+        <p className="auth-wordmark">waylit<span className="wordmark-plans"> plans</span><span className="wordmark-dot" aria-hidden="true">.</span></p>
         <h1 className="auth-title">{TITLES[mode]}</h1>
-        <p className="auth-subtitle">Save places from reels and plan them together.</p>
+        <p className="auth-subtitle">Light the way to your next plan. Save places from reels and go together.</p>
 
         {mode === 'signup' && (
           <>

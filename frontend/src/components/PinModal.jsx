@@ -45,11 +45,11 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   const nameOf = (person) => (person.id === userId ? 'You' : person.display_name);
 
   const nudge = async () => {
-    const text = `Are you keen on ${placeName}? Vote in Reel Map`;
+    const text = `Are you keen on ${placeName}? Vote in Waylit Plans`;
     const url = window.location.origin;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Reel Map', text, url });
+        await navigator.share({ title: 'Waylit Plans', text, url });
         return;
       }
       await navigator.clipboard.writeText(`${text}: ${url}`);

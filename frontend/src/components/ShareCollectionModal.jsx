@@ -123,7 +123,7 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
                     </button>
                     <button
                       onClick={() => {
-                        const mailtoUrl = `mailto:?subject=Join my "${collection.name}" collection on Reel Map&body=Click here to join: ${inviteUrl}`;
+                        const mailtoUrl = `mailto:?subject=Join my "${collection.name}" collection on Waylit Plans&body=Click here to join: ${inviteUrl}`;
                         window.location.href = mailtoUrl;
                       }}
                       className="step-btn full-width"

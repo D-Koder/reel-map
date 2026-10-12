@@ -125,7 +125,7 @@ function ShortcutSetup({ showToast }) {
       </button>
       {open && (
         <div className="shortcut-setup">
-          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
+          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Waylit Plans.</p>
 
           {error && <span className="toggle-hint">{error}</span>}
           {connectedAt ? (
@@ -472,7 +472,7 @@ function NearAlertsToggle({ on, onChange }) {
         <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
         <Flame className="ico" aria-hidden="true" /> Tell me when I'm near a place I'm keen on
       </label>
-      <div className="toggle-hint">Works while Reel Map is open. Phones don't let web apps check your location in the background.</div>
+      <div className="toggle-hint">Works while Waylit Plans is open. Phones don't let web apps check your location in the background.</div>
     </div>
   );
 }
@@ -485,7 +485,7 @@ function LocationToggle({ on, onChange }) {
         <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
         <LocateFixed className="ico" aria-hidden="true" /> Show my location on the map
       </label>
-      <div className="toggle-hint">Only you see it. Reel Map never saves your location.</div>
+      <div className="toggle-hint">Only you see it. Waylit Plans never saves your location.</div>
     </div>
   );
 }

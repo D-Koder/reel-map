@@ -1,6 +1,6 @@
 {
-  "name": "Reel Map",
-  "short_name": "Reel Map",
+  "name": "Waylit Plans",
+  "short_name": "Waylit",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

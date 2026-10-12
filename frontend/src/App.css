@@ -3196,7 +3196,7 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   letter-spacing: -0.02em;
 }
 
-/* Wordmark: "reel map." with a tomato full stop. */
+/* Wordmark: "waylit plans." with a lighter "plans" and a tomato full stop. */
 .header-title {
   font-size: 22px;
   font-weight: 800;
@@ -3205,6 +3205,20 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 
 .wordmark-dot {
   color: var(--accent-bright);
+}
+
+.wordmark-plans {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.auth-wordmark {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-align: center;
+  margin: 4px 0 2px;
 }
 
 .collection-title {
