@@ -1,7 +1,8 @@
 {
   "scripts": {
     "test:reel-enrichment": "node test-reel-enrichment.js",
-    "scraper:live": "node tools/live-scraper/server.js"
+    "scraper:live": "node tools/live-scraper/server.js",
+    "test:tiktok": "node test-tiktok-details.js"
   },
   "devDependencies": {
     "axios": "^1.20.0",
