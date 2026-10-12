@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Embed Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;500;600;700&display=swap" />
+    <style>
+      /* Demo of Instagram's official embed inside Reel Map. Colours match frontend/src/App.css. */
+      :root {
+        --bg: #efebe2; --surface: #f6f3ec; --card: #ffffff; --surface-muted: #ece7dc; --border: #ddd6c7;
+        --text: #1a1a18; --text-muted: #66645d; --accent: #d4421d; --accent-text: #b5361a; --accent-soft: #fde3d9;
+        --ink: #1a1a18;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0b0e1e; --surface: #10142a; --card: #1b2140; --surface-muted: #222a4d; --border: #2e365c;
+          --text: #f3efe6; --text-muted: #a7aecb; --accent-text: #ff8a63; --accent-soft: #3d2519; --ink: #000;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #0b0e1e; --surface: #10142a; --card: #1b2140; --surface-muted: #222a4d; --border: #2e365c;
+        --text: #f3efe6; --text-muted: #a7aecb; --accent-text: #ff8a63; --accent-soft: #3d2519; --ink: #000;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Figtree', -apple-system, sans-serif; }
+      .page { max-width: 440px; margin: 0 auto; padding: 16px 16px 48px; }
+      .brand { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -0.02em; margin: 4px 0 12px; }
+      .brand span { color: var(--accent); }
+      .note { background: var(--accent-soft); color: var(--text); border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+      .note b { color: var(--accent-text); }
+      .paste { display: flex; gap: 8px; margin: 14px 0 4px; }
+      .paste input { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; font-size: 14px; }
+      .paste button, .tab { font: inherit; font-weight: 600; border-radius: 999px; border: 2px solid var(--ink); cursor: pointer; }
+      .paste button { padding: 0 16px; background: var(--accent); color: #fff; }
+      .hint { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; }
+      .tabs { display: flex; gap: 8px; margin: 8px 0 16px; }
+      .tab { flex: 1; padding: 10px; background: var(--card); color: var(--text); }
+      .tab[aria-selected="true"] { background: var(--accent); color: #fff; }
+      h2 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; margin: 18px 0 10px; }
+      .label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 18px 0 8px; }
+
+      /* List cards: no Instagram image. The reel shows as a badge and opens in the place view. */
+      .card { display: flex; gap: 14px; align-items: center; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 12px; margin-bottom: 10px; color: inherit; font: inherit; cursor: pointer; }
+      .tile { flex: 0 0 72px; height: 72px; border-radius: 12px; display: grid; place-items: center; font-size: 30px; position: relative; }
+      .tile.food { background: #3b2216; } .tile.cafe { background: #213a2c; } .tile.event { background: #2f2448; }
+      .reel-badge { position: absolute; bottom: -6px; right: -6px; background: var(--ink); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700; padding: 3px 7px; border: 2px solid var(--card); }
+      .card-name { font-weight: 700; font-size: 17px; margin-bottom: 4px; }
+      .card-sub { font-size: 14px; color: var(--text-muted); }
+
+      /* Place view */
+      .sheet { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 18px 16px; }
+      .sheet-title { font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; margin: 0 0 4px; }
+      .embed-wrap { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); min-height: 200px; position: relative; }
+      .embed-wrap .instagram-media { margin: 0 !important; min-width: 0 !important; width: 100% !important; border: 0 !important; border-radius: 0 !important; }
+      .embed-status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-muted); font-size: 14px; padding: 16px; text-align: center; pointer-events: none; }
+      .embed-fallback { display: none; padding: 28px 16px; text-align: center; }
+      .embed-fallback.show { display: block; }
+      .open-btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 999px; border: 2px solid var(--ink); }
+      .votes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+      .vote { padding: 12px 6px; border-radius: 999px; border: 2px solid var(--text); background: var(--card); color: var(--text); font: inherit; font-weight: 600; }
+      .vote.on { background: var(--accent); color: #fff; border-color: var(--ink); }
+      .address { font-size: 15px; text-decoration: underline; }
+      .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+      .compare div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; line-height: 1.4; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="brand">reel map<span>.</span></div>
+      <p class="note"><b>Demo only.</b> Covers here come from Instagram's <b>official embed</b>, not copied images. Tap a card to open the place view.</p>
+
+      <form class="paste" id="paste">
+        <input id="reel-input" type="url" inputmode="url" placeholder="Paste any Instagram reel link" aria-label="Instagram reel link" />
+        <button type="submit">Show</button>
+      </form>
+      <p class="hint">Replaces the reel in the first card, so you can try your own.</p>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-list" aria-selected="true">List</button>
+        <button class="tab" role="tab" id="tab-place" aria-selected="false">Place view</button>
+      </div>
+
+      <section id="view-list">
+        <h2>Food</h2>
+        <div id="cards"></div>
+        <div class="label">What changes in the list</div>
+        <div class="compare">
+          <div><b>Today</b><br />The reel's cover image is copied and shown on each card.</div>
+          <div><b>With embeds</b><br />A colour tile and a ▶ Reel badge. The reel itself plays in the place view.</div>
+        </div>
+      </section>
+
+      <section id="view-place" hidden>
+        <div class="sheet">
+          <h3 class="sheet-title" id="place-name"></h3>
+          <div class="card-sub" id="place-sub"></div>
+
+          <div class="label">The reel (official Instagram embed)</div>
+          <div class="embed-wrap" id="embed-wrap"></div>
+
+          <div class="label">Your vote</div>
+          <div class="votes">
+            <button class="vote">🔥 Keen</button>
+            <button class="vote on">🤔 Maybe</button>
+            <button class="vote">😐 Meh</button>
+          </div>
+
+          <div class="label">Address</div>
+          <div class="address" id="place-address"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const places = [
+        { name: 'Khao Man Gai', emoji: '🍜', kind: 'food', address: 'Melbourne VIC', reel: 'https://www.instagram.com/reel/DeYjgoyJEJE/' },
+        { name: 'ChaPanda', emoji: '🧋', kind: 'cafe', address: '248 Swanston St, Melbourne VIC', reel: 'https://www.instagram.com/reel/DcQICfPx5TV/' },
+        { name: 'Samut', emoji: '🍛', kind: 'food', address: '46 Little La Trobe St, Melbourne VIC', reel: null },
+      ];
+      let current = places[0];
+
+      // Instagram's official embed: a blockquote that embed.js turns into Instagram's own player.
+      let scriptLoaded = null;
+      function loadEmbedScript() {
+        scriptLoaded ??= new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://www.instagram.com/embed.js';
+          script.async = true;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+        return scriptLoaded;
+      }
+
+      function cleanReelUrl(value) {
+        try {
+          const url = new URL(value.trim());
+          const match = url.pathname.match(/^\/(?:[^/]+\/)?(reel|reels|p)\/([^/]+)/);
+          if (!/(^|\.)instagram\.com$/.test(url.hostname) || !match) return null;
+          return `https://www.instagram.com/${match[1] === 'p' ? 'p' : 'reel'}/${match[2]}/`;
+        } catch {
+          return null;
+        }
+      }
+
+      function renderCards() {
+        const box = document.getElementById('cards');
+        box.innerHTML = '';
+        places.forEach((place) => {
+          const card = document.createElement('button');
+          card.className = 'card';
+          card.type = 'button';
+          card.innerHTML = `
+            <span class="tile ${place.kind}">${place.emoji}${place.reel ? '<span class="reel-badge">▶ Reel</span>' : ''}</span>
+            <span><div class="card-name"></div><div class="card-sub">🤔 Maybe</div></span>`;
+          card.querySelector('.card-name').textContent = place.name;
+          card.addEventListener('click', () => openPlace(place));
+          box.appendChild(card);
+        });
+      }
+
+      function renderEmbed(place) {
+        const wrap = document.getElementById('embed-wrap');
+        wrap.innerHTML = '';
+        if (!place.reel) {
+          wrap.innerHTML = '<div class="embed-fallback show">No reel saved for this place.</div>';
+          return;
+        }
+        const quote = document.createElement('blockquote');
+        quote.className = 'instagram-media';
+        quote.setAttribute('data-instgrm-permalink', place.reel);
+        quote.setAttribute('data-instgrm-version', '14');
+        const status = document.createElement('div');
+        status.className = 'embed-status';
+        status.textContent = 'Loading Instagram…';
+        const fallback = document.createElement('div');
+        fallback.className = 'embed-fallback';
+        fallback.innerHTML = '<p>Instagram didn\'t load the embed here.</p>';
+        const open = document.createElement('a');
+        open.className = 'open-btn';
+        open.href = place.reel;
+        open.target = '_blank';
+        open.rel = 'noreferrer';
+        open.textContent = 'Watch on Instagram ↗';
+        fallback.appendChild(open);
+        wrap.append(quote, status, fallback);
+
+        loadEmbedScript()
+          .then(() => window.instgrm?.Embeds.process())
+          .catch(() => {});
+        // The embed swaps the blockquote for an iframe. If that hasn't happened in 8 seconds, show the button.
+        const started = Date.now();
+        const check = setInterval(() => {
+          const iframe = wrap.querySelector('iframe');
+          if (iframe) {
+            status.remove();
+            clearInterval(check);
+          } else if (Date.now() - started > 8000) {
+            status.remove();
+            quote.remove();
+            fallback.classList.add('show');
+            clearInterval(check);
+          }
+        }, 300);
+      }
+
+      function openPlace(place) {
+        current = place;
+        document.getElementById('place-name').textContent = place.name;
+        document.getElementById('place-sub').textContent = 'Not booked yet · Food';
+        document.getElementById('place-address').textContent = place.address;
+        renderEmbed(place);
+        showTab('place');
+      }
+
+      function showTab(which) {
+        document.getElementById('view-list').hidden = which !== 'list';
+        document.getElementById('view-place').hidden = which !== 'place';
+        document.getElementById('tab-list').setAttribute('aria-selected', String(which === 'list'));
+        document.getElementById('tab-place').setAttribute('aria-selected', String(which === 'place'));
+        window.scrollTo({ top: 0 });
+      }
+
+      document.getElementById('tab-list').addEventListener('click', () => showTab('list'));
+      document.getElementById('tab-place').addEventListener('click', () => openPlace(current));
+      document.getElementById('paste').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const url = cleanReelUrl(document.getElementById('reel-input').value);
+        if (!url) {
+          alert('That doesn\'t look like an Instagram reel link.');
+          return;
+        }
+        places[0] = { ...places[0], name: 'Your reel', reel: url };
+        renderCards();
+        openPlace(places[0]);
+      });
+
+      renderCards();
+    </script>
+  </body>
+</html>
