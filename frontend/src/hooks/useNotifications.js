@@ -22,14 +22,17 @@ function formatTime(iso) {
 
 export function useNotifications(userId) {
   const [rows, setRows] = useState([]);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, type, message, created_at, read_at')
+      // '*' so optional place_id / collection_id columns come through when the table has them.
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
     if (!error) setRows(data ?? []);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -68,10 +71,13 @@ export function useNotifications(userId) {
     icon: ICONS[n.type] ?? '🔔',
     time: formatTime(n.created_at),
     read: Boolean(n.read_at),
+    placeId: n.place_id ?? null,
+    collectionId: n.collection_id ?? null,
   }));
 
   return {
     items,
+    loaded,
     unreadCount: items.filter((n) => !n.read).length,
     markAllRead,
     clearAll,

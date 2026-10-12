@@ -1,0 +1,134 @@
+===============================================
+REEL MAP - IDEAS: IMPORT PLACES + NEARBY ALERTS
+===============================================
+
+STATUS: Ideas / plan. Nothing here is built yet.
+
+
+===============================================
+PART 1: IMPORT PLACES FROM GOOGLE MAPS OR NOTES
+===============================================
+
+GOAL
+  Move a list you already have into a Reel Map collection in under a minute.
+
+TIP TO SHOW USERS (on every import screen)
+  "Works best when all places are in one city or area.
+   We search for each name near that area, so mixed cities can pick the wrong match."
+  → Ask "Which city are these in?" first. Pre-fill it from the map's current view.
+
+
+-----------------------------------------------
+IDEA A: Paste a list (Notes, WhatsApp, anywhere)   ⭐ BUILD FIRST
+-----------------------------------------------
+  How it works
+    1. User copies text from Apple Notes (one place per line) and pastes it.
+    2. We split it into lines. Remove bullets, numbers, emoji, "- ", "• ".
+    3. Each line is searched with Mapbox Search near the chosen city.
+    4. A review list shows each line with its best match and a ✅ / ✏️ / ❌.
+    5. Tap "Add 12 places" → all go into the chosen collection.
+
+  Handles
+    • "Pho Bar - Richmond" → name + suburb hint
+    • Google Maps links in the text → use Idea B for those lines
+    • Blank lines and headings ("Brunch:") → skipped, or used as the collection name
+
+  Why first: no API keys, no Google login, works with any app that can copy text.
+
+
+-----------------------------------------------
+IDEA B: Paste Google Maps links
+-----------------------------------------------
+  How it works
+    1. User shares/copies place links (maps.app.goo.gl/…).
+    2. Server follows the short link to the full URL.
+    3. The full URL has the place name and coordinates (…/place/Pho+Bar/@-37.81,144.96…).
+    4. Same review list as Idea A.
+
+  Note: we already scrape Google Maps in api/scrape-location.js, so this can reuse it.
+
+
+-----------------------------------------------
+IDEA C: Import a whole Google Maps saved list
+-----------------------------------------------
+  Option C1: Shared list link (maps.app.goo.gl link to a list)
+    • Google has no public API for saved lists.
+    • A headless browser (we already use Puppeteer) can open the shared list
+      and read each place's name + address.
+    • Risk: Google changes the page often, so this can break. Keep a fallback to Idea A.
+
+  Option C2: Google Takeout (most reliable, more steps)
+    • User exports "Saved" from takeout.google.com → gets a CSV per list.
+    • Each CSV row has Title, URL, Note.
+    • User uploads the CSV → we treat each row like Idea B.
+    • Good for "move everything once" power users.
+
+
+-----------------------------------------------
+IDEA D: Share sheet import (later)
+-----------------------------------------------
+  • The iPhone Shortcut already sends a link to /api/save-reel.
+  • Let it also accept Google Maps place links and plain text lists,
+    so "Share → Save to Reel Map" works from Google Maps and Notes too.
+
+
+-----------------------------------------------
+SHARED BUILDING BLOCKS
+-----------------------------------------------
+  • Review screen: one row per place, best match + 2 alternatives, skip button.
+  • Duplicate check: reuse entriesAtSpot() so a place already saved is flagged.
+  • Batch add: add in groups of 10 with a progress bar ("7 of 12 added").
+  • Undo: "Added 12 places · Undo" toast, like delete.
+
+
+===============================================
+PART 2: "ALERT ME WHEN I'M NEARBY"  (🔔 per place)
+===============================================
+
+USER STORY
+  When I add a place, I tap a 🔔 icon. Later, when I walk near it,
+  my phone tells me: "📍 You're 200 m from Pho Bar — you saved it from a reel."
+
+UI
+  • Add sheet + Edit sheet: 🔔 toggle next to the collection picker. Off by default.
+  • Pin modal: same 🔔 toggle, so it can be changed any time.
+  • Map: a small 🔔 badge on pins with alerts on.
+  • Settings: "Nearby alerts" section — radius (100 m / 250 m / 500 m), quiet hours,
+    "max 3 alerts a day" so it never gets annoying.
+
+DATA
+  • New column: collection_places.notify_nearby boolean default false
+    (per person would be better if collections are shared → table nearby_alerts(user_id, place_id)).
+  • Store last_alerted_at so the same place doesn't alert again for 7 days.
+
+THE HARD PART: knowing where the phone is
+  A web app (PWA) can NOT watch your location in the background on iPhone.
+  Options, best first:
+
+  1. iPhone Shortcuts automation (works today, no app store)
+     • Shortcuts → Automation → "When I arrive at <place>" can't take a list,
+       BUT a "Every 30 min" or "When I leave home / open Maps" automation can:
+       Get Current Location → send to /api/nearby-check → show notification.
+     • Server compares the location to the user's 🔔 places and replies with the nearest one.
+     • Pro: real background alerts. Con: user sets up an automation (same style as the save Shortcut).
+
+  2. While the app is open (easy, limited)
+     • watchPosition() while Reel Map is open → show a banner
+       "3 saved places within 500 m" → tap to see them on the map.
+     • Pro: no setup. Con: only works with the app open.
+
+  3. Native app wrapper (Capacitor) — later, for v2
+     • Real geofencing (iOS allows 20 regions per app) → pick the 20 nearest 🔔 places
+       and refresh them as you move.
+     • Pro: best experience. Con: needs an App Store release.
+
+  Recommended path: build 2 first (quick win), then 1, and keep 3 for the native app.
+
+PRIVACY
+  • Location is checked, never stored.
+  • Clear "why we ask" screen before the location permission prompt.
+
+
+===============================================
+END OF IDEAS
+===============================================

@@ -86,7 +86,7 @@ export default function AddPlaceSheet({ collections, places = [], onAdd, onCreat
   const [pinCoords, setPinCoords] = useState(initialPlace
     ? { latitude: initialPlace.latitude, longitude: initialPlace.longitude, source: 'map_pin' }
     : null);
-  const [category, setCategory] = useState(draft?.category ?? 'food');
+  const [category, setCategory] = useState(initialPlace?.category ?? draft?.category ?? 'food');
   const [collectionId, setCollectionId] = useState(initialCollectionId ?? draft?.collectionId ?? collections[0]?.id ?? '');
   const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.

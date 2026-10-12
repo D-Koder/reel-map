@@ -47,6 +47,84 @@ function FridayPickToggle({ userId }) {
   );
 }
 
+// Copies text and says so in a toast. Falls back to a prompt the user can copy from.
+async function copyText(text, label, showToast) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`📋 Copied ${label}`);
+  } catch {
+    window.prompt(`Copy your ${label}:`, text);
+  }
+}
+
+// Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
+// The key is only loaded once the section is opened.
+function ShortcutSetup({ showToast }) {
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const endpoint = `${window.location.origin}/api/save-reel`;
+
+  useEffect(() => {
+    if (!open || key) return;
+    supabase.rpc('get_shortcut_key').then(({ data, error: rpcError }) => {
+      if (rpcError) setError('Could not load your key. Try again later.');
+      else setKey(data);
+    });
+  }, [open, key]);
+
+  const resetKey = async () => {
+    if (!window.confirm('Make a new key? Your current Shortcut stops working until you paste the new key into it.')) return;
+    setBusy(true);
+    const { data, error: rpcError } = await supabase.rpc('reset_shortcut_key');
+    setBusy(false);
+    if (rpcError) {
+      showToast('Could not make a new key');
+      return;
+    }
+    setKey(data);
+    showToast('🔑 New key made. Paste it into your Shortcut.');
+  };
+
+  return (
+    <div className="settings-section">
+      <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        📲 Save reels without leaving Instagram <span aria-hidden="true">{open ? '⌄' : '›'}</span>
+      </button>
+      {open && (
+        <div className="shortcut-setup">
+          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
+
+          <div className="shortcut-field">
+            <span className="input-label">1. Your web address</span>
+            <code className="shortcut-code">{endpoint}</code>
+            <button type="button" className="step-btn secondary" onClick={() => copyText(endpoint, 'address', showToast)}>Copy</button>
+          </div>
+
+          <div className="shortcut-field">
+            <span className="input-label">2. Your secret key (don't share it)</span>
+            {error ? <span className="toggle-hint">{error}</span> : <code className="shortcut-code">{key ? `${key.slice(0, 6)}••••••••` : 'Loading…'}</code>}
+            <button type="button" className="step-btn secondary" disabled={!key} onClick={() => copyText(key, 'key', showToast)}>Copy</button>
+          </div>
+
+          <ol className="shortcut-steps">
+            <li>Open the <strong>Shortcuts</strong> app. Edit your Reel Map shortcut (or tap <strong>＋</strong> for a new one).</li>
+            <li>Tap <strong>ⓘ</strong>. Turn on <strong>Show in Share Sheet</strong>. Set it to receive <strong>URLs</strong> and <strong>Text</strong>.</li>
+            <li>Delete any <strong>Open URLs</strong> step. That step is what opens Reel Map.</li>
+            <li>Add <strong>Get Contents of URL</strong>. Paste address 1. Tap <strong>Show More</strong>: Method <strong>POST</strong>, Request Body <strong>JSON</strong>.</li>
+            <li>Add 2 Text fields: <strong>key</strong> = paste key 2. <strong>url</strong> = pick <strong>Shortcut Input</strong>.</li>
+            <li>Add <strong>Show Notification</strong>. Set it to show <strong>Contents of URL</strong>.</li>
+            <li>Done ✅ Share a reel → tap your shortcut → you'll see "Saved to Reel Map".</li>
+          </ol>
+
+          <button type="button" className="step-btn secondary full-width" disabled={busy} onClick={resetKey}>🔑 Make a new key</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CollectionRow({ collection, isOwner, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -377,6 +455,7 @@ export default function SettingsDrawer({
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <FridayPickToggle userId={userId} />}
+          {userId && <ShortcutSetup showToast={showToast} />}
 
           <div className="settings-section">
             <div className="settings-section-title">📁 Collections</div>

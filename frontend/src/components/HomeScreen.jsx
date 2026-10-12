@@ -60,7 +60,7 @@ export default function HomeScreen({
           const pins = places.filter((p) => p.collection_id === collection.id);
           const members = membersOf[collection.id] ?? [];
           return (
-            <div className="collection-board" key={collection.id}>
+            <div className="collection-board" id={`collection-${collection.id}`} key={collection.id}>
               <div className="collection-header">
                 <div className="collection-title">
                   {collection.emoji} {collection.name}

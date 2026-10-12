@@ -54,10 +54,21 @@ Deno.serve(async (req) => {
     .eq('user_id', user_id);
   if (error) return json({ error: error.message }, 500);
 
+  // Tapping the push opens the app on this notification (?notification=<id>), which takes you to its place.
+  // The trigger doesn't send the row id, so it is the newest row with this message.
+  const { data: row } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', user_id)
+    .eq('message', message)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const payload = JSON.stringify({
     title: TITLES[type] ?? 'Reel Map',
     body: message,
-    url: '/',
+    url: row?.id ? `/?notification=${encodeURIComponent(row.id)}` : '/',
   });
 
   let sent = 0;
