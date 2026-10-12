@@ -3999,3 +3999,16 @@ button.profile-open {
   opacity: 0.25;
   cursor: default;
 }
+
+/* "Shared reels land here", beside TBD's name on Home. */
+.collection-subtext {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}

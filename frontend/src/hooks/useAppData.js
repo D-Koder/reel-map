@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { readJSON, writeJSON } from '../lib/storage';
+import { INBOX_COLLECTION } from './useReelInbox';
 
 const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
 
@@ -117,6 +118,9 @@ export function useAppData(userId, showToast) {
   const [collectionOrder, setCollectionOrder] = useState(() => readJSON(collectionOrderKey(userId), []));
   // False until the database has profiles.collection_order; until then the order stays on this device.
   const orderSyncReady = useRef(false);
+  // My TBD collection (where shared reels land). ready is false until collections.is_inbox exists;
+  // until then TBD is found by its name.
+  const [inbox, setInbox] = useState({ ready: false, id: null });
 
   const refresh = useCallback(async () => {
     const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes] = await Promise.all([
@@ -136,6 +140,8 @@ export function useAppData(userId, showToast) {
       setCollectionOrder(collectionOrderRes.data.collection_order);
       writeJSON(collectionOrderKey(userId), collectionOrderRes.data.collection_order);
     }
+    const inboxRes = await supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1);
+    setInbox({ ready: !inboxRes.error, id: inboxRes.data?.[0]?.id ?? null });
     // Read on its own, so the app still loads before the event_date column has been added.
     const eventDatesRes = await supabase.from('collection_places').select('place_id, collection_id, event_date');
     setEventDatesReady(!eventDatesRes.error);
@@ -384,6 +390,17 @@ export function useAppData(userId, showToast) {
       return true;
     },
 
+    // Makes my TBD collection and marks it, so it's still found after a rename.
+    createInboxCollection: async () => {
+      const id = await run(supabase.rpc('create_collection', { p_name: INBOX_COLLECTION.name, p_emoji: INBOX_COLLECTION.emoji }));
+      if (typeof id !== 'string') return null;
+      if (inbox.ready) {
+        await supabase.from('collections').update({ is_inbox: true }).eq('id', id);
+        setInbox({ ready: true, id });
+      }
+      return id;
+    },
+
     updateProfile: (patch) => run(supabase.from('profiles').update(patch).eq('id', userId)),
     removeCollectionMember: (collectionId, memberId) => run(
       supabase.from('collection_members').delete().eq('collection_id', collectionId).eq('user_id', memberId)
@@ -399,7 +416,14 @@ export function useAppData(userId, showToast) {
   };
 
   // Same array until the collections or the order change, so effects that use it don't re-run.
-  const collections = useMemo(() => orderCollections(state.collections, collectionOrder), [state.collections, collectionOrder]);
+  const collections = useMemo(() => {
+    // Without the is_inbox column, TBD is my first collection with that name.
+    const inboxId = inbox.ready
+      ? inbox.id
+      : state.collections.find((c) => c.ownerId === userId && c.name === INBOX_COLLECTION.name)?.id;
+    const marked = state.collections.map((c) => ({ ...c, isInbox: c.id === inboxId }));
+    return orderCollections(marked, collectionOrder);
+  }, [state.collections, collectionOrder, inbox, userId]);
 
   return { ...state, collections, places, eventDatesReady, ...actions };
 }

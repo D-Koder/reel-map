@@ -166,7 +166,7 @@ function MainApp({ userId, showToast }) {
     collections,
     places,
     addPlace: data.addPlace,
-    createCollection: data.createCollection,
+    createInboxCollection: data.createInboxCollection,
     online,
     showToast,
     onSaved: (placeId, name, collectionName) =>

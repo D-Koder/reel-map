@@ -14,7 +14,7 @@ const MONTHS_AHEAD = 3;
 // 1. the soonest booking still to come,
 // 2. the soonest unbooked event in the next three months,
 // 3. a food or cafe place I'm keen on and nobody has booked (most keen votes first),
-// 4. else a random restaurant I said maybe to (a new pick each day).
+// 4. else a random food or cafe place I said maybe to (a new pick each day).
 export function pickUpNext(places, userId, now = new Date()) {
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
@@ -41,8 +41,8 @@ export function pickUpNext(places, userId, now = new Date()) {
     .filter((p) => p.reactions?.[userId] === 'keen')
     .sort((a, b) => keenCount(b) - keenCount(a))[0];
   if (keen) return { kind: 'keen', place: keen };
-  // A random restaurant I said maybe to. Random per day, so it doesn't change every time Home redraws.
-  const maybes = unbooked.filter((p) => p.category === 'food' && p.reactions?.[userId] === 'maybe');
+  // A random food or cafe place I said maybe to. Random per day, so it doesn't change every time Home redraws.
+  const maybes = eatOut.filter((p) => p.reactions?.[userId] === 'maybe');
   if (maybes.length) {
     const day = Math.floor(startOfToday.getTime() / 86400000);
     return { kind: 'maybe', place: maybes[(day * 7919) % maybes.length] };
@@ -152,6 +152,7 @@ export default function HomeScreen({
                 <div className="collection-title">
                   {collection.emoji} {collection.name}
                   {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
+                  {collection.isInbox && <span className="collection-subtext">Shared reels land here</span>}
                 </div>
                 <div className="collection-count">
                   {members.length > 1 && <><Users className="ico" aria-hidden="true" /> {members.length} · </>}

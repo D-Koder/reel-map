@@ -8,9 +8,9 @@ const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
 // Reels shared while scrolling land in this built-in collection, to sort out later.
 export const INBOX_COLLECTION = { name: 'TBD', emoji: '📥' };
 
-// My TBD collection, if I have one.
-export function findInboxCollection(collections, userId) {
-  return collections.find((c) => c.ownerId === userId && c.name === INBOX_COLLECTION.name) ?? null;
+// My TBD collection, if I have one. useAppData marks it (it can be renamed, so not by name).
+export function findInboxCollection(collections) {
+  return collections.find((c) => c.isInbox) ?? null;
 }
 
 // The collection a place was last added to by hand.
@@ -23,12 +23,12 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.r
 // Reels shared into the app. Each one is kept on this device straight away, so it is never lost,
 // then looked up in the background and added to TBD (made the first time it's needed).
 // Item status: 'saving' | 'offline' (waits for a connection) | 'needs-place' (lookup found no venue) | 'failed'.
-export function useReelInbox({ userId, collections, places, addPlace, createCollection, online, showToast, onSaved }) {
+export function useReelInbox({ userId, collections, places, addPlace, createInboxCollection, online, showToast, onSaved }) {
   const [items, setItems] = useState(() => readJSON(inboxKey(userId), []));
   const running = useRef(new Set());
   // The latest props, for lookups that finish after a re-render.
   const latest = useRef();
-  latest.current = { collections, places, addPlace, createCollection, showToast, onSaved, items };
+  latest.current = { collections, places, addPlace, createInboxCollection, showToast, onSaved, items };
   // One TBD at a time, even when several reels arrive together.
   const creatingInbox = useRef(null);
 
@@ -38,17 +38,15 @@ export function useReelInbox({ userId, collections, places, addPlace, createColl
   const remove = useCallback((id) => setItems((list) => list.filter((item) => item.id !== id)), []);
 
   const pickCollection = useCallback(
-    () => findInboxCollection(latest.current.collections, userId)?.id ?? null,
-    [userId]
+    () => findInboxCollection(latest.current.collections)?.id ?? null,
+    []
   );
 
   // TBD's id, making the collection if I don't have one yet.
   const inboxCollectionId = useCallback(async () => {
     const existing = pickCollection();
     if (existing) return existing;
-    creatingInbox.current ??= Promise.resolve(
-      latest.current.createCollection(INBOX_COLLECTION.name, INBOX_COLLECTION.emoji)
-    ).finally(() => {
+    creatingInbox.current ??= Promise.resolve(latest.current.createInboxCollection()).finally(() => {
       creatingInbox.current = null;
     });
     const created = await creatingInbox.current;

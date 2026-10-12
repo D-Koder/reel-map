@@ -190,7 +190,7 @@ function ShortcutSetup({ showToast }) {
   );
 }
 
-// isInbox: my TBD collection, where shared reels land. It can't be renamed or deleted.
+// isInbox: my TBD collection, where shared reels land. It can be renamed but not deleted.
 function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -210,9 +210,9 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
   return (
     <div className="collection-item">
       <div
-        className={`collection-name ${isOwner && !isInbox ? '' : 'readonly'}`}
-        onClick={() => isOwner && !isInbox && !editing && setEditing(true)}
-        title={isOwner && !isInbox ? 'Tap to rename' : undefined}
+        className={`collection-name ${isOwner ? '' : 'readonly'}`}
+        onClick={() => isOwner && !editing && setEditing(true)}
+        title={isOwner ? 'Tap to rename' : undefined}
       >
         {editing ? (
           <input
@@ -285,7 +285,7 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
             </div>
           ))}
           {isInbox
-            ? <p className="toggle-hint">TBD is built in, so it can't be deleted.</p>
+            ? <p className="toggle-hint">This is where shared reels land, so it can't be deleted.</p>
             : <button type="button" className="step-btn danger full-width" onClick={() => onDelete(collection)}>Delete collection</button>}
         </div>
       )}
@@ -512,7 +512,7 @@ export default function SettingsDrawer({
   onReorderCollections,
 }) {
   const [newName, setNewName] = useState('');
-  const inboxId = findInboxCollection(collections, userId)?.id;
+  const inboxId = findInboxCollection(collections)?.id;
   const [email, setEmail] = useState('');
 
   React.useEffect(() => {
