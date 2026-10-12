@@ -57,8 +57,9 @@ async function copyText(text, label, showToast) {
   }
 }
 
-// The shared "Save to Reel Map" Shortcut (an iCloud link). The Shortcut's name must match SHORTCUT_NAME.
-const SHORTCUT_URL = import.meta.env.VITE_SHORTCUT_URL;
+// The shared "Save to Reel Map" Shortcut (an iCloud link, safe to share: it holds no key).
+// VITE_SHORTCUT_URL overrides it. The Shortcut's name must match SHORTCUT_NAME.
+const SHORTCUT_URL = import.meta.env.VITE_SHORTCUT_URL || 'https://www.icloud.com/shortcuts/de02d20f85984aefbb0840cc8b3c6d25';
 const SHORTCUT_NAME = 'Save to Reel Map';
 
 // Runs the Shortcut with "reelmap-key:<key>". The Shortcut saves the key on the phone,
