@@ -2966,6 +2966,13 @@ select.step-input {
   opacity: 1;
 }
 
+/* TikTok's player is dark, so its placeholder is too. */
+.reel-embed-thumb.is-tiktok,
+.reel-embed-thumb.is-tiktok.is-loaded {
+  background: #121212;
+  animation: none;
+}
+
 /* List cards: a narrower embed with a smaller shadow. */
 .pin-thumbnail.reel-embed-thumb {
   width: 60px;

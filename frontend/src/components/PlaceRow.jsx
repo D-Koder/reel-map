@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
-import ReelEmbedThumb, { instagramEmbedUrl } from './ReelEmbedThumb';
+import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 
 // "16 Timothy Ln, Melbourne VIC 3000, Australia" -> "16 Timothy Ln, Melbourne": street and suburb only.
 function shortAddress(address) {
@@ -104,8 +104,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
             if (pin.reel_url) window.open(pin.reel_url, '_blank', 'noopener,noreferrer');
           }}
         >
-          {/* Instagram reels show Instagram's own embed, shrunk to fit; anything else shows the saved cover. */}
-          {instagramEmbedUrl(pin.reel_url)
+          {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
+          {reelEmbed(pin.reel_url)
             ? <ReelEmbedThumb reelUrl={pin.reel_url} className="pin-thumbnail" />
             : <PlaceThumb place={pin} className="pin-thumbnail" onBroken={onBroken} />}
           {/* The booked date hangs off the photo on a solid tab, so it never blends into the picture. */}
