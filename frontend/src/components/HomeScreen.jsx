@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarCheck, ChevronDown, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import MapBanner from './MapBanner';
 import { categories, formatDateTime } from '../lib/constants';
@@ -105,7 +105,9 @@ export default function HomeScreen({
   onOpenSettings,
   onAddPlace,
   onMovePlaces,
+  onCopyPlaces,
   onCreateCollection,
+  canEdit = () => true,
   showToast,
   banner = null,
 }) {
@@ -129,6 +131,7 @@ export default function HomeScreen({
     saveCollapsed(next);
   };
   // Select mode: tick several places in one collection, then move them all at once.
+  // In a collection I only view, ticked places are copied instead: viewers can't move places out.
   const [selecting, setSelecting] = useState(null); // collection id
   const [picked, setPicked] = useState(() => new Map()); // place id -> place
   const [moveSheet, setMoveSheet] = useState(false);
@@ -146,10 +149,12 @@ export default function HomeScreen({
     setSelecting(collectionId);
     setPicked(new Map());
   };
-  // Only whoever added a place can move it, so the others can't be ticked.
+  // Only whoever added a place can move it, so the others can't be ticked. Anything can be copied.
+  const copying = selecting !== null && !canEdit(selecting);
   const canMove = (pin) => pin.added_by === userId;
+  const canPick = (pin) => !canEdit(pin.collection_id) || canMove(pin);
   const togglePick = (pin) => {
-    if (!canMove(pin)) {
+    if (!canPick(pin)) {
       showToast?.('Only the person who added this place can move it');
       return;
     }
@@ -158,11 +163,12 @@ export default function HomeScreen({
     else next.set(pin.id, pin);
     setPicked(next);
   };
-  const tickAll = (pins) => setPicked(new Map(pins.filter(canMove).map((p) => [p.id, p])));
+  const tickAll = (pins) => setPicked(new Map(pins.filter(canPick).map((p) => [p.id, p])));
   // newCollection: name and emoji of a collection made just now, which isn't in the list yet.
   const moveTo = async (targetId, newCollection) => {
     setMoving(true);
-    const ok = await onMovePlaces?.([...picked.values()], targetId, newCollection);
+    const send = copying ? onCopyPlaces : onMovePlaces;
+    const ok = await send?.([...picked.values()], targetId, newCollection);
     setMoving(false);
     if (ok) stopSelecting();
     else setMoveSheet(false);
@@ -182,6 +188,8 @@ export default function HomeScreen({
     setMoveSheet(false);
     setNewName(null);
   };
+  // Places can only go into collections I can change.
+  const targets = collections.filter((c) => c.id !== selecting && canEdit(c.id));
   const allCollapsed = collections.length > 0 && collections.every((c) => collapsed.has(c.id));
 
   if (collections.length === 0) {
@@ -230,9 +238,11 @@ export default function HomeScreen({
           const members = membersOf[collection.id] ?? [];
           const isOpen = !collapsed.has(collection.id);
           const isSelecting = selecting === collection.id;
-          const movablePins = pins.filter(canMove);
+          const editable = canEdit(collection.id);
+          const pickablePins = pins.filter(canPick);
           // "Tick all" shortcuts, only for the categories this collection has.
-          const quickTicks = categories.filter((cat) => movablePins.some((p) => p.category === cat.id));
+          const quickTicks = categories.filter((cat) => pickablePins.some((p) => p.category === cat.id));
+          const hasTargets = collections.some((c) => c.id !== collection.id && canEdit(c.id));
           return (
             <div className={`collection-board ${isOpen ? '' : 'is-collapsed'}`} id={`collection-${collection.id}`} key={collection.id}>
               <button
@@ -245,6 +255,7 @@ export default function HomeScreen({
                 <span className="collection-title">
                   {collection.emoji} {collection.name}
                   {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
+                  {!editable && <span className="viewer-tag"><Eye className="ico" aria-hidden="true" /> Viewer</span>}
                   {collection.isInbox && <span className="collection-subtext">Shared reels land here</span>}
                 </span>
                 <span className="collection-count">
@@ -256,13 +267,16 @@ export default function HomeScreen({
 
               {isOpen && (
                 <div id={`collection-body-${collection.id}`} className="collection-body">
-                  {pins.length === 0 && (
+                  {pins.length === 0 && !editable && (
+                    <div className="collection-empty">No places yet.</div>
+                  )}
+                  {pins.length === 0 && editable && (
                     <button type="button" className="collection-empty" onClick={() => onAddPlace(collection.id)}>
                       No places yet — tap <Plus className="ico" aria-hidden="true" /> to add one.
                     </button>
                   )}
 
-                  {movablePins.length > 0 && collections.length > 1 && (
+                  {pickablePins.length > 0 && hasTargets && (
                     <div className={`select-row ${isSelecting ? 'is-on' : ''}`}>
                       {isSelecting && (
                         <div className="select-quick" role="group" aria-label="Tick all">
@@ -306,7 +320,7 @@ export default function HomeScreen({
         {selecting && picked.size > 0 && !moveSheet && (
           <div className="select-bar" role="region" aria-label="Selected places">
             <span className="select-bar-count">{picked.size} selected</span>
-            <button type="button" className="select-bar-move" onClick={() => setMoveSheet(true)}>Move to…</button>
+            <button type="button" className="select-bar-move" onClick={() => setMoveSheet(true)}>{copying ? 'Copy to…' : 'Move to…'}</button>
           </div>
         )}
 
@@ -315,11 +329,11 @@ export default function HomeScreen({
             <div className="modal move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-sheet-title" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title" id="move-sheet-title">
-                  Move {picked.size} {picked.size === 1 ? 'place' : 'places'} to
+                  {copying ? 'Copy' : 'Move'} {picked.size} {picked.size === 1 ? 'place' : 'places'} to
                 </div>
               </div>
               <div className="move-list">
-                {collections.filter((c) => c.id !== selecting).map((c) => (
+                {targets.map((c) => (
                   <button key={c.id} type="button" className="move-option" disabled={moving} onClick={() => moveTo(c.id)}>
                     <span className="move-option-emoji" aria-hidden="true">{c.emoji}</span>
                     <span className="move-option-name">{c.name}</span>
@@ -350,13 +364,13 @@ export default function HomeScreen({
                       autoFocus
                     />
                     <button type="submit" className="step-btn primary move-new-go" disabled={moving || !newName.trim()}>
-                      Make &amp; move
+                      {copying ? 'Make & copy' : 'Make & move'}
                     </button>
                   </form>
                 )}
               </div>
               <button type="button" className="step-btn secondary full-width" disabled={moving} onClick={closeMoveSheet}>
-                {moving ? 'Moving…' : 'Cancel'}
+                {moving ? (copying ? 'Copying…' : 'Moving…') : 'Cancel'}
               </button>
             </div>
           </div>

@@ -540,6 +540,29 @@ export function useAppData(userId, showToast) {
     removeCollectionMember: (collectionId, memberId) => run(
       supabase.from('collection_members').delete().eq('collection_id', collectionId).eq('user_id', memberId)
     ),
+    // The owner makes a member an editor or a viewer.
+    setMemberRole: (collectionId, memberId, role) => run(
+      supabase.rpc('set_member_role', { p_collection_id: collectionId, p_user_id: memberId, p_role: role })
+    ),
+    // Copies several places into a collection. Each one is sent on its own, so one that's already
+    // there doesn't stop the rest. Returns how many copied.
+    copyPlaces: async (pins, targetCollectionId) => {
+      const copyable = pins.filter((p) => !(p.collectionIds ?? []).includes(targetCollectionId));
+      const results = await Promise.all(copyable.map(async (p) => {
+        const { error } = await supabase.from('collection_places').insert({
+          collection_id: targetCollectionId,
+          place_id: p.id,
+          added_by: userId,
+          category: p.category,
+          custom_name: p.name,
+          custom_emoji: p.emoji ?? null,
+        });
+        return !error;
+      }));
+      await refresh();
+      const copied = results.filter(Boolean).length;
+      return { copied, skipped: pins.length - copied };
+    },
     deleteCollection: (collectionId) => run(supabase.from('collections').delete().eq('id', collectionId)),
 
     transferOwnership: (collectionId, newOwnerId) =>

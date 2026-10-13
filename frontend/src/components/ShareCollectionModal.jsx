@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Crown, Download, FileSpreadsheet, Link, Users, X } from 'lucide-react';
+import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Pencil, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
@@ -14,19 +14,27 @@ async function copy(text, label, showToast) {
   }
 }
 
-export default function ShareCollectionModal({ collection, userId, places = [], onClose, showToast }) {
+export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const owner = collection.members.find((m) => m.role === 'owner');
-  const isOwner = owner?.id === userId;
+  const isOwner = collection.ownerId === userId || collection.members.some((m) => m.id === userId && m.role === 'owner');
+  const [savingRole, setSavingRole] = useState(null); // member id
 
-  // Owners see the code straight away; it's made (or reused) when Share opens.
+  const setRole = async (member, role) => {
+    if (member.role === role || savingRole) return;
+    setSavingRole(member.id);
+    if (await onSetRole?.(member.id, role)) {
+      showToast(`${member.display_name} is now ${role === 'editor' ? 'an editor' : 'a viewer'}`);
+    }
+    setSavingRole(null);
+  };
+
+  // Everyone in the collection can share it, so the code shows straight away; it's made (or reused) when Share opens.
   useEffect(() => {
-    if (!isOwner) return undefined;
     let cancelled = false;
     setLoading(true);
     getInvite(collection.id).then((result) => {
@@ -35,7 +43,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [isOwner, collection.id, getInvite]);
+  }, [collection.id, getInvite]);
 
   const exportAs = (format) => {
     if (!places.length) {
@@ -57,38 +65,33 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
         </div>
 
         <div className="share-body">
-          {isOwner ? (
-            <div className="invite-card">
-              <div className="invite-card-label">Invite code</div>
-              {loading ? (
-                <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
-              ) : invite ? (
-                <>
-                  <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
-                  <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 30 days.</div>
-                  <div className="invite-actions">
-                    <button type="button" className="step-btn primary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
-                      <Copy className="ico" aria-hidden="true" /> Copy code
-                    </button>
-                    <button type="button" className="step-btn secondary" onClick={() => copy(invite.url, 'link', showToast)}>
-                      <Link className="ico" aria-hidden="true" /> Copy link
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button type="button" className="step-btn secondary full-width" onClick={() => {
-                  setLoading(true);
-                  getInvite(collection.id).then((result) => { setInvite(result); setLoading(false); });
-                }}>
-                  Try again
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="share-note">
-              Only the owner can invite people. Ask {owner?.display_name ?? 'them'} for the code.
-            </div>
-          )}
+          <div className="invite-card">
+            <div className="invite-card-label">Invite code</div>
+            {loading ? (
+              <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
+            ) : invite ? (
+              <>
+                <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
+                <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 30 days.</div>
+                <div className="invite-actions">
+                  <button type="button" className="step-btn primary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
+                    <Copy className="ico" aria-hidden="true" /> Copy code
+                  </button>
+                  <button type="button" className="step-btn secondary" onClick={() => copy(invite.url, 'link', showToast)}>
+                    <Link className="ico" aria-hidden="true" /> Copy link
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button type="button" className="step-btn secondary full-width" onClick={() => {
+                setLoading(true);
+                getInvite(collection.id).then((result) => { setInvite(result); setLoading(false); });
+              }}>
+                Try again
+              </button>
+            )}
+            <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>
+          </div>
 
           <div className="share-section">
             <div className="share-section-title">Export</div>
@@ -122,7 +125,31 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                     {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}
                   </span>
                   <span className="share-member-name">{member.display_name}</span>
-                  {member.role === 'owner' && <span className="share-member-role"><Crown className="ico" aria-hidden="true" /> Owner</span>}
+                  {member.role === 'owner' ? (
+                    <span className="share-member-role"><Crown className="ico" aria-hidden="true" /> Owner</span>
+                  ) : isOwner ? (
+                    // The owner picks what each member can do.
+                    <span className="role-switch" role="group" aria-label={`${member.display_name}'s role`}>
+                      {['viewer', 'editor'].map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          className={`role-switch-option ${member.role === role ? 'is-on' : ''}`}
+                          aria-pressed={member.role === role}
+                          disabled={savingRole === member.id}
+                          onClick={() => setRole(member, role)}
+                        >
+                          {role === 'editor' ? 'Editor' : 'Viewer'}
+                        </button>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="share-member-role">
+                      {member.role === 'editor'
+                        ? <><Pencil className="ico" aria-hidden="true" /> Editor</>
+                        : <><Eye className="ico" aria-hidden="true" /> Viewer</>}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

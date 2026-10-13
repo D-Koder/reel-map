@@ -5,8 +5,9 @@ import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 
-// Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection.
-export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, onSave, onCopy, onMove, onClose }) {
+// Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection,
+// and not in a collection they only view.
+export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, canEdit = () => true, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
@@ -22,9 +23,11 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [moveDuplicates, setMoveDuplicates] = useState([]);
 
   const placeIn = place.collectionIds ?? [];
-  const copyOptions = collections.filter((c) => !placeIn.includes(c.id));
-  const moveOptions = collections.filter((c) => c.id !== place.collection_id);
-  const isAdder = place.added_by === userId;
+  // Places can only go into collections I can change.
+  const copyOptions = collections.filter((c) => !placeIn.includes(c.id) && canEdit(c.id));
+  const moveOptions = collections.filter((c) => c.id !== place.collection_id && canEdit(c.id));
+  const isViewer = !canEdit(place.collection_id);
+  const isAdder = place.added_by === userId && !isViewer;
   const canMove = isAdder;
 
   const runCopy = async (confirmed = false) => {
@@ -97,7 +100,9 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           </button>
         </div>
 
-        {!isAdder && (
+        {isViewer ? (
+          <p className="place-collection-note">You're a viewer here, so you can't change this place. You can still copy it to your collections.</p>
+        ) : !isAdder && (
           <p className="place-collection-note">Only the person who added this place can change it. You can still copy it to your collections.</p>
         )}
 
@@ -165,7 +170,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
         <div className="field">
           <span className="modal-label">Copy to another collection</span>
           {copyOptions.length === 0 ? (
-            <div className="place-collection-note">It's already in all your collections.</div>
+            <div className="place-collection-note">It's already in all the collections you can add to.</div>
           ) : (
             <div className="field-row">
               <select className="step-input" value={copyTarget} onChange={(e) => setCopyTarget(e.target.value)} disabled={!!busyAction}>
@@ -179,7 +184,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           )}
         </div>
 
-        {canMove && (
+        {canMove && moveOptions.length > 0 && (
           <div className="field">
             <span className="modal-label">Move to another collection (you added this place)</span>
             <div className="field-row">

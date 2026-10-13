@@ -134,6 +134,8 @@ export default function PinModal({
   onDelete,
   onClose,
   showToast,
+  // False in a collection I only view: no delete or booking, just votes and copying.
+  canEdit = true,
 }) {
   const booking = place.booking;
   const nameOf = (id) => (id === userId ? 'you' : members.find((m) => m.id === id)?.display_name ?? 'someone else');
@@ -141,7 +143,7 @@ export default function PinModal({
 
   // Every member can open the place sheet to copy it. Only whoever added it can change it (the sheet enforces that).
   // Delete: the booker if booked, otherwise whoever added it.
-  const canDelete = booking ? booking.booked_by === userId : place.added_by === userId;
+  const canDelete = canEdit && (booking ? booking.booked_by === userId : place.added_by === userId);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // Decided once, when the sheet opens: an already-booked place skips the checklist entirely,
@@ -378,7 +380,11 @@ export default function PinModal({
           </div>
         )}
 
-        {booking?.done_at ? (
+        {!canEdit && !booking?.done_at ? (
+          <div className="place-collection-note">
+            {booking?.planned_at ? `Booked for ${formatDateTime(booking.planned_at)}. ` : ''}You're a viewer here, so the owner or an editor books and marks it done.
+          </div>
+        ) : booking?.done_at ? (
           <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Done — marked by {nameOf(booking.marked_by)}</div>
         ) : wasBooked ? (
           <button className="step-btn primary full-width" disabled={doneLocked} onClick={onMarkDone}>

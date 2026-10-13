@@ -90,7 +90,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     ? { latitude: initialPlace.latitude, longitude: initialPlace.longitude, source: 'map_pin' }
     : null);
   const [category, setCategory] = useState(initialPlace?.category ?? draft?.category ?? 'food');
-  const [collectionId, setCollectionId] = useState(initialCollectionId ?? draft?.collectionId ?? collections[0]?.id ?? '');
+  // Only collections I can add to are passed in, so a remembered one I now only view falls back to the first.
+  const [collectionId, setCollectionId] = useState(() => {
+    const wanted = initialCollectionId ?? draft?.collectionId;
+    return collections.some((c) => c.id === wanted) ? wanted : collections[0]?.id ?? '';
+  });
   const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
   const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
