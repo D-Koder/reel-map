@@ -5,9 +5,10 @@ const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue } = require('./_lib/caption');
 
-// How long saved lookups are reused. Captions don't change; opening hours and phone numbers can.
-const REEL_CACHE_DAYS = 30;
-const PLACE_CACHE_DAYS = 14;
+// How long saved lookups are reused. Kept long while there are few users; opening hours and phone
+// numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
+const REEL_CACHE_DAYS = 100;
+const PLACE_CACHE_DAYS = 100;
 
 async function invoke(handler, body, getBrowser) {
   const response = {

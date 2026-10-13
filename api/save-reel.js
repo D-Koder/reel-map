@@ -8,7 +8,9 @@
 const { canonicalInstagramUrl } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// The server key when there is one, so save_shared_reel and mark_shortcut_connected needn't be open to
+// the public (anon). The anon key still works until those are revoked from anon.
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 // Asks /api/enrich-reel to look the reel up after the Shortcut has its answer. It is a request rather
 // than a require so this function doesn't carry its own copy of Chrome. Vercel keeps this function
@@ -38,7 +40,7 @@ function reply(res, status, message) {
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return reply(res, 405, 'Use POST');
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return reply(res, 500, '⚠️ Reel Map is missing its Supabase settings');
+  if (!SUPABASE_URL || !SUPABASE_KEY) return reply(res, 500, '⚠️ Reel Map is missing its Supabase settings');
 
   const body = typeof req.body === 'object' && req.body ? req.body : {};
   // Keys are letters and digits only. A file read back by Shortcuts can carry a newline,
@@ -55,8 +57,9 @@ module.exports = async function handler(req, res) {
     response = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/${rpc}`, {
       method: 'POST',
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_KEY,
+        // New secret keys (sb_secret_…) go in apikey only; legacy JWT keys go in both.
+        ...(SUPABASE_KEY.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${SUPABASE_KEY}` }),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(connecting ? { p_key: key } : { p_key: key, p_url: url }),

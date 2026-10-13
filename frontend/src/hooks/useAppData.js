@@ -70,7 +70,9 @@ function normalisePlace(row) {
     booking: cp.booking ?? null,
     // The day an event is on, if someone set one. Only used for events.
     event_date: cp.event_date ?? null,
-    reactions,
+    // Votes belong to this collection's entry (see 20261015090000_reactions_per_collection.sql).
+    // Before that migration, cp.reactions is unset and the place's votes are used.
+    reactions: cp.reactions ?? reactions,
   }));
 }
 
@@ -104,6 +106,13 @@ export function orderCollections(collections, order) {
     .map(({ collection }) => collection);
 }
 
+// Every vote I can see, by collection entry, once votes belong to a collection
+// (see 20261015090000_reactions_per_collection.sql). Before then, hasCollections is false.
+async function readReactions() {
+  const res = await supabase.from('reactions').select('collection_id, place_id, user_id, feeling');
+  return { ...res, hasCollections: !res.error };
+}
+
 // Every collection entry I can see, with its event day when the database has that column
 // (see 20261013090000_event_dates.sql). Before then, it is read again without it.
 async function readEntries() {
@@ -127,13 +136,15 @@ export function useAppData(userId, showToast) {
   const [collectionOrder, setCollectionOrder] = useState(() => readJSON(collectionOrderKey(userId), []));
   // False until the database has profiles.collection_order; until then the order stays on this device.
   const orderSyncReady = useRef(false);
+  // True once votes belong to a collection (reactions.collection_id exists); until then, votes are per place.
+  const reactionsPerCollection = useRef(false);
   // My TBD collection (where shared reels land). ready is false until collections.is_inbox exists;
   // until then TBD is found by its name.
   const [inbox, setInbox] = useState({ ready: false, id: null });
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -145,7 +156,13 @@ export function useAppData(userId, showToast) {
       // Read on its own, so the app still loads before the column has been added.
       supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle(),
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
+      readReactions(),
     ]);
+    reactionsPerCollection.current = reactionsRes.hasCollections;
+    const votes = {};
+    for (const r of reactionsRes.hasCollections ? reactionsRes.data ?? [] : []) {
+      (votes[`${r.collection_id}:${r.place_id}`] ??= {})[r.user_id] = r.feeling;
+    }
     orderSyncReady.current = !collectionOrderRes.error;
     if (Array.isArray(collectionOrderRes.data?.collection_order)) {
       setCollectionOrder(collectionOrderRes.data.collection_order);
@@ -178,6 +195,7 @@ export function useAppData(userId, showToast) {
           category: entry?.category ?? null,
           custom_emoji: entry?.custom_emoji ?? null,
           booking: bookings[`${cp.collection_id}:${p.id}`] ?? null,
+          ...(reactionsRes.hasCollections && { reactions: votes[`${cp.collection_id}:${p.id}`] ?? {} }),
           event_date: eventDates[`${cp.collection_id}:${p.id}`] ?? null,
         };
       }),
@@ -253,6 +271,13 @@ export function useAppData(userId, showToast) {
     [refresh, showToast]
   );
 
+  // One collection's entry for a place: votes and bookings belong to it, not to the place.
+  const patchEntry = (collectionId, id, patch) =>
+    setState((s) => ({
+      ...s,
+      places: s.places.map((p) => (p.id === id && p.collection_id === collectionId ? { ...p, ...patch } : p)),
+    }));
+
   const patchPlace = (id, patch) =>
     setState((s) => ({ ...s, places: s.places.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
 
@@ -269,11 +294,23 @@ export function useAppData(userId, showToast) {
     refresh,
 
     setReaction: (place, feeling) => {
-      patchPlace(place.id, { reactions: { ...place.reactions, [userId]: feeling } });
+      if (!reactionsPerCollection.current) {
+        patchPlace(place.id, { reactions: { ...place.reactions, [userId]: feeling } });
+        return run(
+          supabase
+            .from('reactions')
+            .upsert({ place_id: place.id, user_id: userId, feeling }, { onConflict: 'place_id,user_id' })
+        );
+      }
+      // A vote counts in this collection only.
+      patchEntry(place.collection_id, place.id, { reactions: { ...place.reactions, [userId]: feeling } });
       return run(
         supabase
           .from('reactions')
-          .upsert({ place_id: place.id, user_id: userId, feeling }, { onConflict: 'place_id,user_id' })
+          .upsert(
+            { collection_id: place.collection_id, place_id: place.id, user_id: userId, feeling },
+            { onConflict: 'collection_id,place_id,user_id' }
+          )
       );
     },
 
@@ -315,7 +352,9 @@ export function useAppData(userId, showToast) {
       if (feeling) {
         const { error: reactionError } = await supabase
           .from('reactions')
-          .insert({ place_id: placeId, user_id: userId, feeling })
+          .insert(reactionsPerCollection.current
+            ? { collection_id: collectionId, place_id: placeId, user_id: userId, feeling }
+            : { place_id: placeId, user_id: userId, feeling })
           .abortSignal(AbortSignal.timeout(10000));
         if (reactionError) showToast(`Place saved, but vibe didn't save: ${friendlyError(reactionError)}`);
       }
