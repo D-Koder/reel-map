@@ -1,15 +1,44 @@
 name: Tests
 
+# Every push: quick checks, plus database tests when the TEST secrets are set.
+# "Run workflow" button (Actions → Tests): everything, browser tests included, and
+# TEST-RESULTS.md is committed back to the branch.
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      layers:
+        description: Which tests
+        type: choice
+        default: everything
+        options: [everything, quick checks + database, quick checks only]
+
+# The database and browser tests share two test accounts, so only one run at a time.
+concurrency:
+  group: test-project
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
-  unit:
+  tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: frontend
+    env:
+      # Set these in Settings → Secrets and variables → Actions. All from the TEST project.
+      TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
+      TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+      # The app the browser tests build talks to the same TEST project.
+      VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      VITE_MAPBOX_TOKEN: ${{ secrets.TEST_MAPBOX_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,15 +54,49 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: '1'
       - run: npm ci
-      - run: npm test
-      # Runs only when the TEST project secrets are set in the repo (Settings → Secrets → Actions).
-      - name: Database tests
-        if: ${{ env.TEST_SUPABASE_URL != '' }}
-        run: npm run test:db
+
+      - name: Choose which tests run
+        id: pick
         env:
-          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
-          TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
-          TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
-          TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
-    env:
-      TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          choice: ${{ github.event.inputs.layers }}
+        run: |
+          layers="unit"
+          if [ -n "$TEST_SUPABASE_URL" ] && [ "$choice" != "quick checks only" ]; then layers="$layers db"; fi
+          if [ -n "$TEST_SUPABASE_URL" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$choice" = "everything" ]; then layers="$layers e2e"; fi
+          echo "layers=$layers" >> "$GITHUB_OUTPUT"
+          echo "Running: $layers"
+
+      - name: Install the test browser
+        if: contains(steps.pick.outputs.layers, 'e2e')
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: node scripts/run-tests.mjs ${{ steps.pick.outputs.layers }}
+
+      # The results show on the run's page (Summary), which reads fine on a phone.
+      - name: Show results
+        if: always()
+        run: '[ -f ../TEST-RESULTS.md ] && cat ../TEST-RESULTS.md >> "$GITHUB_STEP_SUMMARY" || true'
+
+      - name: Keep screenshots and the browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            TEST-RESULTS.md
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Save TEST-RESULTS.md to the branch
+        if: always() && github.event_name == 'workflow_dispatch'
+        working-directory: .
+        run: |
+          git add TEST-RESULTS.md
+          git diff --cached --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Test results [skip ci]"
+          git push
