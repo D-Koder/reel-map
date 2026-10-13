@@ -29,7 +29,11 @@ Pushes to other branches run the quick checks (and the database tests once the s
 
 ## One-time setup
 1. Repo root: `PUPPETEER_SKIP_DOWNLOAD=1 npm ci` (for `test:live`, plain `npm ci` so Chrome is downloaded).
-2. Rebuild the TEST project: `bash supabase/scripts/reset-test-project.sh` (builds the tables).
+2. Build the TEST project's tables (phone-friendly, no computer needed):
+   - LIVE project → SQL Editor → run `supabase/scripts/export-schema.sql`. It only reads: it writes out the
+     structure (tables, functions, security rules) as SQL, with no data, no keys and no push sender.
+   - Copy the one result cell → TEST project → SQL Editor → paste → Run. Do this once, on an empty project.
+   - (`supabase/migrations` is behind live, so building from the migrations fails. Use the export.)
 3. `cp frontend/.env.test.example frontend/.env.test.local` and fill in the URL, anon key and service role key.
    No accounts needed: **each run makes two throwaway accounts** ("Test One" and "Test Two", made-up
    @example.com emails, random password) and deletes them at the end.
