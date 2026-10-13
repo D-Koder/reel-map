@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, PartyPopper, Pencil, Phone, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Ticket, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
@@ -8,6 +8,7 @@ import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
+import { openStatus, suburbOf } from '../lib/hours';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -213,6 +214,17 @@ export default function PinModal({
   };
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
+  // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
+  const status = openStatus(hours);
+  const suburb = suburbOf(place?.address);
+  const quickActions = [
+    place?.address && mapsLink && { label: 'Directions', href: mapsLink, Icon: Navigation },
+    place?.phone && { label: `Call ${place.phone}`, href: `tel:${place.phone.replace(/[^\d+]/g, '')}`, Icon: Phone },
+    place?.website_url && { label: 'Website', href: place.website_url, Icon: Globe },
+    place?.menu_url && { label: 'Menu', href: place.menu_url, Icon: UtensilsCrossed },
+    place?.booking_url && { label: 'Reserve a table', href: place.booking_url, Icon: Ticket },
+    place?.url && { label: 'Open link', href: place.url, Icon: Link },
+  ].filter(Boolean);
   const satHours = hours.find((h) => /sat/i.test(h.days));
   const hoursSummary = hours.length
     ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
@@ -267,6 +279,29 @@ export default function PinModal({
             <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
             {booking && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Booked by {nameOf(booking.booked_by)}</div>}
+            {status && (
+              <div className={`reel-open ${status.open ? 'is-open' : 'is-closed'}`}>
+                <span className="reel-open-dot" aria-hidden="true" /> {status.text}
+              </div>
+            )}
+            {suburb && <div className="reel-suburb"><MapPin className="ico" aria-hidden="true" /> {suburb}</div>}
+            {quickActions.length > 0 && (
+              <div className="quick-actions">
+                {quickActions.map(({ label, href, Icon }) => (
+                  <a
+                    key={label}
+                    className="quick-action"
+                    href={href}
+                    target={href.startsWith('tel:') ? undefined : '_blank'}
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    title={label}
+                  >
+                    <Icon aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )}
             {place.reel_url && (
               <button className="reel-link" onClick={openReel}>
                 View Reel <ArrowUpRight className="ico" aria-hidden="true" />
@@ -314,46 +349,6 @@ export default function PinModal({
               aria-label={`Open ${place.address} in Google Maps`}
             >
               {place.address}
-            </a>
-          </div>
-        )}
-
-        {(place?.website_url || place?.booking_url) && (
-          <div className="modal-section">
-            {place.website_url && (
-              <a className="step-btn secondary full-width" href={place.website_url} target="_blank" rel="noreferrer">
-                <Globe className="ico" aria-hidden="true" /> Open website <ArrowUpRight className="ico" aria-hidden="true" />
-              </a>
-            )}
-            {place.booking_url && (
-              <a className="step-btn primary full-width" href={place.booking_url} target="_blank" rel="noreferrer">
-                <UtensilsCrossed className="ico" aria-hidden="true" /> Reserve a table <ArrowUpRight className="ico" aria-hidden="true" />
-              </a>
-            )}
-          </div>
-        )}
-
-        {place?.url && (
-          <div className="modal-section">
-            <a className="step-btn secondary full-width" href={place.url} target="_blank" rel="noreferrer">
-              <Link className="ico" aria-hidden="true" /> Open link <ArrowUpRight className="ico" aria-hidden="true" />
-            </a>
-          </div>
-        )}
-
-        {place?.phone && (
-          <div className="modal-section">
-            <div className="modal-label">Phone</div>
-            <a className="venue-address" href={`tel:${place.phone.replace(/[^\d+]/g, '')}`}>
-              {place.phone}
-            </a>
-          </div>
-        )}
-
-        {place?.menu_url && (
-          <div className="modal-section">
-            <a className="step-btn secondary full-width" href={place.menu_url} target="_blank" rel="noreferrer">
-              <UtensilsCrossed className="ico" aria-hidden="true" /> View menu <ArrowUpRight className="ico" aria-hidden="true" />
             </a>
           </div>
         )}

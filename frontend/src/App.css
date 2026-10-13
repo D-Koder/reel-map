@@ -1306,6 +1306,75 @@ button.collection-empty {
   margin-bottom: 4px;
 }
 
+/* Open now, suburb and one-tap links next to the reel (PinModal). */
+.reel-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.reel-open.is-open {
+  color: var(--success-text);
+}
+
+.reel-open.is-closed {
+  color: var(--danger-text);
+}
+
+.reel-open-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.reel-suburb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.reel-suburb .ico {
+  width: 14px;
+  height: 14px;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+
+.quick-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.quick-action:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--hard-shadow);
+}
+
+.quick-action svg {
+  width: 17px;
+  height: 17px;
+}
+
 .reel-link {
   display: inline-flex;
   align-items: center;
