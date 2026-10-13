@@ -3,9 +3,9 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 // Instagram's embed is laid out at this size; it is then scaled down to the box's width.
 const EMBED_WIDTH = 326;
 const EMBED_HEIGHT = 580;
-// How much of the bottom (likes, "View more on Instagram") is cut off. Kept at 0: the whole embed
-// shows, untouched, because Instagram's embed is meant to be shown as it is.
-const FOOTER_HEIGHT = 0;
+// How much of the bottom (likes, "View more on Instagram") is cut off. 0 shows the whole embed.
+// The header at the top (creator and Instagram logo) is always kept, so the reel stays credited.
+const FOOTER_HEIGHT = 140;
 
 // The /embed/ link of an Instagram reel or post: Instagram's own no-caption embed. Null for anything else.
 export function instagramEmbedUrl(reelUrl) {
@@ -19,7 +19,8 @@ export function instagramEmbedUrl(reelUrl) {
   }
 }
 
-// Instagram's official embed, scaled down to the box's width (set in CSS); the box's height follows.
+// Instagram's official embed, scaled down to the box's width (set in CSS); the box's height follows,
+// down to just above the footer.
 // Nothing is drawn over it. Taps go to the button around it, which opens the reel, because the
 // scaled-down player is too small to use.
 export default function ReelEmbedThumb({ reelUrl, className = '' }) {

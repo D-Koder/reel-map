@@ -2922,13 +2922,13 @@ select.step-input {
 /* Instagram's embed scaled down to a thumbnail (ReelEmbedThumb). Taps go to the button around it.
    The frame is ours (ink outline, hard shadow, pressed in on tap, like the Up next ticket). Inside it,
    nothing covers the embed, and the placeholder uses Instagram's own light greys so the switch is smooth. */
-/* Width sets the size; the height is set by ReelEmbedThumb so the whole embed fits. */
+/* Width sets the size; the height is set by ReelEmbedThumb so the embed fits down to above its footer. */
 .reel-thumbnail-small.reel-embed-thumb,
 .pin-thumbnail.reel-embed-thumb {
   position: relative;
   display: block;
   width: 120px;
-  height: 213px;
+  height: 162px;
   overflow: hidden;
   border: 1.5px solid var(--ink);
   border-radius: var(--radius-md);
@@ -2969,7 +2969,7 @@ select.step-input {
 /* List cards: a narrower embed with a smaller shadow. */
 .pin-thumbnail.reel-embed-thumb {
   width: 60px;
-  height: 107px;
+  height: 81px;
   border-radius: var(--radius-sm);
   box-shadow: 2px 2px 0 var(--hard-shadow);
 }
