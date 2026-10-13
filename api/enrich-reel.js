@@ -4,6 +4,7 @@ const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
+const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -133,6 +134,75 @@ async function readDetails(candidate, query, reel, getBrowser) {
   return { details: detailsResponse.body, detailsError: null };
 }
 
+// Handle lookups stop after this many Maps searches, or once this much of the lookup's time is used,
+// so the caption search and the details read still fit in the function's 120 seconds.
+const HANDLE_SEARCHES = 4;
+const HANDLE_BUDGET_MS = 55000;
+
+// Steps 4–6 of finding the place, for captions with no "Name:" line, list or 📍 line:
+//   4. @mentions in the caption (not the poster), guides like @melbfoodie last
+//   5. a collab's other posters (only the page shows them, so the page is read first)
+//   6. the poster, unless it's a reviewer's handle
+// Each handle is searched on Maps as "name suburb", where the suburb comes from the post's location
+// tag, the handle ("sweetag.glenwaverley") or the caption ("in Glen Waverley"). A search only counts
+// when a result is named like the handle, so a reviewer's handle never matches some random place.
+// Returns { reel, venue, query, candidates } on a hit, else { reel, guess } for the place picker.
+async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
+  const tried = new Set();
+  let current = reel;
+  let searches = 0;
+  let guess = null;
+  const poster = String(reel.creator || '').toLowerCase();
+
+  const attempt = async (handle) => {
+    if (!handle || tried.has(handle)) return null;
+    if (searches >= HANDLE_SEARCHES || Date.now() - startedAt > HANDLE_BUDGET_MS) return null;
+    tried.add(handle);
+    const { name, suburb } = handleToPlace(handle);
+    if (squash(name).length < 3) return null;
+    const where = current.locationTag || suburb || captionSuburb(current.caption);
+    guess ??= { name, location: where };
+    searches += 1;
+    const query = [name, where].filter(Boolean).join(' ');
+    const response = await invoke(scrapeLocation, { action: 'search', query, placeName: name, location: where }, getBrowser);
+    const found = response.statusCode < 400 && response.body?.success ? response.body.candidates || [] : [];
+    const key = squash(name);
+    const named = found.filter((candidate) => hasWholeWords(candidate.name, key) || squash(candidate.name).includes(key));
+    if (!named.length) return null;
+    return {
+      reel: { ...current, placeName: name, location: where },
+      venue: query,
+      query,
+      candidates: named,
+    };
+  };
+
+  const mentions = captionMentions(current.caption).filter((handle) => handle !== poster);
+  for (const handle of [...mentions.filter((h) => !isGuide(h)), ...mentions.filter(isGuide)]) {
+    const hit = await attempt(handle);
+    if (hit) return hit;
+  }
+
+  // The quick read only names the main poster. The page names a collab's other posters and the location tag.
+  if (current.source === 'oembed' && cleanUrl && Date.now() - startedAt < HANDLE_BUDGET_MS) {
+    const page = await invoke(scrapeReel, { reelUrl: cleanUrl, forceBrowser: true }, getBrowser);
+    if (page.statusCode < 400 && page.body?.success) {
+      current = { ...current, collaborators: page.body.collaborators || [], locationTag: page.body.locationTag || '' };
+    }
+  }
+
+  const coPosters = (current.collaborators || []).map((h) => String(h).toLowerCase()).filter((h) => h !== poster);
+  for (const handle of coPosters) {
+    const hit = await attempt(handle);
+    if (hit) return hit;
+  }
+
+  // A reviewer posting ("kel.eats", "melbfoodie") is never the venue, so only a shop's own handle is tried.
+  const hit = isGuide(poster) ? null : await attempt(poster);
+  if (hit) return hit;
+  return { reel: current, guess };
+}
+
 // One Chrome for every step of this lookup (reel, Maps search, Maps details), started only when a
 // step needs it. Starting Chrome takes a second or two each time, so this saves up to two starts.
 module.exports = async function handler(req, res) {
@@ -150,6 +220,7 @@ module.exports = async function handler(req, res) {
 // can pick a place then, so Maps details are only read when the search found exactly one place.
 // (It can only narrow what a lookup does, so anyone sending it is harmless.)
 async function enrich(req, res, getBrowser) {
+  const startedAt = Date.now();
   const backgroundOnly = Boolean(req.backgroundOnly || req.body?.background === true);
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
@@ -172,27 +243,44 @@ async function enrich(req, res, getBrowser) {
     });
   }
 
-  const { reel, venue } = read;
+  let { reel, venue } = read;
+  // No "Name:" line, list or 📍 line: look for the place by the handles in and on the post.
+  let handleHit = null;
+  let guess = null;
+  if (!read.fromCache && !venue && !reel.placeName && !reel.location) {
+    const found = await findByHandles(reel, cleanUrl, getBrowser, startedAt);
+    if (found.candidates) {
+      handleHit = found;
+      ({ reel, venue } = found);
+    } else {
+      ({ reel, guess } = found);
+    }
+  }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
   const flipped = flipCaption(reel.caption);
   // A listed place is searched on its own: the rest of the caption names the other places.
-  const query = (venue ? `📍${venue} ${read.listed ? '' : flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  const query = handleHit?.query || (venue ? `📍${venue} ${read.listed ? '' : flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
     candidates,
   });
+  // Nothing found: the place picker opens with the best guess from the handles filled in.
+  const withGuess = (body) => (guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body);
   if (!query) {
     // An empty result isn't cached: it would stop every later try for 100 days.
-    return res.status(200).json({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
+    return res.status(200).json(withGuess({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } }));
   }
 
   let candidates;
   if (read.candidates) {
     ({ candidates } = read);
+  } else if (handleHit) {
+    ({ candidates } = handleHit);
+    await saveReel(candidates);
   } else {
     const searchResponse = await invoke(scrapeLocation, {
       action: 'search',
@@ -203,12 +291,13 @@ async function enrich(req, res, getBrowser) {
     }, getBrowser);
     if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
       // The Reel is still worth keeping: the next lookup only needs to retry the search.
-      if (!read.fromCache) await saveReel(null);
-      return res.status(200).json({
+      // A guess isn't saved: the handles are tried again next time.
+      if (!read.fromCache && !guess) await saveReel(null);
+      return res.status(200).json(withGuess({
         ...reel,
         venue,
         maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
-      });
+      }));
     }
     candidates = searchResponse.body.candidates || [];
     await saveReel(candidates);
