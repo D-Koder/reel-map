@@ -2966,29 +2966,7 @@ select.step-input {
   opacity: 1;
 }
 
-/* Same chunky pill as the ticket tags, on the video just below Instagram's name bar. */
-.reel-embed-tag {
-  position: absolute;
-  left: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: #fff;
-  border: 1.5px solid #1a1a18;
-  font-size: 11px;
-  font-weight: 700;
-  pointer-events: none;
-}
-
-.reel-embed-tag svg {
-  width: 9px;
-  height: 9px;
-}
-
-/* List cards: a narrower embed with a smaller shadow and an icon-only pill. */
+/* List cards: a narrower embed with a smaller shadow. */
 .pin-thumbnail.reel-embed-thumb {
   width: 60px;
   height: 107px;
@@ -2999,16 +2977,6 @@ select.step-input {
 .place-thumb-link:active .reel-embed-thumb {
   transform: translate(1px, 1px);
   box-shadow: 1px 1px 0 var(--hard-shadow);
-}
-
-.pin-thumbnail .reel-embed-tag {
-  left: 3px;
-  padding: 2px 5px;
-}
-
-.pin-thumbnail .reel-embed-tag svg {
-  width: 8px;
-  height: 8px;
 }
 
 /* With the taller embed: room for the hard shadow, text at the top, View Reel at the bottom. */
