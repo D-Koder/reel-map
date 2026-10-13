@@ -91,11 +91,16 @@ async function readReel(reelUrl, cacheKey, getBrowser) {
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
 
-  const reelResponse = await invoke(scrapeReel, { reelUrl }, getBrowser);
+  // The clean link is read, without extras like "?img_index=3&igsh=…" that can make Instagram say no.
+  const reelResponse = await invoke(scrapeReel, { reelUrl: cacheKey || reelUrl }, getBrowser);
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
     return { status: reelResponse.statusCode, body: reelResponse.body || { error: 'Could not read Instagram Reel' } };
   }
-  const reel = reelResponse.body;
+  const reel = { ...reelResponse.body, reelUrl };
+  // No caption and no creator: Instagram showed a login wall or an empty page, not the post.
+  if (!reel.caption && !reel.creator && !reel.placeName && !reel.location) {
+    return { status: 200, body: { error: 'Instagram showed an empty page for this post' } };
+  }
   return { reel, venue: captionVenue(reel.caption), candidates: null, fromCache: false };
 }
 
@@ -144,6 +149,7 @@ async function enrich(req, res, getBrowser) {
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
+  // Nothing is cached for an unreadable reel, so the next try reads it again.
   if (!read.reel) {
     console.warn('Reel could not be read; the person will pick the place:', read.body?.error);
     return res.status(200).json({
@@ -166,7 +172,7 @@ async function enrich(req, res, getBrowser) {
     candidates,
   });
   if (!query) {
-    if (!read.fromCache) await saveReel(null);
+    // An empty result isn't cached: it would stop every later try for 100 days.
     return res.status(200).json({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
 
