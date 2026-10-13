@@ -39,6 +39,18 @@ export function useInvites(userId, showToast) {
   const getInvite = useCallback(
     async (collectionId) => {
       try {
+        // The database makes (or reuses) the code and checks I own the collection.
+        const { data: made, error: rpcError } = await supabase.rpc('create_collection_invite', { p_collection_id: collectionId });
+        const row = Array.isArray(made) ? made[0] : made;
+        if (!rpcError && row?.invite_id) {
+          return { url: `${window.location.origin}?invite=${row.invite_id}`, code: row.invite_code };
+        }
+        // Any error other than the function not being there yet is the real answer.
+        if (rpcError && !/function .*create_collection_invite|schema cache|could not find the function/i.test(rpcError.message)) {
+          throw rpcError;
+        }
+
+        // Before that function existed, the app made the invite itself.
         const { data: existing } = await supabase
           .from('collection_invites')
           .select('id, code, expires_at')
