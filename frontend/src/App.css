@@ -2918,18 +2918,23 @@ select.step-input {
   margin-left: 1px;
 }
 
-/* Instagram's embed shrunk to fit a thumbnail (ReelEmbedThumb). The whole embed is scaled
-   around its centre, so nothing is cropped; taps go to the button around it. */
-.reel-embed-thumb {
+/* Instagram's embed scaled down to a thumbnail (ReelEmbedThumb). Taps go to the button around it. */
+/* Width sets the size; the height is set by ReelEmbedThumb so the embed fits down to above its footer. */
+.reel-thumbnail-small.reel-embed-thumb {
   position: relative;
+  display: block;
+  width: 120px;
+  height: 160px;
   overflow: hidden;
   background: var(--surface-muted);
 }
 
 .reel-embed-thumb iframe {
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
   border: 0;
-  transform-origin: center;
+  transform-origin: top left;
   pointer-events: none;
 }
 

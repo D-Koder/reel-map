@@ -1,9 +1,12 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 
-// Instagram's embed is laid out at this size; it is then scaled down to fit the box.
+// Instagram's embed is laid out at this size; it is then scaled down to the box's width.
 const EMBED_WIDTH = 326;
 const EMBED_HEIGHT = 580;
+// How much of the bottom (likes, "View more on Instagram") is cut off. 0 shows the whole embed.
+// The header at the top (creator and Instagram logo) is always kept, so the reel stays credited.
+const FOOTER_HEIGHT = 140;
 
 // The /embed/ link of an Instagram reel or post: Instagram's own no-caption embed. Null for anything else.
 export function instagramEmbedUrl(reelUrl) {
@@ -17,9 +20,9 @@ export function instagramEmbedUrl(reelUrl) {
   }
 }
 
-// Instagram's official embed, shrunk to fit the box it's in. The whole embed is scaled, so its
-// header and footer stay visible (nothing is cropped). Taps go to the button around it, which
-// opens the reel, because the shrunken player is too small to use.
+// Instagram's official embed, scaled down to the box's width (set in CSS). The box's height follows,
+// showing the embed from its header down to just above the footer. Taps go to the button around it,
+// which opens the reel, because the scaled-down player is too small to use.
 export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   const boxRef = useRef(null);
   const [scale, setScale] = useState(0);
@@ -28,7 +31,7 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return undefined;
-    const fit = () => setScale(Math.min(box.clientWidth / EMBED_WIDTH, box.clientHeight / EMBED_HEIGHT));
+    const fit = () => setScale(box.clientWidth / EMBED_WIDTH);
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -37,7 +40,11 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
 
   if (!src) return null;
   return (
-    <span ref={boxRef} className={`${className} reel-embed-thumb`}>
+    <span
+      ref={boxRef}
+      className={`${className} reel-embed-thumb`}
+      style={scale ? { height: Math.round((EMBED_HEIGHT - FOOTER_HEIGHT) * scale) } : undefined}
+    >
       {scale > 0 && (
         <iframe
           src={src}
