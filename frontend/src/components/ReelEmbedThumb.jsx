@@ -25,7 +25,8 @@ export function instagramEmbedUrl(reelUrl) {
 // Instagram's official embed, scaled down to the box's width (set in CSS); the box's height follows.
 // A ▶ Reel pill sits on the video, below Instagram's name bar. Taps go to the button around it, which opens the reel, because the
 // scaled-down player is too small to use.
-export default function ReelEmbedThumb({ reelUrl, className = '' }) {
+// `compact` shows the pill as just ▶, for small thumbnails such as the list cards.
+export default function ReelEmbedThumb({ reelUrl, className = '', compact = false }) {
   const boxRef = useRef(null);
   const [scale, setScale] = useState(0);
   // The box shows a light placeholder until Instagram's player has loaded, then the player fades in.
@@ -60,8 +61,8 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
           style={{ width: EMBED_WIDTH, height: EMBED_HEIGHT, transform: `scale(${scale})` }}
         />
       )}
-      <span className="reel-embed-tag" aria-hidden="true" style={{ top: Math.round(HEADER_HEIGHT * scale) + 6 }}>
-        <Play fill="currentColor" strokeWidth={0} /> Reel
+      <span className="reel-embed-tag" aria-hidden="true" style={{ top: Math.round(HEADER_HEIGHT * scale) + (compact ? 3 : 6) }}>
+        <Play fill="currentColor" strokeWidth={0} />{!compact && ' Reel'}
       </span>
     </span>
   );

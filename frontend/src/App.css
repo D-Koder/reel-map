@@ -437,7 +437,8 @@ button.collection-empty {
 
 
 .pin-thumbnail {
-  width: 54px;
+  /* Same width as the reel embed thumbnail, so names line up across cards. */
+  width: 60px;
   height: 72px;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
@@ -2922,7 +2923,8 @@ select.step-input {
    The frame is ours (ink outline, hard shadow, pressed in on tap, like the Up next ticket). Inside it,
    nothing covers the embed, and the placeholder uses Instagram's own light greys so the switch is smooth. */
 /* Width sets the size; the height is set by ReelEmbedThumb so the whole embed fits. */
-.reel-thumbnail-small.reel-embed-thumb {
+.reel-thumbnail-small.reel-embed-thumb,
+.pin-thumbnail.reel-embed-thumb {
   position: relative;
   display: block;
   width: 120px;
@@ -2986,6 +2988,29 @@ select.step-input {
   height: 9px;
 }
 
+/* List cards: a narrower embed with a smaller shadow and an icon-only pill. */
+.pin-thumbnail.reel-embed-thumb {
+  width: 60px;
+  height: 107px;
+  border-radius: var(--radius-sm);
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+}
+
+.place-thumb-link:active .reel-embed-thumb {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--hard-shadow);
+}
+
+.pin-thumbnail .reel-embed-tag {
+  left: 3px;
+  padding: 2px 5px;
+}
+
+.pin-thumbnail .reel-embed-tag svg {
+  width: 8px;
+  height: 8px;
+}
+
 /* With the taller embed: room for the hard shadow, text at the top, View Reel at the bottom. */
 .reel-context.has-embed {
   gap: 16px;
@@ -3017,7 +3042,7 @@ select.step-input {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reel-thumbnail-small.reel-embed-thumb { animation: none; }
+  .reel-embed-thumb { animation: none; }
 }
 
 /* ---------- BOOKED DATE CHIP ---------- */
