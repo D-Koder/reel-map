@@ -2919,25 +2919,29 @@ select.step-input {
 }
 
 /* Instagram's embed scaled down to a thumbnail (ReelEmbedThumb). Taps go to the button around it.
-   Dressed like the Up next ticket: ink outline, hard shadow, pressed in on tap. */
-/* Width sets the size; the height is set by ReelEmbedThumb so the embed fits down to above its footer. */
+   The frame is ours (ink outline, hard shadow, pressed in on tap, like the Up next ticket). Inside it,
+   nothing covers the embed, and the placeholder uses Instagram's own light greys so the switch is smooth. */
+/* Width sets the size; the height is set by ReelEmbedThumb so the whole embed fits. */
 .reel-thumbnail-small.reel-embed-thumb {
   position: relative;
   display: block;
   width: 120px;
-  height: 160px;
+  height: 213px;
   overflow: hidden;
   border: 1.5px solid var(--ink);
   border-radius: var(--radius-md);
   box-shadow: 3px 3px 0 var(--hard-shadow);
-  background: linear-gradient(110deg, var(--surface-muted) 30%, var(--surface-hover) 50%, var(--surface-muted) 70%);
-  background-size: 200% 100%;
+  background:
+    linear-gradient(#ffffff, #ffffff) top / 100% 20px no-repeat,
+    linear-gradient(110deg, #efefef 30%, #fafafa 50%, #efefef 70%);
+  background-size: 100% 20px, 200% 100%;
   animation: reel-embed-shimmer 1.2s linear infinite;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .reel-embed-thumb.is-loaded {
   animation: none;
+  background: #ffffff;
 }
 
 .reel-thumb-btn:active .reel-embed-thumb {
@@ -2960,30 +2964,8 @@ select.step-input {
   opacity: 1;
 }
 
-/* Same chunky pill as the ticket tags. */
-.reel-embed-tag {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: #fff;
-  border: 1.5px solid #1a1a18;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.reel-embed-tag svg {
-  width: 9px;
-  height: 9px;
-}
-
 @keyframes reel-embed-shimmer {
-  to { background-position: -200% 0; }
+  to { background-position: 0 0, -200% 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
