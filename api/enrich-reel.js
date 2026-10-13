@@ -140,7 +140,17 @@ async function enrich(req, res, getBrowser) {
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const cacheKey = canonicalInstagramUrl(reelUrl);
   const read = await readReel(reelUrl, cacheKey, getBrowser);
-  if (!read.reel) return res.status(read.status).json(read.body);
+  // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
+  // carry on without its details, so the person picks the place instead of seeing an error.
+  if (!read.reel && read.status === 400) return res.status(400).json(read.body);
+  if (!read.reel) {
+    console.warn('Reel could not be read; the person will pick the place:', read.body?.error);
+    return res.status(200).json({
+      success: true, reelUrl, caption: '', creator: null, likes: null, comments: null, placeName: '', location: '',
+      date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', venue: '', unreadable: true,
+      maps: { success: false, error: "Couldn't read this reel, so pick the place yourself.", candidates: [] },
+    });
+  }
 
   const { reel, venue } = read;
   const placeName = String(reel.placeName || '').replace(/^@/, '');

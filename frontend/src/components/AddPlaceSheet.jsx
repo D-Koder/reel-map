@@ -614,7 +614,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
-                    {scrapedData.location || 'Location from reel'}
+                    {scrapedData.unreadable ? "Couldn't read this reel · pick the place" : scrapedData.location || 'Location from reel'}
                   </div>
                   <div style={{
                     fontSize: '12px',
@@ -624,7 +624,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     {scrapedData.likes != null && scrapedData.comments != null && ' · '}
                     {scrapedData.comments != null && <><MessageCircle className="ico" aria-hidden="true" /> {Number(scrapedData.comments).toLocaleString()}</>}
                     {/* The quick lookup has no counts, so the creator is shown instead. */}
-                    {scrapedData.likes == null && scrapedData.comments == null && (scrapedData.creator ? `@${scrapedData.creator}` : 'Counts unavailable')}
+                    {!scrapedData.unreadable && scrapedData.likes == null && scrapedData.comments == null && (scrapedData.creator ? `@${scrapedData.creator}` : 'Counts unavailable')}
                   </div>
                 </div>
                 <button
