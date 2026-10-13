@@ -244,4 +244,4 @@ async function enrich(req, res, getBrowser) {
 }
 
 // Exposed for tests (frontend/tests/unit/reelPipeline.test.js).
-Object.assign(module.exports, { bestCandidate, flipCaption });
+Object.assign(module.exports, { bestCandidate, flipCaption, enrich });

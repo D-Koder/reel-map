@@ -40,16 +40,22 @@ describe.skipIf(!hasDb)('account journeys', () => {
   });
 
   it.skipIf(!admin())('new account: sign up → starter collections → TBD → save a place → delete everything', async () => {
-    const fresh = await tempUser('signup');
+    const fresh = await tempUser('signup', { country: 'Australia' });
     try {
-      await step('1. profile and starter collections exist', async () => {
-        expect(await ok(fresh.client.from('profiles').select('avatar').eq('id', fresh.userId).single())).toEqual({ avatar: '🧪' });
+      await step('1. profile (with the country from sign-up) and starter collections exist', async () => {
+        expect(await ok(fresh.client.from('profiles').select('avatar, country').eq('id', fresh.userId).single())).toEqual({ avatar: '🧪', country: 'Australia' });
         expect((await ok(fresh.client.rpc('get_user_collections'))).length).toBeGreaterThan(0);
       });
       const collectionId = await step('2. make a collection with a place', async () => {
         const id = await ok(fresh.client.rpc('create_collection', { p_name: unique('fresh'), p_emoji: '🌱' }));
         await addPlace(fresh.client, id);
         return id;
+      });
+      await step('2b. "Add sample places" fills an empty account', async () => {
+        const before = await ok(fresh.client.from('collection_places').select('place_id'));
+        await ok(fresh.client.rpc('create_sample_data'));
+        const after = await ok(fresh.client.from('collection_places').select('place_id'));
+        expect(after.length).toBeGreaterThan(before.length);
       });
       await step('3. TBD (shared reels inbox) exists, renames, and cannot be deleted', async () => {
         const [inbox] = await ok(fresh.client.from('collections').select('id, name').eq('owner_id', fresh.userId).eq('is_inbox', true));

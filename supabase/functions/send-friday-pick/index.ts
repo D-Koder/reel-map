@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
-import { pickPlaceFor } from './pick.ts';
+import { sendPicks, type Subscription } from './pick.ts';
 
 // Sends each subscribed user one random place from their collections that isn't booked yet.
 // Called weekly by pg_cron (see supabase/scripts/schedule-friday-pick.sql).
@@ -13,7 +13,6 @@ const supabase = createClient(
 );
 
 
-type Subscription = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string };
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -42,36 +41,11 @@ Deno.serve(async (req) => {
     .select('id, user_id, endpoint, p256dh, auth');
   if (error) return json({ error: error.message }, 500);
 
-  let sent = 0;
-  let removed = 0;
-  const pickByUser = new Map<string, { id: string; name: string } | null>();
-
-  for (const sub of (subscriptions ?? []) as Subscription[]) {
-    if (!pickByUser.has(sub.user_id)) pickByUser.set(sub.user_id, await pickPlaceFor(supabase, sub.user_id));
-    const pick = pickByUser.get(sub.user_id);
-    if (!pick) continue;
-
-    const payload = JSON.stringify({
-      title: 'This Friday?',
-      body: `${pick.name}. Tap to plan it.`,
-      url: `/?pick=${pick.id}`,
-    });
-
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-      );
-      sent++;
-    } catch (err) {
-      // 404 or 410 means the browser no longer accepts this subscription, so remove it.
-      const status = (err as { statusCode?: number }).statusCode;
-      if (status === 404 || status === 410) {
-        await supabase.from('push_subscriptions').delete().eq('id', sub.id);
-        removed++;
-      }
-    }
-  }
+  const { sent, removed } = await sendPicks(
+    supabase,
+    (subscriptions ?? []) as Subscription[],
+    (sub, payload) => webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload),
+  );
 
   return json({ sent, removed, subscriptions: subscriptions?.length ?? 0 });
 });

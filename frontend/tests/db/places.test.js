@@ -77,7 +77,7 @@ describe.skipIf(!hasDb)('place journeys', () => {
     });
   });
 
-  it('event date → book → second booking refused → mark done', async () => {
+  it('event date → book → second booking refused → mark done → streak', async () => {
     const id = await addPlace(one.client, shared, { category: 'event' });
 
     await step('1. an event keeps its date', async () => {
@@ -95,9 +95,15 @@ describe.skipIf(!hasDb)('place journeys', () => {
       expect(error?.code).toBe('23505');
     });
 
+    const streakOf = async () => (await ok(one.client.rpc('get_streak')))?.[0]?.current_streak ?? 0;
+    const before = await streakOf();
     await step('4. mark it done', async () => {
       await ok(one.client.from('bookings').update({ done_at: new Date().toISOString(), marked_by: one.userId }).eq('collection_id', shared).eq('place_id', id));
       expect((await entry(two, shared, id)).booking?.done_at).toBeTruthy();
+    });
+    await step('5. my streak counts it (shown in the 🎉 celebration)', async () => {
+      const after = await streakOf();
+      expect(after, 'streak did not go up after a place was done').toBeGreaterThanOrEqual(Math.max(before, 1));
     });
   });
 

@@ -2,14 +2,14 @@
 // app, then checks the database to make sure the change really saved. Seeds its own collections first
 // and deletes them after. The reel lookup (/api/enrich-reel) is faked, so no Instagram or Google.
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, addPlace, admin, cleanUp, entriesIn, env, hasDb, ok, shareWith, signIn, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, admin, cleanUp, entriesIn, env, hasDb, ok, shareWith, signIn, tempUser, unique } from '../db/helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
 
 let one;
 let two;
 const seed = {};
-const names = { booked: unique('Booked Bistro'), keen: unique('Keen Cafe'), far: unique('Far Diner'), live: unique('Live Ramen') };
+const names = { booked: unique('Booked Bistro'), keen: unique('Keen Cafe'), far: unique('Far Diner'), live: unique('Live Ramen'), twinA: unique('Twin A'), twinB: unique('Twin B') };
 
 test.beforeAll(async () => {
   one = await signIn(ACCOUNTS.one);
@@ -26,6 +26,9 @@ test.beforeAll(async () => {
   }));
   await ok(one.client.from('reactions').insert({ collection_id: seed.main.id, place_id: seed.keen, user_id: one.userId, feeling: 'keen' }));
   await shareWith(one, two, seed.main.id);
+  // Two places at one spot (in Later, so Home's counts for the main collection don't change).
+  await addPlace(one.client, seed.later.id, { name: names.twinA, lat: -37.817, lng: 144.95 });
+  await addPlace(one.client, seed.later.id, { name: names.twinB, lat: -37.817, lng: 144.95 });
 });
 
 test.afterAll(() => cleanUp(one, two));
@@ -218,6 +221,21 @@ test.describe('Map', () => {
       await results.first().click();
       await expect(page.locator('.map-search-results')).toHaveCount(0);
     });
+    await test.step('two places at one spot: one pin says "2 places here" → choose one', async () => {
+      const shared = page.locator(`.mapbox-pin[aria-label="${names.twinA}, 2 places here"], .mapbox-pin[aria-label="${names.twinB}, 2 places here"]`);
+      await expect(shared).toHaveCount(1);
+      await shared.click({ force: true });
+      const picker = page.getByRole('dialog', { name: 'Places at this location' });
+      await expect(picker).toContainText('2 places saved here');
+      await picker.getByText(names.twinB).click();
+      await expect(page.getByRole('dialog', { name: names.twinB })).toBeVisible();
+      await page.keyboard.press('Escape');
+    });
+    await test.step('my location: blue dot shows, "Go to my location" works', async () => {
+      await expect(page.locator('.my-location-dot')).toBeVisible({ timeout: 15000 });
+      await page.getByRole('button', { name: 'Go to my location' }).click();
+      await expect(page.getByText("Can't find your location yet")).toHaveCount(0);
+    });
     await test.step('Shown places: tap one → map goes to it → Open place', async () => {
       await page.locator('.map-place-list-title').click();
       await page.locator('.map-place-item', { hasText: names.booked }).click();
@@ -256,6 +274,7 @@ test('Sign up and forgot password screens', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: /Create an account/ }).click();
     await page.getByLabel('Your name').fill('E2E Signup');
+    await page.getByLabel('Country (optional)').fill('Australia');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(env.password);
     await page.getByRole('button', { name: 'Create account' }).click();
@@ -273,11 +292,30 @@ test('Sign up and forgot password screens', async ({ page }) => {
     await expect(page.locator('.auth-message')).toHaveText(sent);
   });
 
-  await test.step('clean up the new account', async () => {
+  await test.step('the country from sign-up is kept; clean up the new account', async () => {
     const service = admin();
     if (!service) return;
     const { data } = await service.auth.admin.listUsers({ perPage: 200 });
     const user = data?.users?.find((u) => u.email === email);
+    expect(user?.user_metadata?.country).toBe('Australia');
     if (user) await service.auth.admin.deleteUser(user.id);
+  });
+
+  await test.step('reset link from the email → set a new password → it works', async () => {
+    const service = admin();
+    if (!service) return;
+    const resetter = await tempUser('reset');
+    try {
+      // The same link the email holds. http://localhost:5173 must be in Supabase → Auth → Redirect URLs.
+      const { data, error } = await service.auth.admin.generateLink({ type: 'recovery', email: resetter.email, options: { redirectTo: 'http://localhost:5173' } });
+      expect(error).toBeNull();
+      await page.goto(data.properties.action_link);
+      await page.getByLabel('New password').fill(`${env.password}-new`);
+      await page.getByRole('button', { name: 'Save password' }).click();
+      await expect(page.getByText('Password updated')).toBeVisible();
+      await expect(signIn(resetter.email, `${env.password}-new`)).resolves.toBeTruthy();
+    } finally {
+      await resetter.remove();
+    }
   });
 });

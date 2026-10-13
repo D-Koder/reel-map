@@ -19,10 +19,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // A real build, so the service worker (offline mode, shared links) works as it does on a phone.
+  // The tests fake /api/* themselves, so the preview server needs no API.
   webServer: {
-    command: 'npm run dev -- --port 5173 --strictPort',
+    command: 'npm run build && npm run preview -- --port 5173 --strictPort',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
-    timeout: 120000,
+    timeout: 180000,
   },
 });

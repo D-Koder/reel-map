@@ -69,9 +69,9 @@ export const addPlace = (client, collectionId, patch = {}) => ok(client.rpc('add
   p_lat: patch.lat ?? -37.8155,
   p_lng: patch.lng ?? 144.9714,
   p_address: patch.address ?? '33 Russell St, Melbourne VIC 3000',
-  p_hours: null,
-  p_phone: null,
-  p_booking_url: null,
+  p_hours: patch.hours ?? null,
+  p_phone: patch.phone ?? null,
+  p_booking_url: patch.bookingUrl ?? null,
   p_reel_url: patch.reelUrl ?? null,
   p_reel_thumbnail_url: null,
   p_source: 'manual',
@@ -143,12 +143,12 @@ export async function step(name, fn) {
 export const anonClient = () => newClient();
 
 // A throwaway account (needs TEST_SUPABASE_SERVICE_ROLE_KEY). remove() deletes it if the test didn't.
-export async function tempUser(label) {
+export async function tempUser(label, metadata = {}) {
   const service = admin();
   if (!service) return null;
   const email = `${unique(label)}@example.com`;
   const { data, error } = await service.auth.admin.createUser({
-    email, password: env.password, email_confirm: true, user_metadata: { display_name: label.slice(0, 20), avatar: '🧪' },
+    email, password: env.password, email_confirm: true, user_metadata: { display_name: label.slice(0, 20), avatar: '🧪', ...metadata },
   });
   if (error) throw new Error(`Could not make a temp account: ${error.message}`);
   const user = await signIn(email);
