@@ -106,10 +106,35 @@ export function bestPlaceMatch(candidates, hints = []) {
   return null;
 }
 
+// How much a pinned line looks like a place rather than a date or a promo. Higher is more place-like.
+// "📍 Smolbitez, Flinders St" scores well; "📍 Flinders Shop: 17–18 Oct" and "📍 Pop-up: 3 days only" don't.
+const MONTH = '(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*';
+const DATE_OR_TIME = new RegExp([
+  `\\b\\d{1,2}(?:st|nd|rd|th)?\\s*(?:[–-]\\s*\\d{1,2}(?:st|nd|rd|th)?\\s*)?${MONTH}\\b`, // 17–18 Oct, 3rd Nov
+  `\\b${MONTH}\\s+\\d{1,2}\\b`, // Oct 17
+  '\\b\\d{1,2}\\/\\d{1,2}\\b', // 28/10
+  '\\b\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)\\b', // 5pm, 5:30pm
+  '\\b(?:till|until|til)\\s+late\\b', // till late
+].join('|'), 'i');
+const PROMO = /\b(?:only|until|till|promo|launch|sale|limited|pop-?up|days?|weeks?)\b/i;
+const STREET = /\b(?:st|street|rd|road|lane|ln|ave|avenue|pl|place|arcade|parade|pde|hwy|highway|blvd|boulevard|dr|drive|cres|crescent|tce|terrace|square|sq|mall|centre|center|plaza)\b/i;
+const STATE = /\b(?:VIC|NSW|QLD|SA|WA|TAS|NT|ACT)\b|\b(?!19|20)\d{4}\b/;
+function placeScore(text) {
+  let score = 0;
+  if (STREET.test(text)) score += 2;
+  if (STATE.test(text)) score += 2;
+  if (/\b\d+[a-z]?(?:\/\d+[a-z]?)?\s+[A-Z]/.test(text)) score += 1; // 61 Little Collins, 146/148 Little Bourke
+  if (/^[^,]{2,40},\s*\S/.test(text)) score += 1; // Name, suburb
+  if (/@[\w.]+/.test(text)) score += 1;
+  if (DATE_OR_TIME.test(text)) score -= 3;
+  if (PROMO.test(text)) score -= 2;
+  return score;
+}
+
 // The venue written after a pin in a caption. 📍 wins over 📌, because captions also use 📌 for
 // headings like "📌 Details:". Same rule as captionVenue in api/_lib/caption.js.
 export function captionVenue(caption) {
-  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷]+)/gu)]
+  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu)]
     .map(([, pin, text]) => ({
       pin,
       text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
@@ -117,7 +142,13 @@ export function captionVenue(caption) {
         .split(/[.!?](?:\s|$)/)[0].trim(),
     }))
     .filter(({ text }) => text && !text.endsWith(':'));
-  return (found.find(({ pin }) => pin === '📍') ?? found[0])?.text ?? '';
+  // Lines that look like a place (score above 0) beat dates and promos; among them the first 📍, then
+  // the first 📌. With none, the highest score. A lone pin is always used.
+  const scored = found.map((entry) => ({ ...entry, score: placeScore(entry.text) }));
+  const places = scored.filter(({ score }) => score > 0);
+  const best = places.find(({ pin }) => pin === '📍') ?? places[0] ??
+    [...scored].sort((a, b) => b.score - a.score || (a.pin === '📍' ? 0 : 1) - (b.pin === '📍' ? 0 : 1))[0];
+  return best?.text ?? '';
 }
 
 // Name hints from a reel lookup, best first: the tagged place, the 📍 venue, then the first part of the location.
