@@ -35,41 +35,41 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => cleanUp(one, two));
 
-test('plan a date: open now → call / reserve → nudge → book → calendar file → mark done → 🎉', async ({ page, context }) => {
+test('Plan a date', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   // No share sheet in the test browser, so the Nudge falls back to copying.
   await page.addInitScript(() => { delete Navigator.prototype.share; });
   const modal = page.getByRole('dialog', { name: names.bistro });
 
-  await test.step('open the place: hours say it is open', async () => {
+  await test.step('I open the place and see it is open now', async () => {
     await logIn(page);
     await board(page, plan.id).getByText(names.bistro).click();
     await expect(modal).toContainText('Open 24 hours');
   });
   // Only checks where the links point. Nothing is ever tapped.
-  await test.step('Call and Reserve links are right', async () => {
+  await test.step('I see the right Call and Reserve links', async () => {
     await expect(modal.getByRole('link', { name: /Call/ })).toHaveAttribute('href', 'tel:+61355500123');
     await expect(modal.getByRole('link', { name: /Reserve a table/ })).toHaveAttribute('href', 'https://example.com/reserve/plan-bistro');
   });
-  await test.step('Nudge Test Two: the message is copied', async () => {
+  await test.step('I nudge Test Two and the message is copied', async () => {
     await modal.getByRole('button', { name: /Nudge/ }).click();
     await toast(page, 'Nudge copied');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`Are you keen on ${names.bistro}?`);
   });
-  await test.step('checklist: hours OK → pick a date → Save booking', async () => {
+  await test.step('I tick the checklist, pick a date and Save booking', async () => {
     await modal.getByRole('button', { name: 'Yes, proceed' }).click();
     await modal.locator('input[type="datetime-local"]').fill('2026-12-05T19:30');
     await modal.getByRole('button', { name: 'Save booking →' }).click();
     await expect.poll(async () => (await entriesIn(one.client, plan.id)).find((p) => p.id === ids.bistro)?.booking?.planned_at).toBeTruthy();
   });
-  await test.step('Add to Calendar downloads a .ics file', async () => {
+  await test.step('I tap Add to Calendar and get a .ics file (known bug)', async () => {
     const download = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
     await modal.getByRole('button', { name: 'Add to Calendar' }).click();
     const file = await download;
     expect.soft(file?.suggestedFilename(), 'no calendar file: the button only shows a toast (PinModal.jsx shadows lib/calendar.js)').toBe('reel-map-event.ics');
     await expect(modal).toContainText('All steps completed');
   });
-  await test.step('mark another place done → celebration → saved', async () => {
+  await test.step('I mark another place done and see the 🎉 celebration', async () => {
     await page.keyboard.press('Escape');
     await board(page, plan.id).getByText(names.diner).click();
     await page.getByRole('dialog', { name: names.diner }).getByRole('button', { name: 'Mark as Done' }).click();
@@ -81,11 +81,11 @@ test('plan a date: open now → call / reserve → nudge → book → calendar f
   });
 });
 
-test('tidy up: delete → Undo brings it back → drag to reorder → Select everything → Move', async ({ page }) => {
+test('Tidy up', async ({ page }) => {
   const placeIn = async (collectionId, id) => (await entriesIn(one.client, collectionId)).find((p) => p.id === id);
-  await test.step('log in', () => logIn(page));
+  await test.step('I log in', () => logIn(page));
 
-  await test.step('delete then Undo: it comes back and stays', async () => {
+  await test.step('I delete a place, tap Undo and it comes back', async () => {
     await board(page, tidy.id).getByText(names.a).click();
     await page.getByRole('dialog', { name: names.a }).getByRole('button', { name: 'Delete place' }).click();
     await expect(board(page, tidy.id).getByText(names.a)).toHaveCount(0);
@@ -97,7 +97,7 @@ test('tidy up: delete → Undo brings it back → drag to reorder → Select eve
     expect(await placeIn(tidy.id, ids.a)).toBeTruthy();
   });
 
-  await test.step('drag the first place down one (keyboard drag) → my order is saved', async () => {
+  await test.step('I drag the first place down one and my order is saved', async () => {
     const rows = board(page, tidy.id).locator('.drag-handle');
     const firstName = (await rows.first().getAttribute('aria-label')).replace(/^Move /, '');
     await rows.first().focus();
@@ -113,7 +113,7 @@ test('tidy up: delete → Undo brings it back → drag to reorder → Select eve
     await expect(board(page, tidy.id).locator('.drag-handle').nth(1)).toHaveAttribute('aria-label', `Move ${firstName}`);
   });
 
-  await test.step('Select → Everything → Move to… another collection', async () => {
+  await test.step('I select everything and move it to another collection', async () => {
     await board(page, tidy.id).getByRole('button', { name: 'Select' }).click();
     await board(page, tidy.id).getByRole('button', { name: 'Everything' }).click();
     await expect(page.getByRole('region', { name: 'Selected places' })).toContainText('3 selected');

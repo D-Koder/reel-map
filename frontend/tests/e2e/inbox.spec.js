@@ -34,11 +34,11 @@ const inTbd = async (name) => {
   return found;
 };
 
-test('shared reels: share sheet → TBD; needs a place → Finish; offline → saved when back online; iPhone Shortcut', async ({ page, context }) => {
+test('Share reels into the app', async ({ page, context }) => {
   test.skip(!inboxId, 'This account has no TBD collection');
   test.setTimeout(120000);
 
-  await test.step('share a reel into the app → saved to TBD as Keen, no taps', async () => {
+  await test.step('I share a reel and it saves to TBD as Keen, no taps', async () => {
     const { place, reelUrl, ready } = lookupFinds(page, 'Shared Sheet', -37.751, 144.851);
     await ready;
     await logIn(page);
@@ -48,7 +48,7 @@ test('shared reels: share sheet → TBD; needs a place → Finish; offline → s
     await page.unroute('**/api/enrich-reel');
   });
 
-  await test.step('a reel with no clear place waits → Finish → pick it in the add sheet', async () => {
+  await test.step('I tap Finish on a reel with no clear place and pick it', async () => {
     const guess = unique('Guess Name');
     await fakeReelLookup(page, { reelUrl: 'https://www.instagram.com/reel/NOPLACE/', placeName: guess, maps: { success: false, candidates: [] } });
     await page.goto(`/?url=${encodeURIComponent(`https://www.instagram.com/reel/${unique('NP')}/`)}`);
@@ -62,7 +62,7 @@ test('shared reels: share sheet → TBD; needs a place → Finish; offline → s
     await page.unroute('**/api/enrich-reel');
   });
 
-  await test.step('offline: the reel is kept → back online → it saves', async () => {
+  await test.step('I share a reel offline and it saves when I am back online', async () => {
     const { place, reelUrl, ready } = lookupFinds(page, 'Offline Share', -37.752, 144.852);
     await ready;
     // One more load online, so the offline copy of the app is saved.
@@ -76,7 +76,7 @@ test('shared reels: share sheet → TBD; needs a place → Finish; offline → s
     await page.unroute('**/api/enrich-reel');
   });
 
-  await test.step('iPhone Shortcut: a reel sent while the app was closed is picked up when it opens', async () => {
+  await test.step('I open the app and it picks up a reel from my Shortcut', async () => {
     const { place, reelUrl, ready } = lookupFinds(page, 'Shortcut Share', -37.753, 144.853);
     await ready;
     const key = await ok(one.client.rpc('get_shortcut_key'));
@@ -87,35 +87,35 @@ test('shared reels: share sheet → TBD; needs a place → Finish; offline → s
   });
 });
 
-test('Friday pick: the card offers it, "Not now" hides it for good; tapping the push opens the place', async ({ page, context }) => {
+test('Friday pick', async ({ page, context }) => {
   await context.grantPermissions(['notifications']);
   const spot = await newCollection(one, 'e2e-friday');
   const ids = [];
   for (let i = 0; i < 3; i += 1) ids.push(await addPlace(one.client, spot.id, { name: unique(`Friday ${i}`) }));
 
-  await test.step('with 3+ places and no subscription, the card shows', async () => {
+  await test.step('I see the Friday pick card', async () => {
     await logIn(page);
     await expect(page.getByRole('region', { name: 'Friday pick' })).toBeVisible({ timeout: 15000 });
   });
-  await test.step('"Not now" hides it, and it stays hidden after a reload', async () => {
+  await test.step('I tap "Not now" and it stays hidden after a reload', async () => {
     await page.getByRole('region', { name: 'Friday pick' }).getByRole('button', { name: 'Not now' }).click();
     await expect(page.getByRole('region', { name: 'Friday pick' })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Friday pick' })).toHaveCount(0);
   });
-  await test.step('tapping the push (/?pick=<place>) opens that place', async () => {
+  await test.step('I tap the push and that place opens', async () => {
     const { data } = await one.client.from('collection_places').select('custom_name').eq('place_id', ids[1]).single();
     await page.goto(`/?pick=${ids[1]}`);
     await expect(page.getByRole('dialog', { name: data.custom_name })).toBeVisible();
   });
 });
 
-test.describe('nearby alert on a walk', () => {
+test.describe('Nearby alert', () => {
   // Start 11 km away, with nearby alerts switched on.
   test.use({ geolocation: { latitude: -37.6, longitude: 144.8 } });
 
-  test('walk up to a keen place → alert → Open; the next place within 15 min stays quiet', async ({ page, context }) => {
+  test('Walk past places I am keen on', async ({ page, context }) => {
     const walk = await newCollection(one, 'e2e-walk', '🚶');
     const first = unique('Keen Corner');
     const second = unique('Keen Next Door');
@@ -126,19 +126,19 @@ test.describe('nearby alert on a walk', () => {
     }
     await page.addInitScript(() => localStorage.setItem('reelmap:near-alerts', 'true'));
 
-    await test.step('log in far away: no alert', async () => {
+    await test.step('I log in far away and get no alert', async () => {
       await logIn(page);
       await page.waitForTimeout(1500);
       await expect(page.getByText("You're keen on it!")).toHaveCount(0);
     });
-    await test.step('walk to the first place → "right by" alert → Open shows it', async () => {
+    await test.step('I walk to the first place, get an alert and tap Open', async () => {
       await context.setGeolocation({ latitude: -37.70003, longitude: 144.8 });
       await toast(page, `You're right by ${first}. You're keen on it!`);
       await page.getByRole('button', { name: 'Open', exact: true }).click();
       await expect(page.getByRole('dialog', { name: first })).toBeVisible();
       await page.keyboard.press('Escape');
     });
-    await test.step('walk on to the second place: quiet (one alert per 15 minutes)', async () => {
+    await test.step('I walk on to the second place and get no alert (15 min gap)', async () => {
       await context.setGeolocation({ latitude: -37.71003, longitude: 144.8 });
       await page.waitForTimeout(3000);
       await expect(page.getByText(`${second}. You're keen on it!`)).toHaveCount(0);

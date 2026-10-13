@@ -48,10 +48,10 @@ const toMap = (page) => page.locator('.bottom-nav').getByRole('button', { name: 
 const toHome = (page) => page.locator('.bottom-nav').getByRole('button', { name: 'Home' }).click();
 const placeIn = async (collectionId, placeId) => (await entriesIn(one.client, collectionId)).find((p) => p.id === placeId);
 
-test('Home: Up Next → place modal → vote → edit → copy → move → delete, plus live updates and collapsing', async ({ page }) => {
-  await test.step('log in', () => logIn(page));
+test('Home', async ({ page }) => {
+  await test.step('I log in', () => logIn(page));
 
-  await test.step('Up Next shows the booking with its collection, and opens it', async () => {
+  await test.step('I see my booking in Up Next and open it', async () => {
     const ticket = page.locator('.ticket');
     await expect(ticket).toBeVisible();
     await expect(ticket.locator('.ticket-tag')).toContainText('Booked');
@@ -66,18 +66,18 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
     }
   });
 
-  await test.step('collection shows member count and place count', async () => {
+  await test.step('I see the member count and place count on a collection', async () => {
     await expect(board(page).locator('.collection-toggle')).toContainText('2 · 3 places');
   });
 
-  await test.step('a place Test Two adds appears live, without a refresh', async () => {
+  await test.step('Test Two adds a place and I see it without refreshing', async () => {
     seed.live = await addPlace(two.client, seed.main.id, { name: names.live, lat: -37.812, lng: 144.966 });
     await expect(board(page).getByText(names.live)).toBeVisible({ timeout: 15000 });
     await expect(board(page).locator('.collection-toggle')).toContainText('4 places');
   });
 
   const modal = page.getByRole('dialog', { name: names.far });
-  await test.step('open a place and vote Maybe', async () => {
+  await test.step('I open a place and vote Maybe', async () => {
     await board(page).getByText(names.far).click();
     await expect(modal).toBeVisible();
     const maybe = modal.getByRole('radio', { name: /Maybe/ });
@@ -88,14 +88,14 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
 
   const renamed = `${names.far} 2`;
   const sheet = page.getByRole('dialog', { name: new RegExp(`^Edit ${names.far}`) });
-  await test.step('edit: rename it', async () => {
+  await test.step('I rename it', async () => {
     await modal.getByRole('button', { name: 'Edit place' }).click();
     await sheet.getByLabel('Name').fill(renamed);
     await sheet.getByRole('button', { name: 'Save changes' }).click();
     await expect.poll(async () => (await placeIn(seed.main.id, seed.far))?.name).toBe(renamed);
   });
 
-  await test.step('copy it to Later', async () => {
+  await test.step('I copy it to Later', async () => {
     // Saving may close the edit sheet; open it again from wherever we are.
     const edit = page.getByRole('dialog', { name: /^Edit / });
     if (!(await edit.isVisible())) {
@@ -109,7 +109,7 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
     await edit.getByRole('button', { name: 'Close' }).click();
   });
 
-  await test.step('move a different place (Keen Cafe) to Later', async () => {
+  await test.step('I move a different place (Keen Cafe) to Later', async () => {
     await page.keyboard.press('Escape');
     await board(page).getByText(names.keen).click();
     await page.getByRole('dialog', { name: names.keen }).getByRole('button', { name: 'Edit place' }).click();
@@ -120,7 +120,7 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
     await expect.poll(() => placeIn(seed.main.id, seed.keen)).toBeUndefined();
   });
 
-  await test.step('delete the copy from Later (Undo toast first, then it is gone)', async () => {
+  await test.step('I delete the copy from Later; Undo shows, then it is gone', async () => {
     await page.keyboard.press('Escape');
     await board(page, seed.later.id).getByText(renamed).click();
     await page.getByRole('dialog', { name: renamed }).getByRole('button', { name: 'Delete place' }).click();
@@ -130,7 +130,7 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
     expect(await placeIn(seed.main.id, seed.far)).toBeTruthy();
   });
 
-  await test.step('collapse a collection: stays closed after reload, opens again', async () => {
+  await test.step('I collapse a collection, reload, and open it again', async () => {
     const header = board(page).locator('.collection-toggle');
     await header.click();
     await expect(header).toHaveAttribute('aria-expanded', 'false');
@@ -142,7 +142,7 @@ test('Home: Up Next → place modal → vote → edit → copy → move → dele
   });
 });
 
-test('Add a place by pasting a reel link → it is saved with the Google details', async ({ page }) => {
+test('Add a place from a reel link', async ({ page }) => {
   const reelUrl = `https://www.instagram.com/reel/${unique('E2E')}/`;
   const placeName = unique('Reel Gimlet');
   await page.route('**/api/enrich-reel', (route) => route.fulfill({
@@ -156,21 +156,21 @@ test('Add a place by pasting a reel link → it is saved with the Google details
     },
   }));
 
-  await test.step('log in', () => logIn(page));
-  await test.step('paste the link and confirm', async () => {
+  await test.step('I log in', () => logIn(page));
+  await test.step('I paste the link and confirm', async () => {
     await page.locator('.bottom-nav').getByRole('button', { name: 'Add a place' }).click();
     await page.getByPlaceholder('Instagram reel or TikTok video link…').fill(reelUrl);
     await page.getByRole('button', { name: 'Confirm' }).click();
   });
-  await test.step('the form is filled from the reel', async () => {
+  await test.step('I see the form filled in from the reel', async () => {
     await expect(page.getByLabel('Name *')).toHaveValue(placeName);
   });
-  await test.step('pick the collection, vote Keen, add', async () => {
+  await test.step('I pick the collection, vote Keen and tap Add', async () => {
     await page.locator('label.field', { hasText: 'Collection' }).locator('select').selectOption(seed.main.id);
     await page.getByRole('radiogroup', { name: 'Your vibe' }).getByRole('radio', { name: /Keen/ }).click();
     await page.getByRole('button', { name: 'Add place' }).click();
   });
-  await test.step('it shows on Home and is saved with its pin, reel and vote', async () => {
+  await test.step('I see it on Home, saved with its pin, reel and vote', async () => {
     await toHome(page);
     await expect(board(page).getByText(placeName)).toBeVisible({ timeout: 15000 });
     const saved = (await entriesIn(one.client, seed.main.id)).find((p) => p.name === placeName);
@@ -183,18 +183,18 @@ test('Add a place by pasting a reel link → it is saved with the Google details
 test.describe('Map', () => {
   test.skip(!env.mapbox, 'Needs VITE_MAPBOX_TOKEN in frontend/.env.local');
 
-  test('pins → filters → tap a pin → search → shown places list → open place', async ({ page }) => {
+  test('Find a place on the map', async ({ page }) => {
     const pin = (name) => page.locator(`.mapbox-pin[aria-label="${name}"]`);
 
-    await test.step('log in and open the map', async () => {
+    await test.step('I log in and open the map', async () => {
       await logIn(page);
       await toMap(page);
     });
-    await test.step('pins show up for saved places', async () => {
+    await test.step('I see pins for my saved places', async () => {
       await expect(pin(names.booked)).toHaveCount(1, { timeout: 20000 });
       await expect(pin(names.live)).toHaveCount(1);
     });
-    await test.step('category filter: hide Food, the food pins go', async () => {
+    await test.step('I hide Food and the food pins go', async () => {
       const food = page.getByRole('toolbar', { name: 'Filter pins' }).getByRole('button', { name: 'Food' });
       await food.click();
       await expect(food).toHaveAttribute('aria-pressed', 'false');
@@ -202,28 +202,28 @@ test.describe('Map', () => {
       await page.getByRole('toolbar', { name: 'Filter pins' }).getByRole('button', { name: 'All' }).click();
       await expect(pin(names.booked)).toHaveCount(1);
     });
-    await test.step('collection filter: hide the test collection, its pins go', async () => {
+    await test.step('I hide the test collection and its pins go', async () => {
       const toolbar = page.getByRole('toolbar', { name: 'Filter by collection' });
       await toolbar.getByRole('button', { name: new RegExp(seed.main.name) }).click();
       await expect(pin(names.booked)).toHaveCount(0);
       await toolbar.getByRole('button', { name: 'All collections' }).click();
       await expect(pin(names.booked)).toHaveCount(1);
     });
-    await test.step('tap a pin: the place modal opens with its details', async () => {
+    await test.step('I tap a pin and the place opens with its details', async () => {
       await pin(names.booked).click({ force: true });
       const modal = page.getByRole('dialog', { name: names.booked });
       await expect(modal).toContainText('Russell St');
       await modal.getByRole('button', { name: 'Close' }).click();
       await expect(modal).toBeHidden();
     });
-    await test.step('search an address: results show, choosing one closes them', async () => {
+    await test.step('I search an address and choose a result', async () => {
       await page.getByLabel('Search a place or address').fill('Flinders Street Station');
       const results = page.locator('.map-search-results .map-search-result');
       await expect(results.first()).toBeVisible({ timeout: 15000 });
       await results.first().click();
       await expect(page.locator('.map-search-results')).toHaveCount(0);
     });
-    await test.step('two places at one spot: one pin says "2 places here" → choose one', async () => {
+    await test.step('I tap a "2 places here" pin and choose one', async () => {
       const shared = page.locator(`.mapbox-pin[aria-label="${names.twinA}, 2 places here"], .mapbox-pin[aria-label="${names.twinB}, 2 places here"]`);
       await expect(shared).toHaveCount(1);
       await shared.click({ force: true });
@@ -233,12 +233,12 @@ test.describe('Map', () => {
       await expect(page.getByRole('dialog', { name: names.twinB })).toBeVisible();
       await page.keyboard.press('Escape');
     });
-    await test.step('my location: blue dot shows, "Go to my location" works', async () => {
+    await test.step('I see my blue dot and tap "Go to my location"', async () => {
       await expect(page.locator('.my-location-dot')).toBeVisible({ timeout: 15000 });
       await page.getByRole('button', { name: 'Go to my location' }).click();
       await expect(page.getByText("Can't find your location yet")).toHaveCount(0);
     });
-    await test.step('Shown places: tap one → map goes to it → Open place', async () => {
+    await test.step('I tap a place in Shown places, then Open place', async () => {
       await page.locator('.map-place-list-title').click();
       await page.locator('.map-place-item', { hasText: names.booked }).click();
       await expect(page.locator('.map-focus-label strong')).toHaveText(names.booked);
@@ -249,30 +249,30 @@ test.describe('Map', () => {
   });
 });
 
-test('Offline: banner shows, saved places stay, banner goes when back online', async ({ page, context }) => {
-  await test.step('log in', () => logIn(page));
-  await test.step('go offline', async () => {
+test('Offline', async ({ page, context }) => {
+  await test.step('I log in', () => logIn(page));
+  await test.step('I go offline and see the banner', async () => {
     await context.setOffline(true);
     await expect(page.locator('.offline-banner')).toBeVisible();
     await expect(board(page).getByText(names.booked)).toBeVisible();
   });
-  await test.step('reload with no signal: the app still opens from its saved copy', async () => {
+  await test.step('I reload with no signal and the app still opens', async () => {
     await page.reload().catch(() => {});
     await expect(page.locator('.offline-banner')).toBeVisible({ timeout: 15000 });
     await expect(board(page).getByText(names.booked)).toBeVisible();
   });
-  await test.step('back online', async () => {
+  await test.step('I come back online and the banner goes', async () => {
     await context.setOffline(false);
     await expect(page.locator('.offline-banner')).toHaveCount(0);
   });
 });
 
-test('Sign up and forgot password screens', async ({ page }) => {
+test('Sign up and reset my password', async ({ page }) => {
   const email = `${unique('signup')}@example.com`;
   // Supabase only sends a few emails an hour on its built-in mailer, so "rate limit" also counts as reached.
   const sent = /check your email|reset link is on its way|rate limit/i;
 
-  await test.step('create an account', async () => {
+  await test.step('I create an account', async () => {
     await page.goto('/');
     await page.getByRole('button', { name: /Create an account/ }).click();
     await page.getByLabel('Your name').fill('E2E Signup');
@@ -285,7 +285,7 @@ test('Sign up and forgot password screens', async ({ page }) => {
     if (await page.locator('.auth-message').isVisible()) await expect(page.locator('.auth-message')).toHaveText(sent);
   });
 
-  await test.step('forgot password', async () => {
+  await test.step('I tap Forgot password', async () => {
     await page.goto('/');
     if (await page.getByRole('button', { name: 'Settings' }).isVisible()) return; // Signed straight in.
     await page.getByRole('button', { name: 'Forgot password?' }).click();
@@ -295,7 +295,7 @@ test('Sign up and forgot password screens', async ({ page }) => {
     await expect(page.locator('.auth-message')).toHaveText(sent);
   });
 
-  await test.step('the country from sign-up is kept; clean up the new account', async () => {
+  await test.step('I see my country was kept, then the new account is removed', async () => {
     const service = admin();
     if (!service) return;
     const { data } = await service.auth.admin.listUsers({ perPage: 200 });
@@ -304,7 +304,7 @@ test('Sign up and forgot password screens', async ({ page }) => {
     if (user) await service.auth.admin.deleteUser(user.id);
   });
 
-  await test.step('reset link from the email → set a new password → it works', async () => {
+  await test.step('I open the reset link, set a new password and log in', async () => {
     const service = admin();
     if (!service) return;
     const resetter = await tempUser('reset');

@@ -35,24 +35,24 @@ const openAdd = async (page) => {
 };
 const chooseCollection = (page, id) => page.locator('label.field', { hasText: 'Collection' }).locator('select').selectOption(id);
 
-test('manual add → Verify picks from Google → into a brand-new collection', async ({ page }) => {
+test('Add a place by hand', async ({ page }) => {
   const first = googlePlace(unique('Verify Cafe'), -37.7901, 144.9801);
   const second = googlePlace(unique('Verify Cafe Two'), -37.7902, 144.9802);
   await fakeGoogleMaps(page, { candidates: [first, second], details: { [second.url]: googleDetails(second, -37.7902, 144.9802, { phone: '+61 3 5550 0124' }) } });
   const newName = unique('Made in sheet');
   const typed = unique('Typed name');
 
-  await test.step('log in, open Add, choose Manual', async () => {
+  await test.step('I log in, open Add and choose Manual', async () => {
     await logIn(page);
     await openAdd(page);
     await page.getByRole('button', { name: 'Manual' }).click();
   });
-  await test.step('type a name and an address, then Verify', async () => {
+  await test.step('I type a name and an address, then tap Verify', async () => {
     await page.getByLabel('Name *').fill(typed);
     await page.getByLabel('Address').fill('Somewhere St, Melbourne');
     await page.getByRole('button', { name: 'Verify' }).click();
   });
-  await test.step('two Google matches: pick the second and confirm', async () => {
+  await test.step('I see two Google matches, pick the second and confirm', async () => {
     const dialog = page.getByRole('dialog', { name: 'Verify location' });
     await expect(dialog).toBeVisible();
     await dialog.getByText(second.name).click();
@@ -61,14 +61,14 @@ test('manual add → Verify picks from Google → into a brand-new collection', 
     // The name I typed is kept.
     await expect(page.getByLabel('Name *')).toHaveValue(typed);
   });
-  await test.step('"+ New collection" makes one and selects it', async () => {
+  await test.step('I tap "+ New collection" and it is made and selected', async () => {
     await page.locator('label.field', { hasText: 'Collection' }).locator('select').selectOption({ label: '+ New collection' });
     const dialog = page.getByRole('dialog', { name: 'New collection' });
     await dialog.getByPlaceholder('e.g. Date nights').fill(newName);
     await dialog.getByRole('button', { name: 'OK' }).click();
     await expect(dialog).toBeHidden();
   });
-  await test.step('add: saved in the new collection with the Google pin', async () => {
+  await test.step('I tap Add and it is saved in the new collection with its pin', async () => {
     await page.getByRole('button', { name: 'Add place' }).click();
     await nav(page, 'Home');
     await expect(page.getByText(typed)).toBeVisible({ timeout: 15000 });
@@ -80,39 +80,39 @@ test('manual add → Verify picks from Google → into a brand-new collection', 
   });
 });
 
-test('reel with several Google matches → I choose → saved', async ({ page }) => {
+test('Choose between Google matches', async ({ page }) => {
   const a = googlePlace(unique('Pho Bar Richmond'), -37.8201, 144.9901);
   const b = googlePlace(unique('Pho Bar CBD'), -37.8202, 144.9902);
   const reelUrl = `https://www.instagram.com/reel/${unique('MANY')}/`;
   await fakeReelLookup(page, { reelUrl, placeName: '', location: 'Melbourne', venue: 'pho night', maps: { success: true, candidates: [a, b], selectedCandidate: null, details: null } });
   await fakeGoogleMaps(page, { details: { [b.url]: googleDetails(b, -37.8202, 144.9902) } });
 
-  await test.step('paste the reel', async () => {
+  await test.step('I paste the reel', async () => {
     await logIn(page);
     await openAdd(page);
     await page.getByPlaceholder('Instagram reel or TikTok video link…').fill(reelUrl);
     await page.getByRole('button', { name: 'Confirm' }).click();
   });
-  await test.step('both matches are listed; choose the CBD one', async () => {
+  await test.step('I see both matches and choose the CBD one', async () => {
     const matches = page.getByRole('group', { name: 'Google Maps matches' });
     await expect(matches.getByRole('button')).toHaveCount(2);
     await matches.getByText(b.name).click();
     await expect(page.getByLabel('Name *')).toHaveValue(b.name);
   });
-  await test.step('add it', async () => {
+  await test.step('I add it', async () => {
     await chooseCollection(page, main.id);
     await page.getByRole('button', { name: 'Add place' }).click();
     await expect.poll(async () => (await entriesIn(one.client, main.id)).find((p) => p.name === b.name)?.lat).toBe(-37.8202);
   });
 });
 
-test('duplicates: pill → add warning → copy warning → shared reel already saved', async ({ page }) => {
-  await test.step('the same reel twice shows the Duplicate pill on both', async () => {
+test('Duplicates', async ({ page }) => {
+  await test.step('I see the Duplicate pill on both places from the same reel', async () => {
     await logIn(page);
     await expect(board(page, main.id).getByTitle('Saved more than once in this collection')).toHaveCount(2);
   });
 
-  await test.step('adding a place at a spot this collection has → warning → Cancel adds nothing', async () => {
+  await test.step('I add a spot this collection has, get a warning and Cancel', async () => {
     const twin = googlePlace(unique('Twin'), spot.lat, spot.lng);
     await fakeReelLookup(page, { reelUrl: 'https://www.instagram.com/reel/TWIN/', placeName: twin.name, maps: { success: true, candidates: [], details: googleDetails(twin, spot.lat, spot.lng) } });
     await openAdd(page);
@@ -128,7 +128,7 @@ test('duplicates: pill → add warning → copy warning → shared reel already 
     await page.keyboard.press('Escape');
   });
 
-  await test.step('copying into a collection that has the spot → warning → Cancel copies nothing', async () => {
+  await test.step('I copy into a collection that has it, get a warning and Cancel', async () => {
     await board(page, other.id).getByText(other.spotName).click();
     await page.getByRole('dialog', { name: other.spotName }).getByRole('button', { name: 'Edit place' }).click();
     const edit = page.getByRole('dialog', { name: `Edit ${other.spotName}` });
@@ -140,7 +140,7 @@ test('duplicates: pill → add warning → copy warning → shared reel already 
     expect((await entriesIn(one.client, main.id)).some((p) => p.id === other.spotId)).toBe(false);
   });
 
-  await test.step('sharing a reel that is already saved says where it is', async () => {
+  await test.step('I share a reel I already saved and am told where it is', async () => {
     await page.goto(`/?url=${encodeURIComponent(sameReel)}`);
     await toast(page, `Already saved in ${main.name}`);
   });

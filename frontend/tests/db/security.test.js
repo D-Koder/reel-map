@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ACCOUNTS, addPlace, anonClient, cleanUp, entriesIn, hasDb, ok, signIn, step, unique } from './helpers.js';
 
-describe.skipIf(!hasDb)('security journey', () => {
+describe.skipIf(!hasDb)('Security', () => {
   let one;
   let two;
   let target;
@@ -26,9 +26,9 @@ describe.skipIf(!hasDb)('security journey', () => {
   // Each reader is checked against every table that holds Test One's data.
   const readers = () => [['a stranger (Test Two)', two.client], ['someone logged out', anonClient()]];
 
-  it('strangers and logged-out visitors can read nothing', async () => {
+  it("Strangers can't read my things", async () => {
     for (const [who, client] of readers()) {
-      const none = async (label, query) => step(`${who}: ${label}`, async () => {
+      const none = async (label, query) => step(`${who[0].toUpperCase()}${who.slice(1)} can't read ${label}`, async () => {
         const { data } = await query;
         expect(data ?? [], `${who} could read ${label}`).toHaveLength(0);
       });
@@ -44,15 +44,15 @@ describe.skipIf(!hasDb)('security journey', () => {
       await none('the Shortcut key', client.from('shortcut_keys').select('key').eq('user_id', one.userId));
       await none('place order', client.from('place_order').select('place_id').eq('user_id', one.userId));
     }
-    await step('a stranger: not in my lists either', async () => {
+    await step("A stranger doesn't get my collection in their lists", async () => {
       expect((await ok(two.client.rpc('get_user_collections'))).map((c) => c.id)).not.toContain(target.id);
       expect((await entriesIn(two.client, target.id))).toHaveLength(0);
     });
   });
 
-  it('strangers and logged-out visitors can change nothing', async () => {
+  it("Strangers can't change my things", async () => {
     for (const [who, client] of readers()) {
-      const refused = async (label, query) => step(`${who}: ${label}`, async () => {
+      const refused = async (label, query) => step(`${who[0].toUpperCase()}${who.slice(1)} can't ${label}`, async () => {
         const { data, error } = await query;
         expect(Boolean(error) || (data ?? []).length === 0, `${who} could ${label}`).toBe(true);
       });
@@ -67,22 +67,22 @@ describe.skipIf(!hasDb)('security journey', () => {
       await refused('delete the place', client.rpc('delete_place', { p_collection_id: target.id, p_place_id: target.placeId }));
       await refused('make it private', client.rpc('set_collection_private', { p_collection_id: target.id, p_private: true, p_confirm: true }));
     }
-    await step('nothing actually changed', async () => {
+    await step('I see nothing actually changed', async () => {
       const [row] = await entriesIn(one.client, target.id);
       expect(row).toMatchObject({ id: target.placeId, reactions: { [one.userId]: 'keen' } });
       expect(row.booking).toBeTruthy();
     });
   });
 
-  it('guessing invites gets nowhere; logged out you cannot join at all', async () => {
-    await step('a made-up invite id', async () => {
+  it("Guessing invites doesn't work", async () => {
+    await step("A stranger can't join with a made-up invite id", async () => {
       const { error } = await two.client.rpc('accept_collection_invite', { p_invite_id: '00000000-0000-4000-8000-000000000000' });
       expect(error?.message).toMatch(/Invalid or expired/);
     });
-    await step('a made-up code', async () => {
+    await step("A stranger can't join with a made-up code", async () => {
       expect((await two.client.rpc('join_collection_by_code', { p_code: 'ZZZZ-9999' })).error).not.toBeNull();
     });
-    await step('logged out, even a real invite is refused', async () => {
+    await step("A logged-out visitor can't join, even with a real invite", async () => {
       expect((await anonClient().rpc('accept_collection_invite', { p_invite_id: target.inviteId })).error).not.toBeNull();
     });
   });

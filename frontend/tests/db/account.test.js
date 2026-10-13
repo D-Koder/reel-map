@@ -5,7 +5,7 @@ import {
   ACCOUNTS, addPlace, admin, anonClient, cleanUp, entriesIn, hasDb, memberIds, ok, shareWith, signIn, step, tempUser, unique,
 } from './helpers.js';
 
-describe.skipIf(!hasDb)('account journeys', () => {
+describe.skipIf(!hasDb)('Account', () => {
   let one;
   let two;
 
@@ -15,22 +15,22 @@ describe.skipIf(!hasDb)('account journeys', () => {
   });
   afterAll(() => cleanUp(one, two));
 
-  it('sign in → edit profile → bad edits refused → put it back', async () => {
-    await step('1. wrong password is refused', () => expect(signIn(ACCOUNTS.one, 'definitely-wrong')).rejects.toThrow(/failed/));
+  it('Log in and edit my profile', async () => {
+    await step("I can't log in with the wrong password", () => expect(signIn(ACCOUNTS.one, 'definitely-wrong')).rejects.toThrow(/failed/));
 
     const before = await ok(one.client.from('profiles').select('display_name, avatar').eq('id', one.userId).single());
     try {
-      await step('2. change name and avatar', async () => {
+      await step('I change my name and avatar', async () => {
         const name = `Test One ${Date.now() % 1000}`;
         await ok(one.client.from('profiles').update({ display_name: name, avatar: '🦊' }).eq('id', one.userId));
         expect(await ok(one.client.from('profiles').select('display_name, avatar').eq('id', one.userId).single()))
           .toEqual({ display_name: name, avatar: '🦊' });
       });
-      await step('3. a blank name is refused', async () => {
+      await step("I can't save a blank name", async () => {
         const { error } = await one.client.from('profiles').update({ display_name: '   ' }).eq('id', one.userId);
         expect(error).not.toBeNull();
       });
-      await step("4. I can't change someone else's profile", async () => {
+      await step("I can't change someone else's profile", async () => {
         const { data } = await one.client.from('profiles').update({ display_name: 'Hacked' }).eq('id', two.userId).select();
         expect(data ?? []).toHaveLength(0);
       });
@@ -39,33 +39,33 @@ describe.skipIf(!hasDb)('account journeys', () => {
     }
   });
 
-  it.skipIf(!admin())('new account: sign up → starter collections → TBD → save a place → delete everything', async () => {
+  it.skipIf(!admin())('Sign up and delete my account', async () => {
     const fresh = await tempUser('signup', { country: 'Australia' });
     try {
-      await step('1. profile (with the country from sign-up) and starter collections exist', async () => {
+      await step('I sign up and see my profile, country and starter collections', async () => {
         expect(await ok(fresh.client.from('profiles').select('avatar, country').eq('id', fresh.userId).single())).toEqual({ avatar: '🧪', country: 'Australia' });
         expect((await ok(fresh.client.rpc('get_user_collections'))).length).toBeGreaterThan(0);
       });
-      const collectionId = await step('2. make a collection with a place', async () => {
+      const collectionId = await step('I make a collection with a place', async () => {
         const id = await ok(fresh.client.rpc('create_collection', { p_name: unique('fresh'), p_emoji: '🌱' }));
         await addPlace(fresh.client, id);
         return id;
       });
-      await step('2b. "Add sample places" fills an empty account', async () => {
+      await step('I tap "Add sample places" and my empty account fills up', async () => {
         const before = await ok(fresh.client.from('collection_places').select('place_id'));
         await ok(fresh.client.rpc('create_sample_data'));
         const after = await ok(fresh.client.from('collection_places').select('place_id'));
         expect(after.length).toBeGreaterThan(before.length);
       });
-      await step('3. TBD (shared reels inbox) exists, renames, and cannot be deleted', async () => {
+      await step("I see TBD and can rename it, but can't delete it (known bug)", async () => {
         const [inbox] = await ok(fresh.client.from('collections').select('id, name').eq('owner_id', fresh.userId).eq('is_inbox', true));
         expect(inbox, 'a new account has no TBD collection').toBeTruthy();
         await ok(fresh.client.from('collections').update({ name: 'Inbox renamed' }).eq('id', inbox.id));
         const { data, error } = await fresh.client.from('collections').delete().eq('id', inbox.id).select();
         expect(Boolean(error) || (data ?? []).length === 0, 'TBD could be deleted: only the app hides the button').toBe(true);
       });
-      await step('4. delete my account (everything)', () => ok(fresh.client.rpc('delete_user', { p_cascade_delete: true })));
-      await step('5. the login and my collection are gone', async () => {
+      await step('I delete my account and everything in it', () => ok(fresh.client.rpc('delete_user', { p_cascade_delete: true })));
+      await step('I see my login and my collection are gone', async () => {
         const { data } = await admin().auth.admin.getUserById(fresh.userId);
         expect(data?.user ?? null).toBeNull();
         const { data: left } = await admin().from('collections').select('id').eq('id', collectionId);
@@ -76,11 +76,11 @@ describe.skipIf(!hasDb)('account journeys', () => {
     }
   });
 
-  it.skipIf(!admin())('deleting an account that shares a collection: "keep" leaves it for friends, "everything" removes it', async () => {
+  it.skipIf(!admin())('Delete an account that shares a collection', async () => {
     const keeper = await tempUser('keeper');
     const leaver = await tempUser('leaver');
     try {
-      const kept = await step('1. two accounts each share a collection with Test Two', async () => {
+      const kept = await step('Two other accounts each share a collection with Test Two', async () => {
         const keepId = await ok(keeper.client.rpc('create_collection', { p_name: unique('kept'), p_emoji: '🤝' }));
         const goneId = await ok(leaver.client.rpc('create_collection', { p_name: unique('gone'), p_emoji: '💨' }));
         await addPlace(keeper.client, keepId, { name: 'Shared Spot' });
@@ -90,14 +90,14 @@ describe.skipIf(!hasDb)('account journeys', () => {
         return { keepId, goneId };
       });
 
-      await step('2. delete with "keep shared collections"', () => ok(keeper.client.rpc('delete_user', { p_cascade_delete: false })));
-      await step('3. Test Two still has the collection and its place', async () => {
+      await step('The first deletes their account with "Keep shared collections"', () => ok(keeper.client.rpc('delete_user', { p_cascade_delete: false })));
+      await step('Test Two still has that collection and its place (known bug)', async () => {
         expect(await memberIds(two.client, kept.keepId), 'shared collection vanished when its owner left').toContain(two.userId);
         expect((await entriesIn(two.client, kept.keepId)).map((p) => p.name)).toContain('Shared Spot');
       });
 
-      await step('4. delete with "everything"', () => ok(leaver.client.rpc('delete_user', { p_cascade_delete: true })));
-      await step('5. that collection is gone for Test Two too', async () => {
+      await step('The second deletes their account with "Everything"', () => ok(leaver.client.rpc('delete_user', { p_cascade_delete: true })));
+      await step('Test Two no longer has the second collection', async () => {
         expect(await memberIds(two.client, kept.goneId)).toEqual([]);
       });
     } finally {
@@ -109,29 +109,29 @@ describe.skipIf(!hasDb)('account journeys', () => {
     }
   });
 
-  it('iPhone Shortcut: get key → connect → share reels → app picks them up → reset key', async () => {
+  it('Save reels with the iPhone Shortcut', async () => {
     const anon = anonClient();
-    const key = await step('1. get my key', () => ok(one.client.rpc('get_shortcut_key')));
+    const key = await step('I get my Shortcut key', () => ok(one.client.rpc('get_shortcut_key')));
     expect(key).toMatch(/^[0-9a-f]{64}$/);
 
-    await step('2. the Shortcut connects with it (no login, like /api/save-reel)', async () => {
+    await step('My Shortcut connects with the key, no login needed', async () => {
       expect(await ok(anon.rpc('mark_shortcut_connected', { p_key: key }))).toBe('connected');
     });
 
     const reel = `https://www.instagram.com/reel/${unique('R')}/`;
-    await step('3. share a reel (the whole shared text), then the same one again', async () => {
+    await step('I share a reel, then the same reel again', async () => {
       expect(await ok(anon.rpc('save_shared_reel', { p_key: key, p_url: `Look at this ${reel} so good` }))).toBe('saved');
       expect(await ok(anon.rpc('save_shared_reel', { p_key: key, p_url: reel }))).toBe('duplicate');
     });
 
-    await step('4. bad keys and texts with no link are refused', async () => {
+    await step('I see bad keys and texts without a link refused', async () => {
       const wrong = await anon.rpc('save_shared_reel', { p_key: 'not-a-key', p_url: reel });
       expect(wrong.error?.code).toBe('28000');
       const noLink = await anon.rpc('save_shared_reel', { p_key: key, p_url: 'no link here' });
       expect(noLink.error?.code).toBe('22023');
     });
 
-    await step("5. only I can see my shared reels, and the app clears them once it's taken them", async () => {
+    await step('Only I see my shared reels, and the app clears them once taken', async () => {
       const mine = await ok(one.client.from('shared_reels').select('id, url').eq('url', reel));
       expect(mine).toHaveLength(1);
       expect(await ok(two.client.from('shared_reels').select('id').eq('url', reel))).toHaveLength(0);
@@ -140,13 +140,13 @@ describe.skipIf(!hasDb)('account journeys', () => {
       expect(await ok(one.client.from('shared_reels').select('id').eq('url', reel))).toHaveLength(0);
     });
 
-    await step('6. reset the key: the old one stops working', async () => {
+    await step('I reset my key and the old one stops working', async () => {
       const fresh = await ok(one.client.rpc('reset_shortcut_key'));
       expect(fresh).not.toBe(key);
       expect((await anon.rpc('save_shared_reel', { p_key: key, p_url: reel })).error?.code).toBe('28000');
     });
 
-    await step('7. signed out, nobody can read or reset keys', async () => {
+    await step("A logged-out visitor can't read or reset keys", async () => {
       expect((await anon.rpc('get_shortcut_key')).error).not.toBeNull();
       expect((await anon.rpc('reset_shortcut_key')).error).not.toBeNull();
     });
