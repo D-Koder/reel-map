@@ -14,11 +14,12 @@
 ## 📱 Run them from your phone (GitHub Actions)
 1. **One time:** GitHub → repo → Settings → Secrets and variables → Actions → **New repository secret**. Add, all from the **TEST** project:
    `TEST_SUPABASE_URL`, `TEST_SUPABASE_ANON_KEY`, `TEST_SUPABASE_SERVICE_ROLE_KEY`, `TEST_ACCOUNT_PASSWORD`, `TEST_MAPBOX_TOKEN`.
-2. GitHub app → repo → **Actions** → **Tests** → **Run workflow** → pick the branch → **Run**.
+2. Every push to the `testing` branch runs everything. To run again without a push: GitHub app → repo → **Actions** →
+   **Tests** → open the latest `testing` run → **Re-run all jobs**. (Once this is on `main`, **Run workflow** works too.)
 3. When it finishes, open the run → **Summary**: the results are right there. `TEST-RESULTS.md` is also saved to the branch,
    and screenshots are in the **test-report** download.
 
-Every push runs the quick checks (and the database tests once the secrets are set). Browser tests run only from the button.
+Pushes to other branches run the quick checks (and the database tests once the secrets are set).
 
 ## How the tests are shaped
 - **Database and browser tests are journeys**: one test walks a whole flow (*Add, copy, move and delete a place*).

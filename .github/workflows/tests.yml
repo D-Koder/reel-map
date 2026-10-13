@@ -1,8 +1,9 @@
 name: Tests
 
 # Every push: quick checks, plus database tests when the TEST secrets are set.
-# "Run workflow" button (Actions → Tests): everything, browser tests included, and
-# TEST-RESULTS.md is committed back to the branch.
+# Pushes to the testing branch, and the "Run workflow" button (Actions → Tests, once this is on main),
+# run everything, browser tests included, and commit TEST-RESULTS.md back to the branch.
+# To run again from a phone: open the last run → "Re-run all jobs".
 on:
   push:
   pull_request:
@@ -62,7 +63,7 @@ jobs:
         run: |
           layers="unit"
           if [ -n "$TEST_SUPABASE_URL" ] && [ "$choice" != "quick checks only" ]; then layers="$layers db"; fi
-          if [ -n "$TEST_SUPABASE_URL" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$choice" = "everything" ]; then layers="$layers e2e"; fi
+          if [ -n "$TEST_SUPABASE_URL" ] && { [ "$GITHUB_REF" = "refs/heads/testing" ] && [ "$GITHUB_EVENT_NAME" = "push" ] || [ "$choice" = "everything" ]; }; then layers="$layers e2e"; fi
           echo "layers=$layers" >> "$GITHUB_OUTPUT"
           echo "Running: $layers"
 
@@ -91,7 +92,7 @@ jobs:
           retention-days: 14
 
       - name: Save TEST-RESULTS.md to the branch
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/testing'))
         working-directory: .
         run: |
           git add TEST-RESULTS.md
