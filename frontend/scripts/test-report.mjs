@@ -161,7 +161,8 @@ function flowSection(flow) {
   return lines.join('\n');
 }
 
-export function writeReport() {
+// failedLayers: layers whose command failed. One that failed with no tests in it never started.
+export function writeReport({ failedLayers = [] } = {}) {
   const flows = [];
   const missing = [];
   for (const layer of LAYERS) {
@@ -181,7 +182,13 @@ export function writeReport() {
     `**${MARK.pass} ${count('pass')} passed · ${MARK.fail} ${count('fail')} failed · ${MARK.known} ${count('known')} known bugs · ${MARK.skip} ${count('skip')} skipped**`,
     '',
   ];
-  if (missing.length) out.push(`> Not run yet: ${missing.join(', ')}.`, '');
+  for (const layer of LAYERS) {
+    if (failedLayers.includes(layer.key) && !flows.some((f) => f.layer.key === layer.key)) {
+      out.push(`> ❌ **${layer.label} tests couldn't start.** Open the run's log (step "Run tests") to see why.`, '');
+    }
+  }
+  const notRun = missing.filter((label) => !LAYERS.some((l) => l.label === label && failedLayers.includes(l.key)));
+  if (notRun.length) out.push(`> Not run yet: ${notRun.join(', ')}.`, '');
   out.push(`**Key:** ${MARK.pass} passed · ${MARK.fail} failed · ${MARK.known} known bug (expected to fail) · ${MARK.skip} skipped`, '');
 
   const groups = [

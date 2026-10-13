@@ -2,7 +2,6 @@
 // emails and a random password, and deletes them at the end. Nothing real is ever emailed, and
 // runs never share leftovers. The tests read them through ACCOUNTS in tests/db/helpers.js.
 import { randomBytes } from 'node:crypto';
-import { admin, hasTestProject, ok, unique } from '../db/helpers.js';
 
 const PEOPLE = [
   { key: 'TEST_RUN_ONE', label: 'one', display_name: 'Test One', avatar: '🧪' },
@@ -10,6 +9,8 @@ const PEOPLE = [
 ];
 
 export async function makeRunAccounts() {
+  // Loaded here, so a run of only the quick checks never touches the database settings.
+  const { admin, hasTestProject, ok, unique } = await import('../db/helpers.js');
   if (!hasTestProject) return async () => {};
   const service = admin();
   const password = `t-${randomBytes(18).toString('base64url')}`;
