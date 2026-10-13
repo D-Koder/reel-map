@@ -1,6 +1,5 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./browser');
 const { fetchInstagramOembed } = require('./instagram-oembed');
-const { fetchInstagramPage } = require('./instagram-page');
 const { captionVenue } = require('./caption');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
@@ -11,24 +10,6 @@ function parseCount(value) {
   if (!match) return null;
   const multiplier = { K: 1_000, M: 1_000_000, B: 1_000_000_000 }[match[2]?.toUpperCase()] ?? 1;
   return Math.round(Number(match[1]) * multiplier);
-}
-
-function normalizeImageUrl(value) {
-  let candidate = String(value ?? '')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0*39;|&apos;/gi, "'")
-    .replace(/&amp;/gi, '&')
-    .trim();
-  const cssUrl = candidate.match(/^url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)$/i);
-  if (cssUrl) candidate = (cssUrl[1] ?? cssUrl[2] ?? cssUrl[3] ?? '').trim();
-  candidate = candidate.replace(/^['"]|['"]$/g, '').trim();
-  if (candidate.startsWith('//')) candidate = `https:${candidate}`;
-  try {
-    const url = new URL(candidate);
-    return url.protocol === 'https:' ? url.href : '';
-  } catch {
-    return '';
-  }
 }
 
 // "Name:" and "Address:" lines win. Falls back to the 📍 line.
@@ -106,36 +87,34 @@ function readTikTokPage(inputUrl) {
   };
 }
 
-// Two plain requests at once, no browser: oEmbed (full caption) and the public page's preview tags
-// (cover, likes, comments). Returns null, so Chrome runs, when there's no caption or no cover.
+// Instagram's oEmbed: the caption and creator in one plain request, no browser.
+// Returns null, so Chrome runs, when there's no caption to search with.
 async function readInstagramQuickly(reelUrl) {
-  const [oembedResult, pageResult] = await Promise.allSettled([fetchInstagramOembed(reelUrl), fetchInstagramPage(reelUrl)]);
-  const oembed = oembedResult.status === 'fulfilled' && oembedResult.value.ok ? oembedResult.value : {};
-  const page = pageResult.status === 'fulfilled' ? pageResult.value : {};
-  if (oembedResult.status === 'rejected') console.warn('Instagram oEmbed failed:', oembedResult.reason?.message);
-  if (pageResult.status === 'rejected') console.warn('Instagram page read failed:', pageResult.reason?.message);
-
-  const caption = oembed.caption || page.caption || '';
-  const thumbnailUrl = normalizeImageUrl(oembed.thumbnailUrl || page.thumbnailUrl);
-  if (!caption || !thumbnailUrl) {
-    console.warn(`Quick Instagram lookup incomplete (caption: ${Boolean(caption)}, cover: ${Boolean(thumbnailUrl)}); using the browser`);
+  let oembed;
+  try {
+    oembed = await fetchInstagramOembed(reelUrl);
+  } catch (error) {
+    console.warn('Instagram oEmbed failed, falling back to the browser:', error.message);
     return null;
   }
-  const details = parseCaptionDetails(caption);
+  if (!oembed.ok || !oembed.caption) return null;
+  const details = parseCaptionDetails(oembed.caption);
   return {
     success: true,
     reelUrl,
-    caption,
-    creator: oembed.creator || page.creator || null,
-    likes: page.likes ?? null,
-    comments: page.comments ?? null,
+    caption: oembed.caption,
+    creator: oembed.creator,
+    // oEmbed doesn't give counts or the date.
+    likes: null,
+    comments: null,
     placeName: details.placeName,
     location: details.location,
     date: '',
-    hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+    hashtags: [...oembed.caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
     videoUrl: '',
-    thumbnailUrl,
-    source: 'quick',
+    // Reels show their platform's own embed, so no cover image is kept.
+    thumbnailUrl: '',
+    source: 'oembed',
   };
 }
 
@@ -244,7 +223,8 @@ module.exports = async function handler(req, res) {
     scraped.placeName = captionDetails.placeName;
     scraped.location = captionDetails.location;
 
-    scraped.thumbnailUrl = normalizeImageUrl(scraped.thumbnailUrl);
+    // Reels show their platform's own embed, so no cover image is kept.
+    scraped.thumbnailUrl = '';
     return res.status(200).json(scraped);
   } catch (error) {
     console.error('Reel DOM scrape failed:', error);

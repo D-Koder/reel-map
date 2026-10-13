@@ -1,16 +1,13 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl } = require('./_lib/reel-url');
-const { fetchInstagramCover } = require('./_lib/instagram-cover');
-const { readCache, writeCache, DAY } = require('./_lib/lookup-cache');
+const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue } = require('./_lib/caption');
 
 // How long saved lookups are reused. Captions don't change; opening hours and phone numbers can.
 const REEL_CACHE_DAYS = 30;
 const PLACE_CACHE_DAYS = 14;
-// Instagram cover links expire after a few days, so a cached cover older than this is asked for again.
-const COVER_MAX_AGE = DAY;
 
 async function invoke(handler, body, getBrowser) {
   const response = {
@@ -78,16 +75,13 @@ function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-// The Reel's caption, creator and cover, from the shared cache when anyone has looked it up before.
+// The Reel's caption and creator, from the shared cache when anyone has looked it up before.
 // Returns { reel } on success, or { status, body } with the scraper's error.
 async function readReel(reelUrl, cacheKey, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   if (cached?.data?.reel) {
-    const reel = { ...cached.data.reel, reelUrl };
-    if (cached.ageMs > COVER_MAX_AGE || !reel.thumbnailUrl) {
-      const cover = await fetchInstagramCover(reelUrl, 5000).catch(() => null);
-      if (cover?.thumbnailUrl) reel.thumbnailUrl = cover.thumbnailUrl;
-    }
+    // Older cache rows can still hold a cover link; it isn't used, so it isn't passed on.
+    const reel = { ...cached.data.reel, reelUrl, thumbnailUrl: '' };
     return { reel, search: cached.data.search ?? null, fromCache: true };
   }
 

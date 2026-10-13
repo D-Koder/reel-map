@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { normalizeImageUrl } from '../lib/media';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
@@ -73,12 +72,11 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       if (!response.ok || !data.success) throw new Error(data.error || `Reel lookup returned HTTP ${response.status}`);
 
       const details = data.maps?.details;
-      const thumbnailUrl = normalizeImageUrl(data.thumbnailUrl) || null;
       if (!details?.name) {
         // No confident venue match: the user picks it in the add sheet.
         const guess = data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '';
         // Keep what the lookup found, so Finish fills the add sheet without looking it up again.
-        update(item.id, { status: 'needs-place', collectionId, name: guess, thumbnailUrl, reelData: data });
+        update(item.id, { status: 'needs-place', collectionId, name: guess, reelData: data });
         return;
       }
 
@@ -88,13 +86,12 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         category: 'food',
         collectionId,
         reelUrl: item.url,
-        reelThumbnailUrl: thumbnailUrl,
         venueDetails: details,
         // Sharing a reel means you're keen on it.
         feeling: 'keen',
       });
       if (!created) {
-        update(item.id, { status: 'failed', collectionId, name: details.name, thumbnailUrl, reelData: data });
+        update(item.id, { status: 'failed', collectionId, name: details.name, reelData: data });
         return;
       }
       remove(item.id);

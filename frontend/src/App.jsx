@@ -19,7 +19,6 @@ import { useInvites } from './hooks/useInvites';
 import { useNearbyAlerts } from './hooks/useNearbyAlerts';
 import { useNotifications } from './hooks/useNotifications';
 import { useOnline } from './hooks/useOnline';
-import { useReelCovers } from './hooks/useReelCovers';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
@@ -229,19 +228,6 @@ function MainApp({ userId, showToast }) {
     [collections]
   );
 
-  // A fresh cover goes first, with the saved link kept as a backup: Instagram's fresh links
-  // sometimes refuse to load on other sites. If neither loads, the card shows its colour tile.
-  const covers = useReelCovers(places);
-  const placesWithCovers = useMemo(
-    () => places.map((place) => {
-      const fresh = covers.map[place.reel_url]?.thumbnail_url;
-      return fresh && fresh !== place.reel_thumbnail_url
-        ? { ...place, reel_thumbnail_url: fresh, saved_thumbnail_url: place.reel_thumbnail_url }
-        : place;
-    }),
-    [places, covers.map]
-  );
-
   const streak = useMemo(() => {
     return data.profile?.current_streak ?? 0;
   }, [data.profile]);
@@ -381,7 +367,7 @@ function MainApp({ userId, showToast }) {
 
   // A copied place is one row per collection, all sharing the place id, so pins are opened by
   // "collection:place". A bare place id (from a notification or a just-saved reel) opens its first entry.
-  const findEntry = (key) => key && (placesWithCovers.find((p) => `${p.collection_id}:${p.id}` === key) ?? placesWithCovers.find((p) => p.id === key));
+  const findEntry = (key) => key && (places.find((p) => `${p.collection_id}:${p.id}` === key) ?? places.find((p) => p.id === key));
   const openPin = findEntry(openPinId);
   const editPin = findEntry(editPinId);
 
@@ -419,10 +405,8 @@ function MainApp({ userId, showToast }) {
         <section className={`panel panel-home ${screen === 'home' ? 'active' : ''}`}>
           <HomeScreen
             userId={userId}
-            places={placesWithCovers}
+            places={places}
             collections={collections}
-            onCoverVisible={covers.requestCover}
-            onCoverHidden={covers.cancelCover}
             banner={
               <>
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.remove} />

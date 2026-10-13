@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { CircleCheck, GripVertical, MapPin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -69,7 +69,7 @@ function VoteLine({ members, reactions, userId }) {
 
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
 // Four short lines beside the photo: name, place, info (cut with "…"), votes.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, handleProps = null, handleRef, floating = false, dimmed = false }) {
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
@@ -107,7 +107,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
           {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
           {reelEmbed(pin.reel_url)
             ? <ReelEmbedThumb reelUrl={pin.reel_url} className="pin-thumbnail" />
-            : <PlaceThumb place={pin} className="pin-thumbnail" onBroken={onBroken} />}
+            : <PlaceThumb place={pin} className="pin-thumbnail" />}
           {/* The booked date hangs off the photo on a solid tab, so it never blends into the picture. */}
           {pin.booking && !isDone && (
             <span className="date-tab">
@@ -152,31 +152,10 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, onBroken, 
   );
 }
 
-export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHidden }) {
+export default function PlaceRow({ pin, members, userId, onOpen }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
   });
-  // Tell the app when this card is on screen (or about to be), so its cover can be refreshed.
-  // The latest callbacks are read through refs, so the observer doesn't have to be rebuilt on every render.
-  const rowRef = useRef(null);
-  const pinRef = useRef(pin);
-  pinRef.current = pin;
-  const callbacks = useRef({ onVisible, onHidden });
-  callbacks.current = { onVisible, onHidden };
-  useEffect(() => {
-    const node = rowRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) callbacks.current.onVisible?.(pinRef.current);
-        else callbacks.current.onHidden?.(pinRef.current);
-      },
-      // Start a little before the card reaches the screen, so the cover is ready when it arrives.
-      { rootMargin: '300px 0px' }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
   // A short buzz when the card is picked up.
   useEffect(() => {
     if (isDragging) navigator.vibrate?.(10);
@@ -187,10 +166,7 @@ export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHi
 
   return (
     <div
-      ref={(node) => {
-        rowRef.current = node;
-        setNodeRef(node);
-      }}
+      ref={setNodeRef}
       className="place-row"
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
@@ -206,7 +182,6 @@ export default function PlaceRow({ pin, members, userId, onOpen, onVisible, onHi
           listeners?.onKeyDown?.(e);
           if (e.key === 'Enter') open();
         }}
-        onBroken={() => onVisible?.(pin, true)}
       />
     </div>
   );

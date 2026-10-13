@@ -277,7 +277,7 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, location, category, collectionId, reelUrl, reelThumbnailUrl, venueDetails, feeling, customInfo, url, eventDate }) => {
+    addPlace: async ({ name, location, category, collectionId, reelUrl, venueDetails, feeling, customInfo, url, eventDate }) => {
       // Call the add_place_to_collection() function. It reuses the venue for this location and always adds a new entry.
       const { data, error } = await supabase.rpc('add_place_to_collection', {
         p_collection_id: collectionId,
@@ -290,7 +290,8 @@ export function useAppData(userId, showToast) {
         p_phone: venueDetails?.phone || null,
         p_booking_url: venueDetails?.bookingUrl || null,
         p_reel_url: reelUrl || null,
-        p_reel_thumbnail_url: reelThumbnailUrl || null,
+        // Reels show their platform's own embed, so no cover image is saved.
+        p_reel_thumbnail_url: null,
         p_source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
         p_source_id: venueDetails?.mapsUrl || null,
         p_custom_info: customInfo || null,

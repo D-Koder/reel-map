@@ -6,7 +6,7 @@ import PlaceRow, { PlaceCard } from './PlaceRow';
 
 // One collection's places. Drag the ⋮⋮ handle to move a card: a single copy follows the finger,
 // and the card's spot stays in the list (faded) until it is dropped.
-export default function PlaceList({ pins, members, userId, onOpen, onReorder, onReordered, onCoverVisible, onCoverHidden }) {
+export default function PlaceList({ pins, members, userId, onOpen, onReorder, onReordered }) {
   const sensors = useSensors(
     // A few pixels of movement starts a drag, so a slightly shaky tap on the handle still counts.
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -46,8 +46,6 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
               members={members}
               userId={userId}
               onOpen={() => onOpen(`${pin.collection_id}:${pin.id}`)}
-              onVisible={onCoverVisible}
-              onHidden={onCoverHidden}
             />
           ))}
         </div>

@@ -102,8 +102,6 @@ export default function HomeScreen({
   onCreateSample,
   onOpenSettings,
   onAddPlace,
-  onCoverVisible,
-  onCoverHidden,
   banner = null,
 }) {
   // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
@@ -173,8 +171,6 @@ export default function HomeScreen({
                 onOpen={onOpenPin}
                 onReorder={(ids) => onReorder(ids, collection.id)}
                 onReordered={markReorderLearned}
-                onCoverVisible={onCoverVisible}
-                onCoverHidden={onCoverHidden}
               />
             </div>
           );

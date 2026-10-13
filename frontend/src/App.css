@@ -893,13 +893,36 @@ button.collection-empty {
   background: var(--accent);
 }
 
-.map-pin-image {
-  width: 100%;
-  height: 100%;
-  border: 2px solid white;
-  border-radius: 50%;
-  object-fit: cover;
-  transform: rotate(45deg) scale(1.05);
+/* Map pin content: category icon (or emoji) and the place's first letter, upright inside the pin. */
+.mapbox-pin .pin-marker {
+  width: 42px;
+  height: 42px;
+}
+
+.pin-marker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #fff;
+  transform: rotate(45deg);
+}
+
+.pin-marker-label .pin-marker-icon {
+  width: 14px;
+  height: 14px;
+  transform: none;
+}
+
+.pin-marker-label-emoji {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pin-marker-letter {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .mapboxgl-ctrl-bottom-right {
@@ -907,11 +930,6 @@ button.collection-empty {
   bottom: calc(52px + var(--safe-bottom));
 }
 
-.pin-marker-emoji.has-image {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-}
 
 .reel-thumb-btn {
   border: none;

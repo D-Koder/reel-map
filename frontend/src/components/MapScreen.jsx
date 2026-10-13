@@ -155,19 +155,27 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
   button.title = place.name;
   button.addEventListener('click', () => (group.length === 1 ? onOpenPin(`${place.collection_id}:${place.id}`) : onPickVenue(group)));
 
+  // The category icon (or the place's own emoji) and the first letter of its name.
   const markerContent = document.createElement('span');
   markerContent.className = `pin-marker ${vibe.consensus}`;
-  if (place.reel_thumbnail_url) {
-    const image = document.createElement('img');
-    image.src = place.reel_thumbnail_url;
-    image.alt = '';
-    image.className = 'map-pin-image';
-    markerContent.append(image);
-  } else if (place.emoji) {
-    markerContent.textContent = place.emoji;
+  const label = document.createElement('span');
+  label.className = 'pin-marker-label';
+  if (place.emoji) {
+    const emoji = document.createElement('span');
+    emoji.className = 'pin-marker-label-emoji';
+    emoji.textContent = place.emoji;
+    label.append(emoji);
   } else {
-    markerContent.innerHTML = categoryPinIcon(place.category);
+    label.innerHTML = categoryPinIcon(place.category);
   }
+  const initial = [...String(place.name || '').trim()][0];
+  if (initial) {
+    const letter = document.createElement('span');
+    letter.className = 'pin-marker-letter';
+    letter.textContent = initial.toLocaleUpperCase();
+    label.append(letter);
+  }
+  markerContent.append(label);
   button.append(markerContent);
 
   if (group.length > 1) {

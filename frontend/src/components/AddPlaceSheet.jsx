@@ -4,7 +4,6 @@ import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
-import { normalizeImageUrl } from '../lib/media';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -421,7 +420,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         bookingUrl: venueDetails?.bookingUrl ?? null,
         hours: venueDetails?.hours?.length ? venueDetails.hours : null,
         reelUrl: reelUrl.trim() || null,
-        thumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl) || null,
         source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
         vibe: feeling,
         customInfo: customInfo.trim() || null,
@@ -433,7 +431,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         category,
         collectionId,
         reelUrl: reelUrl.trim(),
-        reelThumbnailUrl: normalizeImageUrl(scrapedData?.thumbnailUrl),
         venueDetails,
         feeling,
         customInfo: customInfo.trim(),
@@ -603,11 +600,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     border: 0,
                     padding: 0,
                     cursor: reelUrl ? 'pointer' : 'default',
-                    backgroundImage: normalizeImageUrl(scrapedData.thumbnailUrl)
-                      ? `url("${normalizeImageUrl(scrapedData.thumbnailUrl)}")`
-                      : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
                     }}
                     disabled={!reelUrl}
                   />
