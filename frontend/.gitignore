@@ -1,4 +1,7 @@
 .env
 .env.local
-.env*.localnode_modules
+.env*.local
+node_modules
 dist
+test-results
+playwright-report
