@@ -3,7 +3,7 @@
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, signIn, unique } from '../db/helpers.js';
 import {
-  board, fakeGoogleMaps, fakeReelLookup, googleDetails, googlePlace, logIn, nav, newCollection, toast,
+  blockRealWorld, board, fakeGoogleMaps, fakeReelLookup, googleDetails, googlePlace, logIn, nav, newCollection, toast,
 } from './helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
