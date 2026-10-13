@@ -2918,6 +2918,21 @@ select.step-input {
   margin-left: 1px;
 }
 
+/* Instagram's embed shrunk to fit a thumbnail (ReelEmbedThumb). The whole embed is scaled
+   around its centre, so nothing is cropped; taps go to the button around it. */
+.reel-embed-thumb {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-muted);
+}
+
+.reel-embed-thumb iframe {
+  flex-shrink: 0;
+  border: 0;
+  transform-origin: center;
+  pointer-events: none;
+}
+
 /* ---------- BOOKED DATE CHIP ---------- */
 .date-chip {
   margin-top: 4px;

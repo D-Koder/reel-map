@@ -5,6 +5,7 @@ import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/
 import { addToCalendar } from '../lib/calendar';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
+import ReelEmbedThumb, { instagramEmbedUrl } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 
@@ -257,7 +258,10 @@ export default function PinModal({
 
         <div className="reel-context">
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
-            <PlaceThumb place={place} className="reel-thumbnail-small" />
+            {/* Instagram reels show Instagram's own embed, shrunk to fit; anything else shows the saved cover. */}
+            {instagramEmbedUrl(place.reel_url)
+              ? <ReelEmbedThumb reelUrl={place.reel_url} className="reel-thumbnail-small" />
+              : <PlaceThumb place={place} className="reel-thumbnail-small" />}
           </button>
           <div className="reel-info-small">
             <div className="reel-sender">Added by {adderName}</div>
