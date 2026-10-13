@@ -256,7 +256,7 @@ export default function PinModal({
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
         {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
 
-        <div className="reel-context">
+        <div className={`reel-context${instagramEmbedUrl(place.reel_url) ? ' has-embed' : ''}`}>
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             {/* Instagram reels show Instagram's own embed, shrunk to fit; anything else shows the saved cover. */}
             {instagramEmbedUrl(place.reel_url)

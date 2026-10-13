@@ -2964,6 +2964,54 @@ select.step-input {
   opacity: 1;
 }
 
+/* Same chunky pill as the ticket tags, on the video just below Instagram's name bar. */
+.reel-embed-tag {
+  position: absolute;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  border: 1.5px solid #1a1a18;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.reel-embed-tag svg {
+  width: 9px;
+  height: 9px;
+}
+
+/* With the taller embed: room for the hard shadow, text at the top, View Reel at the bottom. */
+.reel-context.has-embed {
+  gap: 16px;
+  padding: 14px 18px 18px 14px;
+  align-items: stretch;
+}
+
+.reel-context.has-embed .reel-info-small {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.reel-context.has-embed .reel-sender,
+.reel-context.has-embed .reel-date,
+.reel-context.has-embed .reel-booked {
+  margin: 0;
+}
+
+.reel-context.has-embed .reel-link {
+  margin-top: auto;
+}
+
 @keyframes reel-embed-shimmer {
   to { background-position: 0 0, -200% 0; }
 }
