@@ -82,8 +82,11 @@ function normalize(value) {
 // Returns { reel, venue, candidates, fromCache } on success, or { status, body } with the scraper's error.
 async function readReel(reelUrl, cacheKey, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
-  if (cached?.data?.place) {
-    const { placeName = '', location = '', venue = '' } = cached.data.place;
+  const cachedPlace = cached?.data?.place;
+  // A saved lookup that found nothing is skipped, so the reel is read again.
+  const foundSomething = cachedPlace && (cachedPlace.placeName || cachedPlace.location || cachedPlace.venue || cached.data.candidates?.length);
+  if (foundSomething) {
+    const { placeName = '', location = '', venue = '' } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
