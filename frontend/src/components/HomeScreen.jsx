@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarCheck, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
-import PlaceThumb from './PlaceThumb';
+import MapBanner from './MapBanner';
 import { formatDateTime } from '../lib/constants';
 import { readJSON, writeJSON } from '../lib/storage';
 
@@ -77,7 +77,7 @@ function UpNext({ places, collections, userId, onOpenPin }) {
   return (
     <button type="button" className="ticket" onClick={() => onOpenPin(`${place.collection_id}:${place.id}`)}>
       <span className="ticket-cover">
-        <PlaceThumb place={place} className="ticket-thumb" />
+        <MapBanner place={place} className="ticket-thumb" />
         <span className={`ticket-tag ticket-tag-${kind}`}><Icon className="ico" aria-hidden="true" /> {label}</span>
       </span>
       <span className="ticket-stub">

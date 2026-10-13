@@ -3725,6 +3725,34 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   object-fit: cover;
 }
 
+/* Up next map banner (MapBanner): the map fills the cover, with the Map tab's pin in the middle. */
+.ticket-thumb.map-banner {
+  display: block;
+  background: var(--surface-muted);
+}
+
+.map-banner picture,
+.map-banner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The map is centred on the place, so the pin's point sits at the middle. */
+.map-banner-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+
+.map-banner-pin .pin-marker {
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+}
+
 .ticket-thumb .thumb-icon {
   width: 40px;
   height: 40px;
