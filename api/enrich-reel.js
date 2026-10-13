@@ -75,21 +75,27 @@ function normalize(value) {
   return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-// The Reel's caption and creator, from the shared cache when anyone has looked it up before.
-// Returns { reel } on success, or { status, body } with the scraper's error.
+// What a reel lookup needs, from the shared cache when anyone has looked the reel up before.
+// The cache keeps only the venue it found ({ placeName, location, venue }) and Google's results for it:
+// never the caption, hashtags or creator. Older rows in another shape are ignored.
+// Returns { reel, venue, candidates, fromCache } on success, or { status, body } with the scraper's error.
 async function readReel(reelUrl, cacheKey, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
-  if (cached?.data?.reel) {
-    // Older cache rows can still hold a cover link; it isn't used, so it isn't passed on.
-    const reel = { ...cached.data.reel, reelUrl, thumbnailUrl: '' };
-    return { reel, search: cached.data.search ?? null, fromCache: true };
+  if (cached?.data?.place) {
+    const { placeName = '', location = '', venue = '' } = cached.data.place;
+    const reel = {
+      success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
+      placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
+    };
+    return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
 
   const reelResponse = await invoke(scrapeReel, { reelUrl }, getBrowser);
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
     return { status: reelResponse.statusCode, body: reelResponse.body || { error: 'Could not read Instagram Reel' } };
   }
-  return { reel: reelResponse.body, search: null, fromCache: false };
+  const reel = reelResponse.body;
+  return { reel, venue: captionVenue(reel.caption), candidates: null, fromCache: false };
 }
 
 // Google Maps details for one result, shared by everyone who saves that place.
@@ -136,22 +142,26 @@ async function enrich(req, res, getBrowser) {
   const read = await readReel(reelUrl, cacheKey, getBrowser);
   if (!read.reel) return res.status(read.status).json(read.body);
 
-  const { reel } = read;
+  const { reel, venue } = read;
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
-  // again in front of it, and Maps returns a list of matches for the query.
-  const venue = captionVenue(reel.caption);
+  // again in front of it, and Maps returns a list of matches for the query. From the cache there is
+  // no caption, so the query is the venue on its own.
   const flipped = flipCaption(reel.caption);
-  const query = (venue ? `📍${venue} ${flipped}` : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
-  const saveReel = (search) => writeCache('reel_lookups', cacheKey, { reel: { ...reel, reelUrl: cacheKey }, search });
+  const query = (venue ? `📍${venue} ${flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
+  const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
+    place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
+    candidates,
+  });
   if (!query) {
     if (!read.fromCache) await saveReel(null);
-    return res.status(200).json({ ...reel, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
+    return res.status(200).json({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
   }
 
   let candidates;
-  if (read.search?.query === query) {
-    candidates = read.search.candidates;
+  if (read.candidates) {
+    ({ candidates } = read);
   } else {
     const searchResponse = await invoke(scrapeLocation, {
       action: 'search',
@@ -165,11 +175,12 @@ async function enrich(req, res, getBrowser) {
       if (!read.fromCache) await saveReel(null);
       return res.status(200).json({
         ...reel,
+        venue,
         maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
       });
     }
     candidates = searchResponse.body.candidates || [];
-    await saveReel({ query, candidates });
+    await saveReel(candidates);
   }
 
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
@@ -196,6 +207,7 @@ async function enrich(req, res, getBrowser) {
 
   return res.status(200).json({
     ...reel,
+    venue,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }

@@ -74,7 +74,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       const details = data.maps?.details;
       if (!details?.name) {
         // No confident venue match: the user picks it in the add sheet.
-        const guess = data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '';
+        const guess = data.placeName || data.venue || data.caption?.split('\n')[0].substring(0, 80) || '';
         // Keep what the lookup found, so Finish fills the add sheet without looking it up again.
         update(item.id, { status: 'needs-place', collectionId, name: guess, reelData: data });
         return;
