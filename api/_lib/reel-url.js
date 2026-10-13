@@ -14,4 +14,14 @@ function canonicalInstagramUrl(value) {
   return `https://www.instagram.com/${kind}/${match[2]}/`;
 }
 
-module.exports = { canonicalInstagramUrl };
+// The photo a carousel link opens on ("?img_index=3" → 3), or null.
+function instagramSlide(value) {
+  try {
+    const slide = Number(new URL(String(value || '').trim()).searchParams.get('img_index'));
+    return Number.isInteger(slide) && slide >= 1 && slide <= 20 ? slide : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { canonicalInstagramUrl, instagramSlide };

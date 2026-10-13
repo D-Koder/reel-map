@@ -5,7 +5,7 @@
 // Meanwhile an Instagram reel is looked up in the background and the result is cached, so the app
 // finds it ready when it opens (see lookInBackground below).
 
-const { canonicalInstagramUrl } = require('./_lib/reel-url');
+const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 // The server key when there is one, so save_shared_reel and mark_shortcut_connected needn't be open to
@@ -16,14 +16,17 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABA
 // than a require so this function doesn't carry its own copy of Chrome. Vercel keeps this function
 // alive for the request (up to maxDuration in vercel.json); elsewhere it just runs on.
 function lookInBackground(req, sharedText) {
-  const reelUrl = canonicalInstagramUrl(String(sharedText).match(/https?:\/\/[^\s]+/)?.[0]);
+  const sharedUrl = String(sharedText).match(/https?:\/\/[^\s]+/)?.[0];
+  const reelUrl = canonicalInstagramUrl(sharedUrl);
+  // The photo that was shared, so a list post looks up that photo's place.
+  const slide = instagramSlide(sharedUrl);
   const host = req.headers?.['x-forwarded-host'] || req.headers?.host;
   if (!reelUrl || !host) return;
   const protocol = /^(localhost|127\.)/.test(host) ? 'http' : 'https';
   const work = fetch(`${protocol}://${host}/api/enrich-reel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reelUrl, background: true }),
+    body: JSON.stringify({ reelUrl, slide, background: true }),
     signal: AbortSignal.timeout(115000),
   })
     .then((response) => {

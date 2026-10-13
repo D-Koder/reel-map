@@ -1,9 +1,9 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { canonicalInstagramUrl } = require('./_lib/reel-url');
+const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
-const { captionVenue } = require('./_lib/caption');
+const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -80,7 +80,8 @@ function normalize(value) {
 // The cache keeps only the venue it found ({ placeName, location, venue }) and Google's results for it:
 // never the caption, hashtags or creator. Older rows in another shape are ignored.
 // Returns { reel, venue, candidates, fromCache } on success, or { status, body } with the scraper's error.
-async function readReel(reelUrl, cacheKey, getBrowser) {
+// cleanUrl is the link that is read; cacheKey also names the slide for carousel links.
+async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   const cachedPlace = cached?.data?.place;
   // A saved lookup that found nothing is skipped, so the reel is read again.
@@ -95,7 +96,7 @@ async function readReel(reelUrl, cacheKey, getBrowser) {
   }
 
   // The clean link is read, without extras like "?img_index=3&igsh=…" that can make Instagram say no.
-  const reelResponse = await invoke(scrapeReel, { reelUrl: cacheKey || reelUrl }, getBrowser);
+  const reelResponse = await invoke(scrapeReel, { reelUrl: cleanUrl || reelUrl }, getBrowser);
   if (reelResponse.statusCode >= 400 || !reelResponse.body?.success) {
     return { status: reelResponse.statusCode, body: reelResponse.body || { error: 'Could not read Instagram Reel' } };
   }
@@ -103,6 +104,11 @@ async function readReel(reelUrl, cacheKey, getBrowser) {
   // No caption and no creator: Instagram showed a login wall or an empty page, not the post.
   if (!reel.caption && !reel.creator && !reel.placeName && !reel.location) {
     return { status: 200, body: { error: 'Instagram showed an empty page for this post' } };
+  }
+  // A list post names one place per slide: use the shared slide's place, not the whole list.
+  const listed = captionPlaceForSlide(reel.caption, slide);
+  if (listed) {
+    return { reel: { ...reel, placeName: listed.name, location: listed.address }, venue: listed.line, listed: true, candidates: null, fromCache: false };
   }
   return { reel, venue: captionVenue(reel.caption), candidates: null, fromCache: false };
 }
@@ -147,8 +153,12 @@ async function enrich(req, res, getBrowser) {
   const backgroundOnly = Boolean(req.backgroundOnly || req.body?.background === true);
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
-  const cacheKey = canonicalInstagramUrl(reelUrl);
-  const read = await readReel(reelUrl, cacheKey, getBrowser);
+  const cleanUrl = canonicalInstagramUrl(reelUrl);
+  // Each photo of a carousel can be a different place, so the slide is part of the cache key.
+  const bodySlide = Number(req.body?.slide);
+  const slide = instagramSlide(reelUrl) ?? (Number.isInteger(bodySlide) && bodySlide >= 1 && bodySlide <= 20 ? bodySlide : null);
+  const cacheKey = cleanUrl && slide ? `${cleanUrl}?img_index=${slide}` : cleanUrl;
+  const read = await readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser);
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
@@ -168,7 +178,8 @@ async function enrich(req, res, getBrowser) {
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
   const flipped = flipCaption(reel.caption);
-  const query = (venue ? `📍${venue} ${flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  // A listed place is searched on its own: the rest of the caption names the other places.
+  const query = (venue ? `📍${venue} ${read.listed ? '' : flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
