@@ -83,7 +83,8 @@ function hasWholeWords(name, key) {
 // The Google Maps result to pick without asking, or null when it isn't clear.
 // One result → that one. Otherwise each hint (best first) is tried in two rounds:
 //   1. whole words: "YoArt" → "Yo Art Frozen Yoghurt (The Glen)", not "Yoarthi" or "Theyo ar type";
-//   2. letters anywhere in the name, when no name has the whole words.
+//   2. letters anywhere in the name, when no name has the whole words;
+//   3. a result's whole name written inside the hint ("the restaurant is called Frenchie").
 // A round only picks when exactly one result matches; a tie asks the user.
 // Same rule as bestCandidate in api/enrich-reel.js.
 export function bestPlaceMatch(candidates, hints = []) {
@@ -97,6 +98,10 @@ export function bestPlaceMatch(candidates, hints = []) {
     if (whole.length > 1) continue;
     const partial = candidates.filter((candidate) => squash(candidate.name).includes(key));
     if (partial.length === 1) return partial[0];
+    // 3. the other way round: a result's whole name written inside the hint, e.g. "the restaurant
+    //    is called Frenchie" → "Frenchie" (names under 4 letters are too likely to appear by chance).
+    const inside = candidates.filter((candidate) => squash(candidate.name).length >= 4 && hasWholeWords(hint, squash(candidate.name)));
+    if (inside.length === 1) return inside[0];
   }
   return null;
 }

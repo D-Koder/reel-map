@@ -5,6 +5,7 @@ import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-rea
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import { normalizeImageUrl } from '../lib/media';
+import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -578,27 +579,39 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 gap: '12px',
                 alignItems: 'center'
               }}>
-                <button
-                  type="button"
-                  aria-label="Open reel"
-                  onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
-                  style={{
-                  width: '60px',
-                  height: '60px',
-                  backgroundColor: 'var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  flexShrink: 0,
-                  border: 0,
-                  padding: 0,
-                  cursor: reelUrl ? 'pointer' : 'default',
-                  backgroundImage: normalizeImageUrl(scrapedData.thumbnailUrl)
-                    ? `url("${normalizeImageUrl(scrapedData.thumbnailUrl)}")`
-                    : 'none',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center'
-                  }}
-                  disabled={!reelUrl}
-                />
+                {/* Instagram and TikTok reels show the platform's own embed in the app's frame; others the cover. */}
+                {reelEmbed(reelUrl) ? (
+                  <button
+                    type="button"
+                    className="reel-thumb-btn"
+                    aria-label="Open reel"
+                    onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
+                  >
+                    <ReelEmbedThumb reelUrl={reelUrl} className="pin-thumbnail" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Open reel"
+                    onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
+                    style={{
+                    width: '60px',
+                    height: '60px',
+                    backgroundColor: 'var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    flexShrink: 0,
+                    border: 0,
+                    padding: 0,
+                    cursor: reelUrl ? 'pointer' : 'default',
+                    backgroundImage: normalizeImageUrl(scrapedData.thumbnailUrl)
+                      ? `url("${normalizeImageUrl(scrapedData.thumbnailUrl)}")`
+                      : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                    }}
+                    disabled={!reelUrl}
+                  />
+                )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: '13px',
