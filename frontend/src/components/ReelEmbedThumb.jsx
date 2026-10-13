@@ -26,6 +26,8 @@ export function instagramEmbedUrl(reelUrl) {
 export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   const boxRef = useRef(null);
   const [scale, setScale] = useState(0);
+  // The box shimmers until Instagram's player has loaded, then the player fades in.
+  const [loaded, setLoaded] = useState(false);
   const src = instagramEmbedUrl(reelUrl);
 
   useLayoutEffect(() => {
@@ -42,7 +44,7 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   return (
     <span
       ref={boxRef}
-      className={`${className} reel-embed-thumb`}
+      className={`${className} reel-embed-thumb${loaded ? ' is-loaded' : ''}`}
       style={scale ? { height: Math.round((EMBED_HEIGHT - FOOTER_HEIGHT) * scale) } : undefined}
     >
       {scale > 0 && (
@@ -52,11 +54,12 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
           loading="lazy"
           scrolling="no"
           tabIndex={-1}
+          onLoad={() => setLoaded(true)}
           style={{ width: EMBED_WIDTH, height: EMBED_HEIGHT, transform: `scale(${scale})` }}
         />
       )}
-      <span className="thumb-play" aria-hidden="true">
-        <Play fill="currentColor" strokeWidth={0} />
+      <span className="reel-embed-tag" aria-hidden="true">
+        <Play fill="currentColor" strokeWidth={0} /> Reel
       </span>
     </span>
   );
