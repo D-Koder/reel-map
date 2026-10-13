@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CalendarCheck, ChevronDown, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import MapBanner from './MapBanner';
-import { formatDateTime } from '../lib/constants';
+import { categories, formatDateTime } from '../lib/constants';
 import { readJSON, writeJSON } from '../lib/storage';
 
 // Set after the first reorder, so the hint stops showing on this device.
@@ -104,6 +104,8 @@ export default function HomeScreen({
   onCreateSample,
   onOpenSettings,
   onAddPlace,
+  onMovePlaces,
+  showToast,
   banner = null,
 }) {
   // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
@@ -122,7 +124,42 @@ export default function HomeScreen({
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id);
     else next.add(id);
+    if (id === selecting) stopSelecting();
     saveCollapsed(next);
+  };
+  // Select mode: tick several places in one collection, then move them all at once.
+  const [selecting, setSelecting] = useState(null); // collection id
+  const [picked, setPicked] = useState(() => new Map()); // place id -> place
+  const [moveSheet, setMoveSheet] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const stopSelecting = () => {
+    setSelecting(null);
+    setPicked(new Map());
+    setMoveSheet(false);
+  };
+  const startSelecting = (collectionId) => {
+    setSelecting(collectionId);
+    setPicked(new Map());
+  };
+  // Only whoever added a place can move it, so the others can't be ticked.
+  const canMove = (pin) => pin.added_by === userId;
+  const togglePick = (pin) => {
+    if (!canMove(pin)) {
+      showToast?.('Only the person who added this place can move it');
+      return;
+    }
+    const next = new Map(picked);
+    if (next.has(pin.id)) next.delete(pin.id);
+    else next.set(pin.id, pin);
+    setPicked(next);
+  };
+  const tickAll = (pins) => setPicked(new Map(pins.filter(canMove).map((p) => [p.id, p])));
+  const moveTo = async (targetId) => {
+    setMoving(true);
+    const ok = await onMovePlaces?.([...picked.values()], targetId);
+    setMoving(false);
+    if (ok) stopSelecting();
+    else setMoveSheet(false);
   };
   const allCollapsed = collections.length > 0 && collections.every((c) => collapsed.has(c.id));
 
@@ -171,6 +208,10 @@ export default function HomeScreen({
           const pins = places.filter((p) => p.collection_id === collection.id);
           const members = membersOf[collection.id] ?? [];
           const isOpen = !collapsed.has(collection.id);
+          const isSelecting = selecting === collection.id;
+          const movablePins = pins.filter(canMove);
+          // "Tick all" shortcuts, only for the categories this collection has.
+          const quickTicks = categories.filter((cat) => movablePins.some((p) => p.category === cat.id));
           return (
             <div className={`collection-board ${isOpen ? '' : 'is-collapsed'}`} id={`collection-${collection.id}`} key={collection.id}>
               <button
@@ -200,8 +241,35 @@ export default function HomeScreen({
                     </button>
                   )}
 
+                  {movablePins.length > 0 && collections.length > 1 && (
+                    <div className={`select-row ${isSelecting ? 'is-on' : ''}`}>
+                      {isSelecting && (
+                        <div className="select-quick" role="group" aria-label="Tick all">
+                          <span className="select-quick-label">Tick all:</span>
+                          {quickTicks.length > 1 && quickTicks.map((cat) => (
+                            <button key={cat.id} type="button" className="select-chip" onClick={() => tickAll(pins.filter((p) => p.category === cat.id))}>
+                              {cat.icon} {cat.label}
+                            </button>
+                          ))}
+                          <button type="button" className="select-chip" onClick={() => tickAll(pins)}>Everything</button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="select-toggle"
+                        aria-pressed={isSelecting}
+                        onClick={() => (isSelecting ? stopSelecting() : startSelecting(collection.id))}
+                      >
+                        {isSelecting ? 'Cancel' : 'Select'}
+                      </button>
+                    </div>
+                  )}
+
                   <PlaceList
                     pins={pins}
+                    selecting={isSelecting}
+                    picked={picked}
+                    onToggle={togglePick}
                     members={members}
                     userId={userId}
                     onOpen={onOpenPin}
@@ -213,6 +281,37 @@ export default function HomeScreen({
             </div>
           );
         })}
+
+        {selecting && picked.size > 0 && !moveSheet && (
+          <div className="select-bar" role="region" aria-label="Selected places">
+            <span className="select-bar-count">{picked.size} selected</span>
+            <button type="button" className="select-bar-move" onClick={() => setMoveSheet(true)}>Move to…</button>
+          </div>
+        )}
+
+        {moveSheet && (
+          <div className="modal-overlay" onClick={() => !moving && setMoveSheet(false)}>
+            <div className="modal move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-sheet-title" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-title" id="move-sheet-title">
+                  Move {picked.size} {picked.size === 1 ? 'place' : 'places'} to
+                </div>
+              </div>
+              <div className="move-list">
+                {collections.filter((c) => c.id !== selecting).map((c) => (
+                  <button key={c.id} type="button" className="move-option" disabled={moving} onClick={() => moveTo(c.id)}>
+                    <span className="move-option-emoji" aria-hidden="true">{c.emoji}</span>
+                    <span className="move-option-name">{c.name}</span>
+                    <span className="move-option-count">{places.filter((p) => p.collection_id === c.id).length}</span>
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="step-btn secondary full-width" disabled={moving} onClick={() => setMoveSheet(false)}>
+                {moving ? 'Moving…' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="streak">
           {streak > 0

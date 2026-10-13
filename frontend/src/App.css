@@ -4543,3 +4543,212 @@ button.profile-open {
 .import-btn {
   margin-top: 10px;
 }
+
+/* ---------- SELECT MANY ---------- */
+.select-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: -4px 0 10px;
+}
+
+.select-quick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.select-quick::-webkit-scrollbar {
+  display: none;
+}
+
+.select-quick-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.select-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-toggle {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--ink);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-toggle[aria-pressed='true'] {
+  background: var(--butter);
+  color: #1a1a18;
+}
+
+.pin-item.selectable {
+  padding-right: 48px;
+}
+
+/* The reel can't be tapped while selecting: taps go to the card, and the embed can't swallow them. */
+.pin-item.selectable .place-thumb-link {
+  pointer-events: none;
+  position: relative;
+}
+
+.pin-item.selectable .place-thumb-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.pin-item.selected {
+  border: 2px solid var(--accent-bright);
+  background: var(--accent-softer);
+}
+
+.pin-item.selected .place-thumb-link::after {
+  background: rgba(240, 83, 45, 0.18);
+}
+
+.pin-item.selectable:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.select-tick {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-item.selected .select-tick {
+  background: var(--accent-bright);
+  color: #ffffff;
+}
+
+.select-tick svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3.4;
+}
+
+.select-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  width: calc(100% - 2 * var(--gutter));
+  max-width: 520px;
+  box-sizing: border-box;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--inverse-bg);
+  color: var(--surface);
+  animation: slideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.select-bar-count {
+  flex: 1;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.select-bar-move {
+  min-height: var(--tap);
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--ink);
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.move-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.move-option {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--ink);
+  background: var(--card);
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.move-option:disabled {
+  opacity: 0.6;
+}
+
+.move-option-emoji {
+  font-size: 22px;
+}
+
+.move-option-name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.move-option-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-bar {
+    animation: none;
+  }
+}

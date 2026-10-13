@@ -418,6 +418,30 @@ function MainApp({ userId, showToast }) {
             onOpenPin={setOpenPinId}
             onReorder={data.reorder}
             onAddPlace={openAddInCollection}
+            showToast={showToast}
+            onMovePlaces={async (pins, targetId) => {
+              const target = collections.find((c) => c.id === targetId);
+              const { moved, skipped } = await data.movePlaces(pins, targetId);
+              if (!moved.length) {
+                showToast(`Couldn't move ${pins.length === 1 ? 'it' : 'them'}. They may already be in ${target?.name ?? 'that collection'}.`);
+                return false;
+              }
+              const fromId = moved[0].collection_id;
+              const label = `${moved.length} ${moved.length === 1 ? 'place' : 'places'}`;
+              showToast(
+                `Moved ${label} to ${target?.emoji ?? ''} ${target?.name ?? 'collection'}${skipped ? ` · ${skipped} couldn't move` : ''}`,
+                {
+                  label: 'Undo',
+                  // Back where they came from: each place now sits in the target instead of the old collection.
+                  onClick: () => data.movePlaces(
+                    moved.map((p) => ({ ...p, collection_id: targetId, collectionIds: (p.collectionIds ?? []).filter((id) => id !== fromId).concat(targetId) })),
+                    fromId
+                  ),
+                },
+                5000
+              );
+              return true;
+            }}
             onCreateSample={async () => {
               if (await data.createSampleData()) showToast('Added sample places');
             }}

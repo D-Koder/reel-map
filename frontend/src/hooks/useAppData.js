@@ -457,6 +457,25 @@ export function useAppData(userId, showToast) {
           .eq('place_id', place.id)
       ),
 
+    // Moves several places at once. Each one is sent on its own, so one that can't move
+    // (added by someone else, or already in that collection) doesn't stop the rest.
+    // Returns the places that moved, as they were before the move (for Undo).
+    movePlaces: async (pins, targetCollectionId) => {
+      const movable = pins.filter((p) => p.added_by === userId && p.collection_id !== targetCollectionId && !(p.collectionIds ?? []).includes(targetCollectionId));
+      const results = await Promise.all(movable.map(async (p) => {
+        const { data, error } = await supabase
+          .from('collection_places')
+          .update({ collection_id: targetCollectionId })
+          .eq('collection_id', p.collection_id)
+          .eq('place_id', p.id)
+          .select('place_id');
+        return !error && data?.length ? p : null;
+      }));
+      await refresh();
+      const moved = results.filter(Boolean);
+      return { moved, skipped: pins.length - moved.length };
+    },
+
     deletePlace: (collectionId, placeId) =>
       run(supabase.rpc('delete_place', { p_collection_id: collectionId, p_place_id: placeId })),
 

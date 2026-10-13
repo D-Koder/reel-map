@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CircleCheck, GripVertical, MapPin } from 'lucide-react';
+import { Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
@@ -69,7 +69,8 @@ function VoteLine({ members, reactions, userId }) {
 
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
 // Four short lines beside the photo: name, place, info (cut with "…"), votes.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false }) {
+// selectable: Select mode. The whole card ticks on and off, and the reel can't be tapped.
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
@@ -88,9 +89,10 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''}`}
+      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
+      {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
       // Stops the browser's drag preview from appearing over the card.
       onDragStart={(e) => e.preventDefault()}
     >
@@ -98,7 +100,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
           type="button"
           className="place-thumb-link"
           aria-label={pin.reel_url ? `Open ${pin.name} reel` : `${pin.name} thumbnail`}
-          disabled={!pin.reel_url}
+          disabled={!pin.reel_url || selectable}
+          tabIndex={selectable ? -1 : undefined}
           onClick={(event) => {
             event.stopPropagation();
             if (pin.reel_url) window.open(pin.reel_url, '_blank', 'noopener,noreferrer');
@@ -136,6 +139,9 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-rating">{myFeeling ? `${myFeeling.emoji} ${myFeeling.label}` : 'Tap to vote'}</div>
           )}
         </div>
+      {selectable && (
+        <span className="select-tick" aria-hidden="true">{selected && <Check />}</span>
+      )}
       {handleProps && (
         <button
           type="button"
@@ -152,9 +158,11 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   );
 }
 
-export default function PlaceRow({ pin, members, userId, onOpen }) {
+export default function PlaceRow({ pin, members, userId, onOpen, selectable = false, selected = false, onToggle }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
+    // No dragging while selecting: a tap ticks the card instead.
+    disabled: selectable,
   });
   // A short buzz when the card is picked up.
   useEffect(() => {
@@ -170,19 +178,36 @@ export default function PlaceRow({ pin, members, userId, onOpen }) {
       className="place-row"
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
-      <PlaceCard
-        pin={pin}
-        members={members}
-        userId={userId}
-        dimmed={isDragging}
-        handleRef={setActivatorNodeRef}
-        handleProps={{ ...attributes, ...listeners }}
-        onClick={open}
-        onKeyDown={(e) => {
-          listeners?.onKeyDown?.(e);
-          if (e.key === 'Enter') open();
-        }}
-      />
+      {selectable ? (
+        <PlaceCard
+          pin={pin}
+          members={members}
+          userId={userId}
+          selectable
+          selected={selected}
+          onClick={onToggle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onToggle();
+            }
+          }}
+        />
+      ) : (
+        <PlaceCard
+          pin={pin}
+          members={members}
+          userId={userId}
+          dimmed={isDragging}
+          handleRef={setActivatorNodeRef}
+          handleProps={{ ...attributes, ...listeners }}
+          onClick={open}
+          onKeyDown={(e) => {
+            listeners?.onKeyDown?.(e);
+            if (e.key === 'Enter') open();
+          }}
+        />
+      )}
     </div>
   );
 }
