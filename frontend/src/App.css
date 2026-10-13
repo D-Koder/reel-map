@@ -4752,3 +4752,34 @@ button.profile-open {
     animation: none;
   }
 }
+
+.move-new {
+  justify-content: center;
+  border-style: dashed;
+  box-shadow: none;
+  background: transparent;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.move-new-form {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.move-new-emoji {
+  width: 56px;
+  flex: 0 0 56px;
+  text-align: center;
+}
+
+.move-new-name {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.move-new-go {
+  flex: 1 1 100%;
+}

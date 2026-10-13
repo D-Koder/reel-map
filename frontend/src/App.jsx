@@ -419,8 +419,9 @@ function MainApp({ userId, showToast }) {
             onReorder={data.reorder}
             onAddPlace={openAddInCollection}
             showToast={showToast}
-            onMovePlaces={async (pins, targetId) => {
-              const target = collections.find((c) => c.id === targetId);
+            onCreateCollection={(name, emoji) => data.createCollection(name, emoji)}
+            onMovePlaces={async (pins, targetId, newCollection) => {
+              const target = collections.find((c) => c.id === targetId) ?? newCollection;
               const { moved, skipped } = await data.movePlaces(pins, targetId);
               if (!moved.length) {
                 showToast(`Couldn't move ${pins.length === 1 ? 'it' : 'them'}. They may already be in ${target?.name ?? 'that collection'}.`);

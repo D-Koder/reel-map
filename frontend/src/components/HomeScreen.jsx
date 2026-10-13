@@ -105,6 +105,7 @@ export default function HomeScreen({
   onOpenSettings,
   onAddPlace,
   onMovePlaces,
+  onCreateCollection,
   showToast,
   banner = null,
 }) {
@@ -132,10 +133,14 @@ export default function HomeScreen({
   const [picked, setPicked] = useState(() => new Map()); // place id -> place
   const [moveSheet, setMoveSheet] = useState(false);
   const [moving, setMoving] = useState(false);
+  // "+ New collection" in the Move sheet: make one and move the ticked places straight into it.
+  const [newName, setNewName] = useState(null); // null = form closed
+  const [newEmoji, setNewEmoji] = useState('');
   const stopSelecting = () => {
     setSelecting(null);
     setPicked(new Map());
     setMoveSheet(false);
+    setNewName(null);
   };
   const startSelecting = (collectionId) => {
     setSelecting(collectionId);
@@ -154,12 +159,28 @@ export default function HomeScreen({
     setPicked(next);
   };
   const tickAll = (pins) => setPicked(new Map(pins.filter(canMove).map((p) => [p.id, p])));
-  const moveTo = async (targetId) => {
+  // newCollection: name and emoji of a collection made just now, which isn't in the list yet.
+  const moveTo = async (targetId, newCollection) => {
     setMoving(true);
-    const ok = await onMovePlaces?.([...picked.values()], targetId);
+    const ok = await onMovePlaces?.([...picked.values()], targetId, newCollection);
     setMoving(false);
     if (ok) stopSelecting();
     else setMoveSheet(false);
+  };
+  const createAndMove = async (event) => {
+    event.preventDefault();
+    const name = newName?.trim();
+    if (!name || moving) return;
+    setMoving(true);
+    const emoji = newEmoji.trim() || '📌';
+    const id = await onCreateCollection?.(name, emoji);
+    setMoving(false);
+    if (id) await moveTo(id, { name, emoji });
+  };
+  const closeMoveSheet = () => {
+    if (moving) return;
+    setMoveSheet(false);
+    setNewName(null);
   };
   const allCollapsed = collections.length > 0 && collections.every((c) => collapsed.has(c.id));
 
@@ -290,7 +311,7 @@ export default function HomeScreen({
         )}
 
         {moveSheet && (
-          <div className="modal-overlay" onClick={() => !moving && setMoveSheet(false)}>
+          <div className="modal-overlay" onClick={closeMoveSheet}>
             <div className="modal move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-sheet-title" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div className="modal-title" id="move-sheet-title">
@@ -305,8 +326,36 @@ export default function HomeScreen({
                     <span className="move-option-count">{places.filter((p) => p.collection_id === c.id).length}</span>
                   </button>
                 ))}
+                {newName === null ? (
+                  <button type="button" className="move-option move-new" disabled={moving} onClick={() => { setNewName(''); setNewEmoji(''); }}>
+                    <Plus className="ico" aria-hidden="true" /> New collection
+                  </button>
+                ) : (
+                  <form className="move-new-form" onSubmit={createAndMove}>
+                    <input
+                      className="step-input move-new-emoji"
+                      value={newEmoji}
+                      onChange={(e) => setNewEmoji(e.target.value)}
+                      placeholder="📌"
+                      maxLength={16}
+                      aria-label="Emoji (optional)"
+                    />
+                    <input
+                      className="step-input move-new-name"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="Collection name"
+                      maxLength={60}
+                      aria-label="New collection name"
+                      autoFocus
+                    />
+                    <button type="submit" className="step-btn primary move-new-go" disabled={moving || !newName.trim()}>
+                      Make &amp; move
+                    </button>
+                  </form>
+                )}
               </div>
-              <button type="button" className="step-btn secondary full-width" disabled={moving} onClick={() => setMoveSheet(false)}>
+              <button type="button" className="step-btn secondary full-width" disabled={moving} onClick={closeMoveSheet}>
                 {moving ? 'Moving…' : 'Cancel'}
               </button>
             </div>
