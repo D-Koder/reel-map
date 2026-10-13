@@ -1,10 +1,10 @@
 // Planning: the place card's details and buttons, nudging, booking with the checklist, the calendar
 // file, marking done (🎉), and tidying up: Undo, Select → Move, and drag to reorder.
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, ok, shareWith, signIn, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasTestProject, ok, shareWith, signIn, unique } from '../db/helpers.js';
 import { blockRealWorld, board, logIn, newCollection, toast } from './helpers.js';
 
-test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.skip(!hasTestProject, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_SUPABASE_SERVICE_ROLE_KEY');
 test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;

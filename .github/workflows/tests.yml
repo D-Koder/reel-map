@@ -34,7 +34,6 @@ jobs:
       # Set these in Settings → Secrets and variables → Actions. All from the TEST project.
       TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
       TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
-      TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
       TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
       # The app the browser tests build talks to the same TEST project.
       VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
@@ -62,8 +61,8 @@ jobs:
           choice: ${{ github.event.inputs.layers }}
         run: |
           layers="unit"
-          if [ -n "$TEST_SUPABASE_URL" ] && [ "$choice" != "quick checks only" ]; then layers="$layers db"; fi
-          if [ -n "$TEST_SUPABASE_URL" ] && { [ "$GITHUB_REF" = "refs/heads/testing" ] && [ "$GITHUB_EVENT_NAME" = "push" ] || [ "$choice" = "everything" ]; }; then layers="$layers e2e"; fi
+          if [ -n "$TEST_SUPABASE_SERVICE_ROLE_KEY" ] && [ "$choice" != "quick checks only" ]; then layers="$layers db"; fi
+          if [ -n "$TEST_SUPABASE_SERVICE_ROLE_KEY" ] && { [ "$GITHUB_REF" = "refs/heads/testing" ] && [ "$GITHUB_EVENT_NAME" = "push" ] || [ "$choice" = "everything" ]; }; then layers="$layers e2e"; fi
           echo "layers=$layers" >> "$GITHUB_OUTPUT"
           echo "Running: $layers"
 

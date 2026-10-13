@@ -8,5 +8,7 @@ export default defineConfig({
     // The database tests share two real accounts, so they run one file at a time.
     fileParallelism: false,
     testTimeout: 30000,
+    // Makes the database tests' two throwaway accounts, and deletes them after.
+    globalSetup: ['tests/setup/accounts.js'],
   },
 });

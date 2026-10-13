@@ -1,10 +1,10 @@
 // Two phones at once: Test One shares a collection and Test Two joins, gets alerts, is removed,
 // rejoins by link, and is locked out. Then Settings: import/export, avatar photo, collection order.
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, memberIds, ok, signIn, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasTestProject, memberIds, ok, signIn, unique } from '../db/helpers.js';
 import { blockRealWorld, board, logIn, newCollection, openSettings, secondPhone, settingsRow, toast } from './helpers.js';
 
-test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.skip(!hasTestProject, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_SUPABASE_SERVICE_ROLE_KEY');
 test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;

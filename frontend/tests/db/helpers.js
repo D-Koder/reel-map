@@ -1,9 +1,8 @@
 // Shared set-up for the database tests. They run against the TEST Supabase project only,
-// signed in as the two test accounts made by supabase/scripts/create-test-accounts.mjs.
+// signed in as two throwaway accounts each run makes for itself (tests/setup/accounts.js).
 //
 // Needs (in frontend/.env.test.local or the shell, never committed):
-//   TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY, TEST_ACCOUNT_PASSWORD
-//   TEST_SUPABASE_SERVICE_ROLE_KEY  (only for the account create/delete test)
+//   TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY, TEST_SUPABASE_SERVICE_ROLE_KEY
 // Without them every database test is skipped.
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -30,16 +29,22 @@ export const env = {
   url: process.env.TEST_SUPABASE_URL,
   anonKey: process.env.TEST_SUPABASE_ANON_KEY,
   serviceKey: process.env.TEST_SUPABASE_SERVICE_ROLE_KEY,
-  password: process.env.TEST_ACCOUNT_PASSWORD,
+  // Made up fresh by each run, with the accounts.
+  get password() { return process.env.TEST_RUN_PASSWORD; },
   mapbox: process.env.VITE_MAPBOX_TOKEN,
 };
 
-export const hasDb = Boolean(env.url && env.anonKey && env.password);
-if (hasDb && env.url.includes(LIVE_PROJECT_REF)) {
+export const hasTestProject = Boolean(env.url && env.anonKey && env.serviceKey);
+if (hasTestProject && env.url.includes(LIVE_PROJECT_REF)) {
   throw new Error(`TEST_SUPABASE_URL points at the live project (${LIVE_PROJECT_REF}). Use the test project.`);
 }
 
-export const ACCOUNTS = { one: 'test01@gmail.com', two: 'test02@gmail.com' };
+// This run's two accounts ("Test One" and "Test Two"), made before the tests start.
+export const ACCOUNTS = {
+  get one() { return process.env.TEST_RUN_ONE; },
+  get two() { return process.env.TEST_RUN_TWO; },
+};
+export const hasDb = Boolean(hasTestProject && ACCOUNTS.one);
 
 const newClient = (key = env.anonKey) => createClient(env.url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 

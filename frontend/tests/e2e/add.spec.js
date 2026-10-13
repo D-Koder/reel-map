@@ -1,12 +1,12 @@
 // Adding places: manual + Verify + a new collection, a reel with several Google matches,
 // and every duplicate warning (pill, adding, copying).
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, signIn, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasTestProject, signIn, unique } from '../db/helpers.js';
 import {
   blockRealWorld, board, fakeGoogleMaps, fakeReelLookup, googleDetails, googlePlace, logIn, nav, newCollection, toast,
 } from './helpers.js';
 
-test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.skip(!hasTestProject, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_SUPABASE_SERVICE_ROLE_KEY');
 test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;

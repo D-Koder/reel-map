@@ -13,7 +13,7 @@
 
 ## 📱 Run them from your phone (GitHub Actions)
 1. **One time:** GitHub → repo → Settings → Secrets and variables → Actions → **New repository secret**. Add, all from the **TEST** project:
-   `TEST_SUPABASE_URL`, `TEST_SUPABASE_ANON_KEY`, `TEST_SUPABASE_SERVICE_ROLE_KEY`, `TEST_ACCOUNT_PASSWORD`, `TEST_MAPBOX_TOKEN`.
+   `TEST_SUPABASE_URL`, `TEST_SUPABASE_ANON_KEY`, `TEST_SUPABASE_SERVICE_ROLE_KEY`, `TEST_MAPBOX_TOKEN`.
 2. Every push to the `testing` branch runs everything. To run again without a push: GitHub app → repo → **Actions** →
    **Tests** → open the latest `testing` run → **Re-run all jobs**. (Once this is on `main`, **Run workflow** works too.)
 3. When it finishes, open the run → **Summary**: the results are right there. `TEST-RESULTS.md` is also saved to the branch,
@@ -29,16 +29,16 @@ Pushes to other branches run the quick checks (and the database tests once the s
 
 ## One-time setup
 1. Repo root: `PUPPETEER_SKIP_DOWNLOAD=1 npm ci` (for `test:live`, plain `npm ci` so Chrome is downloaded).
-2. Rebuild the TEST project: `bash supabase/scripts/reset-test-project.sh` (makes test01 / test02).
-3. `cp frontend/.env.test.example frontend/.env.test.local` and fill it in. Add `TEST_SUPABASE_SERVICE_ROLE_KEY`
-   for the sign-up, delete-account and password-reset journeys.
+2. Rebuild the TEST project: `bash supabase/scripts/reset-test-project.sh` (builds the tables).
+3. `cp frontend/.env.test.example frontend/.env.test.local` and fill in the URL, anon key and service role key.
+   No accounts needed: **each run makes two throwaway accounts** ("Test One" and "Test Two", made-up
+   @example.com emails, random password) and deletes them at the end.
 4. Browser tests: `frontend/.env.local` must point at the **TEST** project, with `VITE_MAPBOX_TOKEN`.
    Add `http://localhost:5173` to Supabase → Auth → Redirect URLs (password reset journey).
 5. Browser tests run on a real build (`vite build && vite preview`) so offline mode works like on a phone.
 
-**Safety:** the tests refuse the live project. They never call, text, email or book anyone for real: phone and email links are blocked, pop-ups (booking sites, reels) never open, the test phone number is one reserved for fiction, and "Save booking" only writes to the TEST database. The only emails sent go to made-up @example.com addresses. Everything they make is named `t-…` and deleted after; places
-they put in TBD are removed. Deleted accounts are always throwaway ones. The Shortcut journeys reset
-test01's Shortcut key.
+**Safety:** the tests refuse the live project. They never call, text, email or book anyone for real: phone and email links are blocked, pop-ups (booking sites, reels) never open, the test phone number is one reserved for fiction, and "Save booking" only writes to the TEST database. The only emails sent go to made-up @example.com addresses. Everything they make is named `t-…` and deleted after,
+and every account they use is a throwaway one made for that run.
 
 ## 🐞 Known problems the tests are expected to catch
 | Test | Problem |

@@ -3,9 +3,9 @@
 // and deletes them after. The reel lookup (/api/enrich-reel) is faked, so no Instagram or Google.
 import { expect, test } from '@playwright/test';
 import { blockRealWorld } from './helpers.js';
-import { ACCOUNTS, addPlace, admin, cleanUp, entriesIn, env, hasDb, ok, shareWith, signIn, tempUser, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, admin, cleanUp, entriesIn, env, hasTestProject, ok, shareWith, signIn, tempUser, unique } from '../db/helpers.js';
 
-test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.skip(!hasTestProject, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_SUPABASE_SERVICE_ROLE_KEY');
 test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;

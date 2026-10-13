@@ -4,6 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 // frontend/.env.local must point at the TEST Supabase project and have VITE_MAPBOX_TOKEN.
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Makes this run's two throwaway accounts, and deletes them after.
+  globalSetup: './tests/setup/playwright-accounts.js',
   timeout: 60000,
   workers: 1,
   retries: 0,

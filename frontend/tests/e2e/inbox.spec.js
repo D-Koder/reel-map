@@ -1,10 +1,10 @@
 // Reels that arrive from outside the app (share sheet, iPhone Shortcut, offline), the Friday pick card
 // and notification tap, and a walk past a place I'm keen on (nearby alert).
 import { expect, test } from '@playwright/test';
-import { ACCOUNTS, addPlace, anonClient, cleanUp, entriesIn, hasDb, ok, signIn, unique } from '../db/helpers.js';
+import { ACCOUNTS, addPlace, anonClient, cleanUp, entriesIn, hasTestProject, ok, signIn, unique } from '../db/helpers.js';
 import { blockRealWorld, fakeReelLookup, googleDetails, googlePlace, logIn, newCollection, toast } from './helpers.js';
 
-test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.skip(!hasTestProject, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_SUPABASE_SERVICE_ROLE_KEY');
 test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
