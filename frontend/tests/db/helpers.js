@@ -130,13 +130,29 @@ export async function entriesIn(client, collectionId) {
 
 // One step of a journey. A failure names the step, e.g. "[3. move to Later] new row violates…",
 // so a long test still says exactly where it broke.
+// Each step is also noted on the test, for TEST-RESULTS.md.
 export async function step(name, fn) {
+  const steps = await currentSteps();
+  const started = Date.now();
   try {
-    return await fn();
+    const result = await fn();
+    steps?.push({ title: name, ok: true, ms: Date.now() - started });
+    return result;
   } catch (error) {
+    steps?.push({ title: name, ok: false, ms: Date.now() - started, error: error.message });
     error.message = `[${name}] ${error.message}`;
     throw error;
   }
+}
+
+// The running Vitest test's step list (none when Playwright imports this file).
+async function currentSteps() {
+  if (!process.env.VITEST) return null;
+  const { getCurrentTest } = await import('vitest/suite');
+  const test = getCurrentTest();
+  if (!test) return null;
+  test.meta.steps ??= [];
+  return test.meta.steps;
 }
 
 // Signed out: what anyone on the internet gets with the public key.

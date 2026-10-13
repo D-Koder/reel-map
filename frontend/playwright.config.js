@@ -7,7 +7,8 @@ export default defineConfig({
   timeout: 60000,
   workers: 1,
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // test-reports/e2e.json feeds TEST-RESULTS.md (scripts/test-report.mjs).
+  reporter: [['list'], ['html', { open: 'never' }], ['json', { outputFile: 'test-reports/e2e.json' }]],
   use: {
     baseURL: 'http://localhost:5173',
     ...devices['iPhone 13'],

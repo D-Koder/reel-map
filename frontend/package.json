@@ -7,12 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run tests/unit",
+    "test": "node scripts/run-tests.mjs unit",
     "test:watch": "vitest tests/unit",
-    "test:db": "vitest run tests/db",
-    "test:e2e": "playwright test",
-    "test:all": "npm run test && npm run test:db && npm run test:e2e",
-    "test:live": "vitest run tests/live"
+    "test:db": "node scripts/run-tests.mjs db",
+    "test:e2e": "node scripts/run-tests.mjs e2e",
+    "test:all": "node scripts/run-tests.mjs unit db e2e",
+    "test:live": "vitest run tests/live",
+    "test:report": "node scripts/test-report.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
