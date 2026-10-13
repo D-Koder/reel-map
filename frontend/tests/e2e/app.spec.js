@@ -2,9 +2,11 @@
 // app, then checks the database to make sure the change really saved. Seeds its own collections first
 // and deletes them after. The reel lookup (/api/enrich-reel) is faked, so no Instagram or Google.
 import { expect, test } from '@playwright/test';
+import { blockRealWorld } from './helpers.js';
 import { ACCOUNTS, addPlace, admin, cleanUp, entriesIn, env, hasDb, ok, shareWith, signIn, tempUser, unique } from '../db/helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
 let two;
@@ -287,7 +289,8 @@ test('Sign up and forgot password screens', async ({ page }) => {
     await page.goto('/');
     if (await page.getByRole('button', { name: 'Settings' }).isVisible()) return; // Signed straight in.
     await page.getByRole('button', { name: 'Forgot password?' }).click();
-    await page.getByLabel('Email').fill(ACCOUNTS.two);
+    // A made-up address: no real inbox gets an email.
+    await page.getByLabel('Email').fill(`${unique('nobody')}@example.com`);
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.locator('.auth-message')).toHaveText(sent);
   });

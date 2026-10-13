@@ -7,6 +7,7 @@ import {
 } from './helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
 let main;
@@ -37,7 +38,7 @@ const chooseCollection = (page, id) => page.locator('label.field', { hasText: 'C
 test('manual add → Verify picks from Google → into a brand-new collection', async ({ page }) => {
   const first = googlePlace(unique('Verify Cafe'), -37.7901, 144.9801);
   const second = googlePlace(unique('Verify Cafe Two'), -37.7902, 144.9802);
-  await fakeGoogleMaps(page, { candidates: [first, second], details: { [second.url]: googleDetails(second, -37.7902, 144.9802, { phone: '+61 3 9000 0000' }) } });
+  await fakeGoogleMaps(page, { candidates: [first, second], details: { [second.url]: googleDetails(second, -37.7902, 144.9802, { phone: '+61 3 5550 0124' }) } });
   const newName = unique('Made in sheet');
   const typed = unique('Typed name');
 

@@ -2,9 +2,10 @@
 // rejoins by link, and is locked out. Then Settings: import/export, avatar photo, collection order.
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, memberIds, ok, signIn, unique } from '../db/helpers.js';
-import { board, logIn, newCollection, openSettings, secondPhone, settingsRow, toast } from './helpers.js';
+import { blockRealWorld, board, logIn, newCollection, openSettings, secondPhone, settingsRow, toast } from './helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
 let two;
@@ -23,6 +24,7 @@ test('share → join by code → alerts → kick → rejoin by link → lock →
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   const phone2 = await secondPhone(browser);
   const page2 = phone2.page;
+  await blockRealWorld(page2);
   const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
   let code;
   let link;

@@ -2,9 +2,10 @@
 // file, marking done (🎉), and tidying up: Undo, Select → Move, and drag to reorder.
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, addPlace, cleanUp, entriesIn, hasDb, ok, shareWith, signIn, unique } from '../db/helpers.js';
-import { board, logIn, newCollection, toast } from './helpers.js';
+import { blockRealWorld, board, logIn, newCollection, toast } from './helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
 let two;
@@ -22,7 +23,8 @@ test.beforeAll(async () => {
   tidy = await newCollection(one, 'e2e-tidy', '🧹');
   target = await newCollection(one, 'e2e-target', '🎯');
   ids.bistro = await addPlace(one.client, plan.id, {
-    name: names.bistro, phone: '+61 3 9000 0000', bookingUrl: 'https://www.opentable.com.au/r/plan-bistro', hours: allDay,
+    name: names.bistro, // A number reserved for fiction (ACMA 03 5550 0xxx) and a link that goes nowhere.
+    phone: '+61 3 5550 0123', bookingUrl: 'https://example.com/reserve/plan-bistro', hours: allDay,
   });
   ids.diner = await addPlace(one.client, plan.id, { name: names.diner, lat: -37.83, lng: 144.97 });
   // Booked two hours ago, so "Mark as Done" is open (it unlocks an hour after the booking).
@@ -44,9 +46,10 @@ test('plan a date: open now → call / reserve → nudge → book → calendar f
     await board(page, plan.id).getByText(names.bistro).click();
     await expect(modal).toContainText('Open 24 hours');
   });
+  // Only checks where the links point. Nothing is ever tapped.
   await test.step('Call and Reserve links are right', async () => {
-    await expect(modal.getByRole('link', { name: /Call/ })).toHaveAttribute('href', 'tel:+61390000000');
-    await expect(modal.getByRole('link', { name: /Reserve a table/ })).toHaveAttribute('href', 'https://www.opentable.com.au/r/plan-bistro');
+    await expect(modal.getByRole('link', { name: /Call/ })).toHaveAttribute('href', 'tel:+61355500123');
+    await expect(modal.getByRole('link', { name: /Reserve a table/ })).toHaveAttribute('href', 'https://example.com/reserve/plan-bistro');
   });
   await test.step('Nudge Test Two: the message is copied', async () => {
     await modal.getByRole('button', { name: /Nudge/ }).click();

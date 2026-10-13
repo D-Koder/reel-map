@@ -61,3 +61,15 @@ export const googlePlace = (name, lat, lng) => ({
 export const googleDetails = (place, lat, lng, extra = {}) => ({
   name: place.name, address: place.address, latitude: lat, longitude: lng, mapsUrl: place.url, source: 'google_maps', ...extra,
 });
+
+// Safety net for every browser test: nothing leaves the test. Pop-ups (booking sites, reels, Maps)
+// don't open, and phone, text and email links do nothing, even if a test taps one by mistake.
+export async function blockRealWorld(page) {
+  await page.addInitScript(() => {
+    window.open = () => null;
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest?.('a[href]');
+      if (link && /^(tel|sms|mailto):/i.test(link.getAttribute('href'))) event.preventDefault();
+    }, true);
+  });
+}

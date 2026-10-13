@@ -2,9 +2,10 @@
 // and notification tap, and a walk past a place I'm keen on (nearby alert).
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS, addPlace, anonClient, cleanUp, entriesIn, hasDb, ok, signIn, unique } from '../db/helpers.js';
-import { fakeReelLookup, googleDetails, googlePlace, logIn, newCollection, toast } from './helpers.js';
+import { blockRealWorld, fakeReelLookup, googleDetails, googlePlace, logIn, newCollection, toast } from './helpers.js';
 
 test.skip(!hasDb, 'Set TEST_SUPABASE_URL, TEST_SUPABASE_ANON_KEY and TEST_ACCOUNT_PASSWORD');
+test.beforeEach(({ page }) => blockRealWorld(page));
 
 let one;
 let inboxId;

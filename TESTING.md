@@ -24,7 +24,7 @@
    Add `http://localhost:5173` to Supabase → Auth → Redirect URLs (password reset journey).
 5. Browser tests run on a real build (`vite build && vite preview`) so offline mode works like on a phone.
 
-**Safety:** the tests refuse the live project. Everything they make is named `t-…` and deleted after; places
+**Safety:** the tests refuse the live project. They never call, text, email or book anyone for real: phone and email links are blocked, pop-ups (booking sites, reels) never open, the test phone number is one reserved for fiction, and "Save booking" only writes to the TEST database. The only emails sent go to made-up @example.com addresses. Everything they make is named `t-…` and deleted after; places
 they put in TBD are removed. Deleted accounts are always throwaway ones. The Shortcut journeys reset
 test01's Shortcut key.
 
