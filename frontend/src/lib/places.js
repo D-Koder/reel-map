@@ -107,7 +107,9 @@ export function captionVenue(caption) {
   const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷]+)/gu)]
     .map(([, pin, text]) => ({
       pin,
-      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '').trim(),
+      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
+        // A pin mid-sentence ("my new quest to 📍Frenchie. all I can say…") ends at the sentence's end.
+        .split(/[.!?](?:\s|$)/)[0].trim(),
     }))
     .filter(({ text }) => text && !text.endsWith(':'));
   return (found.find(({ pin }) => pin === '📍') ?? found[0])?.text ?? '';
