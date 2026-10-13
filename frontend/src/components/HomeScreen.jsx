@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarCheck, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import MapBanner from './MapBanner';
 import { formatDateTime } from '../lib/constants';
@@ -7,6 +7,8 @@ import { readJSON, writeJSON } from '../lib/storage';
 
 // Set after the first reorder, so the hint stops showing on this device.
 const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
+// Collections closed on Home (ids), so Home opens the way it was left on this device.
+const COLLAPSED_KEY = 'reelmap:collapsed-collections';
 
 const MONTHS_AHEAD = 3;
 
@@ -111,6 +113,18 @@ export default function HomeScreen({
     setReorderLearned(true);
   };
   const [reorderLearned, setReorderLearned] = useState(() => readJSON(REORDER_LEARNED_KEY, false));
+  const [collapsed, setCollapsed] = useState(() => new Set(readJSON(COLLAPSED_KEY, [])));
+  const saveCollapsed = (next) => {
+    setCollapsed(next);
+    writeJSON(COLLAPSED_KEY, [...next]);
+  };
+  const toggleCollapsed = (id) => {
+    const next = new Set(collapsed);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    saveCollapsed(next);
+  };
+  const allCollapsed = collections.length > 0 && collections.every((c) => collapsed.has(c.id));
 
   if (collections.length === 0) {
     return (
@@ -141,37 +155,61 @@ export default function HomeScreen({
           <div className="reorder-hint">Tip: drag <GripVertical className="ico" aria-hidden="true" /> to move a place</div>
         )}
 
+        {collections.length > 1 && (
+          <div className="collapse-all-row">
+            <button
+              type="button"
+              className="collapse-all"
+              onClick={() => saveCollapsed(allCollapsed ? new Set() : new Set(collections.map((c) => c.id)))}
+            >
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          </div>
+        )}
+
         {collections.map((collection) => {
           const pins = places.filter((p) => p.collection_id === collection.id);
           const members = membersOf[collection.id] ?? [];
+          const isOpen = !collapsed.has(collection.id);
           return (
-            <div className="collection-board" id={`collection-${collection.id}`} key={collection.id}>
-              <div className="collection-header">
-                <div className="collection-title">
+            <div className={`collection-board ${isOpen ? '' : 'is-collapsed'}`} id={`collection-${collection.id}`} key={collection.id}>
+              <button
+                type="button"
+                className="collection-header collection-toggle"
+                aria-expanded={isOpen}
+                aria-controls={`collection-body-${collection.id}`}
+                onClick={() => toggleCollapsed(collection.id)}
+              >
+                <span className="collection-title">
                   {collection.emoji} {collection.name}
                   {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
                   {collection.isInbox && <span className="collection-subtext">Shared reels land here</span>}
-                </div>
-                <div className="collection-count">
+                </span>
+                <span className="collection-count">
                   {members.length > 1 && <><Users className="ico" aria-hidden="true" /> {members.length} · </>}
                   {pins.length} {pins.length === 1 ? 'place' : 'places'}
+                </span>
+                <ChevronDown className="collection-chevron" aria-hidden="true" />
+              </button>
+
+              {isOpen && (
+                <div id={`collection-body-${collection.id}`} className="collection-body">
+                  {pins.length === 0 && (
+                    <button type="button" className="collection-empty" onClick={() => onAddPlace(collection.id)}>
+                      No places yet — tap <Plus className="ico" aria-hidden="true" /> to add one.
+                    </button>
+                  )}
+
+                  <PlaceList
+                    pins={pins}
+                    members={members}
+                    userId={userId}
+                    onOpen={onOpenPin}
+                    onReorder={(ids) => onReorder(ids, collection.id)}
+                    onReordered={markReorderLearned}
+                  />
                 </div>
-              </div>
-
-              {pins.length === 0 && (
-                <button type="button" className="collection-empty" onClick={() => onAddPlace(collection.id)}>
-                  No places yet — tap <Plus className="ico" aria-hidden="true" /> to add one.
-                </button>
               )}
-
-              <PlaceList
-                pins={pins}
-                members={members}
-                userId={userId}
-                onOpen={onOpenPin}
-                onReorder={(ids) => onReorder(ids, collection.id)}
-                onReordered={markReorderLearned}
-              />
             </div>
           );
         })}

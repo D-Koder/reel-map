@@ -126,7 +126,7 @@ export function coordsFromMapsUrl(url) {
 function guessCategory(value, name, note) {
   const given = String(value || '').trim().toLowerCase();
   if (CATEGORIES.has(given)) return given;
-  if (/\b(cafe|café|coffee|bakery|brunch|tea)\b/i.test(`${name} ${note}`)) return 'cafe';
+  if (/\b(cafe|café|coffee|espresso|bakery|brunch|tea|croissant\w*|patisserie|dessert)\b/i.test(`${name} ${note}`)) return 'cafe';
   if (/\b(event|festival|market|gig|concert|show|exhibition)\b/i.test(`${name} ${note}`)) return 'event';
   return 'food';
 }
@@ -143,9 +143,9 @@ function cleanUrl(value) {
 
 // One place in the shape addPlace understands, from a row of either format. Null when it has no name.
 function toImportPlace(raw) {
-  const name = cleanText(raw.name, 120);
+  const name = cleanText(raw.name, 80);
   if (!name) return null;
-  const note = cleanText(raw.note, 500);
+  const note = cleanText(raw.note, 120);
   const mapsUrl = cleanUrl(raw.maps_url);
   const lat = Number.isFinite(Number(raw.lat)) && raw.lat !== null && raw.lat !== '' ? Number(raw.lat) : null;
   const lng = Number.isFinite(Number(raw.lng)) && raw.lng !== null && raw.lng !== '' ? Number(raw.lng) : null;
@@ -212,7 +212,7 @@ function readJSONFile(text) {
     throw new Error("This isn't a Reel Map file.");
   }
   if (data?.kind !== FILE_KIND || !Array.isArray(data.places)) throw new Error("This isn't a Reel Map file.");
-  return { name: data.collection?.name || 'Imported places', emoji: data.collection?.emoji || null, places: data.places };
+  return { name: data.collection?.name || 'Imported places', emoji: cleanText(data.collection?.emoji, 16), places: data.places };
 }
 
 // Reads an export file (or a Google Maps list) into { name, emoji, places, skipped, cut }.

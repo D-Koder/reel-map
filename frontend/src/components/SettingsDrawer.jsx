@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, User, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
+import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 
 // On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
 function FridayPickToggle({ userId }) {
@@ -293,6 +294,110 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
   );
 }
 
+// Join someone's collection with the code (or link) they sent.
+function JoinCollection({ onJoin, showToast }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!code.trim() || busy) return;
+    setBusy(true);
+    setResult(null);
+    const outcome = await onJoin(code.trim());
+    setBusy(false);
+    if (outcome.error) {
+      setResult({ error: outcome.error });
+      return;
+    }
+    setCode('');
+    const name = outcome.name ? `"${outcome.name}"` : 'the collection';
+    const text = outcome.joined ? `You joined ${name}` : `You're already in ${name}`;
+    setResult({ text });
+    showToast(text);
+  };
+
+  return (
+    <div className="settings-section">
+      <div className="settings-section-title"><UserPlus className="ico" aria-hidden="true" /> Join a collection</div>
+      <form className="join-form" onSubmit={submit}>
+        <label className="join-label" htmlFor="join-code">Enter the code a friend sent you</label>
+        <div className="join-row">
+          <input
+            id="join-code"
+            className="step-input join-input"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="K7Q2-XPMA"
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={200}
+          />
+          <button type="submit" className="step-btn primary" disabled={busy || !code.trim()}>
+            {busy ? <span className="spinner" aria-hidden="true" /> : 'Join'}
+          </button>
+        </div>
+        {result?.text && <div className="join-result" role="status"><CircleCheck className="ico" aria-hidden="true" /> {result.text}</div>}
+        {result?.error && <div className="join-result is-error" role="alert">{result.error}</div>}
+        <p className="toggle-hint">Or just open the invite link they sent.</p>
+      </form>
+    </div>
+  );
+}
+
+// Makes a new collection from a Reel Map file, a Google Maps saved list or any spreadsheet with a name column.
+function ImportCollection({ onImport, showToast }) {
+  const inputRef = React.useRef(null);
+  const [progress, setProgress] = useState(null);
+
+  const pick = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('That file is too big (2 MB max)');
+      return;
+    }
+    let parsed;
+    try {
+      parsed = readCollectionFile(await file.text(), file.name);
+    } catch (error) {
+      showToast(error.message);
+      return;
+    }
+    if (!parsed.places.length) {
+      showToast('No places found in that file');
+      return;
+    }
+    const extra = parsed.cut ? ` (only the first ${IMPORT_LIMIT})` : '';
+    if (!window.confirm(`Import ${parsed.places.length} places${extra} into a new collection called "${parsed.name}"?`)) return;
+    setProgress({ done: 0, total: parsed.places.length });
+    const outcome = await onImport(parsed, (done, total) => setProgress({ done, total }));
+    setProgress(null);
+    if (!outcome) return;
+    const noPin = parsed.places.filter((p) => p.lat == null).length;
+    showToast(
+      `Imported ${outcome.added} places into "${parsed.name}"`
+      + (outcome.failed ? `, ${outcome.failed} failed` : '')
+      + (noPin ? `. ${noPin} have no map pin yet` : '')
+    );
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept=".json,.csv,application/json,text/csv" hidden onChange={pick} />
+      <button type="button" className="step-btn secondary full-width import-btn" disabled={Boolean(progress)} onClick={() => inputRef.current?.click()}>
+        {progress
+          ? <><span className="spinner" aria-hidden="true" />Importing {progress.done} of {progress.total}…</>
+          : <><Upload className="ico" aria-hidden="true" /> Import a collection</>}
+      </button>
+      <p className="toggle-hint">A Reel Map file (.json), a Google Maps saved list (.csv from Google Takeout), or a spreadsheet with a Name column.</p>
+    </>
+  );
+}
+
 function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteClick }) {
   const [editMode, setEditMode] = useState(false);
   // Closing Settings closes Edit profile too.
@@ -510,6 +615,8 @@ export default function SettingsDrawer({
   nearAlerts = false,
   onToggleNearAlerts,
   onReorderCollections,
+  onJoinWithCode,
+  onImportCollection,
 }) {
   const [newName, setNewName] = useState('');
   const inboxId = findInboxCollection(collections)?.id;
@@ -581,6 +688,8 @@ export default function SettingsDrawer({
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
 
+          {onJoinWithCode && <JoinCollection onJoin={onJoinWithCode} showToast={showToast} />}
+
           <div className="settings-section">
             <div className="settings-section-title"><Folder className="ico" aria-hidden="true" /> Collections</div>
             {collections.map((c, index) => (
@@ -615,6 +724,7 @@ export default function SettingsDrawer({
                 + New Collection
               </button>
             </form>
+            {onImportCollection && <ImportCollection onImport={onImportCollection} showToast={showToast} />}
           </div>
         </div>
       </div>

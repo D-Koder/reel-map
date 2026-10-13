@@ -364,6 +364,51 @@ export function useAppData(userId, showToast) {
       return { id: placeId };
     },
 
+    // Makes a new collection from an imported file (see lib/collectionFile.js) and adds its places
+    // one at a time. onProgress(done, total) runs after each. Returns { collectionId, added, failed } or null.
+    importCollection: async ({ name, emoji, places: rows }, onProgress) => {
+      const { data: collectionId, error } = await supabase.rpc('create_collection', { p_name: name, p_emoji: emoji || '📥' });
+      if (error || !collectionId) {
+        showToast(error ? friendlyError(error) : "Couldn't make the collection");
+        return null;
+      }
+      let added = 0;
+      let failed = 0;
+      for (const [index, row] of rows.entries()) {
+        const { data: placeId, error: placeError } = await supabase.rpc('add_place_to_collection', {
+          p_collection_id: collectionId,
+          p_name: row.name,
+          p_category: row.category,
+          p_lat: row.lat,
+          p_lng: row.lng,
+          p_address: row.address,
+          p_hours: row.hours?.length ? row.hours : null,
+          p_phone: row.phone,
+          p_booking_url: row.bookingUrl,
+          p_reel_url: row.reelUrl,
+          p_reel_thumbnail_url: null,
+          p_source: row.mapsUrl ? 'google_maps' : 'import',
+          p_source_id: row.mapsUrl,
+          p_custom_info: row.note,
+          p_url: row.url,
+        }).abortSignal(AbortSignal.timeout(20000));
+        if (placeError) failed += 1;
+        else {
+          added += 1;
+          if (row.eventDate && row.category === 'event' && eventDatesReady) {
+            await supabase
+              .from('collection_places')
+              .update({ event_date: row.eventDate })
+              .eq('collection_id', collectionId)
+              .eq('place_id', placeId);
+          }
+        }
+        onProgress?.(index + 1, rows.length);
+      }
+      await refresh();
+      return { collectionId, added, failed };
+    },
+
     // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.

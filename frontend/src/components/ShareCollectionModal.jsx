@@ -1,41 +1,53 @@
-import React, { useState } from 'react';
-import { Copy, Crown, Link, Mail, Users, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Copy, Crown, Download, FileSpreadsheet, Link, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
-import { useInvites } from '../hooks/useInvites';
+import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
+import { exportCollection } from '../lib/collectionFile';
 
-export default function ShareCollectionModal({ collection, userId, onClose, showToast }) {
+async function copy(text, label, showToast) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`Copied ${label}`);
+  } catch {
+    window.prompt(`Copy the ${label}:`, text);
+  }
+}
+
+export default function ShareCollectionModal({ collection, userId, places = [], onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
-  const { generateInviteLink } = useInvites(userId, showToast);
-  const [inviteUrl, setInviteUrl] = useState(null);
+  const { getInvite } = useInvites(userId, showToast);
+  const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleGenerateLink = async () => {
+  const owner = collection.members.find((m) => m.role === 'owner');
+  const isOwner = owner?.id === userId;
+
+  // Owners see the code straight away; it's made (or reused) when Share opens.
+  useEffect(() => {
+    if (!isOwner) return undefined;
+    let cancelled = false;
     setLoading(true);
-    const url = await generateInviteLink(collection.id);
-    if (url) {
-      setInviteUrl(url);
-      // Copy to clipboard
-      navigator.clipboard.writeText(url).catch(() => {
-        showToast('Copied to clipboard!');
-      });
-    }
-    setLoading(false);
-  };
+    getInvite(collection.id).then((result) => {
+      if (cancelled) return;
+      setInvite(result);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [isOwner, collection.id, getInvite]);
 
-  const handleCopyLink = () => {
-    if (inviteUrl) {
-      navigator.clipboard.writeText(inviteUrl);
-      showToast('Copied to clipboard!');
+  const exportAs = (format) => {
+    if (!places.length) {
+      showToast('Nothing to export yet');
+      return;
     }
+    exportCollection(collection, places, format);
   };
-
-  const isOwner = collection.members.some((m) => m.role === 'owner' && m.id === userId);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div ref={sheetRef} className="modal edit-sheet" onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="modal edit-sheet share-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Share "{collection.name}"</div>
@@ -44,121 +56,77 @@ export default function ShareCollectionModal({ collection, userId, onClose, show
           </button>
         </div>
 
-        <div style={{ padding: '16px' }}>
-          {/* Members Section */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              <Users className="ico" aria-hidden="true" /> MEMBERS
+        <div className="share-body">
+          {isOwner ? (
+            <div className="invite-card">
+              <div className="invite-card-label">Invite code</div>
+              {loading ? (
+                <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
+              ) : invite ? (
+                <>
+                  <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
+                  <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 30 days.</div>
+                  <div className="invite-actions">
+                    <button type="button" className="step-btn primary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
+                      <Copy className="ico" aria-hidden="true" /> Copy code
+                    </button>
+                    <button type="button" className="step-btn secondary" onClick={() => copy(invite.url, 'link', showToast)}>
+                      <Link className="ico" aria-hidden="true" /> Copy link
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" className="step-btn secondary full-width" onClick={() => {
+                  setLoading(true);
+                  getInvite(collection.id).then((result) => { setInvite(result); setLoading(false); });
+                }}>
+                  Try again
+                </button>
+              )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          ) : (
+            <div className="share-note">
+              Only the owner can invite people. Ask {owner?.display_name ?? 'them'} for the code.
+            </div>
+          )}
+
+          <div className="share-section">
+            <div className="share-section-title">Export</div>
+            <div className="share-list">
+              <button type="button" className="share-row" onClick={() => exportAs('json')}>
+                <span className="share-row-icon is-file"><Download aria-hidden="true" /></span>
+                <span className="share-row-text">
+                  <strong>Reel Map file</strong>
+                  <span>Back up, or import into another account</span>
+                </span>
+                <span className="share-row-ext">.json</span>
+              </button>
+              <button type="button" className="share-row" onClick={() => exportAs('csv')}>
+                <span className="share-row-icon is-sheet"><FileSpreadsheet aria-hidden="true" /></span>
+                <span className="share-row-text">
+                  <strong>Spreadsheet</strong>
+                  <span>Names, addresses, notes, Maps and reel links</span>
+                </span>
+                <span className="share-row-ext">.csv</span>
+              </button>
+            </div>
+            <p className="toggle-hint">Votes aren't included.</p>
+          </div>
+
+          <div className="share-section">
+            <div className="share-section-title"><Users className="ico" aria-hidden="true" /> Members</div>
+            <div className="share-members">
               {collection.members.map((member) => (
-                <div
-                  key={member.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px',
-                    backgroundColor: 'var(--surface-muted)',
-                    borderRadius: 'var(--radius-sm)',
-                  }}
-                >
-                  <span
-                    aria-label={`${member.display_name}'s avatar`}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      backgroundColor: 'var(--card)',
-                      fontSize: '20px',
-                    }}
-                  >
+                <div className="share-member" key={member.id}>
+                  <span className="share-member-avatar">
                     {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}
                   </span>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: '500' }}>{member.display_name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {member.role === 'owner' ? <><Crown className="ico" aria-hidden="true" /> Owner</> : 'Member'}
-                    </div>
-                  </div>
+                  <span className="share-member-name">{member.display_name}</span>
+                  {member.role === 'owner' && <span className="share-member-role"><Crown className="ico" aria-hidden="true" /> Owner</span>}
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Generate Link Section */}
-          {isOwner && (
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                <Link className="ico" aria-hidden="true" /> INVITE LINK
-              </div>
-
-              {inviteUrl ? (
-                <div>
-                  <div
-                    style={{
-                      backgroundColor: 'var(--surface-muted)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '12px',
-                      marginBottom: '8px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      fontSize: '12px',
-                      fontFamily: 'monospace',
-                      whiteSpace: 'nowrap',
-                      color: 'var(--text)',
-                    }}
-                  >
-                    {inviteUrl}
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={handleCopyLink}
-                      className="step-btn primary full-width"
-                      style={{ flex: 1 }}
-                    >
-                      <Copy className="ico" aria-hidden="true" /> Copy Link
-                    </button>
-                    <button
-                      onClick={() => {
-                        const mailtoUrl = `mailto:?subject=Join my "${collection.name}" collection on Reel Map&body=Click here to join: ${inviteUrl}`;
-                        window.location.href = mailtoUrl;
-                      }}
-                      className="step-btn full-width"
-                      style={{ flex: 1 }}
-                    >
-                      <Mail className="ico" aria-hidden="true" /> Email
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={handleGenerateLink}
-                  disabled={loading}
-                  className="step-btn primary full-width"
-                >
-                  {loading ? <><span className="spinner" aria-hidden="true" />Generating…</> : <><Link className="ico" aria-hidden="true" /> Generate Invite Link</>}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Read-only message */}
-          {!isOwner && (
-            <div
-              style={{
-                backgroundColor: 'var(--success-bg)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px',
-                fontSize: '13px',
-                color: 'var(--text)',
-              }}
-            >
-              Only the owner can share this collection. Ask {collection.members.find((m) => m.role === 'owner')?.display_name} to invite others.
-            </div>
-          )}
         </div>
       </div>
     </div>

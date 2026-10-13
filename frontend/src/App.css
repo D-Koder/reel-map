@@ -4229,3 +4229,317 @@ button.profile-open {
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* ---------- COLLAPSIBLE COLLECTIONS ON HOME ---------- */
+/* The heading is a button: tap to show or hide the collection's places. */
+.collection-toggle {
+  width: 100%;
+  min-height: var(--tap, 44px);
+  gap: 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  align-items: center;
+}
+
+.collection-toggle .collection-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.collection-chevron {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text);
+  transition: transform 0.2s ease;
+}
+
+.collection-board.is-collapsed .collection-chevron {
+  transform: rotate(-90deg);
+}
+
+.collection-board.is-collapsed .collection-header {
+  margin-bottom: 0;
+}
+
+.collapse-all-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
+}
+
+.collapse-all {
+  min-height: 36px;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-chevron {
+    transition: none;
+  }
+}
+
+/* ---------- SHARE SHEET ---------- */
+.share-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.invite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: 3px 3px 0 var(--hard-shadow);
+  text-align: center;
+}
+
+.invite-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.invite-code {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 32px;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.invite-card-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.invite-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.invite-actions .step-btn {
+  justify-content: center;
+}
+
+.invite-copy {
+  background: var(--butter);
+  color: #1a1a18;
+}
+
+.share-note {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.share-list {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.share-row {
+  width: 100%;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.share-row + .share-row {
+  border-top: 1px solid var(--surface-muted);
+}
+
+.share-row:active {
+  background: var(--surface-hover);
+}
+
+.share-row-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.share-row-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.share-row-icon.is-file {
+  background: var(--cat-other-bg);
+  color: var(--cat-other-fg);
+}
+
+.share-row-icon.is-sheet {
+  background: var(--cat-cafe-bg);
+  color: var(--cat-cafe-fg);
+}
+
+.share-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.share-row-text strong {
+  font-size: 15px;
+}
+
+.share-row-text span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.share-row-ext {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.share-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.share-member-avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 20px;
+  overflow: hidden;
+}
+
+.share-member-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.share-member-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- JOIN AND IMPORT IN SETTINGS ---------- */
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.join-label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.join-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.join-input::placeholder {
+  letter-spacing: 0.08em;
+}
+
+.join-result {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--success-bg);
+  color: var(--success-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.join-result.is-error {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.import-btn {
+  margin-top: 10px;
+}

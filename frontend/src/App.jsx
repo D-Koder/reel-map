@@ -54,7 +54,7 @@ const UNDO_MS = 5000;
 function MainApp({ userId, showToast }) {
   const data = useAppData(userId, showToast);
   const online = useOnline();
-  const { acceptInvite } = useInvites(userId, showToast);
+  const { acceptInvite, joinWithCode } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
   // Wide screens show the list and the map side by side (see the 900px rule in App.css).
   const [isWide, setIsWide] = useState(() => window.matchMedia?.('(min-width: 900px)').matches ?? false);
@@ -485,6 +485,12 @@ function MainApp({ userId, showToast }) {
         nearAlerts={nearAlerts}
         onToggleNearAlerts={toggleNearAlerts}
         onReorderCollections={data.reorderCollections}
+        onJoinWithCode={async (code) => {
+          const result = await joinWithCode(code);
+          if (!result.error) await data.refresh();
+          return result;
+        }}
+        onImportCollection={data.importCollection}
       />
 
       <DeleteAccountModal
@@ -588,6 +594,7 @@ function MainApp({ userId, showToast }) {
         <ShareCollectionModal
           collection={shareModal}
           userId={userId}
+          places={places.filter((p) => p.collection_id === shareModal.id)}
           onClose={() => setShareModal(null)}
           showToast={showToast}
         />
