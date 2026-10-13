@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
+import { pickPlaceFor } from './pick.ts';
 
 // Sends each subscribed user one random place from their collections that isn't booked yet.
 // Called weekly by pg_cron (see supabase/scripts/schedule-friday-pick.sql).
@@ -16,38 +17,6 @@ type Subscription = { id: string; user_id: string; endpoint: string; p256dh: str
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-}
-
-// One random unbooked place from the collections this user is in, or null if there isn't one.
-async function pickPlaceFor(userId: string): Promise<{ id: string; name: string } | null> {
-  const { data: memberships } = await supabase
-    .from('collection_members')
-    .select('collection_id')
-    .eq('user_id', userId);
-  const collectionIds = (memberships ?? []).map((m) => m.collection_id);
-  if (collectionIds.length === 0) return null;
-
-  const { data: links } = await supabase
-    .from('collection_places')
-    .select('place_id, places(id, name)')
-    .in('collection_id', collectionIds);
-  const places = new Map<string, string>();
-  for (const link of links ?? []) {
-    const place = link.places as unknown as { id: string; name: string } | null;
-    if (place) places.set(place.id, place.name);
-  }
-  if (places.size === 0) return null;
-
-  const { data: bookings } = await supabase
-    .from('bookings')
-    .select('place_id')
-    .in('place_id', [...places.keys()]);
-  for (const booked of bookings ?? []) places.delete(booked.place_id);
-  if (places.size === 0) return null;
-
-  const ids = [...places.keys()];
-  const id = ids[Math.floor(Math.random() * ids.length)];
-  return { id, name: places.get(id)! };
 }
 
 Deno.serve(async (req) => {
@@ -78,7 +47,7 @@ Deno.serve(async (req) => {
   const pickByUser = new Map<string, { id: string; name: string } | null>();
 
   for (const sub of (subscriptions ?? []) as Subscription[]) {
-    if (!pickByUser.has(sub.user_id)) pickByUser.set(sub.user_id, await pickPlaceFor(sub.user_id));
+    if (!pickByUser.has(sub.user_id)) pickByUser.set(sub.user_id, await pickPlaceFor(supabase, sub.user_id));
     const pick = pickByUser.get(sub.user_id);
     if (!pick) continue;
 

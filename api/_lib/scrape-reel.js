@@ -234,3 +234,6 @@ module.exports = async function handler(req, res) {
     else await closePage(page);
   }
 };
+
+// Exposed for tests (frontend/tests/unit/reelPipeline.test.js).
+Object.assign(module.exports, { parseCount, parseCaptionDetails, parseCaptionLocation, isInstagramUrl, isTikTokUrl, readTikTokPage });

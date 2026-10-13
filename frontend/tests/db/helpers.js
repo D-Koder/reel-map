@@ -127,3 +127,41 @@ export async function entriesIn(client, collectionId) {
     booking: bookings.find((b) => b.place_id === row.place_id) ?? null,
   }));
 }
+
+// One step of a journey. A failure names the step, e.g. "[3. move to Later] new row violates…",
+// so a long test still says exactly where it broke.
+export async function step(name, fn) {
+  try {
+    return await fn();
+  } catch (error) {
+    error.message = `[${name}] ${error.message}`;
+    throw error;
+  }
+}
+
+// Signed out: what anyone on the internet gets with the public key.
+export const anonClient = () => newClient();
+
+// A throwaway account (needs TEST_SUPABASE_SERVICE_ROLE_KEY). remove() deletes it if the test didn't.
+export async function tempUser(label) {
+  const service = admin();
+  if (!service) return null;
+  const email = `${unique(label)}@example.com`;
+  const { data, error } = await service.auth.admin.createUser({
+    email, password: env.password, email_confirm: true, user_metadata: { display_name: label.slice(0, 20), avatar: '🧪' },
+  });
+  if (error) throw new Error(`Could not make a temp account: ${error.message}`);
+  const user = await signIn(email);
+  user.remove = () => service.auth.admin.deleteUser(data.user.id).catch(() => {});
+  return user;
+}
+
+// Polls until check() returns something truthy, or gives up after `ms` and returns null.
+export async function waitFor(check, ms = 5000) {
+  for (const end = Date.now() + ms; Date.now() < end;) {
+    const value = await check();
+    if (value) return value;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return null;
+}

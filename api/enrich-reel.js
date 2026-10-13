@@ -242,3 +242,6 @@ async function enrich(req, res, getBrowser) {
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }
+
+// Exposed for tests (frontend/tests/unit/reelPipeline.test.js).
+Object.assign(module.exports, { bestCandidate, flipCaption });
