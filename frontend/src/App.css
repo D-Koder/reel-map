@@ -4783,3 +4783,20 @@ button.profile-open {
 .move-new-go {
   flex: 1 1 100%;
 }
+
+/* ---------- DUPLICATE PILL ---------- */
+/* Saved more than once in the same collection (same spot or same reel). */
+.duplicate-pill {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink);
+  background: var(--butter);
+  color: #1a1a18;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  pointer-events: none;
+}

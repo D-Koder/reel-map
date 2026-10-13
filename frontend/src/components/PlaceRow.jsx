@@ -70,7 +70,7 @@ function VoteLine({ members, reactions, userId }) {
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
 // Four short lines beside the photo: name, place, info (cut with "…"), votes.
 // selectable: Select mode. The whole card ticks on and off, and the reel can't be tapped.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false }) {
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false, duplicate = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
@@ -139,6 +139,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-rating">{myFeeling ? `${myFeeling.emoji} ${myFeeling.label}` : 'Tap to vote'}</div>
           )}
         </div>
+      {/* Saved twice in this collection. Hidden while selecting, where the tick sits in this corner. */}
+      {duplicate && !selectable && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
       {selectable && (
         <span className="select-tick" aria-hidden="true">{selected && <Check />}</span>
       )}
@@ -158,7 +160,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   );
 }
 
-export default function PlaceRow({ pin, members, userId, onOpen, selectable = false, selected = false, onToggle }) {
+export default function PlaceRow({ pin, members, userId, onOpen, selectable = false, selected = false, onToggle, duplicate = false }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
     // No dragging while selecting: a tap ticks the card instead.
@@ -198,6 +200,7 @@ export default function PlaceRow({ pin, members, userId, onOpen, selectable = fa
           pin={pin}
           members={members}
           userId={userId}
+          duplicate={duplicate}
           dimmed={isDragging}
           handleRef={setActivatorNodeRef}
           handleProps={{ ...attributes, ...listeners }}

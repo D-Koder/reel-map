@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import PlaceRow, { PlaceCard } from './PlaceRow';
+import { duplicateIds } from '../lib/places';
 
 // One collection's places. Drag the ⋮⋮ handle to move a card: a single copy follows the finger,
 // and the card's spot stays in the list (faded) until it is dropped.
@@ -18,6 +19,7 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
     })
   );
   const [activeId, setActiveId] = useState(null);
+  const duplicates = useMemo(() => duplicateIds(pins), [pins]);
   const activePin = pins.find((p) => p.id === activeId);
 
   const handleDragEnd = ({ active, over }) => {
@@ -47,6 +49,7 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
               members={members}
               userId={userId}
               onOpen={() => onOpen(`${pin.collection_id}:${pin.id}`)}
+              duplicate={duplicates.has(pin.id)}
               selectable={selecting}
               selected={selecting && picked?.has(pin.id)}
               onToggle={() => onToggle?.(pin)}

@@ -1,6 +1,25 @@
 // Two saved places are at the same spot when their coordinates match to about a metre.
 const SAME_SPOT_DEGREES = 0.00001;
 
+// Ids of places in one collection that are saved more than once there: the same reel twice, or two
+// places at the same spot. Events don't count, since one venue hosts different events on different nights.
+export function duplicateIds(pins) {
+  const ids = new Set();
+  const others = pins.filter((p) => p.category !== 'event');
+  others.forEach((a, i) => {
+    others.slice(i + 1).forEach((b) => {
+      const sameReel = a.reel_url && a.reel_url === b.reel_url;
+      const sameSpot = Number.isFinite(a.lat) && Number.isFinite(a.lng) && Number.isFinite(b.lat) && Number.isFinite(b.lng) &&
+        Math.abs(a.lat - b.lat) < SAME_SPOT_DEGREES && Math.abs(a.lng - b.lng) < SAME_SPOT_DEGREES;
+      if (sameReel || sameSpot) {
+        ids.add(a.id);
+        ids.add(b.id);
+      }
+    });
+  });
+  return ids;
+}
+
 // Saved places (one per entry) that sit at this exact location.
 export function entriesAtSpot(places, latitude, longitude) {
   const seen = new Set();
