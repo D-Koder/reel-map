@@ -102,4 +102,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git commit -m "Test results [skip ci]"
-          git push
+          # The branch may have moved on since this run started (e.g. a re-run): put the results on top.
+          for try in 1 2 3; do
+            git pull --rebase -X theirs origin "$GITHUB_REF_NAME" && git push && exit 0
+            sleep 5
+          done
+          echo "::warning::Couldn't save TEST-RESULTS.md to the branch. The results are still in this run's Summary."
