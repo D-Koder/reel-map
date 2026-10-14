@@ -5,6 +5,7 @@ const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
 const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
+const { captionCity, saysWhere, withArea } = require('./_lib/area');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -134,6 +135,15 @@ async function readDetails(candidate, query, reel, getBrowser) {
   return { details: detailsResponse.body, detailsError: null };
 }
 
+// The quick read only names the main poster. The page also names a collab's other posters and the
+// post's location tag. Read once per lookup, and only after a quick read (Chrome reads have these already).
+async function readPageExtras(reel, cleanUrl, getBrowser) {
+  if (reel.source !== 'oembed' || reel.pageRead || !cleanUrl) return reel;
+  const page = await invoke(scrapeReel, { reelUrl: cleanUrl, forceBrowser: true }, getBrowser);
+  if (page.statusCode >= 400 || !page.body?.success) return { ...reel, pageRead: true };
+  return { ...reel, pageRead: true, collaborators: page.body.collaborators || [], locationTag: page.body.locationTag || '' };
+}
+
 // Handle lookups stop after this many Maps searches, or once this much of the lookup's time is used,
 // so the caption search and the details read still fit in the function's 120 seconds.
 const HANDLE_SEARCHES = 4;
@@ -160,7 +170,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     tried.add(handle);
     const { name, suburb } = handleToPlace(handle);
     if (squash(name).length < 3) return null;
-    const where = current.locationTag || suburb || captionSuburb(current.caption);
+    const where = current.locationTag || suburb || captionSuburb(current.caption) || captionCity(current.caption);
     guess ??= { name, location: where };
     searches += 1;
     const query = [name, where].filter(Boolean).join(' ');
@@ -183,13 +193,8 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     if (hit) return hit;
   }
 
-  // The quick read only names the main poster. The page names a collab's other posters and the location tag.
-  if (current.source === 'oembed' && cleanUrl && Date.now() - startedAt < HANDLE_BUDGET_MS) {
-    const page = await invoke(scrapeReel, { reelUrl: cleanUrl, forceBrowser: true }, getBrowser);
-    if (page.statusCode < 400 && page.body?.success) {
-      current = { ...current, collaborators: page.body.collaborators || [], locationTag: page.body.locationTag || '' };
-    }
-  }
+  // Collab posters are only on the page.
+  if (Date.now() - startedAt < HANDLE_BUDGET_MS) current = await readPageExtras(current, cleanUrl, getBrowser);
 
   const coPosters = (current.collaborators || []).map((h) => String(h).toLowerCase()).filter((h) => h !== poster);
   for (const handle of coPosters) {
@@ -256,13 +261,28 @@ async function enrich(req, res, getBrowser) {
       ({ reel, guess } = found);
     }
   }
+  // Where the post is: its location tag, else the city its caption names most. It's added to the search,
+  // so Google doesn't answer a vague search with places near the server (in the US). The page is only
+  // opened for the tag when the caption names no city.
+  let area = '';
+  if (!read.fromCache && !handleHit) {
+    area = reel.locationTag || captionCity(reel.caption);
+    if (!area) {
+      reel = await readPageExtras(reel, cleanUrl, getBrowser);
+      area = reel.locationTag || '';
+    }
+  }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
   const flipped = flipCaption(reel.caption);
   // A listed place is searched on its own: the rest of the caption names the other places.
-  const query = handleHit?.query || (venue ? `📍${venue} ${read.listed ? '' : flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  // The area goes right after the venue, or in front of a caption that doesn't say where.
+  const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
+  const query = handleHit?.query ||
+    (venue ? `📍${withArea(venue, area)} ${read.listed ? '' : flipped}`.trim() : captionQuery) ||
+    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || reel.creator || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
