@@ -107,6 +107,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [locationCandidates, setLocationCandidates] = useState(draft?.locationCandidates ?? []);
   const [locationSearchDone, setLocationSearchDone] = useState(draft?.locationSearchDone ?? false);
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
+  // A list post shared without a slide: the listed place being looked up after the person tapped it.
+  const [choosingListed, setChoosingListed] = useState(null);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
@@ -197,7 +199,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-      } else if (bestPlaceMatch(candidates, reelPlaceHints(data))) {
+      } else if (!(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data))) {
+        // (Not for a list post shared without a slide: the person says which place they meant.)
         // One result, or one whose name matches the reel's place: pick it without asking.
         const best = bestPlaceMatch(candidates, reelPlaceHints(data));
         addLog(`Picked ${best.name}, the clear match.`, 'success');
@@ -254,6 +257,33 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       addLog(`Could not fetch selected place: ${error.message}`, 'error');
     } finally {
       setLoadingCandidateUrl(null);
+    }
+  };
+
+  // A place tapped in "This post lists N places": fill the form with it and find it on Google Maps.
+  const chooseListed = async (item) => {
+    nameTypedRef.current = false;
+    setName(item.name);
+    setLocation(item.address || '');
+    setMapsData(null);
+    setPinCoords(null);
+    setLocationCandidates([]);
+    setLocationSearchDone(false);
+    setChoosingListed(item.line);
+    try {
+      const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
+      const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
+      const best = bestPlaceMatch(candidates, [item.name]);
+      if (best) {
+        await selectLocationCandidate(best);
+      } else {
+        setLocationCandidates(candidates);
+        setLocationSearchDone(true);
+      }
+    } catch (error) {
+      addLog(`Could not find ${item.name}: ${error.message}`, 'error');
+    } finally {
+      setChoosingListed(null);
     }
   };
 
@@ -655,6 +685,28 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 >
                   <ArrowUpRight className="ico" aria-hidden="true" />
                 </button>
+              </div>
+            )}
+
+            {/* A list post shared without a slide: which of its places is this? */}
+            {scrapedData?.listedPlaces?.length > 1 && (
+              <div className="field">
+                <span className="modal-label">This post lists {scrapedData.listedPlaces.length} places. Which one?</span>
+                <div className="listed-places">
+                  {scrapedData.listedPlaces.map((item) => (
+                    <button
+                      key={item.line}
+                      type="button"
+                      className={`listed-place ${name === item.name ? 'is-on' : ''}`}
+                      aria-pressed={name === item.name}
+                      onClick={() => chooseListed(item)}
+                      disabled={saving || !!choosingListed || !!loadingCandidateUrl}
+                    >
+                      <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
+                      {item.address && <span>{item.address}</span>}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

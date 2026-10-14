@@ -89,10 +89,11 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   // A saved lookup that found nothing is skipped, so the reel is read again.
   const foundSomething = cachedPlace && (cachedPlace.placeName || cachedPlace.location || cachedPlace.venue || cached.data.candidates?.length);
   if (foundSomething) {
-    const { placeName = '', location = '', venue = '' } = cachedPlace;
+    const { placeName = '', location = '', venue = '', choices } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
+      ...(choices?.length ? { listedPlaces: choices } : {}),
     };
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
@@ -107,10 +108,14 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   if (!reel.caption && !reel.creator && !reel.placeName && !reel.location) {
     return { status: 200, body: { error: 'Instagram showed an empty page for this post' } };
   }
-  // A list post names one place per slide: use the shared slide's place, not the whole list.
-  const listed = captionPlaceForSlide(reel.caption, slide);
+  // A list post names one place per slide: use the shared slide's place, not the whole list. Only
+  // Instagram posts (/p/) have slides; a reel or TikTok caption is never read as a list. Without a
+  // slide, the first place fills the form and every listed place is offered to pick from.
+  const isPost = Boolean(cleanUrl?.includes('/p/'));
+  const listed = isPost ? captionPlaceForSlide(reel.caption, slide) : null;
   if (listed) {
-    return { reel: { ...reel, placeName: listed.name, location: listed.address }, venue: listed.line, listed: true, candidates: null, fromCache: false };
+    const listedPlaces = listed.choices ? { listedPlaces: listed.choices } : {};
+    return { reel: { ...reel, placeName: listed.name, location: listed.address, ...listedPlaces }, venue: listed.line, listed: true, candidates: null, fromCache: false };
   }
   return { reel, venue: captionVenue(reel.caption), candidates: null, fromCache: false };
 }
@@ -321,7 +326,10 @@ async function enrich(req, res, getBrowser) {
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || reel.creator || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
-    place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
+    place: {
+      placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
+      ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
+    },
     candidates,
   });
   // Nothing found: the place picker opens with the best guess from the handles filled in.
@@ -360,8 +368,13 @@ async function enrich(req, res, getBrowser) {
   }
 
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
+  // A list post shared without a slide: no telling which place was meant, so nothing is picked
+  // unless the person chose a result.
+  const mustPick = reel.listedPlaces?.length > 1;
   let selectedCandidate = null;
-  if (backgroundOnly) {
+  if (mustPick && !req.body?.mapsPlaceUrl && typeof req.selectCandidate !== 'function') {
+    selectedCandidate = null;
+  } else if (backgroundOnly) {
     selectedCandidate = candidates.length === 1 ? candidates[0] : null;
   } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
@@ -371,7 +384,7 @@ async function enrich(req, res, getBrowser) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && !backgroundOnly && typeof req.selectCandidate !== 'function') {
+  if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
       : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
@@ -384,6 +397,7 @@ async function enrich(req, res, getBrowser) {
   return res.status(200).json({
     ...reel,
     venue,
+    area,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }

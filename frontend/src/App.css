@@ -4493,6 +4493,40 @@ button.profile-open {
   color: var(--text-muted);
 }
 
+/* "This post lists N places": one button per listed place. */
+.listed-places {
+  display: grid;
+  gap: 8px;
+}
+
+.listed-place {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listed-place strong {
+  font-size: 14px;
+}
+
+.listed-place span:not(.spinner) {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.listed-place.is-on {
+  border-color: var(--ink);
+}
+
 /* Owner's Viewer / Editor switch for each member. */
 .role-switch {
   display: inline-flex;
