@@ -2,7 +2,11 @@
 
 _Last run 14 Oct, 7:50 pm · made by `npm run test:all` in `frontend/` · don't edit by hand_
 
-**✅ 33 passed · ❌ 0 failed · ⚠️ 0 known bugs · ⏭️ 15 skipped**
+**✅ 33 passed · ❌ 0 failed · ⚠️ 0 known bugs · ⏭️ 0 skipped**
+
+> ❌ **Database tests couldn't start.** Open the run's log (step "Run tests") to see why.
+
+> ❌ **Browser tests couldn't start.** Open the run's log (step "Run tests") to see why.
 
 **Key:** ✅ passed · ❌ failed · ⚠️ known bug (expected to fail) · ⏭️ skipped
 
@@ -252,7 +256,7 @@ _Last run 14 Oct, 7:50 pm · made by `npm run test:all` in `frontend/` · don't 
 <details>
 <summary>✅ <b>🧩 Extras › journey: a reel nobody can read → the person picks the place</b> · 1 of 1 passed</summary>
 
-`tests/unit/extras.test.js` · ran 14 Oct, 7:50 pm · 0.2 s
+`tests/unit/extras.test.js` · ran 14 Oct, 7:50 pm · 0.1 s
 
 | # | Step | Result |
 |:-:|---|:-:|
@@ -263,7 +267,7 @@ _Last run 14 Oct, 7:50 pm · made by `npm run test:all` in `frontend/` · don't 
 <details>
 <summary>✅ <b>🧩 Extras › Add to calendar (.ics file)</b> · 1 of 1 passed</summary>
 
-`tests/unit/extras.test.js` · ran 14 Oct, 7:50 pm · 0.1 s
+`tests/unit/extras.test.js` · ran 14 Oct, 7:50 pm · 0.0 s
 
 | # | Step | Result |
 |:-:|---|:-:|
@@ -451,7 +455,7 @@ _Last run 14 Oct, 7:50 pm · made by `npm run test:all` in `frontend/` · don't 
 <details>
 <summary>✅ <b>🎬 Reels › TikTok page</b> · 1 of 1 passed</summary>
 
-`tests/unit/reelPipeline.test.js` · ran 14 Oct, 7:50 pm · 0.1 s
+`tests/unit/reelPipeline.test.js` · ran 14 Oct, 7:50 pm · 0.0 s
 
 | # | Step | Result |
 |:-:|---|:-:|
@@ -537,144 +541,5 @@ _Last run 14 Oct, 7:50 pm · made by `npm run test:all` in `frontend/` · don't 
 | 9 | 4. last, a maybe — the same one all day | ✅ |
 | 10 | "meh" places are never picked | ✅ |
 | 11 | the card links to the right place entry (collection:id) | ✅ |
-
-</details>
-
-## ⏭️ Skipped (15)
-
-### Browser
-
-<details>
-<summary>⏭️ <b>➕ Adding places › Add a place by hand</b> · skipped</summary>
-
-`tests/e2e/add.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>➕ Adding places › Choose between Google matches</b> · skipped</summary>
-
-`tests/e2e/add.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>➕ Adding places › Duplicates</b> · skipped</summary>
-
-`tests/e2e/add.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>🏠 App › Home</b> · skipped</summary>
-
-`tests/e2e/app.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>🏠 App › Add a place from a reel link</b> · skipped</summary>
-
-`tests/e2e/app.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>🏠 App › Offline</b> · skipped</summary>
-
-`tests/e2e/app.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>🏠 App › Sign up and reset my password</b> · skipped</summary>
-
-`tests/e2e/app.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>🏠 App › Map › Find a place on the map</b> · skipped</summary>
-
-`tests/e2e/app.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>📥 Shared reels › Share reels into the app</b> · skipped</summary>
-
-`tests/e2e/inbox.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>📥 Shared reels › Friday pick</b> · skipped</summary>
-
-`tests/e2e/inbox.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>📥 Shared reels › Nearby alert › Walk past places I am keen on</b> · skipped</summary>
-
-`tests/e2e/inbox.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>💘 Planning › Plan a date</b> · skipped</summary>
-
-`tests/e2e/plan.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>💘 Planning › Tidy up</b> · skipped</summary>
-
-`tests/e2e/plan.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>👯 Sharing › Share with a friend</b> · skipped</summary>
-
-`tests/e2e/social.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
-
-</details>
-
-<details>
-<summary>⏭️ <b>👯 Sharing › Settings</b> · skipped</summary>
-
-`tests/e2e/social.spec.js` · ran 14 Oct, 9:07 am
-
-⏭️ Didn't run. Usually this means the TEST project login isn't filled in (see TESTING.md → One-time setup).
 
 </details>
