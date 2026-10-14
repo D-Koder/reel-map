@@ -41,7 +41,7 @@ Pushes to other branches run the quick checks (and the database tests once the s
    Add `http://localhost:5173` to Supabase → Auth → Redirect URLs (password reset journey).
 5. Browser tests run on a real build (`vite build && vite preview`) so offline mode works like on a phone.
 
-**Safety:** the tests refuse the live project. They never call, text, email or book anyone for real: phone and email links are blocked, pop-ups (booking sites, reels) never open, the test phone number is one reserved for fiction, and "Save booking" only writes to the TEST database. The only emails sent go to made-up @example.com addresses. Everything they make is named `t-…` and deleted after,
+**Safety:** the tests refuse the live project unless `TEST_ALLOW_LIVE=yes` (GitHub sets it: the owner is the only live user and allowed it). Either way they only touch two throwaway accounts per run and things named `t-…`; a crashed run's leftovers are swept up by the next run. They never call, text, email or book anyone for real: phone and email links are blocked, pop-ups (booking sites, reels) never open, the test phone number is one reserved for fiction, and "Save booking" only writes to the TEST database. The only emails sent go to made-up @example.com addresses. Everything they make is named `t-…` and deleted after,
 and every account they use is a throwaway one made for that run.
 
 ## 🐞 Known problems the tests are expected to catch

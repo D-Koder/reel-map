@@ -13,6 +13,7 @@ export async function makeRunAccounts() {
   const { admin, hasTestProject, ok, unique } = await import('../db/helpers.js');
   if (!hasTestProject) return async () => {};
   const service = admin();
+  await removeLeftovers(service);
   const password = `t-${randomBytes(18).toString('base64url')}`;
   const ids = [];
   for (const person of PEOPLE) {
@@ -28,8 +29,31 @@ export async function makeRunAccounts() {
   }
   process.env.TEST_RUN_PASSWORD = password;
   return async () => {
-    for (const id of ids) await service.auth.admin.deleteUser(id).catch(() => {});
+    for (const id of ids) await removeAccount(service, id);
   };
+}
+
+// Deletes a throwaway account and the photos it uploaded.
+async function removeAccount(service, id) {
+  const { data: files } = await service.storage.from('profile-avatars').list(id);
+  if (files?.length) await service.storage.from('profile-avatars').remove(files.map((f) => `${id}/${f.name}`));
+  await service.auth.admin.deleteUser(id).catch(() => {});
+}
+
+// Throwaway accounts (t-…@example.com) left by a run that crashed more than an hour ago.
+// Only ever these: real accounts never match.
+async function removeLeftovers(service) {
+  const hourAgo = Date.now() - 3600000;
+  for (let page = 1; page < 50; page += 1) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data.users.length) return;
+    for (const user of data.users) {
+      if (/^t-[\w-]+@example\.com$/.test(user.email ?? '') && Date.parse(user.created_at) < hourAgo) {
+        await removeAccount(service, user.id);
+      }
+    }
+    if (data.users.length < 200) return;
+  }
 }
 
 // Vitest: only when database tests are part of the run.

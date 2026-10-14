@@ -31,11 +31,14 @@ jobs:
       run:
         working-directory: frontend
     env:
-      # Set these in Settings → Secrets and variables → Actions. All from the TEST project.
+      # Set these in Settings → Secrets and variables → Actions.
+      # They point at the live project: the owner is its only user and allowed it. The tests only touch
+      # two throwaway accounts per run (t-…@example.com) and things named t-…, and delete them after.
+      TEST_ALLOW_LIVE: 'yes'
       TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
       TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
       TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
-      # The app the browser tests build talks to the same TEST project.
+      # The app the browser tests build talks to the same project.
       VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
       VITE_MAPBOX_TOKEN: ${{ secrets.TEST_MAPBOX_TOKEN }}

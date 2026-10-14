@@ -7,7 +7,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 
-// Same guard as reset-test-project.sh: never touch the live project.
+// The live project is refused unless TEST_ALLOW_LIVE=yes. Even then the tests only touch the two
+// throwaway accounts each run makes, and things named t-….
 const LIVE_PROJECT_REF = 'bxkiuaapyiflnmqhodgm';
 
 // .env.test.local holds the test secrets; .env.local is read too, for VITE_MAPBOX_TOKEN.
@@ -35,8 +36,8 @@ export const env = {
 };
 
 export const hasTestProject = Boolean(env.url && env.anonKey && env.serviceKey);
-if (hasTestProject && env.url.includes(LIVE_PROJECT_REF)) {
-  throw new Error(`TEST_SUPABASE_URL points at the live project (${LIVE_PROJECT_REF}). Use the test project.`);
+if (hasTestProject && env.url.includes(LIVE_PROJECT_REF) && process.env.TEST_ALLOW_LIVE !== 'yes') {
+  throw new Error(`TEST_SUPABASE_URL points at the live project (${LIVE_PROJECT_REF}). Use a test project, or set TEST_ALLOW_LIVE=yes.`);
 }
 
 // This run's two accounts ("Test One" and "Test Two"), made before the tests start.
