@@ -13,24 +13,37 @@ export async function makeRunAccounts() {
   const { admin, hasTestProject, ok, unique } = await import('../db/helpers.js');
   if (!hasTestProject) return async () => {};
   const service = admin();
+  // An empty project (no Reel Map tables yet) can't run the tests: say so plainly.
+  const { error: noTables } = await service.from('profiles').select('id').limit(1);
+  if (noTables) {
+    throw new Error(`The Supabase project in TEST_SUPABASE_URL has no Reel Map tables (${noTables.message}). `
+      + 'Point the secrets at live, or build the project first (TESTING.md → One-time setup).');
+  }
   await removeLeftovers(service);
   const password = `t-${randomBytes(18).toString('base64url')}`;
   const ids = [];
-  for (const person of PEOPLE) {
-    const email = `${unique(person.label)}@example.com`;
-    const { data, error } = await service.auth.admin.createUser({
-      email, password, email_confirm: true, user_metadata: { display_name: person.display_name, avatar: person.avatar },
-    });
-    if (error) throw new Error(`Could not make the ${person.display_name} account: ${error.message}`);
-    ids.push(data.user.id);
-    // Streak days count in Melbourne time.
-    await ok(service.from('profiles').update({ timezone: 'Australia/Melbourne' }).eq('id', data.user.id));
-    process.env[person.key] = email;
-  }
-  process.env.TEST_RUN_PASSWORD = password;
-  return async () => {
+  const removeAll = async () => {
     for (const id of ids) await removeAccount(service, id);
   };
+  try {
+    for (const person of PEOPLE) {
+      const email = `${unique(person.label)}@example.com`;
+      const { data, error } = await service.auth.admin.createUser({
+        email, password, email_confirm: true, user_metadata: { display_name: person.display_name, avatar: person.avatar },
+      });
+      if (error) throw new Error(`Could not make the ${person.display_name} account: ${error.message}`);
+      ids.push(data.user.id);
+      // Streak days count in Melbourne time.
+      await ok(service.from('profiles').update({ timezone: 'Australia/Melbourne' }).eq('id', data.user.id));
+      process.env[person.key] = email;
+    }
+  } catch (error) {
+    // Don't leave a half-made account behind.
+    await removeAll();
+    throw error;
+  }
+  process.env.TEST_RUN_PASSWORD = password;
+  return removeAll;
 }
 
 // Deletes a throwaway account and the photos it uploaded.
