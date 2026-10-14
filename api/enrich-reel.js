@@ -1,7 +1,7 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
-const { readCache, writeCache } = require('./_lib/lookup-cache');
+const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
 const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
@@ -215,11 +215,47 @@ module.exports = async function handler(req, res) {
   let launching = null;
   const getBrowser = () => (launching ??= launchBrowser());
   try {
-    return await enrich(req, res, getBrowser);
+    // The reel inbox ({ from: 'inbox' }) shows "We couldn't tell which place this is" when no place
+    // was matched. Those lookups are kept in lookup_debug before the answer goes back.
+    if (req.body?.from !== 'inbox') return await enrich(req, res, getBrowser);
+    const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+    await enrich(req, reply, getBrowser);
+    if (reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
+      await logNoPlace(req.body.reelUrl, reply.body);
+    }
+    return res.status(reply.code).json(reply.body);
   } finally {
     if (launching) await closeBrowser(await launching.catch(() => null));
   }
 };
+
+// Why no place was picked, in words, for lookup_debug.
+function noPlaceReason(body) {
+  const maps = body.maps || {};
+  if (body.unreadable) return "Couldn't read the post";
+  if (!maps.success) return maps.error || 'Google Maps search failed';
+  const count = maps.candidates?.length ?? 0;
+  if (!count) return 'Google Maps found nothing';
+  if (!maps.selectedCandidate) return `${count} results, none named like the place`;
+  return maps.detailsError || "Couldn't read the chosen place's details";
+}
+
+async function logNoPlace(reelUrl, body) {
+  const maps = body?.maps || {};
+  await insertRow('lookup_debug', {
+    reel_url: String(reelUrl || body?.reelUrl || '').slice(0, 2048),
+    from_cache: body?.source === 'cache',
+    caption: body?.caption || null,
+    creator: body?.creator || null,
+    location_tag: body?.locationTag || null,
+    place_name: body?.placeName || null,
+    location: body?.location || null,
+    venue: body?.venue || null,
+    query: maps.query || null,
+    candidates: (maps.candidates || []).map(({ name, address, category, url }) => ({ name, address, category, url })),
+    reason: noPlaceReason(body || {}),
+  });
+}
 
 // { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody
 // can pick a place then, so Maps details are only read when the search found exactly one place.

@@ -65,7 +65,8 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       const response = await fetch('/api/enrich-reel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reelUrl: item.url }),
+        // from: 'inbox' asks the server to keep a debug row when no place is matched.
+        body: JSON.stringify({ reelUrl: item.url, from: 'inbox' }),
         signal: AbortSignal.timeout(120000),
       });
       const data = await response.json().catch(() => ({}));

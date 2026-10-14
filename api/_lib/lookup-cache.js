@@ -50,4 +50,20 @@ async function writeCache(table, key, data) {
   }
 }
 
-module.exports = { readCache, writeCache, DAY };
+// Adds one row to a table, e.g. lookup_debug. Failures are logged, never thrown.
+async function insertRow(table, row) {
+  if (!enabled()) return;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: headers({ Prefer: 'return=minimal' }),
+      body: JSON.stringify(row),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    console.warn(`Insert into ${table} failed:`, error.message);
+  }
+}
+
+module.exports = { readCache, writeCache, insertRow, DAY };
