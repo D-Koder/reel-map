@@ -49,32 +49,77 @@ function captionVenue(caption) {
 // List posts ("Melbourne's best spots…") name one place per slide, each on its own line after an emoji:
 //   🥪 Hector's Deli, 61 Little Collins Street
 //   🥟 Shanghai Street, 146/148 Little Bourke Street
-// Returns those lines as { line, name, address }, or [] when the caption isn't such a list (fewer than two).
+// Returns those lines as { line, name, address, pinned }, where pinned means the emoji was 📍 or 📌.
+// Deal lines ("🍔 Salted egg burger — $7 every Wednesday") aren't places, so they're left out.
 function captionPlaceList(caption) {
-  const items = String(caption || '')
+  return String(caption || '')
     .split(/\n|(?=\p{Extended_Pictographic})/u)
     .map((part) => part.trim())
-    .map((part) => part.match(/^(?:[\p{Extended_Pictographic}\p{Emoji_Component}\uFE0F\u200D]|\d️⃣)+\s*(.+)$/u)?.[1]?.trim() ?? '')
+    .map((part) => {
+      const match = part.match(/^((?:[\p{Extended_Pictographic}\p{Emoji_Component}\uFE0F\u200D]|\d️⃣)+)\s*(.+)$/u);
+      return match ? { emoji: match[1], text: match[2].trim() } : null;
+    })
     // "Name, address" or "Name - address", starting with a letter, short enough to be one place.
-    .filter((text) => /^[\p{Lu}\p{N}@]/u.test(text) && text.length <= 100 && !text.includes('#') && /,|\s[-–—]\s/.test(text));
-  if (items.length < 2) return [];
-  return items.map((line) => {
-    const [name, ...rest] = line.split(/,|\s[-–—]\s/);
-    return { line, name: name.replace(/^@/, '').trim(), address: rest.join(',').trim() };
-  });
+    .filter((item) => item && /^[\p{Lu}\p{N}@]/u.test(item.text) && item.text.length <= 100 && !item.text.includes('#') &&
+      /,|\s[-–—]\s/.test(item.text))
+    .map(({ emoji, text }) => {
+      const [name, ...rest] = text.split(/,|\s[-–—]\s/);
+      return { line: text, name: name.replace(/^@/, '').trim(), address: rest.join(',').trim(), pinned: /[📍📌]/u.test(emoji) };
+    })
+    .filter(({ address }) => !isDeal(address));
+}
+
+// The part after the name says what's on offer, not where: "$7 every Wednesday", "7% off all August",
+// "first 77 customers". Street addresses never have these.
+// Whole words only, so "Queen Victoria Market", "Marrickville" and "Sun Theatre" stay addresses.
+const WEEKDAY = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b|\b(?:mon|tue|wed|thu|fri|sat|sun)\s*[-–]\s*(?:mon|tue|wed|thu|fri|sat|sun)\b/i;
+const MONTH_WORD = /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\b/i;
+const DEAL = /\b(?:deals?|specials?|discount|customers|free|bogo|happy hour)\b|\bfirst\s+\d+/i;
+function isDeal(text) {
+  return /[$%€£]/.test(text) || WEEKDAY.test(text) || MONTH_WORD.test(text) ||
+    DATE_OR_TIME.test(text) || PROMO.test(text) || DEAL.test(text);
+}
+
+// A pinned line that sums up the list ("📍 All in Melbourne") rather than naming one of its places:
+// no street or number, while three or more of the other lines have one.
+function isSummary(item, others) {
+  const hasStreet = (text) => STREET.test(text) || /\b\d+[a-z]?(?:\/\d+[a-z]?)?\s+[A-Z]/.test(text);
+  return !hasStreet(item.line) && others.filter((other) => hasStreet(other.line)).length >= 3;
+}
+
+// The list post's places, after the pin rules:
+//   exactly one pinned line that looks like a place → [] (it's a one-place post: the 📍 line is used instead)
+//   one pinned line that sums up the list, or isn't a place → the other lines
+//   two or more pinned lines → only the pinned lines
+//   no pinned lines → every line
+// A list needs two places when a slide was shared, else three.
+function captionPlaces(caption, slide) {
+  const lines = captionPlaceList(caption);
+  const pinned = lines.filter((item) => item.pinned);
+  const others = lines.filter((item) => !item.pinned);
+  let list = lines;
+  if (pinned.length === 1) {
+    const [pin] = pinned;
+    if (placeScore(pin.line) > 0 && !isSummary(pin, others)) return [];
+    list = others;
+  } else if (pinned.length > 1) {
+    list = pinned;
+  }
+  return list.length >= (slide ? 2 : 3) ? list : [];
 }
 
 // The listed place for the slide that was shared (?img_index=3 is the third photo). A list post with an
-// intro before the list usually has a cover slide first, so slide 3 is the second place. Without a
-// slide, the first place. Null when the caption isn't a list: two lines only count when a slide was
-// shared, so an ordinary caption with a couple of emoji lines isn't mistaken for one.
+// intro before the list usually has a cover slide first, so slide 3 is the second place.
+// Returns null when the caption isn't a list. Without a slide there's no telling which place was meant,
+// so it returns the first one with `choices` (every listed place) for the person to pick from.
 function captionPlaceForSlide(caption, slide) {
-  const list = captionPlaceList(caption);
-  if (list.length < (slide ? 2 : 3)) return null;
+  const list = captionPlaces(caption, slide);
+  if (!list.length) return null;
+  if (!slide) return { ...list[0], choices: list.map(({ name, address, line }) => ({ name, address, line })) };
   const text = String(caption);
   const before = text.slice(0, Math.max(text.indexOf(list[0].line), 0))
     .replace(/[\p{Extended_Pictographic}\p{Emoji_Component}\uFE0F\u200D\s]+$/u, '').trim();
-  const index = slide ? slide - 1 - (before ? 1 : 0) : 0;
+  const index = slide - 1 - (before ? 1 : 0);
   return list[Math.min(Math.max(index, 0), list.length - 1)];
 }
 

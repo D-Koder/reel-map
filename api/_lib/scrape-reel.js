@@ -130,7 +130,9 @@ module.exports = async function handler(req, res) {
 
   // Instagram's oEmbed has the caption, creator and cover in about a second. Start Chrome only
   // when it has no caption to search with (blocked, private, or deleted Reels).
-  if (!isTikTok) {
+  // forceBrowser: the page is read even when oEmbed works, for what only the page shows (collab
+  // posters and the location tag).
+  if (!isTikTok && !req.body?.forceBrowser) {
     const quick = await readInstagramQuickly(reelUrl);
     if (quick) return res.status(200).json(quick);
   }
@@ -161,9 +163,10 @@ module.exports = async function handler(req, res) {
         return Math.round(Number(match[1]) * multiplier);
       };
       const main = document.querySelector('main');
-      const caption = [...(main?.querySelectorAll('span') ?? [])]
+      const captionElement = [...(main?.querySelectorAll('span') ?? [])]
         .filter((element) => element.querySelector('br') && element.innerText.trim().length > 40)
-        .sort((a, b) => a.innerText.length - b.innerText.length)[0]?.innerText.trim() ??
+        .sort((a, b) => a.innerText.length - b.innerText.length)[0];
+      const caption = captionElement?.innerText.trim() ??
         document.querySelector('meta[property="og:description"]')?.content ?? '';
 
       const reservedPaths = new Set(['accounts', 'direct', 'explore', 'p', 'reel', 'reels', 'stories']);
@@ -172,6 +175,17 @@ module.exports = async function handler(req, res) {
         return match && !reservedPaths.has(match[1]);
       });
       const creator = ownerLink?.getAttribute('href').match(/^\/([^/]+)\/$/)?.[1] ?? null;
+      // A collab post names every poster at the top ("feedswithjen and sweetag.glenwaverley"): profile
+      // links showing their own handle, above the caption (the comments below have links like that too).
+      const collaborators = [...new Set([...(main?.querySelectorAll('a[href]') ?? [])]
+        .filter((link) => !captionElement || (link.compareDocumentPosition(captionElement) & Node.DOCUMENT_POSITION_FOLLOWING))
+        .map((link) => {
+          const handle = link.getAttribute('href').match(/^\/([^/?#]+)\/$/)?.[1];
+          return handle && !reservedPaths.has(handle) && link.innerText.trim() === handle ? handle : null;
+        })
+        .filter(Boolean))].slice(0, 3);
+      // The post's location tag, e.g. "Glen Waverley, Victoria".
+      const locationTag = main?.querySelector('a[href*="/explore/locations/"]')?.innerText.trim() ?? '';
 
       const likeIcon = main?.querySelector('svg[aria-label="Like"], svg[aria-label="Unlike"]');
       const commentIcon = main?.querySelector('svg[aria-label="Comment"]');
@@ -201,6 +215,8 @@ module.exports = async function handler(req, res) {
         reelUrl: inputUrl,
         caption,
         creator,
+        collaborators,
+        locationTag,
         likes: parseCount(countLabels[0]),
         comments: parseCount(countLabels[1]),
         placeName: separator && separator.index !== undefined

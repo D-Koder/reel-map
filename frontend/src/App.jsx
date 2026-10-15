@@ -22,6 +22,7 @@ import { useOnline } from './hooks/useOnline';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
+import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
 import './App.css';
@@ -223,6 +224,14 @@ function MainApp({ userId, showToast }) {
     setAdding(true);
   };
 
+  // Collections I can add to and change (not ones I only view).
+  const editableIds = useMemo(
+    () => new Set(collections.filter((c) => canEditCollection(c, userId)).map((c) => c.id)),
+    [collections, userId]
+  );
+  const canEdit = useCallback((collectionId) => editableIds.has(collectionId), [editableIds]);
+  const editableCollections = useMemo(() => collections.filter((c) => editableIds.has(c.id)), [collections, editableIds]);
+
   const membersOf = useMemo(
     () => Object.fromEntries(collections.map((c) => [c.id, c.members])),
     [collections]
@@ -420,6 +429,17 @@ function MainApp({ userId, showToast }) {
             onAddPlace={openAddInCollection}
             showToast={showToast}
             onCreateCollection={(name, emoji) => data.createCollection(name, emoji)}
+            canEdit={canEdit}
+            onCopyPlaces={async (pins, targetId, newCollection) => {
+              const target = collections.find((c) => c.id === targetId) ?? newCollection;
+              const { copied, skipped } = await data.copyPlaces(pins, targetId);
+              if (!copied) {
+                showToast(`Couldn't copy ${pins.length === 1 ? 'it' : 'them'}. They may already be in ${target?.name ?? 'that collection'}.`);
+                return false;
+              }
+              showToast(`Copied ${copied} ${copied === 1 ? 'place' : 'places'} to ${target?.emoji ?? ''} ${target?.name ?? 'collection'}${skipped ? ` · ${skipped} already there` : ''}`);
+              return true;
+            }}
             onMovePlaces={async (pins, targetId, newCollection) => {
               const target = collections.find((c) => c.id === targetId) ?? newCollection;
               const { moved, skipped } = await data.movePlaces(pins, targetId);
@@ -548,6 +568,7 @@ function MainApp({ userId, showToast }) {
           onMarkDone={() => markDone(openPin)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
+          canEdit={canEdit(openPin.collection_id)}
           onClose={closePin}
           showToast={showToast}
         />
@@ -561,6 +582,7 @@ function MainApp({ userId, showToast }) {
           places={places}
           eventDatesReady={data.eventDatesReady}
           userId={userId}
+          canEdit={canEdit}
           onCopy={async (targetId) => {
             const ok = await data.copyPlaceToCollection(editPin, targetId);
             if (ok) showToast('Copied to collection');
@@ -584,11 +606,11 @@ function MainApp({ userId, showToast }) {
       {adding && (
         <AddPlaceSheet
           initialPlace={addDraft}
-          initialCollectionId={addCollectionId}
+          initialCollectionId={editableIds.has(addCollectionId) ? addCollectionId : null}
           initialReelUrl={sharedReelUrl}
           initialReelData={sharedReelData}
           onCreateCollection={data.createCollection}
-          collections={collections}
+          collections={editableCollections}
           places={places}
           eventDatesReady={data.eventDatesReady}
           onAdd={async (fields) => {
@@ -617,8 +639,10 @@ function MainApp({ userId, showToast }) {
 
       {shareModal && (
         <ShareCollectionModal
-          collection={shareModal}
+          // The live copy, so a role change shows straight away.
+          collection={collections.find((c) => c.id === shareModal.id) ?? shareModal}
           userId={userId}
+          onSetRole={(memberId, role) => data.setMemberRole(shareModal.id, memberId, role)}
           places={places.filter((p) => p.collection_id === shareModal.id)}
           onClose={() => setShareModal(null)}
           showToast={showToast}

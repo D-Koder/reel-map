@@ -1,9 +1,11 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
-const { readCache, writeCache } = require('./_lib/lookup-cache');
+const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
+const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
+const { captionCity, saysWhere, withArea } = require('./_lib/area');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -87,10 +89,11 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   // A saved lookup that found nothing is skipped, so the reel is read again.
   const foundSomething = cachedPlace && (cachedPlace.placeName || cachedPlace.location || cachedPlace.venue || cached.data.candidates?.length);
   if (foundSomething) {
-    const { placeName = '', location = '', venue = '' } = cachedPlace;
+    const { placeName = '', location = '', venue = '', choices } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
+      ...(choices?.length ? { listedPlaces: choices } : {}),
     };
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
@@ -105,10 +108,14 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   if (!reel.caption && !reel.creator && !reel.placeName && !reel.location) {
     return { status: 200, body: { error: 'Instagram showed an empty page for this post' } };
   }
-  // A list post names one place per slide: use the shared slide's place, not the whole list.
-  const listed = captionPlaceForSlide(reel.caption, slide);
+  // A list post names one place per slide: use the shared slide's place, not the whole list. Only
+  // Instagram posts (/p/) have slides; a reel or TikTok caption is never read as a list. Without a
+  // slide, the first place fills the form and every listed place is offered to pick from.
+  const isPost = Boolean(cleanUrl?.includes('/p/'));
+  const listed = isPost ? captionPlaceForSlide(reel.caption, slide) : null;
   if (listed) {
-    return { reel: { ...reel, placeName: listed.name, location: listed.address }, venue: listed.line, listed: true, candidates: null, fromCache: false };
+    const listedPlaces = listed.choices ? { listedPlaces: listed.choices } : {};
+    return { reel: { ...reel, placeName: listed.name, location: listed.address, ...listedPlaces }, venue: listed.line, listed: true, candidates: null, fromCache: false };
   }
   return { reel, venue: captionVenue(reel.caption), candidates: null, fromCache: false };
 }
@@ -133,6 +140,79 @@ async function readDetails(candidate, query, reel, getBrowser) {
   return { details: detailsResponse.body, detailsError: null };
 }
 
+// The quick read only names the main poster. The page also names a collab's other posters and the
+// post's location tag. Read once per lookup, and only after a quick read (Chrome reads have these already).
+async function readPageExtras(reel, cleanUrl, getBrowser) {
+  if (reel.source !== 'oembed' || reel.pageRead || !cleanUrl) return reel;
+  const page = await invoke(scrapeReel, { reelUrl: cleanUrl, forceBrowser: true }, getBrowser);
+  if (page.statusCode >= 400 || !page.body?.success) return { ...reel, pageRead: true };
+  return { ...reel, pageRead: true, collaborators: page.body.collaborators || [], locationTag: page.body.locationTag || '' };
+}
+
+// Handle lookups stop after this many Maps searches, or once this much of the lookup's time is used,
+// so the caption search and the details read still fit in the function's 120 seconds.
+const HANDLE_SEARCHES = 4;
+const HANDLE_BUDGET_MS = 55000;
+
+// Steps 4–6 of finding the place, for captions with no "Name:" line, list or 📍 line:
+//   4. @mentions in the caption (not the poster), guides like @melbfoodie last
+//   5. a collab's other posters (only the page shows them, so the page is read first)
+//   6. the poster, unless it's a reviewer's handle
+// Each handle is searched on Maps as "name suburb", where the suburb comes from the post's location
+// tag, the handle ("sweetag.glenwaverley") or the caption ("in Glen Waverley"). A search only counts
+// when a result is named like the handle, so a reviewer's handle never matches some random place.
+// Returns { reel, venue, query, candidates } on a hit, else { reel, guess } for the place picker.
+async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
+  const tried = new Set();
+  let current = reel;
+  let searches = 0;
+  let guess = null;
+  const poster = String(reel.creator || '').toLowerCase();
+
+  const attempt = async (handle) => {
+    if (!handle || tried.has(handle)) return null;
+    if (searches >= HANDLE_SEARCHES || Date.now() - startedAt > HANDLE_BUDGET_MS) return null;
+    tried.add(handle);
+    const { name, suburb } = handleToPlace(handle);
+    if (squash(name).length < 3) return null;
+    const where = current.locationTag || suburb || captionSuburb(current.caption) || captionCity(current.caption);
+    guess ??= { name, location: where };
+    searches += 1;
+    const query = [name, where].filter(Boolean).join(' ');
+    const response = await invoke(scrapeLocation, { action: 'search', query, placeName: name, location: where }, getBrowser);
+    const found = response.statusCode < 400 && response.body?.success ? response.body.candidates || [] : [];
+    const key = squash(name);
+    const named = found.filter((candidate) => hasWholeWords(candidate.name, key) || squash(candidate.name).includes(key));
+    if (!named.length) return null;
+    return {
+      reel: { ...current, placeName: name, location: where },
+      venue: query,
+      query,
+      candidates: named,
+    };
+  };
+
+  const mentions = captionMentions(current.caption).filter((handle) => handle !== poster);
+  for (const handle of [...mentions.filter((h) => !isGuide(h)), ...mentions.filter(isGuide)]) {
+    const hit = await attempt(handle);
+    if (hit) return hit;
+  }
+
+  // Collab posters are only on the page.
+  if (Date.now() - startedAt < HANDLE_BUDGET_MS) current = await readPageExtras(current, cleanUrl, getBrowser);
+
+  const coPosters = (current.collaborators || []).map((h) => String(h).toLowerCase()).filter((h) => h !== poster);
+  for (const handle of coPosters) {
+    const hit = await attempt(handle);
+    if (hit) return hit;
+  }
+
+  // A reviewer posting ("kel.eats", "melbfoodie") is never the venue, so only a shop's own handle is tried.
+  const hit = isGuide(poster) ? null : await attempt(poster);
+  if (hit) return hit;
+  return { reel: current, guess };
+}
+
 // One Chrome for every step of this lookup (reel, Maps search, Maps details), started only when a
 // step needs it. Starting Chrome takes a second or two each time, so this saves up to two starts.
 module.exports = async function handler(req, res) {
@@ -140,16 +220,53 @@ module.exports = async function handler(req, res) {
   let launching = null;
   const getBrowser = () => (launching ??= launchBrowser());
   try {
-    return await enrich(req, res, getBrowser);
+    // The reel inbox ({ from: 'inbox' }) shows "We couldn't tell which place this is" when no place
+    // was matched. Those lookups are kept in lookup_debug before the answer goes back.
+    if (req.body?.from !== 'inbox') return await enrich(req, res, getBrowser);
+    const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+    await enrich(req, reply, getBrowser);
+    if (reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
+      await logNoPlace(req.body.reelUrl, reply.body);
+    }
+    return res.status(reply.code).json(reply.body);
   } finally {
     if (launching) await closeBrowser(await launching.catch(() => null));
   }
 };
 
+// Why no place was picked, in words, for lookup_debug.
+function noPlaceReason(body) {
+  const maps = body.maps || {};
+  if (body.unreadable) return "Couldn't read the post";
+  if (!maps.success) return maps.error || 'Google Maps search failed';
+  const count = maps.candidates?.length ?? 0;
+  if (!count) return 'Google Maps found nothing';
+  if (!maps.selectedCandidate) return `${count} results, none named like the place`;
+  return maps.detailsError || "Couldn't read the chosen place's details";
+}
+
+async function logNoPlace(reelUrl, body) {
+  const maps = body?.maps || {};
+  await insertRow('lookup_debug', {
+    reel_url: String(reelUrl || body?.reelUrl || '').slice(0, 2048),
+    from_cache: body?.source === 'cache',
+    caption: body?.caption || null,
+    creator: body?.creator || null,
+    location_tag: body?.locationTag || null,
+    place_name: body?.placeName || null,
+    location: body?.location || null,
+    venue: body?.venue || null,
+    query: maps.query || null,
+    candidates: (maps.candidates || []).map(({ name, address, category, url }) => ({ name, address, category, url })),
+    reason: noPlaceReason(body || {}),
+  });
+}
+
 // { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody
 // can pick a place then, so Maps details are only read when the search found exactly one place.
 // (It can only narrow what a lookup does, so anyone sending it is harmless.)
 async function enrich(req, res, getBrowser) {
+  const startedAt = Date.now();
   const backgroundOnly = Boolean(req.backgroundOnly || req.body?.background === true);
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
@@ -172,27 +289,62 @@ async function enrich(req, res, getBrowser) {
     });
   }
 
-  const { reel, venue } = read;
+  let { reel, venue } = read;
+  // No "Name:" line, list or 📍 line: look for the place by the handles in and on the post.
+  let handleHit = null;
+  let guess = null;
+  if (!read.fromCache && !venue && !reel.placeName && !reel.location) {
+    const found = await findByHandles(reel, cleanUrl, getBrowser, startedAt);
+    if (found.candidates) {
+      handleHit = found;
+      ({ reel, venue } = found);
+    } else {
+      ({ reel, guess } = found);
+    }
+  }
+  // Where the post is: its location tag, else the city its caption names most. It's added to the search,
+  // so Google doesn't answer a vague search with places near the server (in the US). The page is only
+  // opened for the tag when the caption names no city.
+  let area = '';
+  if (!read.fromCache && !handleHit) {
+    area = reel.locationTag || captionCity(reel.caption);
+    if (!area) {
+      reel = await readPageExtras(reel, cleanUrl, getBrowser);
+      area = reel.locationTag || '';
+    }
+  }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
   const flipped = flipCaption(reel.caption);
   // A listed place is searched on its own: the rest of the caption names the other places.
-  const query = (venue ? `📍${venue} ${read.listed ? '' : flipped}`.trim() : flipped) || [reel.location, placeName].filter(Boolean).join(', ') || reel.creator || '';
+  // The area goes right after the venue, or in front of a caption that doesn't say where.
+  const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
+  const query = handleHit?.query ||
+    (venue ? `📍${withArea(venue, area)} ${read.listed ? '' : flipped}`.trim() : captionQuery) ||
+    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || reel.creator || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
-    place: { placeName: reel.placeName || '', location: reel.location || '', venue: venue || '' },
+    place: {
+      placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
+      ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
+    },
     candidates,
   });
+  // Nothing found: the place picker opens with the best guess from the handles filled in.
+  const withGuess = (body) => (guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body);
   if (!query) {
     // An empty result isn't cached: it would stop every later try for 100 days.
-    return res.status(200).json({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } });
+    return res.status(200).json(withGuess({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } }));
   }
 
   let candidates;
   if (read.candidates) {
     ({ candidates } = read);
+  } else if (handleHit) {
+    ({ candidates } = handleHit);
+    await saveReel(candidates);
   } else {
     const searchResponse = await invoke(scrapeLocation, {
       action: 'search',
@@ -203,20 +355,26 @@ async function enrich(req, res, getBrowser) {
     }, getBrowser);
     if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
       // The Reel is still worth keeping: the next lookup only needs to retry the search.
-      if (!read.fromCache) await saveReel(null);
-      return res.status(200).json({
+      // A guess isn't saved: the handles are tried again next time.
+      if (!read.fromCache && !guess) await saveReel(null);
+      return res.status(200).json(withGuess({
         ...reel,
         venue,
         maps: { success: false, query, error: searchResponse.body?.error || 'Google Maps search failed', candidates: [] },
-      });
+      }));
     }
     candidates = searchResponse.body.candidates || [];
     await saveReel(candidates);
   }
 
   const requestedName = typeof req.body?.placeName === 'string' ? req.body.placeName : reel.placeName;
+  // A list post shared without a slide: no telling which place was meant, so nothing is picked
+  // unless the person chose a result.
+  const mustPick = reel.listedPlaces?.length > 1;
   let selectedCandidate = null;
-  if (backgroundOnly) {
+  if (mustPick && !req.body?.mapsPlaceUrl && typeof req.selectCandidate !== 'function') {
+    selectedCandidate = null;
+  } else if (backgroundOnly) {
     selectedCandidate = candidates.length === 1 ? candidates[0] : null;
   } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
@@ -226,7 +384,7 @@ async function enrich(req, res, getBrowser) {
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
   }
-  if (!selectedCandidate && !backgroundOnly && typeof req.selectCandidate !== 'function') {
+  if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
       : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
@@ -239,6 +397,7 @@ async function enrich(req, res, getBrowser) {
   return res.status(200).json({
     ...reel,
     venue,
+    area,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }
