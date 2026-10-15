@@ -86,8 +86,8 @@ function normalize(value) {
 }
 
 // What a reel lookup needs, from the shared cache when anyone has looked the reel up before.
-// The cache keeps only the venue it found ({ placeName, location, venue }) and Google's results for it:
-// never the caption, hashtags or creator. Older rows in another shape are ignored.
+// The cache keeps the venue it found ({ placeName, location, venue, caption }) and Google's results for it:
+// never the hashtags or creator. Older rows in another shape, or saved before the caption was kept, are read again.
 // Returns { reel, venue, candidates, fromCache } on success, or { status, body } with the scraper's error.
 // cleanUrl is the link that is read; cacheKey also names the slide for carousel links.
 async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
@@ -95,10 +95,10 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cachedPlace = cached?.data?.place;
   // A saved lookup that found nothing is skipped, so the reel is read again.
   const foundSomething = cachedPlace && (cachedPlace.placeName || cachedPlace.location || cachedPlace.venue || cached.data.candidates?.length);
-  if (foundSomething) {
-    const { placeName = '', location = '', venue = '', choices } = cachedPlace;
+  if (foundSomething && typeof cachedPlace.caption === 'string') {
+    const { placeName = '', location = '', venue = '', caption, choices } = cachedPlace;
     const reel = {
-      success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
+      success: true, reelUrl, caption, creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
       ...(choices?.length ? { listedPlaces: choices } : {}),
     };
@@ -322,8 +322,7 @@ async function enrich(req, res, getBrowser) {
   }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
-  // again in front of it, and Maps returns a list of matches for the query. From the cache there is
-  // no caption, so the query is the venue on its own.
+  // again in front of it, and Maps returns a list of matches for the query.
   // With nothing else to go on, an order/pickup caption is not searched: no place is better than the collection point.
   const orderOnly = !venue && !reel.placeName && !reel.location && !handleHit && isOrderCaption(reel.caption);
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
@@ -333,10 +332,10 @@ async function enrich(req, res, getBrowser) {
   const query = handleHit?.query ||
     (venue ? `📍${withArea(venue, area)} ${read.listed ? '' : flipped}`.trim() : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
-  // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
+  // Kept: the venue it found, the whole caption and Google's results.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {
-      placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
+      placeName: reel.placeName || '', location: reel.location || '', venue: venue || '', caption: reel.caption || '',
       ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
     },
     candidates,
