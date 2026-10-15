@@ -4,8 +4,8 @@
 -- read or change it. Safe to run more than once.
 
 -- One row per Instagram Reel (key = https://www.instagram.com/reel/<code>/).
--- data = { place: { placeName, location, venue, caption }, candidates: [Google Maps results] | null }
--- The whole caption is kept; never the hashtags, creator or cover.
+-- data = { place: { placeName, location, venue }, candidates: [Google Maps results] | null }
+-- Only what a lookup needs is kept: never the caption, hashtags, creator or cover.
 create table if not exists public.reel_lookups (
   key text primary key check (char_length(key) <= 512),
   data jsonb not null,
