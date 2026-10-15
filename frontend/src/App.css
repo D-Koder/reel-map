@@ -4783,6 +4783,27 @@ button.profile-open {
   cursor: pointer;
 }
 
+.select-bar-delete {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--surface);
+  background: transparent;
+  color: var(--surface);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-bar-delete svg {
+  width: 18px;
+  height: 18px;
+}
+
 .move-list {
   display: flex;
   flex-direction: column;
