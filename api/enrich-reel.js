@@ -35,6 +35,13 @@ function flipCaption(caption) {
   return [...words.slice(half), ...words.slice(0, half)].join(' ');
 }
 
+// Captions that only say how to order or collect (an online store's "Pickup Saturday from Heathwood…").
+// The place named there is the collection point, not the shop, so it is never searched.
+const ORDER_TEXT = /\b(pick ?ups?|pre-?orders?|order via|order (online|now|here)|link in bio)\b/i;
+function isOrderCaption(caption) {
+  return ORDER_TEXT.test(String(caption || ''));
+}
+
 // Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
 function squash(value) {
   return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
@@ -317,13 +324,15 @@ async function enrich(req, res, getBrowser) {
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
-  const flipped = flipCaption(reel.caption);
+  // With nothing else to go on, an order/pickup caption is not searched: no place is better than the collection point.
+  const orderOnly = !venue && !reel.placeName && !reel.location && !handleHit && isOrderCaption(reel.caption);
+  const flipped = orderOnly ? '' : flipCaption(reel.caption);
   // A listed place is searched on its own: the rest of the caption names the other places.
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
   const query = handleHit?.query ||
     (venue ? `📍${withArea(venue, area)} ${read.listed ? '' : flipped}`.trim() : captionQuery) ||
-    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || reel.creator || '';
+    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {
