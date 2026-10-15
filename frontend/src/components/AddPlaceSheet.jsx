@@ -495,29 +495,32 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">{sheetTitle}</div>
-          {step === 'details' && (
+          {/* Grouped so the warning sits next to the X, not in the middle of the header. */}
+          <div className="modal-header-actions">
+            {step === 'details' && (
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
+                aria-label="Report a problem with this lookup"
+                title="Report a problem with this lookup"
+              >
+                <TriangleAlert aria-hidden="true" />
+              </button>
+            )}
+            {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
             <button
               type="button"
               className="modal-close"
-              onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
-              aria-label="Report a problem with this lookup"
-              title="Report a problem with this lookup"
+              onClick={() => {
+                if (draftable) clearDraft();
+                onClose();
+              }}
+              aria-label="Close"
             >
-              <TriangleAlert aria-hidden="true" />
+              <X aria-hidden="true" />
             </button>
-          )}
-          {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
-          <button
-            type="button"
-            className="modal-close"
-            onClick={() => {
-              if (draftable) clearDraft();
-              onClose();
-            }}
-            aria-label="Close"
-          >
-            <X aria-hidden="true" />
-          </button>
+          </div>
         </div>
 
         {reportOpen && (
@@ -547,9 +550,23 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                       placeName: name,
                       location,
                       venue: scrapedData?.venue || '',
-                      query: mapsData?.query || '',
-                      candidates: mapsData?.candidates || [],
+                      // The reel's own Google Maps search (mapsData is only the place picked from it).
+                      query: scrapedData?.maps?.query || '',
+                      candidates: scrapedData?.maps?.candidates || [],
                       comment: reportComment,
+                      // Everything else on the form, as it was when reported.
+                      details: {
+                        searchedUrl: reelUrlInput.trim(),
+                        address: location,
+                        verifiedPlace: mapsData?.name ? { name: mapsData.name, address: mapsData.address, url: mapsData.mapsUrl } : null,
+                        customInfo,
+                        category,
+                        collection: collections.find((c) => c.id === collectionId)?.name ?? '',
+                        vibe: feeling,
+                        eventDate,
+                        entryUrl,
+                        captionFound: Boolean(scrapedData?.caption),
+                      },
                     }),
                   });
                   if (!response.ok) throw new Error(`HTTP ${response.status}`);

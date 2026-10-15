@@ -50,9 +50,9 @@ async function writeCache(table, key, data) {
   }
 }
 
-// Adds one row to a table, e.g. lookup_debug. Failures are logged, never thrown.
+// Adds one row to a table, e.g. lookup_debug. Returns whether it was saved. Failures are logged, never thrown.
 async function insertRow(table, row) {
-  if (!enabled()) return;
+  if (!enabled()) return false;
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: 'POST',
@@ -60,9 +60,11 @@ async function insertRow(table, row) {
       body: JSON.stringify(row),
       signal: AbortSignal.timeout(3000),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text().catch(() => '')}`);
+    return true;
   } catch (error) {
     console.warn(`Insert into ${table} failed:`, error.message);
+    return false;
   }
 }
 
