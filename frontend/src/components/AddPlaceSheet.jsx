@@ -114,6 +114,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [verifyingLocation, setVerifyingLocation] = useState(false);
   const sheetRef = useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
+  // The warning button sends this lookup's details and a comment to the debug table.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportComment, setReportComment] = useState('');
+  const [reportStatus, setReportStatus] = useState('');
   const [newCollectionOpen, setNewCollectionOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [creatingCollection, setCreatingCollection] = useState(false);
@@ -491,6 +495,17 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">{sheetTitle}</div>
+          {step === 'details' && (
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
+              aria-label="Report a problem with this lookup"
+              title="Report a problem with this lookup"
+            >
+              <TriangleAlert aria-hidden="true" />
+            </button>
+          )}
           {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
           <button
             type="button"
@@ -504,6 +519,53 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             <X aria-hidden="true" />
           </button>
         </div>
+
+        {reportOpen && (
+          <div className="field" style={{ marginBottom: 12 }}>
+            <span className="modal-label">Report this lookup</span>
+            <textarea
+              value={reportComment}
+              onChange={(e) => setReportComment(e.target.value)}
+              placeholder="What went wrong? (optional)"
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <button
+              type="button"
+              disabled={reportStatus === 'sending'}
+              onClick={async () => {
+                setReportStatus('sending');
+                try {
+                  const response = await fetch('/api/report-lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      reelUrl: reelUrl || reelUrlInput.trim(),
+                      caption: scrapedData?.caption || '',
+                      creator: scrapedData?.creator || '',
+                      locationTag: scrapedData?.locationTag || '',
+                      placeName: name,
+                      location,
+                      venue: scrapedData?.venue || '',
+                      query: mapsData?.query || '',
+                      candidates: mapsData?.candidates || [],
+                      comment: reportComment,
+                    }),
+                  });
+                  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                  setReportStatus('sent');
+                  setReportComment('');
+                } catch {
+                  setReportStatus('failed');
+                }
+              }}
+            >
+              {reportStatus === 'sending' ? 'Sending…' : 'Send report'}
+            </button>
+            {reportStatus === 'sent' && <span> Sent, thank you.</span>}
+            {reportStatus === 'failed' && <span> Could not send. Try again.</span>}
+          </div>
+        )}
 
         {/* STEP 1: Reel Link Input */}
         {step === 'reel' && (

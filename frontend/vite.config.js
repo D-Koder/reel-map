@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const apiHandlers = {
   '/api/enrich-reel': require('../api/enrich-reel.js'),
   '/api/scrape-location': require('../api/scrape-location.js'),
+  '/api/report-lookup': require('../api/report-lookup.js'),
 };
 
 function localApi() {
