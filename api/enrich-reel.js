@@ -5,7 +5,7 @@ const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
 const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
-const { captionCity, saysWhere, withArea } = require('./_lib/area');
+const { aiPlace } = require('./_lib/ai-place');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -35,11 +35,58 @@ function flipCaption(caption) {
   return [...words.slice(half), ...words.slice(0, half)].join(' ');
 }
 
+// True when the text already names the area, so it isn't added twice.
+// Hashtags don't count: Google reads "#sydneyfood" as one word, not as Sydney.
+function saysWhere(text, area) {
+  const value = String(text || '').replace(/#[\p{L}\p{N}_]+/gu, ' ').toLocaleLowerCase();
+  return Boolean(area) && value.includes(String(area).toLocaleLowerCase());
+}
+
+// "Salted egg burger" + "Melbourne" → "Salted egg burger Melbourne", so a vague search isn't answered
+// with places near the server (in the US). Left alone when it already says where.
+function withArea(text, area) {
+  const value = String(text || '').trim();
+  if (!area || !value || saysWhere(value, area)) return value;
+  return `${value} ${area}`;
+}
+
 // Captions that only say how to order or collect (an online store's "Pickup Saturday from Heathwood…").
 // The place named there is the collection point, not the shop, so it is never searched.
 const ORDER_TEXT = /\b(pick ?ups?|pre-?orders?|order via|order (online|now|here)|link in bio)\b/i;
 function isOrderCaption(caption) {
   return ORDER_TEXT.test(String(caption || ''));
+}
+
+// A venue that is only an address: "18 Blender La, Melbourne VIC", "Shop 4/845 Collins St, Docklands VIC".
+const ADDRESS_ONLY = /^(?:\d+[a-z]?(?:\/\d+[a-z]?)?\s+[A-Z]|(?:shop|unit|suite|level|lot)\s+\d)/i;
+
+// The caption rules found no single clear venue, so the AI reads it: no venue at all, a venue
+// that is only an address, or several pins (the rules can't tell a date pin from a place pin in
+// every language).
+function needsAi(reel, venue) {
+  if (!reel.caption) return false;
+  const pins = String(reel.caption).match(/[📍📌]/gu) || [];
+  const addressOnly = !reel.placeName && ADDRESS_ONLY.test(String(venue || ''));
+  return (!venue && !reel.placeName && !reel.location) || addressOnly || pins.length >= 2;
+}
+
+// What the AI found, as the reel fields the rest of the lookup uses. A list post shared without a
+// slide offers every place to pick from, like a list read by captionPlaceForSlide.
+// A handle ("kickbakery_fitzroy") becomes words for the search; its suburb is used when the post gives none.
+function applyAi(reel, ai) {
+  const pick = ai.kind === 'list' ? ai.places[ai.slidePlace ?? 0] : ai.places[0];
+  const fromHandle = ['creator', 'mention'].includes(pick.source) && /^@?[\w.]+$/.test(pick.name);
+  const handle = fromHandle ? handleToPlace(pick.name) : null;
+  const name = handle?.name || pick.name;
+  const where = pick.area || ai.postArea || handle?.suburb || '';
+  const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
+    ? { listedPlaces: ai.places.map(({ name: listed, address, evidence }) => ({ name: listed, address, line: evidence })) }
+    : {};
+  return {
+    reel: { ...reel, placeName: name, location: pick.address || where, placeSource: pick.source, ...choices },
+    venue: [name, pick.address || where].filter(Boolean).join(', '),
+    area: ai.postArea || pick.area,
+  };
 }
 
 // Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
@@ -182,7 +229,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     tried.add(handle);
     const { name, suburb } = handleToPlace(handle);
     if (squash(name).length < 3) return null;
-    const where = current.locationTag || suburb || captionSuburb(current.caption) || captionCity(current.caption);
+    const where = current.locationTag || suburb || captionSuburb(current.caption);
     guess ??= { name, location: where };
     searches += 1;
     const query = [name, where].filter(Boolean).join(' ');
@@ -297,41 +344,68 @@ async function enrich(req, res, getBrowser) {
   }
 
   let { reel, venue } = read;
+  // No single clear venue from the caption rules: the AI reads the post. The page is read first
+  // for the location tag and collab posters, which the AI weighs too.
+  let aiFound = null;
+  let aiOrderOnly = false;
+  if (!read.fromCache && !read.listed && needsAi(reel, venue)) {
+    reel = await readPageExtras(reel, cleanUrl, getBrowser);
+    const ai = await aiPlace({
+      caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
+      collaborators: reel.collaborators, slide, userCountry: req.body?.country,
+    });
+    if (ai?.kind === 'order_only') {
+      aiOrderOnly = true;
+      reel = { ...reel, placeName: '', location: '' };
+      venue = '';
+    } else if (ai?.places.length) {
+      aiFound = applyAi(reel, ai);
+      ({ reel, venue } = aiFound);
+    }
+  }
+
   // No "Name:" line, list or 📍 line: look for the place by the handles in and on the post.
+  // A pin that is only an address ("📍18 Blender La, Melbourne VIC") has no name, so the handles
+  // are tried for one; the address is kept as the location.
   let handleHit = null;
   let guess = null;
-  if (!read.fromCache && !venue && !reel.placeName && !reel.location) {
+  const typedAddress = venue;
+  const addressOnly = !read.fromCache && !reel.placeName && ADDRESS_ONLY.test(String(venue || ''));
+  if (!read.fromCache && !aiFound && !aiOrderOnly && ((!venue && !reel.placeName && !reel.location) || addressOnly)) {
     const found = await findByHandles(reel, cleanUrl, getBrowser, startedAt);
     if (found.candidates) {
       handleHit = found;
       ({ reel, venue } = found);
-    } else {
+      if (addressOnly) reel = { ...reel, location: typedAddress };
+    } else if (!addressOnly) {
       ({ reel, guess } = found);
     }
   }
-  // Where the post is: its location tag, else the city its caption names most. It's added to the search,
-  // so Google doesn't answer a vague search with places near the server (in the US). The page is only
-  // opened for the tag when the caption names no city.
+  // Where the post is: the area the AI read from the caption, else the post's location tag, else the
+  // person's own country. It's added to the search, so Google doesn't answer a vague search with
+  // places near the server (in the US). The page is only opened for the tag when nothing else says where.
   let area = '';
   if (!read.fromCache && !handleHit) {
-    area = reel.locationTag || captionCity(reel.caption);
+    area = aiFound?.area || reel.locationTag;
     if (!area) {
       reel = await readPageExtras(reel, cleanUrl, getBrowser);
       area = reel.locationTag || '';
     }
+    area ||= typeof req.body?.country === 'string' ? req.body.country.trim() : '';
   }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
   // again in front of it, and Maps returns a list of matches for the query. From the cache there is
   // no caption, so the query is the venue on its own.
   // With nothing else to go on, an order/pickup caption is not searched: no place is better than the collection point.
-  const orderOnly = !venue && !reel.placeName && !reel.location && !handleHit && isOrderCaption(reel.caption);
+  const orderOnly = aiOrderOnly || (!venue && !reel.placeName && !reel.location && !handleHit && isOrderCaption(reel.caption));
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
-  // A listed place is searched on its own: the rest of the caption names the other places.
+  // A listed place, or one the AI picked, is searched on its own: the rest of the caption names
+  // other places or just adds noise.
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
   const query = handleHit?.query ||
-    (venue ? `📍${withArea(venue, area)} ${read.listed ? '' : flipped}`.trim() : captionQuery) ||
+    (venue ? `📍${withArea(venue, area)} ${read.listed || aiFound ? '' : flipped}`.trim() : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
