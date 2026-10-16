@@ -12,10 +12,11 @@ module.exports = async function handler(req, res) {
   const collection = String(req.query.c || '');
   const appUrl = UUID.test(id) ? `/?place=${encodeURIComponent(id)}` : '/';
 
-  if (!PREVIEW_BOTS.test(req.headers['user-agent'] || '')) {
-    res.setHeader('Cache-Control', 'no-store');
-    return res.redirect(302, appUrl);
-  }
+  // Never cached: chat apps and people get different answers from the same link, and a cached
+  // preview page would be shown to the person tapping the link right after it was sent.
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Vary', 'User-Agent');
+  if (!PREVIEW_BOTS.test(req.headers['user-agent'] || '')) return res.redirect(302, appUrl);
 
   const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   let share = null;
@@ -31,7 +32,6 @@ module.exports = async function handler(req, res) {
     : `${origin}/icon-512.png`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, s-maxage=600');
   return res.status(200).send(`<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -47,5 +47,7 @@ module.exports = async function handler(req, res) {
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escape(title)}">
 <meta name="twitter:image" content="${escape(image)}">
-</head><body><a href="${escape(appUrl)}">${escape(title)}</a></body></html>`);
+</head><body style="margin:0;font-family:-apple-system,sans-serif;background:#12162a;color:#f1eee8;display:flex;min-height:100vh;align-items:center;justify-content:center">
+<a href="${escape(appUrl)}" style="color:#fff;background:#d4421d;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:600">Open in reel map</a>
+</body></html>`);
 };
