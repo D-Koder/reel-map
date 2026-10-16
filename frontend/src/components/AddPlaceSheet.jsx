@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { bestPlaceMatch, entriesAtSpot, reelPlaceHints } from '../lib/places';
+import { bestPlaceMatch, entriesAtSpot, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
@@ -197,7 +197,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
     if (data.maps) {
-      const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
+      // Results not named like the reel's place (a nearby business Maps adds) are left out.
+      const candidates = relatedPlaces(data.maps.candidates, reelPlaceHints(data))
+        .map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
       if (data.maps.details) {
         setMapsData(data.maps.details);
         setName(data.maps.details.name || data.placeName || name);
@@ -277,7 +279,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setChoosingListed(item.line);
     try {
       const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
-      const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
+      const candidates = relatedPlaces(await searchCandidates(query), [item.name])
+        .map((candidate) => ({ ...candidate, searchQuery: query }));
       const best = bestPlaceMatch(candidates, [item.name]);
       if (best) {
         await selectLocationCandidate(best);
@@ -366,7 +369,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         await selectLocationCandidate({ ...best, searchQuery: address }, true);
         return;
       }
-      setVerifyResults(candidates);
+      setVerifyResults(relatedPlaces(candidates, [placeName]));
     } catch (error) {
       addLog(`Could not verify address: ${error.message}`, 'error');
       setVerifyResults(null);

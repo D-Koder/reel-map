@@ -103,7 +103,8 @@ function hasWholeWords(name, key) {
 // One result → that one. Otherwise each hint (best first) is tried in two rounds:
 //   1. whole words: "YoArt" → "Yo Art Frozen Yoghurt (The Glen)", not "Yoarthi" or "Theyo ar type";
 //   2. letters anywhere in the name, when no name has the whole words;
-//   3. a result's whole name written inside the hint ("the restaurant is called Frenchie").
+//   3. a result's whole name written inside the hint ("the restaurant is called Frenchie"), or at the
+//      start of a one-word handle ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
 // A round only picks when exactly one result matches; a tie asks the user.
 // Same rule as bestCandidate in api/enrich-reel.js.
 export function bestPlaceMatch(candidates, hints = []) {
@@ -119,10 +120,35 @@ export function bestPlaceMatch(candidates, hints = []) {
     if (partial.length === 1) return partial[0];
     // 3. the other way round: a result's whole name written inside the hint, e.g. "the restaurant
     //    is called Frenchie" → "Frenchie" (names under 4 letters are too likely to appear by chance).
-    const inside = candidates.filter((candidate) => squash(candidate.name).length >= 4 && hasWholeWords(hint, squash(candidate.name)));
+    const inside = candidates.filter((candidate) => nameInsideHint(candidate.name, hint));
     if (inside.length === 1) return inside[0];
   }
   return null;
+}
+
+// A result's whole name written inside the hint: as whole words ("the restaurant is called Frenchie"),
+// or at the start of a one-word handle with a suffix ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
+// Names under 4 letters (6 for the handle case) are too likely to appear by chance.
+function nameInsideHint(name, hint) {
+  const key = squash(name);
+  if (key.length < 4) return false;
+  if (hasWholeWords(hint, key)) return true;
+  return key.length >= 6 && words(hint).length === 1 && squash(hint).startsWith(key);
+}
+
+// The results named like the place, so a search that also returns unrelated places nearby ("Sole Wash"
+// for "Sneaker Laundry LAB") only offers the ones that fit. Each hint (best first) is tried; the first
+// that matches any result decides. When nothing matches, every result is kept.
+export function relatedPlaces(candidates, hints = []) {
+  if (!candidates?.length) return [];
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const related = candidates.filter((candidate) => hasWholeWords(candidate.name, key) ||
+      squash(candidate.name).includes(key) || nameInsideHint(candidate.name, hint));
+    if (related.length) return related;
+  }
+  return candidates;
 }
 
 // How much a pinned line looks like a place rather than a date or a promo. Higher is more place-like.

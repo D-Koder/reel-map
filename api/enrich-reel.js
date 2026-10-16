@@ -122,10 +122,20 @@ function bestCandidate(candidates, hints) {
     if (partial.length === 1) return partial[0];
     // 3. the other way round: a result's whole name written inside the hint, e.g. "the restaurant
     //    is called Frenchie" → "Frenchie" (names under 4 letters are too likely to appear by chance).
-    const inside = candidates.filter((candidate) => squash(candidate.name).length >= 4 && hasWholeWords(hint, squash(candidate.name)));
+    const inside = candidates.filter((candidate) => nameInsideHint(candidate.name, hint));
     if (inside.length === 1) return inside[0];
   }
   return null;
+}
+
+// A result's whole name written inside the hint: as whole words, or at the start of a one-word
+// handle with a suffix ("sneakerlaundrylabau" → "Sneaker Laundry LAB"). Same as in places.js.
+function nameInsideHint(name, hint) {
+  const key = squash(name);
+  if (key.length < 4) return false;
+  if (hasWholeWords(hint, key)) return true;
+  const hintWords = String(hint || '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return key.length >= 6 && hintWords.length === 1 && squash(hint).startsWith(key);
 }
 
 function normalize(value) {

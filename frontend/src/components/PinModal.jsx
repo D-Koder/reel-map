@@ -3,6 +3,7 @@ import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, Circ
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
+import BookingFiles from './BookingFiles';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -210,7 +211,14 @@ export default function PinModal({
     else showToast('No phone number listed');
   };
 
-  const addToCalendar = () => {
+  // Step 3: opens the booked date as a calendar event (this used to shadow addToCalendar and only show a toast).
+  const saveToCalendar = () => {
+    addToCalendar({
+      title: calendarTitle.trim() || place.name,
+      location: place.address,
+      description: place.reel_url,
+      start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
+    });
     showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
   };
@@ -337,6 +345,7 @@ export default function PinModal({
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
+            <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
           </div>
         )}
 
@@ -436,6 +445,7 @@ export default function PinModal({
                 >
                   {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save booking →'}
                 </button>
+                <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
               </div>
             )}
 
@@ -451,7 +461,7 @@ export default function PinModal({
                   onChange={(e) => setCalendarTitle(e.target.value)}
                 />
                 <div className="step-buttons">
-                  <button className="step-btn primary" onClick={addToCalendar}>
+                  <button className="step-btn primary" onClick={saveToCalendar}>
                     <CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar
                   </button>
                   <button className="step-btn secondary" onClick={() => completeStep(3)}>

@@ -27,7 +27,16 @@ export function addToCalendar({ title, location, description, start }) {
     'END:VCALENDAR',
   ].filter(Boolean);
 
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const ics = lines.join('\r\n');
+  // iPhone and iPad: opening the event as a data link shows "Add to Calendar". A download there
+  // only saves the file to Files, so the event never reaches the calendar.
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIos) {
+    window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+    return;
+  }
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -35,5 +44,6 @@ export function addToCalendar({ title, location, description, start }) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Revoking straight away can cancel the download before the browser reads the file.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }

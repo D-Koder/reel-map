@@ -4879,3 +4879,34 @@ button.profile-open {
   line-height: 1.4;
   pointer-events: none;
 }
+
+/* BOOKING CONFIRMATIONS (screenshots / PDFs on a booked place) */
+.booking-files { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.booking-files-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.booking-file { display: flex; align-items: center; gap: 8px; }
+.booking-file-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+}
+.booking-file-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.booking-file-icon {
+  width: 48px; height: 48px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; background: var(--surface-muted);
+}
+.booking-file-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.booking-file-remove {
+  min-width: 44px; min-height: 44px;
+  border: none; background: none; color: var(--text-muted); cursor: pointer;
+}
+.booking-files-upload { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.booking-files-upload.disabled { opacity: 0.6; pointer-events: none; }
