@@ -6,7 +6,7 @@ export function placeShareUrl(placeId) {
 // The phone's share sheet when there is one, else the link is copied.
 export async function sharePlace(place, showToast) {
   const url = placeShareUrl(place.id);
-  const text = place.address ? `${place.name} · ${place.address}` : place.name;
+  const text = `Let's go here? 👀 ${place.address ? `${place.name}, ${place.address}` : place.name}`;
   if (navigator.share) {
     try {
       await navigator.share({ title: place.name, text, url });
