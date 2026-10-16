@@ -1,15 +1,16 @@
-// Share links point back to this app: /?place=<id> opens the place (see SharedPlaceSheet).
-export function placeShareUrl(placeId) {
-  return `${window.location.origin}/?place=${encodeURIComponent(placeId)}`;
+// Share links point back to this app. /p/<id> gives chat apps a preview card (api/share-page.js)
+// and sends people on to /?place=<id>, which opens the place (see SharedPlaceSheet).
+export function placeShareUrl(placeId, collectionId) {
+  const base = `${window.location.origin}/p/${encodeURIComponent(placeId)}`;
+  return collectionId ? `${base}?c=${encodeURIComponent(collectionId)}` : base;
 }
 
-// The phone's share sheet when there is one, else the link is copied.
-export async function sharePlace(place, showToast) {
-  const url = placeShareUrl(place.id);
-  const text = `Let's go here? 👀 ${place.address ? `${place.name}, ${place.address}` : place.name}`;
+// Only the link is sent, so Messages shows one card (picture + "Let's go here? 👀 …"), not a
+// separate text bubble. The phone's share sheet when there is one, else the link is copied.
+async function shareLink(url, title, showToast) {
   if (navigator.share) {
     try {
-      await navigator.share({ title: place.name, text, url });
+      await navigator.share({ url });
     } catch (error) {
       // Closing the share sheet isn't an error.
       if (error?.name !== 'AbortError') showToast("Couldn't open sharing");
@@ -18,10 +19,19 @@ export async function sharePlace(place, showToast) {
   }
   try {
     await navigator.clipboard.writeText(url);
-    showToast('Link copied');
+    showToast(`Link to ${title} copied`);
   } catch {
     showToast(url);
   }
+}
+
+export function sharePlace(place, showToast) {
+  return shareLink(placeShareUrl(place.id), place.name, showToast);
+}
+
+// For the collection's members: the card shows the booked date and time (option D).
+export function shareBooking(place, showToast) {
+  return shareLink(placeShareUrl(place.id, place.collection_id), place.name, showToast);
 }
 
 // The place id from a share link, kept until it is handled (signing in in between included).

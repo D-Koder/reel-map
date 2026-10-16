@@ -13,6 +13,15 @@
     },
     "api/save-reel.js": {
       "maxDuration": 120
+    },
+    "api/share-image.js": {
+      "includeFiles": "api/_lib/fonts/**"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/p/:id",
+      "destination": "/api/share-page?id=:id"
+    }
+  ]
 }

@@ -4941,3 +4941,4 @@ button.profile-open {
 .shared-place-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .shared-place-actions .step-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
 .shared-place-save { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.share-booking { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }

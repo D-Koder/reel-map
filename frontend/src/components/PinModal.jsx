@@ -3,7 +3,7 @@ import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
-import { sharePlace } from '../lib/share';
+import { shareBooking, sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
@@ -344,6 +344,10 @@ export default function PinModal({
               })}
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
+            </button>
+            {/* For the people in this collection: the link's card shows the date and time. */}
+            <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
+              <Share2 className="ico" aria-hidden="true" /> Share booking with the group
             </button>
             <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
           </div>

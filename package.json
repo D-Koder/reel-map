@@ -12,6 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "@sparticuz/chromium": "^147.0.0",
+    "@vercel/og": "0.8.5",
     "puppeteer-core": "^24.43.1"
   }
 }
