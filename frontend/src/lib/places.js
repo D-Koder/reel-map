@@ -153,14 +153,22 @@ function placeScore(text) {
 // The venue written after a pin in a caption. 📍 wins over 📌, because captions also use 📌 for
 // headings like "📌 Details:". Same rule as captionVenue in api/_lib/caption.js.
 export function captionVenue(caption) {
-  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu)]
-    .map(([, pin, text]) => ({
-      pin,
-      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
+  const text = String(caption || '');
+  const pins = [
+    ...text.matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu),
+    // A handle in brackets on its own line, "【 @yomiu.au 】", is the venue too.
+    ...text.matchAll(/(【)\s*(@[\w.]+)\s*】/gu),
+  ];
+  const found = pins
+    .map(([, pin, raw]) => ({
+      pin: pin === '【' ? '📍' : pin,
+      // A 📌 call to action ("Which one are you trying first? 👇") is not a venue. Checked before the cut at "?".
+      callToAction: /\?|👇/u.test(raw),
+      text: raw.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
         // A pin mid-sentence ("my new quest to 📍Frenchie. all I can say…") ends at the sentence's end.
         .split(/[.!?](?:\s|$)/)[0].trim(),
     }))
-    .filter(({ text }) => text && !text.endsWith(':'));
+    .filter(({ text, pin, callToAction }) => text && !text.endsWith(':') && !(pin === '📌' && callToAction));
   // Lines that look like a place (score above 0) beat dates and promos; among them the first 📍, then
   // the first 📌. With none, the highest score. A lone pin is always used.
   const scored = found.map((entry) => ({ ...entry, score: placeScore(entry.text) }));

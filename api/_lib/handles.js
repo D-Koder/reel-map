@@ -6,7 +6,7 @@
 const SHOP_WORDS = [
   'croissanterie', 'patisserie', 'creamery', 'dumplings', 'dumpling', 'bakehouse', 'roastery', 'roasters', 'brewery',
   'kitchen', 'bakery', 'eatery', 'bistro', 'dessert', 'desserts', 'gelato', 'noodles', 'noodle', 'coffee', 'pizza',
-  'ramen', 'sushi', 'grill', 'cafe', 'deli', 'bar', 'tea', 'co',
+  'ramen', 'sushi', 'grill', 'cafe', 'deli', 'bar', 'tea', 'co', 'matcha', 'boba', 'burger', 'donut', 'croissant',
 ];
 const SHOP_WORD = new RegExp(`^(.{3,}?)(${SHOP_WORDS.join('|')})$`);
 
@@ -43,8 +43,12 @@ function titleCase(text) {
 //   "sweetag.glenwaverley" → { name: "Sweetag", suburb: "glenwaverley" }
 //   "kickbakery"           → { name: "Kick Bakery", suburb: "" }
 //   "hectors_deli"         → { name: "Hectors Deli", suburb: "" }
+// Country suffixes that end a handle ("karitongelato.au") and aren't part of the name.
+const COUNTRY_SUFFIX = new Set(['au', 'nz', 'uk', 'com', 'net', 'org']);
+
 function handleToPlace(handle) {
   const parts = String(handle || '').replace(/^@/, '').toLowerCase().split(/[._]+/).filter(Boolean);
+  if (parts.length > 1 && COUNTRY_SUFFIX.has(parts[parts.length - 1])) parts.pop();
   let suburb = '';
   if (parts.length > 1) {
     const last = parts[parts.length - 1];
