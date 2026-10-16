@@ -4912,3 +4912,8 @@ button.profile-open {
 .booking-file-remove.disabled { opacity: 0.5; pointer-events: none; }
 .booking-files-upload { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 .booking-files-upload.disabled { opacity: 0.6; pointer-events: none; }
+.booking-files-privacy {
+  display: flex; gap: 6px; align-items: flex-start;
+  margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-muted);
+}
+.booking-files-privacy .ico { flex-shrink: 0; width: 14px; height: 14px; margin-top: 1px; }

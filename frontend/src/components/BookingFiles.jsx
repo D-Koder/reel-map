@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Paperclip, RefreshCw, Trash2 } from 'lucide-react';
+import { FileText, Paperclip, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const BUCKET = 'booking-files';
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024;
+
+// When the files are deleted: 1 day after the booking ends (planned time + 2 hours, the calendar
+// event's length). Same rule as public.expired_booking_files, which the hourly cleanup uses.
+function deleteDate(plannedAt) {
+  return new Date(new Date(plannedAt).getTime() + 26 * 60 * 60 * 1000);
+}
 
 // Booking confirmations (screenshots or PDFs) for one collection's entry of a place.
 // Everyone in the collection sees them; members who can edit can add more.
@@ -133,6 +139,15 @@ export default function BookingFiles({ place, canUpload, showToast }) {
           ))}
         </ul>
       )}
+      <p className="booking-files-privacy">
+        <ShieldCheck className="ico" aria-hidden="true" />
+        <span>
+          For privacy, we don't keep booking files after your visit.{' '}
+          {place.booking?.planned_at
+            ? `They're deleted automatically on ${deleteDate(place.booking.planned_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}.`
+            : "They're deleted automatically 1 day after the booking ends."}
+        </span>
+      </p>
       {canUpload && (
         <label className={`step-btn secondary full-width booking-files-upload${uploading ? ' disabled' : ''}`}>
           <input type="file" accept="image/*,application/pdf" multiple hidden disabled={uploading} onChange={upload} />
