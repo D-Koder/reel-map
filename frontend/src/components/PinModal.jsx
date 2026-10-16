@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Ticket, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
+import { sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
@@ -312,11 +313,10 @@ export default function PinModal({
                 ))}
               </div>
             )}
-            {place.reel_url && (
-              <button className="reel-link" onClick={openReel}>
-                View Reel <ArrowUpRight className="ico" aria-hidden="true" />
-              </button>
-            )}
+            {/* A link to this place in reel map. The reel itself opens from the thumbnail. */}
+            <button className="reel-link" onClick={() => sharePlace(place, showToast)}>
+              <Share2 className="ico" aria-hidden="true" /> Share place
+            </button>
           </div>
         </div>
 
