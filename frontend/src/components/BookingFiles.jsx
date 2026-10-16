@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Paperclip, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { FileText, Paperclip, RefreshCw, ShieldCheck, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const BUCKET = 'booking-files';
@@ -20,6 +21,20 @@ export default function BookingFiles({ place, canUpload, showToast }) {
   const [uploading, setUploading] = useState(false);
   // The path of the file being replaced, while its new copy uploads.
   const [replacing, setReplacing] = useState(null);
+  // The image shown full size in a pop-up, or null.
+  const [viewing, setViewing] = useState(null);
+
+  // Escape closes the pop-up only, not the place sheet underneath (it listens on window too).
+  useEffect(() => {
+    if (!viewing) return undefined;
+    const onKey = (event) => {
+      if (event.key !== 'Escape') return;
+      event.stopImmediatePropagation();
+      setViewing(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [viewing]);
 
   const load = async () => {
     if (!place.collection_id) return;
@@ -116,7 +131,18 @@ export default function BookingFiles({ place, canUpload, showToast }) {
         <ul className="booking-files-list">
           {files.map((file) => (
             <li key={file.path} className="booking-file">
-              <a href={file.url || undefined} target="_blank" rel="noopener noreferrer" className="booking-file-link">
+              {/* Images open in a pop-up; PDFs open in a new tab. */}
+              <a
+                href={file.url || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="booking-file-link"
+                onClick={(event) => {
+                  if (!file.isImage || !file.url) return;
+                  event.preventDefault();
+                  setViewing(file);
+                }}
+              >
                 {file.isImage && file.url
                   ? <img src={file.url} alt={file.name} className="booking-file-thumb" />
                   : <span className="booking-file-icon"><FileText className="ico" aria-hidden="true" /></span>}
@@ -138,6 +164,16 @@ export default function BookingFiles({ place, canUpload, showToast }) {
             </li>
           ))}
         </ul>
+      )}
+      {viewing && createPortal(
+        <div className="booking-lightbox" role="dialog" aria-modal="true" aria-label={viewing.name} onClick={(event) => { event.stopPropagation(); setViewing(null); }}>
+          <button type="button" className="booking-lightbox-close" onClick={() => setViewing(null)} aria-label="Close">
+            <X aria-hidden="true" />
+          </button>
+          <img src={viewing.url} alt={viewing.name} className="booking-lightbox-img" onClick={(event) => event.stopPropagation()} />
+          <div className="booking-lightbox-name">{viewing.name}</div>
+        </div>,
+        document.body,
       )}
       <p className="booking-files-privacy">
         <ShieldCheck className="ico" aria-hidden="true" />
