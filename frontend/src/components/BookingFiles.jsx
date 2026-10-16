@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Paperclip, Trash2 } from 'lucide-react';
+import { FileText, Paperclip, RefreshCw, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const BUCKET = 'booking-files';
@@ -12,6 +12,8 @@ export default function BookingFiles({ place, canUpload, showToast }) {
   const folder = `${place.collection_id}/${place.id}`;
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  // The path of the file being replaced, while its new copy uploads.
+  const [replacing, setReplacing] = useState(null);
 
   const load = async () => {
     if (!place.collection_id) return;
@@ -35,23 +37,57 @@ export default function BookingFiles({ place, canUpload, showToast }) {
     load();
   }, [folder]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const upload = async (event) => {
+  // Images or PDFs under 10 MB; tells the person when some were skipped.
+  const allowed = (event) => {
     const chosen = [...(event.target.files || [])];
     event.target.value = '';
-    if (!chosen.length) return;
     const ok = chosen.filter((file) => TYPES.includes(file.type) && file.size <= MAX_BYTES);
     if (ok.length < chosen.length) showToast('Only images or PDFs under 10 MB can be added.');
+    return ok;
+  };
+
+  // The new file's path, or null when the upload failed.
+  const put = async (file) => {
+    const safeName = file.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'booking';
+    const path = `${folder}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+    return error ? null : path;
+  };
+
+  const upload = async (event) => {
+    const ok = allowed(event);
     if (!ok.length) return;
     setUploading(true);
     let failed = 0;
     for (const file of ok) {
-      const safeName = file.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'booking';
-      const { error } = await supabase.storage.from(BUCKET)
-        .upload(`${folder}/${Date.now()}-${safeName}`, file, { contentType: file.type });
-      if (error) failed += 1;
+      if (!(await put(file))) failed += 1;
     }
     setUploading(false);
     showToast(failed ? `${failed} file${failed === 1 ? '' : 's'} couldn't be uploaded.` : 'Booking confirmation added');
+    load();
+  };
+
+  // Swaps a file for a new one, e.g. after the booking changed. The new one is uploaded first, so a
+  // failed upload keeps the old one. Only the uploader can remove the old one: for anyone else the
+  // new copy is taken back out and nothing changes.
+  const replace = async (old, event) => {
+    const [file] = allowed(event);
+    if (!file) return;
+    setReplacing(old.path);
+    const path = await put(file);
+    if (!path) {
+      setReplacing(null);
+      showToast("The new file couldn't be uploaded.");
+      return;
+    }
+    const { data, error } = await supabase.storage.from(BUCKET).remove([old.path]);
+    if (error || !data?.length) {
+      await supabase.storage.from(BUCKET).remove([path]);
+      showToast('Only the person who uploaded it can replace it.');
+    } else {
+      showToast('Booking confirmation replaced');
+    }
+    setReplacing(null);
     load();
   };
 
@@ -81,9 +117,17 @@ export default function BookingFiles({ place, canUpload, showToast }) {
                 <span className="booking-file-name">{file.name}</span>
               </a>
               {canUpload && (
-                <button type="button" className="booking-file-remove" onClick={() => remove(file)} aria-label={`Remove ${file.name}`}>
-                  <Trash2 className="ico" aria-hidden="true" />
-                </button>
+                <>
+                  <label className={`booking-file-remove${replacing ? ' disabled' : ''}`} aria-label={`Replace ${file.name}`} title="Replace">
+                    <input type="file" accept="image/*,application/pdf" hidden disabled={Boolean(replacing)} onChange={(event) => replace(file, event)} />
+                    {replacing === file.path
+                      ? <span className="spinner" aria-hidden="true" />
+                      : <RefreshCw className="ico" aria-hidden="true" />}
+                  </label>
+                  <button type="button" className="booking-file-remove" onClick={() => remove(file)} aria-label={`Remove ${file.name}`} title="Remove">
+                    <Trash2 className="ico" aria-hidden="true" />
+                  </button>
+                </>
               )}
             </li>
           ))}

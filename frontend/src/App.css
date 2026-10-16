@@ -4906,7 +4906,9 @@ button.profile-open {
 .booking-file-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .booking-file-remove {
   min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
   border: none; background: none; color: var(--text-muted); cursor: pointer;
 }
+.booking-file-remove.disabled { opacity: 0.5; pointer-events: none; }
 .booking-files-upload { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 .booking-files-upload.disabled { opacity: 0.6; pointer-events: none; }
