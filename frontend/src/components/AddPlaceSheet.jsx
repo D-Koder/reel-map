@@ -61,7 +61,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -109,6 +109,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
   // A list post shared without a slide: the listed place being looked up after the person tapped it.
   const [choosingListed, setChoosingListed] = useState(null);
+  const [addingAllListed, setAddingAllListed] = useState(false);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
@@ -288,6 +289,52 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       addLog(`Could not find ${item.name}: ${error.message}`, 'error');
     } finally {
       setChoosingListed(null);
+    }
+  };
+
+  // "Add all" on a list post: every listed place is looked up on Google Maps and saved to the chosen
+  // collection. A place Maps can't match is saved with the address from the post and no map pin.
+  const addAllListed = async () => {
+    if (!collectionId || !onAddAll || !scrapedData?.listedPlaces?.length) return;
+    setAddingAllListed(true);
+    setSaving(true);
+    const places = [];
+    try {
+      for (const item of scrapedData.listedPlaces) {
+        addLog(`Looking up ${item.name}…`, 'info');
+        const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
+        const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
+        const best = bestPlaceMatch(candidates, [item.name]);
+        let venueDetails = null;
+        if (best) {
+          venueDetails = await requestLocationApi({
+            action: 'details',
+            query,
+            placeUrl: best.url,
+            placeAddress: best.address,
+            placeName: best.name,
+            location: best.address || item.address || scrapedData?.area || '',
+          });
+        }
+        places.push({
+          name: (venueDetails?.name || best?.name || item.name).trim(),
+          location: (venueDetails?.address || best?.address || item.address || '').trim(),
+          category,
+          collectionId,
+          reelUrl: reelUrl.trim(),
+          venueDetails,
+          feeling,
+          customInfo: customInfo.trim(),
+          url: null,
+          eventDate: null,
+        });
+      }
+      await onAddAll(places);
+    } catch (error) {
+      addLog(`Could not add all places: ${error.message}`, 'error');
+    } finally {
+      setAddingAllListed(false);
+      setSaving(false);
     }
   };
 
@@ -769,6 +816,16 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     </button>
                   ))}
                 </div>
+                {onAddAll && (
+                  <button
+                    type="button"
+                    className="step-btn primary full-width"
+                    onClick={addAllListed}
+                    disabled={saving || !!choosingListed || addingAllListed || !collectionId}
+                  >
+                    {addingAllListed ? 'Adding…' : `Add all ${scrapedData.listedPlaces.length} as places`}
+                  </button>
+                )}
               </div>
             )}
 

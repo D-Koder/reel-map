@@ -623,6 +623,19 @@ function MainApp({ userId, showToast }) {
               setAdding(false);
             }
           }}
+          onAddAll={async (list) => {
+            let added = 0;
+            for (const fields of list) {
+              if (await data.addPlace(fields)) added += 1;
+            }
+            if (added) {
+              rememberCollection(userId, list[0].collectionId);
+              if (finishingInboxId) inbox.remove(finishingInboxId);
+              setFinishingInboxId(null);
+              showToast(`Added ${added} place${added === 1 ? '' : 's'}`);
+              setAdding(false);
+            }
+          }}
           onClose={() => {
             setAdding(false);
             setAddDraft(null);
