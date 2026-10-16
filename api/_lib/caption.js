@@ -48,12 +48,14 @@ function captionVenue(caption) {
   const text = String(caption || '');
   const pins = [
     ...text.matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu),
-    // A handle in brackets on its own line, "【 @yomiu.au 】", is the venue too.
-    ...text.matchAll(/(【)\s*(@[\w.]+)\s*】/gu),
+    // A handle wrapped in symbols on its own line ("【 @yomiu.au 】", "✨@yomiu.au✨") is the venue too,
+    // whatever the symbols are. Letters on either side mean it's a sentence, not a line of its own.
+    ...[...text.matchAll(/^[^\p{L}\p{N}\s@]+\s*(@[\w.]+)\s*[^\p{L}\p{N}\s@]+\s*$/gmu)]
+      .map((match) => [match[0], '📍', match[1]]),
   ];
   const found = pins
     .map(([, pin, raw]) => ({
-      pin: pin === '【' ? '📍' : pin,
+      pin,
       // Checked before the sentence is cut at its "?", which is what marks a call to action.
       callToAction: CALL_TO_ACTION.test(raw),
       text: handleVenue(raw.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
