@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { bestPlaceMatch, entriesAtSpot, reelPlaceHints, relatedPlaces } from '../lib/places';
+import { bestPlaceMatch, entriesAtSpot, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
@@ -192,7 +192,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
   const applyReelData = (data) => {
     setScrapedData(data);
-    setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
+    // No name found: the first part of a "Name, Suburb" location, unless it's a street address.
+    const locationName = /\d/.test(data.location?.split(',')[0] ?? '') || !data.location?.includes(',')
+      ? '' : data.location.split(',')[0].trim();
+    setName(data.placeName || locationName || data.caption?.split('\n')[0].substring(0, 80) || '');
     setLocation(data.location || '');
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
@@ -206,10 +209,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-      } else if (!(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data))) {
+      } else if (!(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data))) {
         // (Not for a list post shared without a slide: the person says which place they meant.)
-        // One result, or one whose name matches the reel's place: pick it without asking.
-        const best = bestPlaceMatch(candidates, reelPlaceHints(data));
+        // One result, or one whose name (or suburb, for a chain) matches the reel's place: pick it without asking.
+        const best = bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data));
         addLog(`Picked ${best.name}, the clear match.`, 'success');
         selectLocationCandidate(best);
       } else if (candidates.length) {
@@ -364,7 +367,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
       if (!candidates.length) candidates = await searchCandidates(address);
       // One result, or one whose name matches the name or the address's first part: use it straight away.
-      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]]);
+      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1));
       if (best) {
         await selectLocationCandidate({ ...best, searchQuery: address }, true);
         return;

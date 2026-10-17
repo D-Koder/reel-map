@@ -105,11 +105,17 @@ function hasWholeWords(name, key) {
 //   2. letters anywhere in the name, when no name has the whole words;
 //   3. a result's whole name written inside the hint ("the restaurant is called Frenchie"), or at the
 //      start of a one-word handle ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
-// A round only picks when exactly one result matches; a tie asks the user.
+// A round only picks when exactly one result matches. A tie between branches of one chain is broken
+// by the suburb ("ING Korean BBQ, Glen Waverley" → the Glen Waverley branch, not Vermont South);
+// any other tie asks the user.
 // Same rule as bestCandidate in api/enrich-reel.js.
-export function bestPlaceMatch(candidates, hints = []) {
+export function bestPlaceMatch(candidates, hints = [], areas = []) {
   if (!candidates?.length) return null;
   if (candidates.length === 1) return candidates[0];
+  return matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+function matchByName(candidates, hints) {
   for (const hint of hints) {
     const key = squash(hint);
     if (key.length < 4) continue;
@@ -124,6 +130,27 @@ export function bestPlaceMatch(candidates, hints = []) {
     if (inside.length === 1) return inside[0];
   }
   return null;
+}
+
+// Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
+function matchByArea(candidates, hints, areas) {
+  const hint = hints.map(squash).find((key) => key.length >= 4 &&
+    candidates.filter((candidate) => hasWholeWords(candidate.name, key)).length > 1);
+  if (!hint) return null;
+  const branches = candidates.filter((candidate) => hasWholeWords(candidate.name, hint));
+  for (const area of areas) {
+    const key = squash(area);
+    if (key.length < 4) continue;
+    const inArea = branches.filter((candidate) => hasWholeWords(`${candidate.name} ${candidate.address || ''}`, key));
+    if (inArea.length === 1) return inArea[0];
+  }
+  return null;
+}
+
+// The suburb parts of the reel's location: "ING Korean BBQ, Glen Waverley" → ["Glen Waverley"].
+export function reelPlaceAreas(reel) {
+  return [...String(reel?.location ?? '').split(',').slice(1), reel?.area ?? '']
+    .map((part) => part.trim()).filter(Boolean);
 }
 
 // A result's whole name written inside the hint: as whole words ("the restaurant is called Frenchie"),

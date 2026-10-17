@@ -110,9 +110,29 @@ function hasWholeWords(name, key) {
 }
 
 // The result to pick without asking, trying the best hint first: a single whole-word match
-// ("YoArt" → "Yo Art Frozen Yoghurt"), else a single name containing the letters. A tie asks the user.
+// ("YoArt" → "Yo Art Frozen Yoghurt"), else a single name containing the letters. A tie between
+// branches of one chain is broken by the suburb; any other tie asks the user.
 // Same rule as bestPlaceMatch in frontend/src/lib/places.js.
-function bestCandidate(candidates, hints) {
+function bestCandidate(candidates, hints, areas = []) {
+  return matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+// Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
+function matchByArea(candidates, hints, areas) {
+  const hint = hints.map(squash).find((key) => key.length >= 4 &&
+    candidates.filter((candidate) => hasWholeWords(candidate.name, key)).length > 1);
+  if (!hint) return null;
+  const branches = candidates.filter((candidate) => hasWholeWords(candidate.name, hint));
+  for (const area of areas) {
+    const key = squash(area);
+    if (key.length < 4) continue;
+    const inArea = branches.filter((candidate) => hasWholeWords(`${candidate.name} ${candidate.address || ''}`, key));
+    if (inArea.length === 1) return inArea[0];
+  }
+  return null;
+}
+
+function matchByName(candidates, hints) {
   for (const hint of hints) {
     const key = squash(hint);
     if (key.length < 4) continue;
@@ -488,7 +508,8 @@ async function enrich(req, res, getBrowser) {
   if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
-      : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]]);
+      : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]],
+        [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || '']);
   }
 
   const { details, detailsError } = selectedCandidate
