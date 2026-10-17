@@ -202,7 +202,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (steps) {
       addLog(`Read from: ${steps.source}`, 'info');
       if (steps.ruleVenue) addLog(`Caption rules found: ${steps.ruleVenue}`, 'info');
-      addLog(`AI: ${steps.ai}`, steps.ai.startsWith('called: found ') ? 'success' : 'info');
+      addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
       if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
       if (steps.area) addLog(`Area added to search: ${steps.area}`, 'info');
       addLog(`Google Maps search: ${steps.mapsSearch}`, 'info', steps.mapsUrl);

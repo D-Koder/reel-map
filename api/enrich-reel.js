@@ -238,6 +238,8 @@ async function readPageExtras(reel, cleanUrl, getBrowser) {
 // so the caption search and the details read still fit in the function's 120 seconds.
 const HANDLE_SEARCHES = 4;
 const HANDLE_BUDGET_MS = 55000;
+// The AI fallback after an empty Maps search only starts this soon into the lookup.
+const RETRY_BEFORE_MS = 60000;
 
 // Steps 4–6 of finding the place, for captions with no "Name:" line, list or 📍 line:
 //   4. @mentions in the caption (not the poster), guides like @melbfoodie last
@@ -387,14 +389,19 @@ async function enrich(req, res, getBrowser) {
     ai: read.fromCache ? 'skipped (saved lookup)' : read.listed ? 'skipped (list post)'
       : needsAi(reel, venue) ? 'called' : 'not needed (caption rules found the place)',
   };
-  if (!read.fromCache && !read.listed && needsAi(reel, venue)) {
+  // The AI reads the post (with its location tag and collab posters from the page).
+  const askAi = async (when) => {
     reel = await readPageExtras(reel, cleanUrl, getBrowser);
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
       collaborators: reel.collaborators, slide, userCountry: country,
     });
-    steps.ai = !ai ? 'called, no answer' : ai.kind === 'order_only' ? 'called: order/pickup post, no place'
-      : ai.places.length ? `called: found ${ai.places.map((place) => place.name).join(', ')}` : 'called: found no place';
+    steps.ai = `${when}${!ai ? 'no answer' : ai.kind === 'order_only' ? 'order/pickup post, no place'
+      : ai.places.length ? `found ${ai.places.map((place) => place.name).join(', ')}` : 'found no place'}`;
+    return ai;
+  };
+  if (!read.fromCache && !read.listed && needsAi(reel, venue)) {
+    const ai = await askAi('called: ');
     if (ai?.kind === 'order_only') {
       aiOrderOnly = true;
       reel = { ...reel, placeName: '', location: '' };
@@ -442,18 +449,16 @@ async function enrich(req, res, getBrowser) {
     area ||= country;
   }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
-  // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
-  // again in front of it, and Maps returns a list of matches for the query. From the cache there is
-  // no caption, so the query is the venue on its own.
+  // A venue (from the caption rules, a list or the AI) is searched on its own with the area: the rest
+  // of the caption only adds noise. With no venue at all, the whole caption is the last resort:
+  // captions usually end with the venue, so the flipped caption leads with it.
   // With nothing else to go on, an order/pickup caption is not searched: no place is better than the collection point.
   const orderOnly = aiOrderOnly || (!venue && !reel.placeName && !reel.location && !handleHit && isOrderCaption(reel.caption));
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
-  // A listed place, or one the AI picked, is searched on its own: the rest of the caption names
-  // other places or just adds noise.
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  const query = handleHit?.query ||
-    (venue ? `📍${withArea(venue, area)} ${read.listed || aiFound ? '' : flipped}`.trim() : captionQuery) ||
+  let query = handleHit?.query ||
+    (venue ? `📍${withArea(venue, area)}` : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
@@ -480,13 +485,35 @@ async function enrich(req, res, getBrowser) {
     ({ candidates } = handleHit);
     await saveReel(candidates);
   } else {
-    const searchResponse = await invoke(scrapeLocation, {
+    const search = () => invoke(scrapeLocation, {
       action: 'search',
       query,
       placeName: reel.placeName,
       location: reel.location,
       caption: reel.caption,
     }, getBrowser);
+    let searchResponse = await search();
+    const noResults = () => searchResponse.statusCode >= 400 || !searchResponse.body?.success || !searchResponse.body.candidates?.length;
+    // The caption rules' venue found nothing ("📍Dancebakesmelbourne"): the AI reads the caption, and
+    // its venue is searched instead, when it names a different one.
+    // Only with time left for an AI call and a second search before the 120-second limit.
+    if (noResults() && venue && !aiFound && !aiOrderOnly && !read.fromCache && !read.listed && reel.caption &&
+        Date.now() - startedAt < RETRY_BEFORE_MS) {
+      const firstUrl = steps.mapsUrl;
+      const ai = await askAi('called after Google Maps found nothing: ');
+      if (ai?.kind !== 'order_only' && ai?.places.length) {
+        const retry = applyAi(reel, ai);
+        const retryQuery = `📍${withArea(retry.venue, retry.area || area)}`;
+        if (retryQuery !== query) {
+          aiFound = retry;
+          ({ reel, venue } = retry);
+          query = retryQuery;
+          steps.mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+          steps.mapsSearch = `searched twice; the first search (${firstUrl}) found nothing, so the AI's place was searched`;
+          searchResponse = await search();
+        }
+      }
+    }
     if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
       // The Reel is still worth keeping: the next lookup only needs to retry the search.
       // A guess isn't saved: the handles are tried again next time.
@@ -523,7 +550,7 @@ async function enrich(req, res, getBrowser) {
   if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
     selectedCandidate = candidates.length === 1
       ? candidates[0]
-      : bestCandidate(candidates, [placeName, venue, String(reel.location || '').split(',')[0]],
+      : bestCandidate(candidates, [String(reel.placeName || '').replace(/^@/, ''), venue, String(reel.location || '').split(',')[0]],
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || '']);
   }
 
