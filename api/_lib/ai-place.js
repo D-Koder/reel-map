@@ -58,12 +58,12 @@ Rules:
   and script. Do not translate, correct spelling, or add words.
 - When the venue is named by a handle (rules 4, 5, 6 or 7), put the handle
   exactly as written, without the @, in "handle". Its "name" is the
-  business name the handle spells, as the business would write it: the
-  same letters in the same order, split into words and capitalised
-  ("thebrunswick_fishandchippery" → "The Brunswick Fish and Chippery").
-  Leave off a suburb, city or country written at the end of the handle
-  ("kickbakery_fitzroy" → "Kick Bakery"), and never add, change or
-  correct letters. When the venue is not named by a handle, "handle" is "".
+  business name the handle spells, as the business would write it: every
+  letter of the handle in the same order, split into words and capitalised
+  ("thebrunswick_fishandchippery" → "The Brunswick Fish and Chippery",
+  "kickbakery_fitzroy" → "Kick Bakery Fitzroy"). Keep a suburb, city or
+  country at the end, and never drop, add, change or correct letters.
+  When the venue is not named by a handle, "handle" is "".
 - Never invent an address, suburb or city that the post does not state.
   Leave a field empty rather than guess. A city or suburb named in a
   hashtag counts as stated (#brisbanefood → Brisbane, #syd → Sydney).
@@ -165,14 +165,13 @@ See you at the shop ☺️
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Kick Bakery", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
+ "places": [{"name": "Kick Bakery Fitzroy", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
    "address": "", "source": "creator", "evidence": "See you at the shop"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "medium"}
 </answer>
 Why: the shop is posting about itself ("see you at the shop"), so the
 creator handle is the venue. The handle is copied as written, the name
-uses its letters split into words without the suburb, and no address is
-invented.
+uses all its letters split into words, and no address is invented.
 </example>
 
 <example>
@@ -272,8 +271,9 @@ const squash = (text) => String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g
 // The venue(s) the post is about, or null when the AI can't be used.
 // Returns { kind, places: [{ name, handle, area, address, source, evidence }], slidePlace, postArea, confidence }.
 // A place whose evidence isn't really in the post is dropped: the AI made it up.
-// A name read from a handle must use only the handle's letters, in order ("&" counts as "and"):
-// "The Brunswick Fish and Chippery" passes for thebrunswick_fishandchippery, "Brunswick Seafood" doesn't.
+// A name read from a handle must use exactly the handle's letters, in order ("&" counts as "and"):
+// "The Brunswick Fish and Chippery" passes for thebrunswick_fishandchippery; "The Brunswick" and
+// "Brunswick Seafood" don't.
 // When it doesn't, the handle itself is used as the name.
 async function aiPlace(post) {
   if (!process.env.ANTHROPIC_API_KEY || !post?.caption) return null;
@@ -297,14 +297,13 @@ async function aiPlace(post) {
     const sources = [post.caption, post.locationTag, post.creator, ...(post.collaborators || [])].join('\n');
     const seen = flat(sources);
     const seenSquashed = squash(sources);
-    const spells = (name, letters) => [name, String(name).replace(/&/g, ' and ')].some((value) => {
-      const key = squash(value);
-      return key && letters.includes(key);
-    });
+    const spellings = (name) => [name, String(name).replace(/&/g, ' and ')].map(squash).filter(Boolean);
+    const spells = (name, letters) => spellings(name).some((key) => letters.includes(key));
+    const spellsExactly = (name, handle) => spellings(name).includes(squash(handle));
     const checked = answer.places.map((place) => {
       const handle = String(place.handle || '').trim().replace(/^@/, '');
       if (!handle || !seenSquashed.includes(squash(handle))) return { ...place, handle: '' };
-      if (spells(place.name, squash(handle))) return { ...place, handle };
+      if (spellsExactly(place.name, handle)) return { ...place, handle };
       console.warn('AI name not spelled by its handle, using the handle:', place.name, '←', handle);
       return { ...place, name: handle, handle };
     });
