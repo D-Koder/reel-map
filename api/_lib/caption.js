@@ -149,4 +149,13 @@ function captionPlaceForSlide(caption, slide) {
   return list[Math.min(Math.max(index, 0), list.length - 1)];
 }
 
-module.exports = { captionVenue, captionPlaceList, captionPlaceForSlide };
+// A pinned line that is a sentence, not a place: "📍A new cute cafe has opened up along High street
+// this year". Six or more words, no number, and mostly lower-case words. Place lines are short or
+// capitalised ("Lunetta Bakehouse, Hardware Lane, Melbourne"), and addresses have a number.
+function isProse(text) {
+  const words = String(text || '').split(/\s+/).filter((word) => /\p{L}/u.test(word));
+  if (words.length < 6 || /\d/.test(text)) return false;
+  return words.filter((word) => /^\p{Ll}/u.test(word)).length >= 4;
+}
+
+module.exports = { captionVenue, captionPlaceList, captionPlaceForSlide, isProse };

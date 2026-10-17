@@ -5,6 +5,7 @@
 // Meanwhile an Instagram reel is looked up in the background and the result is cached, so the app
 // finds it ready when it opens (see lookInBackground below).
 
+const { requestCountry } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -26,7 +27,8 @@ function lookInBackground(req, sharedText) {
   const work = fetch(`${protocol}://${host}/api/enrich-reel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reelUrl, slide, background: true }),
+    // This request comes from Vercel itself, so the person's country is passed on from theirs.
+    body: JSON.stringify({ reelUrl, slide, background: true, country: requestCountry(req) }),
     signal: AbortSignal.timeout(115000),
   })
     .then((response) => {

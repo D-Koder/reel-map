@@ -3,7 +3,8 @@ const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
-const { captionVenue, captionPlaceForSlide } = require('./_lib/caption');
+const { captionVenue, captionPlaceForSlide, isProse } = require('./_lib/caption');
+const { requestCountry } = require('./_lib/country');
 const { captionMentions, isGuide, handleToPlace, captionSuburb } = require('./_lib/handles');
 const { aiPlace } = require('./_lib/ai-place');
 
@@ -61,13 +62,13 @@ function isOrderCaption(caption) {
 const ADDRESS_ONLY = /^(?:\d+[a-z]?(?:\/\d+[a-z]?)?\s+[A-Z]|(?:shop|unit|suite|level|lot)\s+\d)/i;
 
 // The caption rules found no single clear venue, so the AI reads it: no venue at all, a venue
-// that is only an address, or several pins (the rules can't tell a date pin from a place pin in
-// every language).
+// that is only an address, a pin on a sentence, or several pins (the rules can't tell a date pin
+// from a place pin in every language).
 function needsAi(reel, venue) {
   if (!reel.caption) return false;
   const pins = String(reel.caption).match(/[📍📌]/gu) || [];
   const addressOnly = !reel.placeName && ADDRESS_ONLY.test(String(venue || ''));
-  return (!venue && !reel.placeName && !reel.location) || addressOnly || pins.length >= 2;
+  return (!venue && !reel.placeName && !reel.location) || addressOnly || isProse(venue) || pins.length >= 2;
 }
 
 // What the AI found, as the reel fields the rest of the lookup uses. A list post shared without a
@@ -354,6 +355,7 @@ async function enrich(req, res, getBrowser) {
   }
 
   let { reel, venue } = read;
+  const country = requestCountry(req);
   // No single clear venue from the caption rules: the AI reads the post. The page is read first
   // for the location tag and collab posters, which the AI weighs too.
   let aiFound = null;
@@ -362,7 +364,7 @@ async function enrich(req, res, getBrowser) {
     reel = await readPageExtras(reel, cleanUrl, getBrowser);
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
-      collaborators: reel.collaborators, slide, userCountry: req.body?.country,
+      collaborators: reel.collaborators, slide, userCountry: country,
     });
     if (ai?.kind === 'order_only') {
       aiOrderOnly = true;
@@ -372,6 +374,12 @@ async function enrich(req, res, getBrowser) {
       aiFound = applyAi(reel, ai);
       ({ reel, venue } = aiFound);
     }
+  }
+  // A pin on a sentence the AI found no venue in is not a place or an address: the caption search
+  // below reads it instead, and the address box stays empty.
+  if (!aiFound && isProse(venue)) {
+    if (isProse(reel.location)) reel = { ...reel, location: '' };
+    venue = '';
   }
 
   // No "Name:" line, list or 📍 line: look for the place by the handles in and on the post.
@@ -401,7 +409,7 @@ async function enrich(req, res, getBrowser) {
       reel = await readPageExtras(reel, cleanUrl, getBrowser);
       area = reel.locationTag || '';
     }
-    area ||= typeof req.body?.country === 'string' ? req.body.country.trim() : '';
+    area ||= country;
   }
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // Captions usually end with the venue, so the flipped caption leads with it. The venue is added
