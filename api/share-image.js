@@ -8,9 +8,11 @@ const FONTS = [
   { name: 'Bricolage', weight: 800, file: 'bricolage-grotesque-latin-800-normal.woff' },
 ].map(({ name, weight, file }) => ({ name, weight, style: 'normal', data: fs.readFileSync(path.join(__dirname, '_lib', 'fonts', file)) }));
 
-// The picture on a shared place's link card, 1200×1044: a drawn street map with a pin, and a white
-// label with the place. A collection of more than one person adds its members' initials and votes;
-// a booking adds a BOOKED stamp with the date. The map is drawn here, not taken from any map service.
+// The picture on a shared place's link card, 1200×1044: the real street map around the place (a
+// Mapbox Static Images map, the same provider as the app's map) with a pin, and a white label with
+// the place. A collection of more than one person adds its members' initials and votes; a booking
+// adds a BOOKED stamp with the date. A place without coordinates gets a drawn map instead.
+// Mapbox's logo and attribution are part of the map picture and stay visible below the label.
 const W = 1200;
 const H = 1044;
 const ACCENT = '#d4421d';
@@ -47,7 +49,60 @@ const LAYOUTS = [
   },
 ];
 
-function map(place, pinTop) {
+const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || process.env.VITE_MAPBOX_TOKEN || '';
+const ZOOM = 15.5;
+
+// The latitude to centre the map on so the place lands at pinTop instead of the middle (Web Mercator, 512px tiles).
+function centreLat(lat, pinTop) {
+  const world = 512 * 2 ** ZOOM;
+  const rad = (lat * Math.PI) / 180;
+  const y = ((1 - Math.log(Math.tan(Math.PI / 4 + rad / 2)) / Math.PI) / 2) * world + (H / 2 - pinTop);
+  return (2 * Math.atan(Math.exp(Math.PI * (1 - (2 * y) / world))) - Math.PI / 2) * (180 / Math.PI);
+}
+
+// The real map around the place as a data URL, or null (no coordinates, no token, or Mapbox said no).
+// The Referer is the app's own address, for a token limited to the app's URLs.
+async function realMap(place, pinTop, origin) {
+  const lat = Number(place.lat);
+  const lng = Number(place.lng);
+  if (!MAPBOX_TOKEN || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const centre = `${lng.toFixed(6)},${centreLat(lat, pinTop).toFixed(6)},${ZOOM}`;
+  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${centre}/${W}x${H}?access_token=${encodeURIComponent(MAPBOX_TOKEN)}`;
+  try {
+    const response = await fetch(url, { headers: origin ? { Referer: `${origin}/` } : {}, signal: AbortSignal.timeout(5000) });
+    const type = response.headers.get('content-type') || '';
+    if (!response.ok || !type.startsWith('image/')) {
+      console.warn('[share-image] Mapbox map failed:', response.status);
+      return null;
+    }
+    return `data:${type};base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`;
+  } catch (error) {
+    console.warn('[share-image] Mapbox map failed:', error.message);
+    return null;
+  }
+}
+
+function pin(pinTop) {
+  return [
+    div({ position: 'absolute', left: W / 2 - 130, top: pinTop - 40, width: 260, height: 80, borderRadius: 130, background: 'rgba(212,66,29,0.22)' }, []),
+    svg(170, 226, '0 0 30 40', [
+      shape('path', { d: 'M15 0C6.7 0 0 6.6 0 14.8 0 26 15 40 15 40s15-14 15-25.2C30 6.6 23.3 0 15 0z', fill: ACCENT, stroke: '#fff', 'stroke-width': 1.5 }),
+      shape('circle', { cx: 15, cy: 14.5, r: 5.6, fill: '#fff' }),
+    ], { position: 'absolute', left: W / 2 - 85, top: pinTop - 226 }),
+  ];
+}
+
+function map(place, pinTop, mapImage) {
+  if (mapImage) {
+    return [
+      el('img', { position: 'absolute', top: 0, left: 0, width: W, height: H }, undefined, { src: mapImage, width: W, height: H }),
+      ...pin(pinTop),
+    ];
+  }
+  return drawnMap(place, pinTop);
+}
+
+function drawnMap(place, pinTop) {
   const layout = LAYOUTS[parseInt(place.id.slice(-1), 16) % LAYOUTS.length];
   const [px, py, pw, ph] = layout.park;
   const street = streetOf(place.address);
@@ -62,11 +117,7 @@ function map(place, pinTop) {
       position: 'absolute', left: layout.label.left, top: layout.label.top, transform: `rotate(${layout.label.rotate}deg)`,
       color: '#9aa39a', fontSize: 30, fontWeight: 700, letterSpacing: 2,
     }, street),
-    div({ position: 'absolute', left: W / 2 - 130, top: pinTop - 40, width: 260, height: 80, borderRadius: 130, background: 'rgba(212,66,29,0.18)' }, []),
-    svg(170, 226, '0 0 30 40', [
-      shape('path', { d: 'M15 0C6.7 0 0 6.6 0 14.8 0 26 15 40 15 40s15-14 15-25.2C30 6.6 23.3 0 15 0z', fill: ACCENT }),
-      shape('circle', { cx: 15, cy: 14.5, r: 5.6, fill: '#fff' }),
-    ], { position: 'absolute', left: W / 2 - 85, top: pinTop - 226 }),
+    ...pin(pinTop),
   ].filter(Boolean);
 }
 
@@ -108,7 +159,9 @@ function stamp(day) {
 
 const capitalised = (text) => String(text || '').replace(/^\p{L}/u, (letter) => letter.toUpperCase());
 
-function card(share) {
+const pinTopFor = (share) => (share.crew ? 360 : 450);
+
+function card(share, mapImage) {
   const { place, booking, crew } = share;
   const { suburb, timeZone } = areaOf(place.address);
   const when = booking ? bookingWhen(booking.plannedAt, timeZone) : null;
@@ -128,10 +181,10 @@ function card(share) {
   ]);
 
   return div({ position: 'relative', width: W, height: H, background: '#eef1ea' }, [
-    ...map(place, crew ? 380 : 470),
+    ...map(place, pinTopFor(share), mapImage),
     badge(),
     div({
-      position: 'absolute', left: 56, right: 56, bottom: 56, flexDirection: 'column', background: '#fff', borderRadius: 48,
+      position: 'absolute', left: 56, right: 56, bottom: mapImage ? 76 : 56, flexDirection: 'column', background: '#fff', borderRadius: 48,
       padding: '40px 52px', boxShadow: '0 12px 48px rgba(20,30,20,0.18)',
     }, crew || !when
       ? [topRow, nameBlock].filter(Boolean)
@@ -143,8 +196,10 @@ module.exports = async function handler(req, res) {
   try {
     const share = await loadShare(String(req.query.id || ''), { group: String(req.query.g || ''), booking: String(req.query.c || '') });
     if (!share) return res.status(404).send('Not found');
+    const origin = req.headers?.host ? `https://${req.headers['x-forwarded-host'] || req.headers.host}` : '';
+    const mapImage = await realMap(share.place, pinTopFor(share), origin);
     const { ImageResponse } = await import('@vercel/og');
-    const image = new ImageResponse(card(share), { width: W, height: H, fonts: FONTS });
+    const image = new ImageResponse(card(share, mapImage), { width: W, height: H, fonts: FONTS });
     const png = Buffer.from(await image.arrayBuffer());
     res.setHeader('Content-Type', 'image/png');
     // Votes change, so the picture is only kept for an hour.
