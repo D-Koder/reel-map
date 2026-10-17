@@ -7,7 +7,6 @@ const SHOP_WORDS = [
   'croissanterie', 'patisserie', 'creamery', 'dumplings', 'dumpling', 'bakehouse', 'roastery', 'roasters', 'brewery',
   'kitchen', 'bakery', 'eatery', 'bistro', 'dessert', 'desserts', 'gelato', 'noodles', 'noodle', 'coffee', 'pizza',
   'ramen', 'sushi', 'grill', 'cafe', 'deli', 'bar', 'tea', 'co', 'matcha', 'boba', 'burger', 'donut', 'croissant',
-  'bakes', 'bakers',
 ];
 const SHOP_WORD = new RegExp(`^(.{3,}?)(${SHOP_WORDS.join('|')})$`);
 
@@ -46,18 +45,12 @@ function titleCase(text) {
 //   "hectors_deli"         → { name: "Hectors Deli", suburb: "" }
 // Country suffixes that end a handle ("karitongelato.au") and aren't part of the name.
 const COUNTRY_SUFFIX = new Set(['au', 'nz', 'uk', 'com', 'net', 'org']);
-// A city written straight onto the end of a one-word handle: "dancebakesmelbourne" → "dancebakes" + Melbourne.
-const GLUED_CITY = /^(.{4,}?)(melbourne|sydney|brisbane|adelaide|perth|canberra|hobart|darwin|auckland)$/;
 
 function handleToPlace(handle) {
   const parts = String(handle || '').replace(/^@/, '').toLowerCase().split(/[._]+/).filter(Boolean);
   if (parts.length > 1 && COUNTRY_SUFFIX.has(parts[parts.length - 1])) parts.pop();
   let suburb = '';
-  const glued = parts.length === 1 && parts[0].match(GLUED_CITY);
-  if (glued) {
-    parts[0] = glued[1];
-    suburb = titleCase(glued[2]);
-  } else if (parts.length > 1) {
+  if (parts.length > 1) {
     const last = parts[parts.length - 1];
     // City short forms ("frenchie.melb") say where, not what: dropped from the name.
     if (CITY_SHORT[last]) {

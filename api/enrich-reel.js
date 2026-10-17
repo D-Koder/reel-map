@@ -238,8 +238,6 @@ async function readPageExtras(reel, cleanUrl, getBrowser) {
 // so the caption search and the details read still fit in the function's 120 seconds.
 const HANDLE_SEARCHES = 4;
 const HANDLE_BUDGET_MS = 55000;
-// The most caption text searched along with a venue.
-const MAX_CONTEXT = 150;
 
 // Steps 4–6 of finding the place, for captions with no "Name:" line, list or 📍 line:
 //   4. @mentions in the caption (not the poster), guides like @melbfoodie last
@@ -444,10 +442,8 @@ async function enrich(req, res, getBrowser) {
   // other places or just adds noise.
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  // A long caption after a venue drowns it: Maps finds nothing for a whole review, so the venue goes alone.
-  const venueContext = read.listed || aiFound || flipped.length > MAX_CONTEXT ? '' : flipped;
   const query = handleHit?.query ||
-    (venue ? `📍${withArea(venue, area)} ${venueContext}`.trim() : captionQuery) ||
+    (venue ? `📍${withArea(venue, area)} ${read.listed || aiFound ? '' : flipped}`.trim() : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and Google's results. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {

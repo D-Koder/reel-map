@@ -35,9 +35,8 @@ function placeScore(text) {
 function handleVenue(text) {
   const match = text.match(/^@([\w.]+)\s*(?:,\s*(.+))?$/);
   if (!match) return text;
-  const { name, suburb: handleSuburb } = handleToPlace(match[1]);
-  // The suburb written after the handle, else one in the handle ("@dancebakesmelbourne" → Melbourne).
-  const suburb = (match[2] || handleSuburb)?.trim().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
+  const { name } = handleToPlace(match[1]);
+  const suburb = match[2]?.trim().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
   return [name, suburb].filter(Boolean).join(', ');
 }
 
