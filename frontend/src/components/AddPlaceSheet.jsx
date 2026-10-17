@@ -141,9 +141,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const addLog = (message, type = 'info') => {
+  // link: an optional URL shown as a tappable link after the message.
+  const addLog = (message, type = 'info', link = '') => {
     const timestamp = new Date().toLocaleTimeString();
-    setApiLogs(prev => [...prev, { message, type, timestamp }]);
+    setApiLogs(prev => [...prev, { message, type, timestamp, link }]);
     console.log(`[${type.toUpperCase()}] ${message}`);
   };
 
@@ -197,6 +198,20 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       ? '' : data.location.split(',')[0].trim();
     setName(data.placeName || locationName || data.caption?.split('\n')[0].substring(0, 80) || '');
     setLocation(data.location || '');
+    const steps = data.steps;
+    if (steps) {
+      addLog(`Read from: ${steps.source}`, 'info');
+      if (steps.ruleVenue) addLog(`Caption rules found: ${steps.ruleVenue}`, 'info');
+      addLog(`AI: ${steps.ai}`, steps.ai.startsWith('called: found ') ? 'success' : 'info');
+      if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
+      if (steps.area) addLog(`Area added to search: ${steps.area}`, 'info');
+      addLog(`Google Maps search: ${steps.mapsSearch}`, 'info', steps.mapsUrl);
+      if (steps.mapsPage) {
+        const page = steps.mapsPage;
+        addLog(page.error ? `Google Maps error: ${page.error}`
+          : `Google showed: "${page.title}" ${page.url} · ${page.text.replace(/\s+/g, ' ').slice(0, 200)}`, 'error');
+      }
+    }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
     if (data.maps) {
@@ -346,6 +361,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   // "No results" from the server (404) is an empty list, not an error.
   const searchCandidates = async (query) => {
+    addLog(`Google Maps search: "${query}"`, 'info', `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
     try {
       const data = await requestLocationApi({ action: 'search', query, location: query });
       return data.candidates || [];
@@ -1207,6 +1223,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   wordBreak: 'break-all'
                 }}>
                   <span style={{ color: 'var(--text-muted)' }}>[{log.timestamp}]</span> {log.message}
+                  {log.link && (
+                    <> <a href={log.link} target="_blank" rel="noreferrer" style={{ color: '#74c0fc' }}>Open in Google Maps ↗</a></>
+                  )}
                 </div>
               ))}
             </div>

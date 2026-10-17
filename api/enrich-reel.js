@@ -380,12 +380,21 @@ async function enrich(req, res, getBrowser) {
   // for the location tag and collab posters, which the AI weighs too.
   let aiFound = null;
   let aiOrderOnly = false;
+  // What the lookup did, for the Add place log: whether the AI ran and what Google Maps was asked.
+  const steps = {
+    source: read.fromCache ? 'saved lookup' : 'Instagram',
+    ruleVenue: venue || '',
+    ai: read.fromCache ? 'skipped (saved lookup)' : read.listed ? 'skipped (list post)'
+      : needsAi(reel, venue) ? 'called' : 'not needed (caption rules found the place)',
+  };
   if (!read.fromCache && !read.listed && needsAi(reel, venue)) {
     reel = await readPageExtras(reel, cleanUrl, getBrowser);
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
       collaborators: reel.collaborators, slide, userCountry: country,
     });
+    steps.ai = !ai ? 'called, no answer' : ai.kind === 'order_only' ? 'called: order/pickup post, no place'
+      : ai.places.length ? `called: found ${ai.places.map((place) => place.name).join(', ')}` : 'called: found no place';
     if (ai?.kind === 'order_only') {
       aiOrderOnly = true;
       reel = { ...reel, placeName: '', location: '' };
@@ -411,6 +420,7 @@ async function enrich(req, res, getBrowser) {
   const addressOnly = !read.fromCache && !reel.placeName && ADDRESS_ONLY.test(String(venue || ''));
   if (!read.fromCache && !aiFound && !aiOrderOnly && ((!venue && !reel.placeName && !reel.location) || addressOnly)) {
     const found = await findByHandles(reel, cleanUrl, getBrowser, startedAt);
+    steps.handles = found.candidates ? `found by handle: ${found.query}` : 'tried handles, none matched';
     if (found.candidates) {
       handleHit = found;
       ({ reel, venue } = found);
@@ -453,8 +463,11 @@ async function enrich(req, res, getBrowser) {
     },
     candidates,
   });
+  steps.area = area || '';
+  steps.mapsUrl = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
+  steps.mapsSearch = read.candidates ? 'skipped (results from saved lookup)' : handleHit ? 'done while trying handles' : query ? 'searched' : 'nothing to search';
   // Nothing found: the place picker opens with the best guess from the handles filled in.
-  const withGuess = (body) => (guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body);
+  const withGuess = (body) => ({ ...(guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body), steps });
   if (!query) {
     // An empty result isn't cached: it would stop every later try for 100 days.
     return res.status(200).json(withGuess({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } }));
@@ -478,6 +491,8 @@ async function enrich(req, res, getBrowser) {
       // The Reel is still worth keeping: the next lookup only needs to retry the search.
       // A guess isn't saved: the handles are tried again next time.
       if (!read.fromCache && !guess) await saveReel(null);
+      // What Google's page showed the server (a consent screen, a block, an empty list…).
+      steps.mapsPage = searchResponse.body?.page || (searchResponse.body?.details ? { error: searchResponse.body.details } : null);
       return res.status(200).json(withGuess({
         ...reel,
         venue,
@@ -520,6 +535,7 @@ async function enrich(req, res, getBrowser) {
     ...reel,
     venue,
     area,
+    steps,
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }

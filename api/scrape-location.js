@@ -104,7 +104,10 @@ module.exports = async function handler(req, res) {
           text: document.body?.innerText?.slice(0, 800) || '',
         }));
         console.warn('[scrape-location] No result links; Maps page state:', JSON.stringify(pageState));
-        return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+        return res.status(404).json({
+          error: `No Google Maps results found for "${query}"`, query, mapsUrl,
+          page: { title: pageState.title, url: pageState.url, text: pageState.text.slice(0, 300) },
+        });
       }
 
       return res.status(200).json({ success: true, query, candidates });
