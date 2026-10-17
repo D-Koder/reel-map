@@ -211,6 +211,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         addLog(page.error ? `Google Maps error: ${page.error}`
           : `Google showed: "${page.title}" ${page.url} · ${page.text.replace(/\s+/g, ' ').slice(0, 200)}`, 'error');
       }
+      if (steps.saved) addLog(`Saved for other people: ${steps.saved}`, 'info');
     }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');

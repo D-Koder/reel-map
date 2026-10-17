@@ -56,9 +56,14 @@ Some general patterns, not word lists:
 Rules:
 - Copy names exactly as written in the post, in their original language
   and script. Do not translate, correct spelling, or add words.
-- When the venue is named by a handle (rules 4, 6 or 7), its name is that
-  handle exactly as written, without the @ and without any symbols around
-  it. Do not shorten it or turn it into words.
+- When the venue is named by a handle (rules 4, 5, 6 or 7), put the handle
+  exactly as written, without the @, in "handle". Its "name" is the
+  business name the handle spells, as the business would write it: the
+  same letters in the same order, split into words and capitalised
+  ("thebrunswick_fishandchippery" → "The Brunswick Fish and Chippery").
+  Leave off a suburb, city or country written at the end of the handle
+  ("kickbakery_fitzroy" → "Kick Bakery"), and never add, change or
+  correct letters. When the venue is not named by a handle, "handle" is "".
 - Never invent an address, suburb or city that the post does not state.
   Leave a field empty rather than guess. A city or suburb named in a
   hashtag counts as stated (#brisbanefood → Brisbane, #syd → Sydney).
@@ -94,7 +99,7 @@ Follow @kel.eats for more 🍴
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Lunetta Bakehouse", "area": "Melbourne",
+ "places": [{"name": "Lunetta Bakehouse", "handle": "", "area": "Melbourne",
    "address": "22 Hardware Lane, Melbourne VIC 3000", "source": "pin",
    "evidence": "Lunetta Bakehouse, 22 Hardware Lane, Melbourne VIC 3000"}],
  "slide_place": null, "post_area": "Melbourne", "confidence": "high"}
@@ -119,9 +124,9 @@ reader, and kel.eats is the reviewer who posted, not the venue.
 <answer>
 {"kind": "list",
  "places": [
-  {"name": "金湯小館", "area": "信義區", "address": "信義區松仁路28號", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
-  {"name": "鼎香樓", "area": "大安區", "address": "大安區永康街15巷3號", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
-  {"name": "小巷湯包", "area": "中山區", "address": "中山區南京東路一段9號", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
+  {"name": "金湯小館", "handle": "", "area": "信義區", "address": "信義區松仁路28號", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
+  {"name": "鼎香樓", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
+  {"name": "小巷湯包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
  "slide_place": 1, "post_area": "台北市", "confidence": "high"}
 </answer>
 Why: a list with one place per slide. Slide 1 is the cover, so slide 3
@@ -160,13 +165,14 @@ See you at the shop ☺️
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "kickbakery_fitzroy", "area": "Fitzroy", "address": "",
-   "source": "creator", "evidence": "See you at the shop"}],
+ "places": [{"name": "Kick Bakery", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
+   "address": "", "source": "creator", "evidence": "See you at the shop"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "medium"}
 </answer>
 Why: the shop is posting about itself ("see you at the shop"), so the
-creator handle is the venue. The handle is copied as written, and no
-address is invented.
+creator handle is the venue. The handle is copied as written, the name
+uses its letters split into words without the suburb, and no address is
+invented.
 </example>
 
 <example>
@@ -184,7 +190,7 @@ Merci @cafelumiere.paris 🙏 and shoutout to @parisfoodguide for the rec
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Café Lumière", "area": "Le Marais, Paris",
+ "places": [{"name": "Café Lumière", "handle": "", "area": "Le Marais, Paris",
    "address": "41 rue des Tournelles, 75004", "source": "location_tag",
    "evidence": "Café Lumière"}],
  "slide_place": null, "post_area": "Paris", "confidence": "high"}
@@ -226,12 +232,13 @@ const SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string' },
+          handle: { type: 'string' },
           area: { type: 'string' },
           address: { type: 'string' },
           source: { type: 'string', enum: ['label', 'location_tag', 'pin', 'mention', 'creator', 'text'] },
           evidence: { type: 'string' },
         },
-        required: ['name', 'area', 'address', 'source', 'evidence'],
+        required: ['name', 'handle', 'area', 'address', 'source', 'evidence'],
         additionalProperties: false,
       },
     },
@@ -263,8 +270,11 @@ const squash = (text) => String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g
   .replace(/[^\p{L}\p{N}]+/gu, '');
 
 // The venue(s) the post is about, or null when the AI can't be used.
-// Returns { kind, places: [{ name, area, address, source, evidence }], slidePlace, postArea, confidence }.
+// Returns { kind, places: [{ name, handle, area, address, source, evidence }], slidePlace, postArea, confidence }.
 // A place whose evidence isn't really in the post is dropped: the AI made it up.
+// A name read from a handle must use only the handle's letters, in order ("&" counts as "and"):
+// "The Brunswick Fish and Chippery" passes for thebrunswick_fishandchippery, "Brunswick Seafood" doesn't.
+// When it doesn't, the handle itself is used as the name.
 async function aiPlace(post) {
   if (!process.env.ANTHROPIC_API_KEY || !post?.caption) return null;
   try {
@@ -287,10 +297,23 @@ async function aiPlace(post) {
     const sources = [post.caption, post.locationTag, post.creator, ...(post.collaborators || [])].join('\n');
     const seen = flat(sources);
     const seenSquashed = squash(sources);
-    const places = answer.places.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
-      seenSquashed.includes(squash(place.name)));
+    const spells = (name, letters) => [name, String(name).replace(/&/g, ' and ')].some((value) => {
+      const key = squash(value);
+      return key && letters.includes(key);
+    });
+    const checked = answer.places.map((place) => {
+      const handle = String(place.handle || '').trim().replace(/^@/, '');
+      if (!handle || !seenSquashed.includes(squash(handle))) return { ...place, handle: '' };
+      if (spells(place.name, squash(handle))) return { ...place, handle };
+      console.warn('AI name not spelled by its handle, using the handle:', place.name, '←', handle);
+      return { ...place, name: handle, handle };
+    });
+    const places = checked.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
+      spells(place.name, seenSquashed));
+    console.log('AI places:', JSON.stringify(places.map(({ name, handle, evidence }) => ({ name, handle, evidence }))),
+      'confidence:', answer.confidence);
     // The slide's place, found again after any made-up places were dropped.
-    const slideIndex = Number.isInteger(answer.slide_place) ? places.indexOf(answer.places[answer.slide_place]) : -1;
+    const slideIndex = Number.isInteger(answer.slide_place) ? places.indexOf(checked[answer.slide_place]) : -1;
     const slidePlace = slideIndex >= 0 ? slideIndex : null;
     const kind = ['single', 'list'].includes(answer.kind) && !places.length ? 'none' : answer.kind;
     return { kind, places, slidePlace, postArea: answer.post_area, confidence: answer.confidence };
