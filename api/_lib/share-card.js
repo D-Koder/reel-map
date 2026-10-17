@@ -1,9 +1,9 @@
 // What a shared place link (/p/<id>) shows in Messages, WhatsApp and other chat apps.
-//   /p/<id>          → "Let's go here?" card: the reel cover (option A).
-//   /p/<id>?c=<col>  → booking card for that collection's members: date and time on the cover (option D).
-// Only public venue info and the booking time are used; never notes, votes or booking files.
-
-const { fetchInstagramOembed } = require('./instagram-oembed');
+//   /p/<id>?g=<col>  → "Let's go here?" card: a drawn map with a pin. When the collection has more than
+//                      one member, their initials and votes are on it too.
+//   /p/<id>?c=<col>  → booking card: the same map with a BOOKED stamp, the date and the time.
+// Everything on the card is the app's own: the venue's public info, the booking time, and the
+// collection's member initials and votes. No reel cover or other Instagram picture is used.
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -21,17 +21,46 @@ async function rest(path, init = {}) {
   return response.json();
 }
 
-// { place, booking } for the link, or null when the place doesn't exist.
-async function loadShare(placeId, collectionId) {
+// { place, booking, crew } for the link, or null when the place doesn't exist.
+// The collection only counts when the place is in it, so a made-up link can't list a collection's members.
+async function loadShare(placeId, { group, booking: bookingCollection } = {}) {
   if (!SUPABASE_URL || !SERVICE_KEY || !UUID.test(String(placeId || ''))) return null;
   const place = await rest('rpc/shared_place', { method: 'POST', body: JSON.stringify({ pid: placeId }) });
   if (!place) return null;
-  let booking = null;
-  if (UUID.test(String(collectionId || ''))) {
-    const rows = await rest(`bookings?collection_id=eq.${collectionId}&place_id=eq.${placeId}&select=planned_at&limit=1`);
-    booking = rows[0]?.planned_at ? { plannedAt: rows[0].planned_at } : null;
-  }
-  return { place, booking };
+  const collectionId = [bookingCollection, group].find((id) => UUID.test(String(id || '')));
+  if (!collectionId) return { place, booking: null, crew: null };
+  const [entry, bookings] = await Promise.all([
+    rest(`collection_places?collection_id=eq.${collectionId}&place_id=eq.${placeId}&select=place_id&limit=1`),
+    bookingCollection === collectionId
+      ? rest(`bookings?collection_id=eq.${collectionId}&place_id=eq.${placeId}&select=planned_at,booked_by&limit=1`)
+      : [],
+  ]);
+  if (!entry.length) return { place, booking: null, crew: null };
+  const booking = bookings[0]?.planned_at ? { plannedAt: bookings[0].planned_at, bookedBy: bookings[0].booked_by } : null;
+  return { place, booking, crew: await loadCrew(collectionId, placeId, booking) };
+}
+
+const FEELING_ORDER = { keen: 0, maybe: 1, meh: 2 };
+
+// The collection's members as { userId, initial, feeling, booked }, keen first; null for a collection of one.
+async function loadCrew(collectionId, placeId, booking) {
+  const members = await rest(`collection_members?collection_id=eq.${collectionId}&select=user_id`);
+  if (members.length < 2) return null;
+  const ids = members.map((member) => member.user_id);
+  const [profiles, votes] = await Promise.all([
+    rest(`profiles?id=in.(${ids.join(',')})&select=id,display_name`),
+    rest(`reactions?collection_id=eq.${collectionId}&place_id=eq.${placeId}&select=user_id,feeling`),
+  ]);
+  const names = Object.fromEntries(profiles.map((profile) => [profile.id, profile.display_name]));
+  const feelings = Object.fromEntries(votes.map((vote) => [vote.user_id, vote.feeling]));
+  return ids
+    .map((userId) => ({
+      userId,
+      initial: (String(names[userId] || '').trim()[0] || '?').toUpperCase(),
+      feeling: feelings[userId] || null,
+      booked: booking?.bookedBy === userId,
+    }))
+    .sort((a, b) => Number(b.booked) - Number(a.booked) || (FEELING_ORDER[a.feeling] ?? 3) - (FEELING_ORDER[b.feeling] ?? 3));
 }
 
 const STATES = { NSW: 'Australia/Sydney', ACT: 'Australia/Sydney', VIC: 'Australia/Melbourne', TAS: 'Australia/Hobart', QLD: 'Australia/Brisbane', SA: 'Australia/Adelaide', WA: 'Australia/Perth', NT: 'Australia/Darwin' };
@@ -66,24 +95,10 @@ function shareTitle({ place, booking }) {
   return `Let's go here? 👀 ${place.name}${suburb ? ` · ${suburb}` : ''}`;
 }
 
-// The reel's cover as a data URL, or null. Instagram cover links expire, so it's fetched fresh.
-async function coverDataUrl(place) {
-  try {
-    let url = null;
-    if (/instagram\.com\//.test(place.reel_url || '')) {
-      const oembed = await fetchInstagramOembed(place.reel_url, 5000);
-      url = oembed.ok ? oembed.thumbnailUrl : null;
-    }
-    url ||= place.reel_thumbnail_url || null;
-    if (!url) return null;
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const type = response.headers.get('content-type') || '';
-    if (!response.ok || !type.startsWith('image/')) return null;
-    const bytes = Buffer.from(await response.arrayBuffer());
-    return `data:${type};base64,${bytes.toString('base64')}`;
-  } catch {
-    return null;
-  }
+// The street from the address, for the drawn map: "650 Little Bourke St, Melbourne VIC" → "LITTLE BOURKE ST".
+function streetOf(address) {
+  const first = String(address || '').split(',').map((part) => part.trim()).find((part) => /\d/.test(part) && /[a-z]{2}/i.test(part)) || '';
+  return first.replace(/^.*?\d+[a-z]?(?:[-–]\d+[a-z]?)?\s+/i, '').toUpperCase().slice(0, 28);
 }
 
-module.exports = { loadShare, areaOf, bookingWhen, shareTitle, coverDataUrl, UUID };
+module.exports = { loadShare, areaOf, bookingWhen, shareTitle, streetOf, UUID };

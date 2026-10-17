@@ -1,6 +1,6 @@
 const { loadShare, shareTitle, UUID } = require('./_lib/share-card');
 
-// /p/<id>[?c=<collection>] (rewritten here, see vercel.json).
+// /p/<id>[?g=<collection> | ?c=<collection>] (rewritten here, see vercel.json; share-card.js says what each shows).
 // Chat apps fetching the link get a page of preview tags (title, picture). People are sent on
 // to the app, which opens the place. Messages, WhatsApp and the others announce themselves as bots.
 const PREVIEW_BOTS = /facebookexternalhit|facebot|twitterbot|whatsapp|slackbot|telegrambot|discordbot|linkedinbot|skypeuripreview|applebot|googlebot|bingbot|embedly|pinterest|redditbot|bot\b|crawler|spider/i;
@@ -9,7 +9,8 @@ const escape = (text) => String(text ?? '').replace(/[&<>"']/g, (ch) => ({ '&': 
 
 module.exports = async function handler(req, res) {
   const id = String(req.query.id || '');
-  const collection = String(req.query.c || '');
+  const group = String(req.query.g || '');
+  const booking = String(req.query.c || '');
   const appUrl = UUID.test(id) ? `/?place=${encodeURIComponent(id)}` : '/';
 
   // Never cached: chat apps and people get different answers from the same link, and a cached
@@ -21,14 +22,16 @@ module.exports = async function handler(req, res) {
   const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   let share = null;
   try {
-    share = await loadShare(id, collection);
+    share = await loadShare(id, { group, booking });
   } catch (error) {
     console.warn('[share-page] lookup failed:', error.message);
   }
   const title = share ? shareTitle(share) : 'reel map';
   const description = share?.place.address || 'Places from reels, on one map.';
+  // The same link details go to the picture, which is drawn from the same lookup.
+  const query = share?.booking ? `?c=${encodeURIComponent(booking)}` : share?.crew ? `?g=${encodeURIComponent(group)}` : '';
   const image = share
-    ? `${origin}/api/share-image?id=${encodeURIComponent(id)}${share.booking ? `&c=${encodeURIComponent(collection)}` : ''}`
+    ? `${origin}/api/share-image?id=${encodeURIComponent(id)}${query.replace('?', '&')}`
     : `${origin}/icon-512.png`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -40,7 +43,7 @@ module.exports = async function handler(req, res) {
 <meta property="og:site_name" content="reel map">
 <meta property="og:title" content="${escape(title)}">
 <meta property="og:description" content="${escape(description)}">
-<meta property="og:url" content="${escape(`${origin}/p/${id}${share?.booking ? `?c=${collection}` : ''}`)}">
+<meta property="og:url" content="${escape(`${origin}/p/${id}${query}`)}">
 <meta property="og:image" content="${escape(image)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="1044">
