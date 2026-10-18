@@ -943,7 +943,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 placeholder="Search a place or street address"
                 maxLength={100}
                 disabled={saving}
-                action={(
+                // A Mapbox suggestion was picked: the pin is set, so there's nothing to verify. Editing the
+                // text clears the pick and brings Verify back.
+                action={pinCoords?.source === 'mapbox' ? null : (
                   <button
                     type="button"
                     className="step-btn secondary"
@@ -954,7 +956,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   </button>
                 )}
               />
-              <span className="field-hint">Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.</span>
+              <span className="field-hint">
+                {pinCoords?.source === 'mapbox'
+                  ? 'Pinned from your pick. Change the address to search again.'
+                  : 'Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.'}
+              </span>
             </div>
 
             {locationCandidates.length > 0 && (
