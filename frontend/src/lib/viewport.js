@@ -6,17 +6,32 @@ export function trackVisibleViewport() {
   if (!vv) return;
   const root = document.documentElement;
   let frame = 0;
-  const update = () => {
+  let settle = 0;
+  const measure = () => {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
       root.style.setProperty('--vv-top', `${vv.offsetTop}px`);
       root.style.setProperty('--vv-height', `${vv.height}px`);
-      // True while the keyboard (or anything else) takes a real bite out of the screen.
-      root.classList.toggle('keyboard-open', window.innerHeight - vv.height > 120);
+      // True while the keyboard takes a real bite out of the screen. The keyboard is only up while
+      // a field is being typed in: without one, a small reading (iOS gives one when the app comes back
+      // from a notification, and may not send the full size after) would squash every sheet.
+      const typing = document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]');
+      root.classList.toggle('keyboard-open', Boolean(typing) && window.innerHeight - vv.height > 120);
     });
+  };
+  // iOS settles the size late (after the keyboard closes or the app comes back), so measure again.
+  const update = () => {
+    measure();
+    clearTimeout(settle);
+    settle = setTimeout(measure, 500);
   };
   vv.addEventListener('resize', update);
   vv.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  window.addEventListener('pageshow', update);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && update());
+  document.addEventListener('focusin', update);
+  document.addEventListener('focusout', update);
   update();
 }
 
