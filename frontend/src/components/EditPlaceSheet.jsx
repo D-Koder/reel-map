@@ -25,7 +25,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [copyDuplicates, setCopyDuplicates] = useState([]);
   const [moveDuplicates, setMoveDuplicates] = useState([]);
   // Change location: the search text, and the new spot once one is picked
-  // ({ lat, lng, address, hours, phone, bookingUrl, source, sourceId }). null keeps the current spot.
+  // ({ lat, lng, address, hours, phone, bookingUrl, mapsUrl }). null keeps the current spot.
   const [locationText, setLocationText] = useState(place.address ?? '');
   const [newSpot, setNewSpot] = useState(null);
   // True once the name is typed in, so picking a new spot doesn't replace it.
@@ -134,8 +134,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
         hours: data.hours?.length ? data.hours : null,
         phone: data.phone || null,
         bookingUrl: data.bookingUrl || null,
-        source: data.source || 'google_maps',
-        sourceId: data.mapsUrl || candidate.url,
+        mapsUrl: data.mapsUrl || candidate.url,
       }, data.name || candidate.name);
     } catch (error) {
       setLocationError(`Couldn't load that place: ${error.message}`);
@@ -213,7 +212,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
                   setGoogleResults(null);
                 }}
                 onPick={(picked) => pickSpot(
-                  { lat: picked.lat, lng: picked.lng, address: picked.address, source: 'mapbox', sourceId: null },
+                  { lat: picked.lat, lng: picked.lng, address: picked.address, mapsUrl: null },
                   // An address or suburb has no name of its own, so it doesn't rename the place.
                   picked.name && !picked.address.startsWith(picked.name) ? picked.name : null,
                 )}

@@ -117,7 +117,7 @@ async function readReactions() {
 }
 
 // A collection's own location for a place (see 20261018120000_collection_place_location.sql).
-const LOCATION_COLUMNS = 'address, lat, lng, hours, phone, booking_url, location_source, location_source_id';
+const LOCATION_COLUMNS = 'address, lat, lng, hours, phone, booking_url, maps_url';
 
 // The location fields a place uses, from a collection entry's own columns. null when it has none.
 function entryLocation(entry) {
@@ -129,8 +129,7 @@ function entryLocation(entry) {
     hours: entry.hours,
     phone: entry.phone,
     booking_url: entry.booking_url,
-    source: entry.location_source,
-    source_id: entry.location_source_id,
+    maps_url: entry.maps_url,
   };
 }
 
@@ -466,8 +465,7 @@ export function useAppData(userId, showToast) {
           p_hours: location.hours ?? null,
           p_phone: location.phone ?? null,
           p_booking_url: location.bookingUrl ?? null,
-          p_source: location.source,
-          p_source_id: location.sourceId ?? null,
+          p_maps_url: location.mapsUrl ?? null,
         }).abortSignal(AbortSignal.timeout(20000));
         if (locationError) {
           showToast(`Location not changed: ${friendlyError(locationError)}`);
@@ -513,8 +511,7 @@ export function useAppData(userId, showToast) {
             hours: place.hours,
             phone: place.phone,
             booking_url: place.booking_url,
-            location_source: place.source,
-            location_source_id: place.source_id,
+            maps_url: place.maps_url,
           }),
         })
       ),
