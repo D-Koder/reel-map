@@ -4,6 +4,8 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
+import PlaceSearchInput from './PlaceSearchInput';
+import { requestLocationApi } from '../lib/googlePlaces';
 
 // Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection,
 // and not in a collection they only view.
@@ -22,6 +24,18 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   // Places already in the chosen collection that this one would duplicate, for copy and move.
   const [copyDuplicates, setCopyDuplicates] = useState([]);
   const [moveDuplicates, setMoveDuplicates] = useState([]);
+  // Change location: the search text, and the new spot once one is picked
+  // ({ lat, lng, address, hours, phone, bookingUrl, source, sourceId }). null keeps the current spot.
+  const [locationText, setLocationText] = useState(place.address ?? '');
+  const [newSpot, setNewSpot] = useState(null);
+  // True once the name is typed in, so picking a new spot doesn't replace it.
+  const nameTypedRef = React.useRef(false);
+  // "Search Google Maps" for a place Mapbox doesn't list: null | 'searching' | candidates[].
+  const [googleResults, setGoogleResults] = useState(null);
+  const [loadingGoogleUrl, setLoadingGoogleUrl] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  // Places already at the new spot in this collection, shown before saving.
+  const [spotDuplicates, setSpotDuplicates] = useState([]);
 
   const placeIn = place.collectionIds ?? [];
   // Places can only go into collections I can change.
@@ -75,11 +89,74 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const save = async (e) => {
-    e.preventDefault();
+  // A new spot picked from either search. A business's name replaces the place's name unless it was typed.
+  const pickSpot = (spot, placeName) => {
+    setNewSpot(spot);
+    setLocationText(spot.address);
+    setGoogleResults(null);
+    setLocationError('');
+    if (placeName && !nameTypedRef.current) setName(placeName);
+  };
+
+  const searchGoogle = async () => {
+    const query = [name.trim(), locationText.trim()].filter(Boolean).join(', ');
+    if (!query) return;
+    setGoogleResults('searching');
+    setLocationError('');
+    try {
+      const data = await requestLocationApi({ action: 'search', query, location: query });
+      setGoogleResults((data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: query })));
+    } catch (error) {
+      if (error.status === 404) setGoogleResults([]);
+      else {
+        setGoogleResults(null);
+        setLocationError(`Google Maps search failed: ${error.message}`);
+      }
+    }
+  };
+
+  const pickGoogle = async (candidate) => {
+    setLoadingGoogleUrl(candidate.url);
+    try {
+      const data = await requestLocationApi({
+        action: 'details',
+        query: candidate.searchQuery,
+        placeUrl: candidate.url,
+        placeAddress: candidate.address,
+        placeName: candidate.name,
+        location: candidate.address || '',
+      });
+      if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) throw new Error('Google Maps had no map pin for it');
+      pickSpot({
+        lat: data.latitude,
+        lng: data.longitude,
+        address: data.address || candidate.address || '',
+        hours: data.hours?.length ? data.hours : null,
+        phone: data.phone || null,
+        bookingUrl: data.bookingUrl || null,
+        source: data.source || 'google_maps',
+        sourceId: data.mapsUrl || candidate.url,
+      }, data.name || candidate.name);
+    } catch (error) {
+      setLocationError(`Couldn't load that place: ${error.message}`);
+    } finally {
+      setLoadingGoogleUrl(null);
+    }
+  };
+
+  // confirmedDuplicate is true once "Yes, move it" was chosen on the warning.
+  const save = async (e, confirmedDuplicate = false) => {
+    e?.preventDefault();
     if (!name.trim()) return;
+    if (newSpot && !confirmedDuplicate) {
+      const matches = entriesAtSpot(places.filter((p) => p.collection_id === place.collection_id && p.id !== place.id), newSpot.lat, newSpot.lng);
+      if (matches.length) {
+        setSpotDuplicates(matches);
+        return;
+      }
+    }
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventDate, eventEndDate });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventDate, eventEndDate, location: newSpot });
     setSaving(false);
   };
 
@@ -112,13 +189,75 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           <input
             className="step-input"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              nameTypedRef.current = true;
+              setName(e.target.value);
+            }}
             placeholder="Place name"
             maxLength={80}
             required
             disabled={!isAdder}
           />
         </label>
+
+        <div className="field">
+          <span className="modal-label">Location</span>
+          {isAdder ? (
+            <>
+              <PlaceSearchInput
+                ariaLabel="Location"
+                value={locationText}
+                onChange={(text) => {
+                  setLocationText(text);
+                  setNewSpot(null);
+                  setGoogleResults(null);
+                }}
+                onPick={(picked) => pickSpot(
+                  { lat: picked.lat, lng: picked.lng, address: picked.address, source: 'mapbox', sourceId: null },
+                  // An address or suburb has no name of its own, so it doesn't rename the place.
+                  picked.name && !picked.address.startsWith(picked.name) ? picked.name : null,
+                )}
+                near={Number.isFinite(place.lng) && Number.isFinite(place.lat) ? [place.lng, place.lat] : null}
+                placeholder="Search a place or street address"
+                maxLength={100}
+                disabled={saving}
+              />
+              {googleResults === 'searching' && (
+                <div className="map-search-results place-search-results" role="status" aria-label="Searching Google Maps">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="map-search-result" aria-hidden="true">
+                      <span className="skeleton-bar" style={{ width: '70%' }} />
+                      <span className="skeleton-bar" style={{ width: '45%', height: '10px' }} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {Array.isArray(googleResults) && (googleResults.length ? (
+                <div className="map-search-results place-search-results" role="group" aria-label="Google Maps matches">
+                  {googleResults.map((candidate) => (
+                    <button key={candidate.url} type="button" className="map-search-result" disabled={!!loadingGoogleUrl} onClick={() => pickGoogle(candidate)}>
+                      <strong>{loadingGoogleUrl === candidate.url ? 'Loading…' : candidate.name}</strong>
+                      <span>{candidate.address || candidate.summary || 'Google Maps place'}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="map-search-note place-search-note" role="status">No Google Maps matches. Try a different name or address.</div>
+              ))}
+              {locationError && <div className="map-search-note place-search-note" role="alert">{locationError}</div>}
+              <span className="field-hint">
+                {newSpot
+                  ? 'New spot picked. Save to move it there for this collection only.'
+                  : <>Search to move this place to the right spot. Not listed?{' '}
+                    <button type="button" className="link-btn" onClick={searchGoogle} disabled={saving || googleResults === 'searching' || !(name.trim() || locationText.trim())}>
+                      <strong>Search Google Maps</strong>
+                    </button></>}
+              </span>
+            </>
+          ) : (
+            <div className="place-collection-note">{place.address || 'No address saved'}</div>
+          )}
+        </div>
 
         <label className="field">
           <span className="modal-label">Emoji (optional)</span>
@@ -238,6 +377,20 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
             onConfirm={() => {
               setMoveDuplicates([]);
               runMove(true);
+            }}
+          />
+        )}
+
+        {spotDuplicates.length > 0 && (
+          <DuplicateWarning
+            matches={spotDuplicates}
+            title="This collection already has a place there"
+            question="Move it there anyway, as a second place?"
+            confirmLabel="Yes, move it"
+            onCancel={() => setSpotDuplicates([])}
+            onConfirm={() => {
+              setSpotDuplicates([]);
+              save(null, true);
             }}
           />
         )}

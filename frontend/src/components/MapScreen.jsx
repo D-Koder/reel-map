@@ -4,9 +4,8 @@ import { Coffee, LocateFixed, MapPin, PartyPopper, UtensilsCrossed, X } from 'lu
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
+import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory, retrievePlace, searchSuggestions } from '../lib/mapboxSearch';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const MELBOURNE_CENTER = [144.9631, -37.8136];
 const LONG_PRESS_MS = 1000;
 const LONG_PRESS_MAX_MOVE_PX = 10;
 
@@ -38,43 +37,6 @@ async function reverseGeocode(lng, lat) {
   }
 }
 
-// Mapbox Search Box API. Suggestions come first. A place's coordinates are fetched only when it is picked.
-const SEARCH_BASE = 'https://api.mapbox.com/search/searchbox/v1';
-// Named places (poi) as well as addresses, so "Melbourne Museum" finds the museum.
-const SEARCH_TYPES = 'poi,address,place,locality,neighborhood';
-
-// Suggestions for the map search box, ranked near `origin` ([lng, lat]).
-async function searchSuggestions(text, signal, origin, sessionToken) {
-  const url = new URL(`${SEARCH_BASE}/suggest`);
-  url.searchParams.set('q', text);
-  url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('session_token', sessionToken);
-  url.searchParams.set('types', SEARCH_TYPES);
-  url.searchParams.set('language', 'en');
-  url.searchParams.set('limit', '5');
-  url.searchParams.set('proximity', `${origin[0]},${origin[1]}`);
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
-  const data = await response.json();
-  return (data.suggestions || []).map((suggestion) => ({
-    id: suggestion.mapbox_id,
-    name: suggestion.name,
-    address: suggestion.full_address || suggestion.place_formatted || suggestion.name,
-  }));
-}
-
-// Coordinates ([lng, lat]) for one picked suggestion.
-async function retrievePlace(mapboxId, sessionToken, signal) {
-  const url = new URL(`${SEARCH_BASE}/retrieve/${encodeURIComponent(mapboxId)}`);
-  url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('session_token', sessionToken);
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`Mapbox retrieve returned HTTP ${response.status}`);
-  const [lng, lat] = (await response.json()).features?.[0]?.geometry?.coordinates ?? [];
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) throw new Error('No coordinates for this place');
-  return { lng, lat };
-}
-
 // Straight-line distance in metres between two [lng, lat] points.
 function distanceMetres(lng1, lat1, lng2, lat2) {
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -86,14 +48,6 @@ function distanceMetres(lng1, lat1, lng2, lat2) {
 
 function formatDistance(metres) {
   return metres < 1000 ? `${Math.round(metres / 10) * 10 || 5} m` : `${(metres / 1000).toFixed(1)} km`;
-}
-
-// Our category from Mapbox's POI categories, e.g. ["coffee", "cafe"] → 'cafe'.
-function guessCategory(poiCategories = []) {
-  const text = poiCategories.join(' ').toLowerCase();
-  if (/caf|coffee|tea|bakery|dessert/.test(text)) return 'cafe';
-  if (/venue|theat|cinema|museum|gallery|stadium|arena|club|concert|entertainment|attraction|park/.test(text)) return 'event';
-  return 'food';
 }
 
 // Named places (shops, cafes, venues) around a held spot, nearest first. Up to 10, Mapbox's limit.
@@ -574,7 +528,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
       setSearchStatus('error');
       return;
     }
-    const place = { ...result, ...coords };
+    const place = { ...result, lng: coords.lng, lat: coords.lat };
     setSearchStatus('');
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' })

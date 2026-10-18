@@ -672,6 +672,21 @@ button.collection-empty {
   color: var(--text-muted);
 }
 
+/* The same suggestions under a form field (Add and Edit), in the sheet rather than over the map */
+.place-search-results {
+  max-height: 260px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+}
+
+.place-search-results .map-search-result {
+  color: var(--text);
+}
+
+.place-search-note {
+  background: var(--surface);
+}
+
 .map-controls {
   position: absolute;
   top: 60px;
@@ -4782,6 +4797,27 @@ button.profile-open {
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.select-bar-delete {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--surface);
+  background: transparent;
+  color: var(--surface);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-bar-delete svg {
+  width: 18px;
+  height: 18px;
 }
 
 .move-list {

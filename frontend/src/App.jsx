@@ -116,21 +116,25 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
       return next;
     });
 
-  const deferDelete = (key, label, commit) => {
-    setHidden(key, true);
+  // keys: one key, or several hidden and deleted together (one toast, one Undo).
+  const deferDelete = (keys, label, commit) => {
+    const all = [].concat(keys);
+    const group = all.join('|');
+    const setAllHidden = (hidden) => all.forEach((key) => setHidden(key, hidden));
+    setAllHidden(true);
     const run = async () => {
-      deleteTimers.current.delete(key);
+      deleteTimers.current.delete(group);
       await commit();
-      setHidden(key, false);
+      setAllHidden(false);
     };
     const timer = setTimeout(run, UNDO_MS);
-    deleteTimers.current.set(key, { timer, run });
+    deleteTimers.current.set(group, { timer, run });
     showToast(`Deleted ${label}`, {
       label: 'Undo',
       onClick: () => {
         clearTimeout(timer);
-        deleteTimers.current.delete(key);
-        setHidden(key, false);
+        deleteTimers.current.delete(group);
+        setAllHidden(false);
         showToast('Restored');
       },
     }, UNDO_MS);
@@ -339,6 +343,18 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     deferDelete(`place:${place.collection_id}:${place.id}`, `"${place.name}"`, () => data.deletePlace(place.collection_id, place.id));
   };
 
+  // Bulk delete from select mode on Home. All sent together once Undo has passed.
+  // skipped: ticked places I'm not allowed to delete (booked by someone else).
+  const deletePlaces = (pins, skipped = 0) => {
+    const label = (pins.length === 1 ? `"${pins[0].name}"` : `${pins.length} places`)
+      + (skipped ? ` · ${skipped} booked by someone else` : '');
+    deferDelete(
+      pins.map((p) => `place:${p.collection_id}:${p.id}`),
+      label,
+      () => Promise.all(pins.map((p) => data.deletePlace(p.collection_id, p.id)))
+    );
+  };
+
   const deleteCollection = (collectionId) => {
     const collection = data.collections.find((c) => c.id === collectionId);
     deferDelete(`collection:${collectionId}`, `"${collection?.name ?? 'collection'}"`, () => data.deleteCollection(collectionId));
@@ -451,6 +467,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
               showToast(`Copied ${copied} ${copied === 1 ? 'place' : 'places'} to ${target?.emoji ?? ''} ${target?.name ?? 'collection'}${skipped ? ` · ${skipped} already there` : ''}`);
               return true;
             }}
+            onDeletePlaces={deletePlaces}
             onMovePlaces={async (pins, targetId, newCollection) => {
               const target = collections.find((c) => c.id === targetId) ?? newCollection;
               const { moved, skipped } = await data.movePlaces(pins, targetId);
