@@ -3,7 +3,7 @@ import { bestPlaceMatch, entriesAtSpot, reelPlaceAreas, reelPlaceHints, relatedP
 import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
-import { categories, feelings } from '../lib/constants';
+import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -218,6 +218,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       }
       if (steps.saved) addLog(`Saved for other people: ${steps.saved}`, 'info');
     }
+    // The AI's category (cafe, food, event or other), when it read the caption.
+    const aiCategory = knownCategory(data.category);
+    if (aiCategory) setCategory(aiCategory);
     // A pop-up or stall: saved as an event on its days, pinned on its street.
     const popup = data.popup;
     popupNameRef.current = popup?.name || '';
@@ -360,7 +363,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         places.push({
           name: (venueDetails?.name || best?.name || item.name).trim(),
           location: (venueDetails?.address || best?.address || item.address || '').trim(),
-          category,
+          category: knownCategory(item.category) || category,
           collectionId,
           reelUrl: reelUrl.trim(),
           venueDetails,

@@ -91,6 +91,13 @@ Rules:
   Quote the words that say when in "date_evidence". Leave a date "" when
   the post doesn't say it clearly ("soon", "coming weeks"), and leave all
   three "" when the venue is not temporary.
+- Give every place a "category":
+  "cafe": a café, coffee shop, bakery, dessert or tea place.
+  "food": a restaurant, bar, takeaway or other place to eat or drink.
+  "event": an event, show, festival, market, exhibition, pop-up or
+  stall, or anything on for limited days.
+  "other": anything else, like a shop, park, beach, hotel, gym,
+  museum, attraction or class.
 - If the post only explains how to order or pick up (online shop,
   collection point), set kind to "order_only".
 - If nothing in the post identifies a venue, set kind to "none".
@@ -114,7 +121,7 @@ Follow @kel.eats for more 🍴
 <answer>
 {"kind": "single",
  "places": [{"name": "Lunetta Bakehouse", "handle": "", "area": "Melbourne",
-   "address": "22 Hardware Lane, Melbourne VIC 3000", "source": "pin",
+   "address": "22 Hardware Lane, Melbourne VIC 3000", "category": "cafe", "source": "pin",
    "evidence": "Lunetta Bakehouse, 22 Hardware Lane, Melbourne VIC 3000"}],
  "slide_place": null, "post_area": "Melbourne", "confidence": "high",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
@@ -139,7 +146,7 @@ Go hungry 😋 #melbourneevents
 <answer>
 {"kind": "single",
  "places": [{"name": "Dumpling Festival", "handle": "", "area": "Fitzroy",
-   "address": "Gertrude Street, Fitzroy", "source": "text", "evidence": "DUMPLING FESTIVAL"}],
+   "address": "Gertrude Street, Fitzroy", "category": "event", "source": "text", "evidence": "DUMPLING FESTIVAL"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "high",
  "temporary": true, "start_date": "2026-10-17", "end_date": "2026-10-18",
  "date_evidence": "this weekend only"}
@@ -165,9 +172,9 @@ weekend" is Saturday 17 and Sunday 18 October.
 <answer>
 {"kind": "list",
  "places": [
-  {"name": "金湯小館", "handle": "", "area": "信義區", "address": "信義區松仁路28號", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
-  {"name": "鼎香樓", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
-  {"name": "小巷湯包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
+  {"name": "金湯小館", "handle": "", "area": "信義區", "address": "信義區松仁路28號", "category": "food", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
+  {"name": "鼎香樓", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "category": "food", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
+  {"name": "小巷湯包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "category": "food", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
  "slide_place": 1, "post_area": "台北市", "confidence": "high",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
 </answer>
@@ -209,7 +216,7 @@ See you at the shop ☺️
 <answer>
 {"kind": "single",
  "places": [{"name": "Kick Bakery Fitzroy", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
-   "address": "", "source": "creator", "evidence": "See you at the shop"}],
+   "address": "", "category": "cafe", "source": "creator", "evidence": "See you at the shop"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "medium",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
 </answer>
@@ -234,7 +241,7 @@ Merci @cafelumiere.paris 🙏 and shoutout to @parisfoodguide for the rec
 <answer>
 {"kind": "single",
  "places": [{"name": "Café Lumière", "handle": "", "area": "Le Marais, Paris",
-   "address": "41 rue des Tournelles, 75004", "source": "location_tag",
+   "address": "41 rue des Tournelles, 75004", "category": "cafe", "source": "location_tag",
    "evidence": "Café Lumière"}],
  "slide_place": null, "post_area": "Paris", "confidence": "high",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
@@ -259,7 +266,7 @@ Which would you order first? 👀
 <answer>
 {"kind": "single",
  "places": [{"name": "Salt and Ember Sydney", "handle": "saltandember.sydney", "area": "Sydney",
-   "address": "", "source": "mention", "evidence": "saltandember.sydney"}],
+   "address": "", "category": "food", "source": "mention", "evidence": "saltandember.sydney"}],
  "slide_place": null, "post_area": "Sydney", "confidence": "medium",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
 </answer>
@@ -304,10 +311,11 @@ const SCHEMA = {
           handle: { type: 'string' },
           area: { type: 'string' },
           address: { type: 'string' },
+          category: { type: 'string', enum: ['cafe', 'food', 'event', 'other'] },
           source: { type: 'string', enum: ['label', 'location_tag', 'pin', 'mention', 'creator', 'text'] },
           evidence: { type: 'string' },
         },
-        required: ['name', 'handle', 'area', 'address', 'source', 'evidence'],
+        required: ['name', 'handle', 'area', 'address', 'category', 'source', 'evidence'],
         additionalProperties: false,
       },
     },
@@ -368,7 +376,7 @@ function checkDates(answer, post) {
 }
 
 // The venue(s) the post is about, or null when the AI can't be used.
-// Returns { kind, places: [{ name, handle, area, address, source, evidence }], slidePlace, postArea, confidence,
+// Returns { kind, places: [{ name, handle, area, address, category, source, evidence }], slidePlace, postArea, confidence,
 //   temporary, startDate, endDate, dateEvidence }. temporary: a pop-up, stall or market with no shop of its own.
 // A place whose evidence isn't really in the post is dropped: the AI made it up.
 // A name read from a handle must use exactly the handle's letters, in order ("&" counts as "and"):

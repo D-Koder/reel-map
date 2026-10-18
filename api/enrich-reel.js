@@ -80,7 +80,7 @@ function applyAi(reel, ai) {
   const name = fromHandle ? handleToPlace(pick.name).name : pick.name;
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
-    ? { listedPlaces: ai.places.map(({ name: listed, address, evidence }) => ({ name: listed, address, line: evidence })) }
+    ? { listedPlaces: ai.places.map(({ name: listed, address, category, evidence }) => ({ name: listed, address, category, line: evidence })) }
     : {};
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
   // name would find the brand's permanent shops instead.
@@ -88,7 +88,9 @@ function applyAi(reel, ai) {
     ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence }
     : null;
   return {
-    reel: { ...reel, placeName: name, location: pick.address || where, placeSource: pick.source, ...choices },
+    // Cafe, food, event or other. A pop-up is always an event.
+    reel: { ...reel, placeName: name, location: pick.address || where, placeSource: pick.source,
+      category: ai.temporary ? 'event' : pick.category, ...choices },
     venue: popup ? pick.address || where : [name, pick.address || where].filter(Boolean).join(', '),
     area: ai.postArea || pick.area,
     lowConfidence: ai.confidence === 'low',
@@ -179,10 +181,11 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   const cachedPlace = cached?.data?.place;
   if (cachedPlace && cached.data.candidates?.length === 1) {
-    const { placeName = '', location = '', venue = '', choices } = cachedPlace;
+    const { placeName = '', location = '', venue = '', category, choices } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
+      ...(category ? { category } : {}),
       ...(choices?.length ? { listedPlaces: choices } : {}),
     };
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
@@ -483,6 +486,7 @@ async function enrich(req, res, getBrowser) {
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {
       placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
+      ...(reel.category ? { category: reel.category } : {}),
       ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
     },
     candidates,

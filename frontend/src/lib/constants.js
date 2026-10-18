@@ -10,7 +10,12 @@ export const categories = [
   { id: 'cafe', icon: '☕', label: 'Cafe' },
   { id: 'food', icon: '🍽️', label: 'Food' },
   { id: 'event', icon: '🎉', label: 'Event' },
+  { id: 'other', icon: '📍', label: 'Other' },
 ];
+
+const CATEGORY_IDS = new Set(categories.map((c) => c.id));
+// The category a reel lookup's AI picked, when it's one the app knows.
+export const knownCategory = (id) => (CATEGORY_IDS.has(id) ? id : null);
 
 export const AVATARS = ['🙂', '😎', '🧑', '👩', '👨', '🦊', '🐼', '🐨', '🌸', '⚡'];
 export const DEFAULT_AVATAR_URL = 'https://static.vecteezy.com/system/resources/previews/036/280/650/large_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg';

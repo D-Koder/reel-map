@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
+import { knownCategory } from '../lib/constants';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -87,7 +88,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       const created = await latest.current.addPlace({
         name,
         location: details.address || data.location || '',
-        category: popup ? 'event' : 'food',
+        category: popup ? 'event' : knownCategory(data.category) || 'food',
         collectionId,
         reelUrl: item.url,
         venueDetails: popup ? { ...details, name } : details,
