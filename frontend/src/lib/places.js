@@ -8,7 +8,8 @@ export function duplicateIds(pins) {
   const others = pins.filter((p) => p.category !== 'event');
   others.forEach((a, i) => {
     others.slice(i + 1).forEach((b) => {
-      const sameReel = a.reel_url && a.reel_url === b.reel_url;
+      // One reel can list several places (a top-5 post), so the same reel only counts with the same name.
+      const sameReel = a.reel_url && a.reel_url === b.reel_url && squash(a.name) === squash(b.name);
       const sameSpot = Number.isFinite(a.lat) && Number.isFinite(a.lng) && Number.isFinite(b.lat) && Number.isFinite(b.lng) &&
         Math.abs(a.lat - b.lat) < SAME_SPOT_DEGREES && Math.abs(a.lng - b.lng) < SAME_SPOT_DEGREES;
       if (sameReel || sameSpot) {

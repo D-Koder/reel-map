@@ -647,26 +647,30 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           places={places}
           eventDatesReady={data.eventDatesReady}
           eventEndDatesReady={data.eventEndDatesReady}
-          onAdd={async (fields) => {
+          // keepOpen / more: places from a list post are still to pick, so the sheet stays open.
+          onAdd={async (fields, { keepOpen = false } = {}) => {
             const created = await data.addPlace(fields);
             if (created) {
               rememberCollection(userId, fields.collectionId);
+              showToast(`Added "${fields.name}"`);
+              if (keepOpen) return created;
               if (finishingInboxId) inbox.remove(finishingInboxId);
               setFinishingInboxId(null);
-              showToast(`Added "${fields.name}"`);
               setAdding(false);
             }
+            return created;
           }}
-          onAddAll={async (list) => {
+          onAddAll={async (list, { more = 0 } = {}) => {
             let added = 0;
             for (const fields of list) {
               if (await data.addPlace(fields)) added += 1;
             }
             if (added) {
               rememberCollection(userId, list[0].collectionId);
+              showToast(`Added ${added} place${added === 1 ? '' : 's'}${more ? `. Pick the other ${more}` : ''}`);
+              if (more) return;
               if (finishingInboxId) inbox.remove(finishingInboxId);
               setFinishingInboxId(null);
-              showToast(`Added ${added} place${added === 1 ? '' : 's'}`);
               setAdding(false);
             }
           }}

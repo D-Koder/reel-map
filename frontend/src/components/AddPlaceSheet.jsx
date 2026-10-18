@@ -115,6 +115,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
   // A list post shared without a slide: the listed place being looked up after the person tapped it.
   const [choosingListed, setChoosingListed] = useState(null);
+  // After "Add all": the listed places Google couldn't match, still to pick one by one. Null otherwise.
+  const [leftToPick, setLeftToPick] = useState(null);
+  // The listed place the form is showing now (its line in the post).
+  const activeListedRef = useRef(null);
   const [addingAllListed, setAddingAllListed] = useState(false);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
@@ -303,6 +307,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   // A place tapped in "This post lists N places": fill the form with it and find it on Google Maps.
   const chooseListed = async (item) => {
+    activeListedRef.current = item.line;
     nameTypedRef.current = false;
     setName(item.name);
     setLocation(item.address || '');
@@ -329,33 +334,37 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
-  // "Add all" on a list post: every listed place is looked up on Google Maps and saved to the chosen
-  // collection. A place Maps can't match is saved with the address from the post and no map pin.
+  // "Add all" on a list post: every listed place is looked up on Google Maps, and the clear matches are
+  // saved to the chosen collection. The ones Maps can't match stay in the sheet to pick one by one,
+  // rather than being saved with no map pin.
   const addAllListed = async () => {
     if (!collectionId || !onAddAll || !scrapedData?.listedPlaces?.length) return;
     setAddingAllListed(true);
     setSaving(true);
     const places = [];
+    const unclear = [];
     try {
       for (const item of scrapedData.listedPlaces) {
         addLog(`Looking up ${item.name}…`, 'info');
         const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
         const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
-        const best = bestPlaceMatch(candidates, [item.name]);
-        let venueDetails = null;
-        if (best) {
-          venueDetails = await requestLocationApi({
-            action: 'details',
-            query,
-            placeUrl: best.url,
-            placeAddress: best.address,
-            placeName: best.name,
-            location: best.address || item.address || scrapedData?.area || '',
-          });
+        const best = bestPlaceMatch(candidates, [item.name], [], item.address);
+        if (!best) {
+          addLog(`No clear match for ${item.name}; pick it below.`, 'info');
+          unclear.push(item);
+          continue;
         }
+        const venueDetails = await requestLocationApi({
+          action: 'details',
+          query,
+          placeUrl: best.url,
+          placeAddress: best.address,
+          placeName: best.name,
+          location: best.address || item.address || scrapedData?.area || '',
+        });
         places.push({
-          name: (venueDetails?.name || best?.name || item.name).trim(),
-          location: (venueDetails?.address || best?.address || item.address || '').trim(),
+          name: (venueDetails?.name || best.name || item.name).trim(),
+          location: (venueDetails?.address || best.address || item.address || '').trim(),
           category: knownCategory(item.category) || category,
           collectionId,
           reelUrl: reelUrl.trim(),
@@ -366,7 +375,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           eventDate: null,
         });
       }
-      await onAddAll(places);
+      if (places.length) await onAddAll(places, { more: unclear.length });
+      if (unclear.length) {
+        setLeftToPick(unclear);
+        setSaving(false);
+        await chooseListed(unclear[0]);
+      }
     } catch (error) {
       addLog(`Could not add all places: ${error.message}`, 'error');
     } finally {
@@ -549,7 +563,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         customInfo: customInfo.trim() || null,
         url: link || null,
       })}`, 'info');
-      await onAdd({
+      // Picking the places "Add all" couldn't match: the sheet stays open for the next one.
+      const next = leftToPick?.filter((item) => item.line !== activeListedRef.current) ?? [];
+      const created = await onAdd({
         name: name.trim(),
         location: location.trim(),
         category,
@@ -561,7 +577,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         url: link,
         eventDate: category === 'event' ? eventDate || null : null,
         eventEndDate: category === 'event' && eventDate ? eventEndDate || null : null,
-      });
+      }, { keepOpen: next.length > 0 });
+      if (created && next.length) {
+        setLeftToPick(next);
+        setCustomInfo('');
+        await chooseListed(next[0]);
+        return;
+      }
       if (draftable) clearDraft();
     } catch (error) {
       addLog(`Could not save place: ${error.message}`, 'error');
@@ -839,11 +861,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             )}
 
             {/* A list post shared without a slide: which of its places is this? */}
-            {scrapedData?.listedPlaces?.length > 1 && (
+            {(leftToPick?.length > 0 || scrapedData?.listedPlaces?.length > 1) && (
               <div className="field">
-                <span className="modal-label">This post lists {scrapedData.listedPlaces.length} places. Which one?</span>
+                <span className="modal-label">
+                  {leftToPick
+                    ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
+                    : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
+                </span>
                 <div className="listed-places">
-                  {scrapedData.listedPlaces.map((item) => (
+                  {(leftToPick ?? scrapedData.listedPlaces).map((item) => (
                     <button
                       key={item.line}
                       type="button"
@@ -857,7 +883,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     </button>
                   ))}
                 </div>
-                {onAddAll && (
+                {onAddAll && !leftToPick && (
                   <button
                     type="button"
                     className="step-btn primary full-width"
