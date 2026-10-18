@@ -224,13 +224,17 @@ async function readDetails(candidate, query, reel, getBrowser) {
   return { details: detailsResponse.body, detailsError: null };
 }
 
-// The quick read only names the main poster. The page also names a collab's other posters and the
-// post's location tag. Read once per lookup, and only after a quick read (Chrome reads have these already).
+// The quick read only names the main poster. The page also names a collab's other posters, the people
+// tagged in the post and its location tag. Read once per lookup, and only after a quick read (Chrome
+// reads have these already).
 async function readPageExtras(reel, cleanUrl, getBrowser) {
   if (reel.source !== 'oembed' || reel.pageRead || !cleanUrl) return reel;
   const page = await invoke(scrapeReel, { reelUrl: cleanUrl, forceBrowser: true }, getBrowser);
   if (page.statusCode >= 400 || !page.body?.success) return { ...reel, pageRead: true };
-  return { ...reel, pageRead: true, collaborators: page.body.collaborators || [], locationTag: page.body.locationTag || '' };
+  return {
+    ...reel, pageRead: true, collaborators: page.body.collaborators || [], tagged: page.body.tagged || [],
+    locationTag: page.body.locationTag || '',
+  };
 }
 
 // Handle lookups stop after this many Maps searches, or once this much of the lookup's time is used,
@@ -242,7 +246,8 @@ const RETRY_BEFORE_MS = 60000;
 
 // Steps 4–6 of finding the place, for captions with no "Name:" line, list or 📍 line:
 //   4. @mentions in the caption (not the poster)
-//   5. a collab's other posters (only the page shows them, so the page is read first)
+//   5. a collab's other posters, then the people tagged in the post (only the page shows them, so
+//      the page is read first)
 //   6. the poster
 // Each handle is searched on Maps as its words plus the post's location tag. A search only counts
 // when a result is named like the handle, so a reviewer's handle never matches some random place.
@@ -289,7 +294,8 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
   // Collab posters are only on the page.
   if (Date.now() - startedAt < HANDLE_BUDGET_MS) current = await readPageExtras(current, cleanUrl, getBrowser);
 
-  const coPosters = (current.collaborators || []).map((h) => String(h).toLowerCase()).filter((h) => h !== poster);
+  const coPosters = [...(current.collaborators || []), ...(current.tagged || [])]
+    .map((h) => String(h).toLowerCase()).filter((h) => h !== poster);
   for (const handle of coPosters) {
     const hit = await attempt(handle);
     if (hit) return hit;
@@ -394,7 +400,7 @@ async function enrich(req, res, getBrowser) {
     reel = await readPageExtras(reel, cleanUrl, getBrowser);
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
-      collaborators: reel.collaborators, slide, userCountry: country,
+      collaborators: reel.collaborators, tagged: reel.tagged, slide, userCountry: country,
     });
     steps.ai = `${when}${!ai ? 'no answer' : ai.kind === 'order_only' ? 'order/pickup post, no place'
       : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})`

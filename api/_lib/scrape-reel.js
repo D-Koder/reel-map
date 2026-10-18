@@ -118,6 +118,21 @@ async function readInstagramQuickly(reelUrl) {
   };
 }
 
+// The people tagged in the post ("3 people" on Instagram), which the page only shows after a tap but
+// keeps in its data: {"position":[0,0],"user":{"full_name":"Ho Liao MELBOURNE",…,"username":"holiao.melbourne"}}.
+// Only the first run of tags is read: tags of other posts on the page come later.
+function taggedAccounts(html) {
+  const tag = /\{"position":\[[^\]]*\],"user":\{[^{}]*?"username":"([\w.]+)"[^{}]*\}\}/g;
+  const handles = [];
+  let end = -1;
+  for (const match of String(html || '').matchAll(tag)) {
+    if (end >= 0 && match.index !== end + 1) break;
+    handles.push(match[1].toLowerCase());
+    end = match.index + match[0].length;
+  }
+  return [...new Set(handles)].slice(0, 10);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -233,6 +248,7 @@ module.exports = async function handler(req, res) {
     }, reelUrl);
 
     if (isTikTok && !scraped.caption) throw new Error('TikTok caption was not found on the page');
+    if (!isTikTok) scraped.tagged = taggedAccounts(await page.content());
 
     const captionDetails = parseCaptionDetails(scraped.caption || '');
     // The caption rule always wins over the in-page guess, which takes any first pin (even "📌 Details:").

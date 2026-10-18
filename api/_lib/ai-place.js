@@ -32,9 +32,10 @@ How to decide, most trusted evidence first:
    friend or food guide).
 5. The creator handle, only when the post is the venue promoting
    itself ("our new menu", "come visit us").
-6. A business account that is tagged or credited on the post (listed as
-   a collaborator or tag) and matches what the post is about. The caption
-   may never name it, so check the tagged accounts too.
+6. A business account that is tagged or credited on the post (listed in
+   collaborators or tagged) and matches what the post is about. The
+   caption may never name it, so check the tagged accounts too. Tagged
+   accounts also include friends and agencies: only a venue counts.
 7. A handle set apart on its own line, inside brackets, or after a review
    or menu section. It names the place being reviewed, even with no pin
    and no "at".
@@ -201,6 +202,29 @@ is a guide, not the venue. The post's city wins over the user's country.
 
 <example>
 <post>
+<location_tag>Sydney, New South Wales</location_tag>
+<creator>sam.eats.syd</creator>
+<collaborators>mia.bites</collaborators>
+<tagged>mia.bites, saltandember.sydney, brightpr.agency</tagged>
+<caption>
+Charcoal grilled lamb ribs and burnt cheesecake 🔥
+Which would you order first? 👀
+#sydneyfood #sydneyeats
+</caption>
+</post>
+<answer>
+{"kind": "single",
+ "places": [{"name": "Salt and Ember Sydney", "handle": "saltandember.sydney", "area": "Sydney",
+   "address": "", "source": "mention", "evidence": "saltandember.sydney"}],
+ "slide_place": null, "post_area": "Sydney", "confidence": "medium"}
+</answer>
+Why: the caption only names dishes. Of the tagged accounts, mia.bites is
+a poster and brightpr.agency is an agency; saltandember.sydney is the
+restaurant.
+</example>
+
+<example>
+<post>
 <creator>jess.cooks.at.home</creator>
 <user_country>Australia</user_country>
 <caption>
@@ -253,12 +277,13 @@ let client = null;
 const getClient = () => (client ??= new Anthropic({ timeout: TIMEOUT_MS, maxRetries: 1 }));
 
 // Tags are only added when there's something in them, so an empty field is never misread.
-function postText({ caption, locationTag, creator, collaborators, slide, userCountry }) {
+function postText({ caption, locationTag, creator, collaborators, tagged, slide, userCountry }) {
   const field = (tag, value) => (value ? `<${tag}>${value}</${tag}>\n` : '');
   return '<post>\n' +
     field('location_tag', locationTag) +
     field('creator', creator) +
     field('collaborators', (collaborators || []).join(', ')) +
+    field('tagged', (tagged || []).join(', ')) +
     field('slide', slide) +
     field('user_country', userCountry) +
     `<caption>\n${caption}\n</caption>\n</post>`;
@@ -294,7 +319,7 @@ async function aiPlace(post) {
 
     // Both checks: the quote is really in the post, and the name is too (in the caption, tags, location
     // tag or creator), compared without spaces or punctuation so "@sweetag.glenwaverley" matches "Sweetag".
-    const sources = [post.caption, post.locationTag, post.creator, ...(post.collaborators || [])].join('\n');
+    const sources = [post.caption, post.locationTag, post.creator, ...(post.collaborators || []), ...(post.tagged || [])].join('\n');
     const seen = flat(sources);
     const seenSquashed = squash(sources);
     const spellings = (name) => [name, String(name).replace(/&/g, ' and ')].map(squash).filter(Boolean);
