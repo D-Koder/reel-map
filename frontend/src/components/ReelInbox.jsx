@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, X } from 'lucide-react';
+import { Film, RefreshCw, X } from 'lucide-react';
 
 const MESSAGES = {
   saving: 'Finding the place in this reel…',
@@ -31,6 +31,12 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
             {finish && (
               <button type="button" className="inbox-action" onClick={() => onFinish(item)}>
                 Finish
+              </button>
+            )}
+            {/* The lookup can fail for a passing reason (Google or the server), so it can run again. */}
+            {finish && (
+              <button type="button" className="inbox-dismiss" onClick={() => onRetry(item)} aria-label="Look up this reel again">
+                <RefreshCw aria-hidden="true" />
               </button>
             )}
             {item.status === 'failed' && (
