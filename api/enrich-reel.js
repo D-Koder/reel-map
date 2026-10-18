@@ -339,18 +339,52 @@ async function logNoPlace(reelUrl, body) {
     query: maps.query || null,
     candidates: (maps.candidates || []).map(({ name, address, category, url }) => ({ name, address, category, url })),
     reason: noPlaceReason(body || {}),
-    logs: lookupLogs(body?.steps, capturedLines()),
+    logs: lookupLogs(body || {}, capturedLines()),
   });
 }
 
-// The lookup's steps (what the app's log shows) and then every server console line, as one text.
-function lookupLogs(steps, lines) {
-  const stepLines = Object.entries(steps || {})
-    .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
-  return [
-    stepLines.length && `Steps:\n${stepLines.join('\n')}`,
-    lines.length && `Server console:\n${lines.join('\n')}`,
-  ].filter(Boolean).join('\n\n') || null;
+// The lookup's log as the app shows it (same lines as applyReelData in AddPlaceSheet.jsx), then every
+// server console line, as one text.
+function lookupLogs(body, consoleLines) {
+  const time = `[${new Date().toISOString().slice(11, 19)}]`;
+  const lines = [];
+  const add = (text) => lines.push(`${time} ${text}`);
+  const { steps, maps, popup } = body;
+  if (steps) {
+    add(`Read from: ${steps.source}`);
+    if (body.tagged?.length) add(`Tagged accounts: ${body.tagged.map((handle) => `@${handle}`).join(', ')}`);
+    add(`AI: ${steps.ai}`);
+    if (steps.category) add(`Category: ${steps.category}`);
+    if (steps.handles) add(`Handles: ${steps.handles}`);
+    if (steps.area) add(`Area added to search: ${steps.area}`);
+    add(`Google Maps search: ${steps.mapsSearch}${steps.mapsUrl ? ` ${steps.mapsUrl}` : ''}`);
+    if (steps.mapsPage) {
+      const page = steps.mapsPage;
+      add(page.error ? `Google Maps error: ${page.error}`
+        : `Google showed: "${page.title}" ${page.url} · ${String(page.text || '').replace(/\s+/g, ' ').slice(0, 200)}`);
+    }
+    if (steps.saved) add(`Saved for other people: ${steps.saved}`);
+  }
+  if (popup) {
+    const days = !popup.endDate ? 'no clear dates in the post'
+      : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
+    add(`Pop-up: ${popup.name}, ${days}.`);
+    if (popup.ended) add(`⚠️ This pop-up ended on ${popup.endDate}.`);
+  }
+  add(`Location: ${body.location || 'Not found'}`);
+  add(`Likes: ${body.likes || 0}`);
+  if (maps?.details?.name) {
+    add(`Google Maps matched ${maps.details.name}.`);
+    add(`Address: ${maps.details.address || 'Not listed'}`);
+  } else if (maps?.candidates?.length) {
+    add(`Searched with: "${maps.query}"`);
+    add(`Found ${maps.candidates.length} Google Maps match${maps.candidates.length === 1 ? '' : 'es'}, none picked: ${
+      maps.candidates.map((candidate) => candidate.name).join(', ')}`);
+  } else if (maps?.error) {
+    add(`Google Maps: ${maps.error}`);
+  }
+  return [lines.join('\n'), consoleLines.length && `Server console:\n${consoleLines.join('\n')}`]
+    .filter(Boolean).join('\n\n');
 }
 
 // { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody
