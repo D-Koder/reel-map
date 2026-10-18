@@ -55,7 +55,15 @@ function buildCommit() {
     return 'dev';
   }
 }
-const version = { commit: buildCommit(), builtAt: new Date().toISOString() };
+// When that commit was made (pushed), from git. Null when git isn't there.
+function commitTime() {
+  try {
+    return execSync('git log -1 --format=%cI', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null;
+  } catch {
+    return null;
+  }
+}
+const version = { commit: buildCommit(), committedAt: commitTime(), builtAt: new Date().toISOString() };
 
 // Writes version.json next to the app. Settings reads it from the server to tell when a newer build
 // is live than the one running, i.e. the page needs a refresh.

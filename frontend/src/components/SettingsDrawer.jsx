@@ -616,12 +616,13 @@ function AppVersion({ drawerOpen }) {
   }, [drawerOpen]);
 
   const outdated = live && live.commit !== APP_VERSION.commit;
-  const built = new Date(APP_VERSION.builtAt).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const when = (iso) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   return (
     <div className="settings-section">
       <div className="settings-section-title"><Info className="ico" aria-hidden="true" /> App version</div>
       <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-        <code>{shortCommit(APP_VERSION.commit)}</code> · built {built}
+        <code>{shortCommit(APP_VERSION.commit)}</code>
+        {APP_VERSION.committedAt && ` · pushed ${when(APP_VERSION.committedAt)}`} · built {when(APP_VERSION.builtAt)}
         {live && !outdated && ' · up to date'}
       </div>
       {outdated && (
