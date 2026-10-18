@@ -548,6 +548,8 @@ function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteC
             <button type="button" className="step-btn primary full-width" onClick={handleSave}>
               Save changes
             </button>
+
+            <AppVersion drawerOpen={editMode} />
           </div>
         </div>,
         document.body
@@ -762,8 +764,6 @@ export default function SettingsDrawer({
             </form>
             {onImportCollection && <ImportCollection onImport={onImportCollection} showToast={showToast} />}
           </div>
-
-          <AppVersion drawerOpen={open} />
         </div>
       </div>
     </>
