@@ -1,3 +1,5 @@
+const { handleToPlace } = require('./handles');
+
 // How much a pinned line looks like a place rather than a date or a promo. Higher is more place-like.
 // "📍 Smolbitez, Flinders St" scores well; "📍 Flinders Shop: 17–18 Oct" and "📍 Pop-up: 3 days only" don't.
 const MONTH = '(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*';
@@ -28,15 +30,39 @@ function placeScore(text) {
 // "Location:" / "Address:" label in front of the venue is dropped.
 // The pin can sit mid-line, e.g. "(📍@venue)", so the venue stops at the first "(", "#", 🏷 or the next pin.
 // Same rule as captionVenue in frontend/src/lib/places.js.
+// A venue written as a handle ("@introspectioncoffee , brunswick") becomes a name and a suburb
+// ("Introspection Coffee, Brunswick"), so the search and the name match see words, not a handle.
+function handleVenue(text) {
+  const match = text.match(/^@([\w.]+)\s*(?:,\s*(.+))?$/);
+  if (!match) return text;
+  const { name } = handleToPlace(match[1]);
+  const suburb = match[2]?.trim().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
+  return [name, suburb].filter(Boolean).join(', ');
+}
+
+// A 📌 "call to action" ("Which one are you trying first? 👇") is not a venue. A 📍 with a question is still skipped by the
+// place score, so only the 📌 rule needs this.
+const CALL_TO_ACTION = /\?|👇/u;
+
 function captionVenue(caption) {
-  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu)]
-    .map(([, pin, text]) => ({
+  const text = String(caption || '');
+  const pins = [
+    ...text.matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu),
+    // A handle wrapped in symbols on its own line ("【 @yomiu.au 】", "✨@yomiu.au✨") is the venue too,
+    // whatever the symbols are. Letters on either side mean it's a sentence, not a line of its own.
+    ...[...text.matchAll(/^[^\p{L}\p{N}\s@]+\s*(@[\w.]+)\s*[^\p{L}\p{N}\s@]+\s*$/gmu)]
+      .map((match) => [match[0], '📍', match[1]]),
+  ];
+  const found = pins
+    .map(([, pin, raw]) => ({
       pin,
-      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
+      // Checked before the sentence is cut at its "?", which is what marks a call to action.
+      callToAction: CALL_TO_ACTION.test(raw),
+      text: handleVenue(raw.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
         // A pin mid-sentence ("my new quest to 📍Frenchie. all I can say…") ends at the sentence's end.
-        .split(/[.!?](?:\s|$)/)[0].trim(),
+        .split(/[.!?](?:\s|$)/)[0].trim()),
     }))
-    .filter(({ text }) => text && !text.endsWith(':'));
+    .filter(({ text, pin, callToAction }) => text && !text.endsWith(':') && !(pin === '📌' && callToAction));
   // Lines that look like a place (score above 0) beat dates and promos; among them the first 📍, then
   // the first 📌. With none, the highest score. A lone pin is always used.
   const scored = found.map((entry) => ({ ...entry, score: placeScore(entry.text) }));
@@ -123,4 +149,13 @@ function captionPlaceForSlide(caption, slide) {
   return list[Math.min(Math.max(index, 0), list.length - 1)];
 }
 
-module.exports = { captionVenue, captionPlaceList, captionPlaceForSlide };
+// A pinned line that is a sentence, not a place: "📍A new cute cafe has opened up along High street
+// this year". Six or more words, no number, and mostly lower-case words. Place lines are short or
+// capitalised ("Lunetta Bakehouse, Hardware Lane, Melbourne"), and addresses have a number.
+function isProse(text) {
+  const words = String(text || '').split(/\s+/).filter((word) => /\p{L}/u.test(word));
+  if (words.length < 6 || /\d/.test(text)) return false;
+  return words.filter((word) => /^\p{Ll}/u.test(word)).length >= 4;
+}
+
+module.exports = { captionVenue, captionPlaceList, captionPlaceForSlide, isProse };

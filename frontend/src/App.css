@@ -672,6 +672,21 @@ button.collection-empty {
   color: var(--text-muted);
 }
 
+/* The same suggestions under a form field (Add and Edit), in the sheet rather than over the map */
+.place-search-results {
+  max-height: 260px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+}
+
+.place-search-results .map-search-result {
+  color: var(--text);
+}
+
+.place-search-note {
+  background: var(--surface);
+}
+
 .map-controls {
   position: absolute;
   top: 60px;
@@ -1396,6 +1411,7 @@ button.collection-empty {
 .reel-link {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 32px;
   margin-top: 2px;
   padding: 0 12px;
@@ -4899,4 +4915,105 @@ button.profile-open {
   font-weight: 800;
   line-height: 1.4;
   pointer-events: none;
+}
+
+/* BOOKING CONFIRMATIONS (screenshots / PDFs on a booked place) */
+.booking-files { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.booking-files-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.booking-file { display: flex; align-items: center; gap: 8px; }
+.booking-file-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+}
+.booking-file-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.booking-file-icon {
+  width: 48px; height: 48px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; background: var(--surface-muted);
+}
+.booking-file-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.booking-file-remove {
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--text-muted); cursor: pointer;
+}
+.booking-file-remove.disabled { opacity: 0.5; pointer-events: none; }
+.booking-files-upload { display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.booking-files-upload.disabled { opacity: 0.6; pointer-events: none; }
+.booking-files-privacy {
+  display: flex; gap: 6px; align-items: flex-start;
+  margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-muted);
+}
+.booking-files-privacy .ico { flex-shrink: 0; width: 14px; height: 14px; margin-top: 1px; }
+.booking-lightbox {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 56px 16px 24px;
+  background: rgba(0, 0, 0, 0.88);
+}
+.booking-lightbox-img {
+  max-width: 100%; max-height: calc(100% - 40px);
+  object-fit: contain; border-radius: var(--radius-sm);
+}
+.booking-lightbox-name { color: #fff; font-size: 14px; opacity: 0.8; text-align: center; word-break: break-all; }
+.booking-lightbox-close {
+  position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: rgba(255, 255, 255, 0.15); color: #fff; cursor: pointer;
+}
+.shared-place-body { display: flex; flex-direction: column; gap: 12px; }
+.shared-place-from { font-size: 13px; color: var(--text-muted); }
+.shared-place-thumb { width: 100%; max-height: 360px; display: flex; justify-content: center; }
+.shared-place-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.shared-place-actions .step-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+.shared-place-save { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.share-booking { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }
+
+/* Under each place in Home's "Today": the booking time (or "Event today") and its collection. */
+.today-when {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 4px 4px 0;
+}
+
+/* Today's calendar page beside "Today" on Home: the month on a red band, the day underneath. */
+.today-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1.5em;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.today-icon-month {
+  width: 100%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.45em;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 2px 0 1px;
+}
+.today-icon-day {
+  color: #1d1d1f;
+  font-size: 0.8em;
+  font-weight: 700;
+  padding: 1px 0 2px;
 }

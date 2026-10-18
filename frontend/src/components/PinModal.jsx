@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
+import { shareBooking, sharePlace } from '../lib/share';
+import BookingFiles from './BookingFiles';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -235,7 +237,14 @@ export default function PinModal({
     else showToast('No phone number listed');
   };
 
-  const addToCalendar = () => {
+  // Step 3: opens the booked date as a calendar event (this used to shadow addToCalendar and only show a toast).
+  const saveToCalendar = () => {
+    addToCalendar({
+      title: calendarTitle.trim() || place.name,
+      location: place.address,
+      description: place.reel_url,
+      start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
+    });
     showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
   };
@@ -355,11 +364,10 @@ export default function PinModal({
                 ))}
               </div>
             )}
-            {place.reel_url && (
-              <button className="reel-link" onClick={openReel}>
-                View Reel <ArrowUpRight className="ico" aria-hidden="true" />
-              </button>
-            )}
+            {/* A link to this place in reel map. The reel itself opens from the thumbnail. */}
+            <button className="reel-link" onClick={() => sharePlace(place, showToast)}>
+              <Share2 className="ico" aria-hidden="true" /> Share place
+            </button>
           </div>
         </div>
 
@@ -388,6 +396,11 @@ export default function PinModal({
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
+            {/* For the people in this collection: the link's card shows the date and time. */}
+            <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
+              <Share2 className="ico" aria-hidden="true" /> Share booking with the group
+            </button>
+            <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
           </div>
         )}
 
@@ -487,6 +500,7 @@ export default function PinModal({
                 >
                   {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save booking →'}
                 </button>
+                <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
               </div>
             )}
 
@@ -502,7 +516,7 @@ export default function PinModal({
                   onChange={(e) => setCalendarTitle(e.target.value)}
                 />
                 <div className="step-buttons">
-                  <button className="step-btn primary" onClick={addToCalendar}>
+                  <button className="step-btn primary" onClick={saveToCalendar}>
                     <CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar
                   </button>
                   <button className="step-btn secondary" onClick={() => completeStep(3)}>

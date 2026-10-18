@@ -13,6 +13,7 @@ import ShareCollectionModal from './components/ShareCollectionModal';
 import ReelInbox from './components/ReelInbox';
 import FridayPickCard from './components/FridayPickCard';
 import Celebration from './components/Celebration';
+import SharedPlaceSheet from './components/SharedPlaceSheet';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
@@ -22,6 +23,7 @@ import { useOnline } from './hooks/useOnline';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
+import { forgetSharedPlace, pendingSharedPlace, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
 import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
@@ -52,7 +54,7 @@ const SHOW_LOCATION_KEY = 'reelmap:show-my-location';
 const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
-function MainApp({ userId, showToast }) {
+function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const data = useAppData(userId, showToast);
   const online = useOnline();
   const { acceptInvite, joinWithCode } = useInvites(userId, showToast);
@@ -235,6 +237,15 @@ function MainApp({ userId, showToast }) {
   );
   const canEdit = useCallback((collectionId) => editableIds.has(collectionId), [editableIds]);
   const editableCollections = useMemo(() => collections.filter((c) => editableIds.has(c.id)), [collections, editableIds]);
+
+  // A shared place link (?place=<id>): already on my map, so just open it. Otherwise
+  // SharedPlaceSheet (below) previews it and offers to save it.
+  const sharedIsMine = Boolean(sharedPlaceId) && places.some((p) => p.id === sharedPlaceId);
+  useEffect(() => {
+    if (data.loading || !sharedIsMine) return;
+    setOpenPinId(sharedPlaceId);
+    onSharedPlaceDone();
+  }, [data.loading, sharedIsMine, sharedPlaceId, onSharedPlaceDone]);
 
   const membersOf = useMemo(
     () => Object.fromEntries(collections.map((c) => [c.id, c.members])),
@@ -598,6 +609,7 @@ function MainApp({ userId, showToast }) {
           collections={collections}
           places={places}
           eventDatesReady={data.eventDatesReady}
+          eventEndDatesReady={data.eventEndDatesReady}
           userId={userId}
           canEdit={canEdit}
           onCopy={async (targetId) => {
@@ -630,6 +642,7 @@ function MainApp({ userId, showToast }) {
           collections={editableCollections}
           places={places}
           eventDatesReady={data.eventDatesReady}
+          eventEndDatesReady={data.eventEndDatesReady}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {
@@ -637,6 +650,19 @@ function MainApp({ userId, showToast }) {
               if (finishingInboxId) inbox.remove(finishingInboxId);
               setFinishingInboxId(null);
               showToast(`Added "${fields.name}"`);
+              setAdding(false);
+            }
+          }}
+          onAddAll={async (list) => {
+            let added = 0;
+            for (const fields of list) {
+              if (await data.addPlace(fields)) added += 1;
+            }
+            if (added) {
+              rememberCollection(userId, list[0].collectionId);
+              if (finishingInboxId) inbox.remove(finishingInboxId);
+              setFinishingInboxId(null);
+              showToast(`Added ${added} place${added === 1 ? '' : 's'}`);
               setAdding(false);
             }
           }}
@@ -652,6 +678,23 @@ function MainApp({ userId, showToast }) {
 
       {celebrating && (
         <Celebration placeName={celebrating.name} streak={streak} onClose={() => setCelebrating(null)} />
+      )}
+
+      {sharedPlaceId && !sharedIsMine && (
+        <SharedPlaceSheet
+          placeId={sharedPlaceId}
+          collections={editableCollections}
+          signedIn
+          onClose={onSharedPlaceDone}
+          onSave={async (collectionId, shared) => {
+            const ok = await data.copyPlaceToCollection({ id: shared.id, name: shared.name, category: shared.category }, collectionId);
+            if (!ok) return;
+            await data.refresh();
+            showToast(`Saved "${shared.name}" to your map`);
+            setOpenPinId(`${collectionId}:${shared.id}`);
+            onSharedPlaceDone();
+          }}
+        />
       )}
 
       {shareModal && (
@@ -672,6 +715,13 @@ function MainApp({ userId, showToast }) {
 function App() {
   const { session, recovering, doneRecovering } = useAuth();
   const [toast, setToast] = useState(null);
+  // A place opened from a share link. Kept on this device while signing in, so it opens afterwards.
+  const [sharedPlaceId, setSharedPlaceId] = useState(() => takeSharedPlaceFromUrl() ?? pendingSharedPlace());
+  const [signingInToSave, setSigningInToSave] = useState(false);
+  const sharedPlaceDone = useCallback(() => {
+    forgetSharedPlace();
+    setSharedPlaceId(null);
+  }, []);
   const toastTimer = useRef(null);
 
   const showToast = useCallback((message, action, duration) => {
@@ -700,9 +750,32 @@ function App() {
       />
     );
   } else if (!session) {
-    body = <AuthScreen />;
+    body = (
+      <>
+        <AuthScreen />
+        {sharedPlaceId && !signingInToSave && (
+          <SharedPlaceSheet
+            placeId={sharedPlaceId}
+            signedIn={false}
+            onClose={sharedPlaceDone}
+            onSignIn={() => {
+              rememberSharedPlace(sharedPlaceId);
+              setSigningInToSave(true);
+            }}
+          />
+        )}
+      </>
+    );
   } else {
-    body = <MainApp key={session.user.id} userId={session.user.id} showToast={showToast} />;
+    body = (
+      <MainApp
+        key={session.user.id}
+        userId={session.user.id}
+        showToast={showToast}
+        sharedPlaceId={sharedPlaceId}
+        onSharedPlaceDone={sharedPlaceDone}
+      />
+    );
   }
 
   return (

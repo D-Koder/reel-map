@@ -103,12 +103,19 @@ function hasWholeWords(name, key) {
 // One result → that one. Otherwise each hint (best first) is tried in two rounds:
 //   1. whole words: "YoArt" → "Yo Art Frozen Yoghurt (The Glen)", not "Yoarthi" or "Theyo ar type";
 //   2. letters anywhere in the name, when no name has the whole words;
-//   3. a result's whole name written inside the hint ("the restaurant is called Frenchie").
-// A round only picks when exactly one result matches; a tie asks the user.
+//   3. a result's whole name written inside the hint ("the restaurant is called Frenchie"), or at the
+//      start of a one-word handle ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
+// A round only picks when exactly one result matches. A tie between branches of one chain is broken
+// by the suburb ("ING Korean BBQ, Glen Waverley" → the Glen Waverley branch, not Vermont South);
+// any other tie asks the user.
 // Same rule as bestCandidate in api/enrich-reel.js.
-export function bestPlaceMatch(candidates, hints = []) {
+export function bestPlaceMatch(candidates, hints = [], areas = []) {
   if (!candidates?.length) return null;
   if (candidates.length === 1) return candidates[0];
+  return matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+function matchByName(candidates, hints) {
   for (const hint of hints) {
     const key = squash(hint);
     if (key.length < 4) continue;
@@ -119,10 +126,56 @@ export function bestPlaceMatch(candidates, hints = []) {
     if (partial.length === 1) return partial[0];
     // 3. the other way round: a result's whole name written inside the hint, e.g. "the restaurant
     //    is called Frenchie" → "Frenchie" (names under 4 letters are too likely to appear by chance).
-    const inside = candidates.filter((candidate) => squash(candidate.name).length >= 4 && hasWholeWords(hint, squash(candidate.name)));
+    const inside = candidates.filter((candidate) => nameInsideHint(candidate.name, hint));
     if (inside.length === 1) return inside[0];
   }
   return null;
+}
+
+// Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
+function matchByArea(candidates, hints, areas) {
+  const hint = hints.map(squash).find((key) => key.length >= 4 &&
+    candidates.filter((candidate) => hasWholeWords(candidate.name, key)).length > 1);
+  if (!hint) return null;
+  const branches = candidates.filter((candidate) => hasWholeWords(candidate.name, hint));
+  for (const area of areas) {
+    const key = squash(area);
+    if (key.length < 4) continue;
+    const inArea = branches.filter((candidate) => hasWholeWords(`${candidate.name} ${candidate.address || ''}`, key));
+    if (inArea.length === 1) return inArea[0];
+  }
+  return null;
+}
+
+// The suburb parts of the reel's location: "ING Korean BBQ, Glen Waverley" → ["Glen Waverley"].
+export function reelPlaceAreas(reel) {
+  return [...String(reel?.location ?? '').split(',').slice(1), reel?.area ?? '']
+    .map((part) => part.trim()).filter(Boolean);
+}
+
+// A result's whole name written inside the hint: as whole words ("the restaurant is called Frenchie"),
+// or at the start of a one-word handle with a suffix ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
+// Names under 4 letters (6 for the handle case) are too likely to appear by chance.
+function nameInsideHint(name, hint) {
+  const key = squash(name);
+  if (key.length < 4) return false;
+  if (hasWholeWords(hint, key)) return true;
+  return key.length >= 6 && words(hint).length === 1 && squash(hint).startsWith(key);
+}
+
+// The results named like the place, so a search that also returns unrelated places nearby ("Sole Wash"
+// for "Sneaker Laundry LAB") only offers the ones that fit. Each hint (best first) is tried; the first
+// that matches any result decides. When nothing matches, every result is kept.
+export function relatedPlaces(candidates, hints = []) {
+  if (!candidates?.length) return [];
+  for (const hint of hints) {
+    const key = squash(hint);
+    if (key.length < 4) continue;
+    const related = candidates.filter((candidate) => hasWholeWords(candidate.name, key) ||
+      squash(candidate.name).includes(key) || nameInsideHint(candidate.name, hint));
+    if (related.length) return related;
+  }
+  return candidates;
 }
 
 // How much a pinned line looks like a place rather than a date or a promo. Higher is more place-like.
@@ -153,14 +206,22 @@ function placeScore(text) {
 // The venue written after a pin in a caption. 📍 wins over 📌, because captions also use 📌 for
 // headings like "📌 Details:". Same rule as captionVenue in api/_lib/caption.js.
 export function captionVenue(caption) {
-  const found = [...String(caption || '').matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu)]
-    .map(([, pin, text]) => ({
-      pin,
-      text: text.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
+  const text = String(caption || '');
+  const pins = [
+    ...text.matchAll(/([📍📌])\s*([^\n#()🏷📍📌]+)/gu),
+    // A handle in brackets on its own line, "【 @yomiu.au 】", is the venue too.
+    ...text.matchAll(/(【)\s*(@[\w.]+)\s*】/gu),
+  ];
+  const found = pins
+    .map(([, pin, raw]) => ({
+      pin: pin === '【' ? '📍' : pin,
+      // A 📌 call to action ("Which one are you trying first? 👇") is not a venue. Checked before the cut at "?".
+      callToAction: /\?|👇/u.test(raw),
+      text: raw.trim().replace(/^(?:location|address|where|venue|spot)\s*:\s*/i, '')
         // A pin mid-sentence ("my new quest to 📍Frenchie. all I can say…") ends at the sentence's end.
         .split(/[.!?](?:\s|$)/)[0].trim(),
     }))
-    .filter(({ text }) => text && !text.endsWith(':'));
+    .filter(({ text, pin, callToAction }) => text && !text.endsWith(':') && !(pin === '📌' && callToAction));
   // Lines that look like a place (score above 0) beat dates and promos; among them the first 📍, then
   // the first 📌. With none, the highest score. A lone pin is always used.
   const scored = found.map((entry) => ({ ...entry, score: placeScore(entry.text) }));

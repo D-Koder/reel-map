@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { bestPlaceMatch, entriesAtSpot, reelPlaceHints } from '../lib/places';
+import { bestPlaceMatch, entriesAtSpot, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
+import PlaceSearchInput from './PlaceSearchInput';
+import { requestLocationApi } from '../lib/googlePlaces';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -61,7 +63,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, eventEndDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -99,6 +101,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
   const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
   const [eventDate, setEventDate] = useState(draft?.eventDate ?? '');
+  // The last day of an event on for several days (a pop-up "this weekend"), else empty.
+  const [eventEndDate, setEventEndDate] = useState(draft?.eventEndDate ?? '');
+  // A pop-up's own name. The Maps search only finds its street, so the street's name never replaces it.
+  const popupNameRef = useRef(draft?.scrapedData?.popup?.name || '');
   const [entryUrl, setEntryUrl] = useState(draft?.entryUrl ?? '');
   const [entryUrlError, setEntryUrlError] = useState('');
   // Saved places already at this location. Shown as a warning before a second entry is added.
@@ -109,6 +115,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
   // A list post shared without a slide: the listed place being looked up after the person tapped it.
   const [choosingListed, setChoosingListed] = useState(null);
+  const [addingAllListed, setAddingAllListed] = useState(false);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
@@ -129,10 +136,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate,
+      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -140,9 +147,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const addLog = (message, type = 'info') => {
+  // link: an optional URL shown as a tappable link after the message.
+  const addLog = (message, type = 'info', link = '') => {
     const timestamp = new Date().toLocaleTimeString();
-    setApiLogs(prev => [...prev, { message, type, timestamp }]);
+    setApiLogs(prev => [...prev, { message, type, timestamp, link }]);
     console.log(`[${type.toUpperCase()}] ${message}`);
   };
 
@@ -191,22 +199,56 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
   const applyReelData = (data) => {
     setScrapedData(data);
-    setName(data.placeName || data.caption?.split('\n')[0].substring(0, 80) || '');
+    // No name found: the first part of a "Name, Suburb" location, unless it's a street address.
+    const locationName = /\d/.test(data.location?.split(',')[0] ?? '') || !data.location?.includes(',')
+      ? '' : data.location.split(',')[0].trim();
+    setName(data.placeName || locationName || data.caption?.split('\n')[0].substring(0, 80) || '');
     setLocation(data.location || '');
+    const steps = data.steps;
+    if (steps) {
+      addLog(`Read from: ${steps.source}`, 'info');
+      if (steps.ruleVenue) addLog(`Caption rules found: ${steps.ruleVenue}`, 'info');
+      if (data.tagged?.length) addLog(`Tagged accounts: ${data.tagged.map((handle) => `@${handle}`).join(', ')}`, 'info');
+      addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
+      if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
+      if (steps.area) addLog(`Area added to search: ${steps.area}`, 'info');
+      addLog(`Google Maps search: ${steps.mapsSearch}`, 'info', steps.mapsUrl);
+      if (steps.mapsPage) {
+        const page = steps.mapsPage;
+        addLog(page.error ? `Google Maps error: ${page.error}`
+          : `Google showed: "${page.title}" ${page.url} · ${page.text.replace(/\s+/g, ' ').slice(0, 200)}`, 'error');
+      }
+      if (steps.saved) addLog(`Saved for other people: ${steps.saved}`, 'info');
+    }
+    // A pop-up or stall: saved as an event on its days, pinned on its street.
+    const popup = data.popup;
+    popupNameRef.current = popup?.name || '';
+    if (popup) {
+      setCategory('event');
+      setEventDate(popup.startDate || '');
+      setEventEndDate(popup.endDate || '');
+      const days = !popup.endDate ? 'no clear dates in the post, so add them yourself'
+        : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
+      addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');
+      if (popup.ended) addLog(`⚠️ This pop-up ended on ${popup.endDate}. You can still save it.`, 'error');
+    }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
     if (data.maps) {
-      const candidates = (data.maps.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
+      // Results not named like the reel's place (a nearby business Maps adds) are left out.
+      // A pop-up's search is its street, which isn't named like the pop-up, so nothing is left out.
+      const candidates = (popup ? data.maps.candidates || [] : relatedPlaces(data.maps.candidates, reelPlaceHints(data)))
+        .map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
       if (data.maps.details) {
-        setMapsData(data.maps.details);
-        setName(data.maps.details.name || data.placeName || name);
+        setMapsData(popup ? { ...data.maps.details, name: popup.name } : data.maps.details);
+        setName(popup?.name || data.maps.details.name || data.placeName || name);
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-      } else if (!(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data))) {
+      } else if (!popup && !(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data))) {
         // (Not for a list post shared without a slide: the person says which place they meant.)
-        // One result, or one whose name matches the reel's place: pick it without asking.
-        const best = bestPlaceMatch(candidates, reelPlaceHints(data));
+        // One result, or one whose name (or suburb, for a chain) matches the reel's place: pick it without asking.
+        const best = bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data));
         addLog(`Picked ${best.name}, the clear match.`, 'success');
         selectLocationCandidate(best);
       } else if (candidates.length) {
@@ -220,22 +262,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
-  const requestLocationApi = async (payload) => {
-    const response = await fetch('/api/scrape-location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(55000),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(data.error || `Google Maps returned HTTP ${response.status}`);
-      error.status = response.status;
-      throw error;
-    }
-    return data;
-  };
-
   const selectLocationCandidate = async (candidate, preserveName = false) => {
     setLoadingCandidateUrl(candidate.url);
     try {
@@ -247,8 +273,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         placeName: candidate.name,
         location: candidate.address || location || scrapedData?.location || '',
       });
-      setMapsData(data);
-      if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
+      setMapsData(popupNameRef.current ? { ...data, name: popupNameRef.current } : data);
+      if (popupNameRef.current) setName(popupNameRef.current);
+      else if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
       setLocation(data.address || candidate.address || location);
       setLocationCandidates([]);
       setLocationSearchDone(false);
@@ -276,7 +303,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setChoosingListed(item.line);
     try {
       const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
-      const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
+      const candidates = relatedPlaces(await searchCandidates(query), [item.name])
+        .map((candidate) => ({ ...candidate, searchQuery: query }));
       const best = bestPlaceMatch(candidates, [item.name]);
       if (best) {
         await selectLocationCandidate(best);
@@ -291,8 +319,55 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
+  // "Add all" on a list post: every listed place is looked up on Google Maps and saved to the chosen
+  // collection. A place Maps can't match is saved with the address from the post and no map pin.
+  const addAllListed = async () => {
+    if (!collectionId || !onAddAll || !scrapedData?.listedPlaces?.length) return;
+    setAddingAllListed(true);
+    setSaving(true);
+    const places = [];
+    try {
+      for (const item of scrapedData.listedPlaces) {
+        addLog(`Looking up ${item.name}…`, 'info');
+        const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
+        const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
+        const best = bestPlaceMatch(candidates, [item.name]);
+        let venueDetails = null;
+        if (best) {
+          venueDetails = await requestLocationApi({
+            action: 'details',
+            query,
+            placeUrl: best.url,
+            placeAddress: best.address,
+            placeName: best.name,
+            location: best.address || item.address || scrapedData?.area || '',
+          });
+        }
+        places.push({
+          name: (venueDetails?.name || best?.name || item.name).trim(),
+          location: (venueDetails?.address || best?.address || item.address || '').trim(),
+          category,
+          collectionId,
+          reelUrl: reelUrl.trim(),
+          venueDetails,
+          feeling,
+          customInfo: customInfo.trim(),
+          url: null,
+          eventDate: null,
+        });
+      }
+      await onAddAll(places);
+    } catch (error) {
+      addLog(`Could not add all places: ${error.message}`, 'error');
+    } finally {
+      setAddingAllListed(false);
+      setSaving(false);
+    }
+  };
+
   // "No results" from the server (404) is an empty list, not an error.
   const searchCandidates = async (query) => {
+    addLog(`Google Maps search: "${query}"`, 'info', `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
     try {
       const data = await requestLocationApi({ action: 'search', query, location: query });
       return data.candidates || [];
@@ -314,12 +389,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
       if (!candidates.length) candidates = await searchCandidates(address);
       // One result, or one whose name matches the name or the address's first part: use it straight away.
-      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]]);
+      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1));
       if (best) {
         await selectLocationCandidate({ ...best, searchQuery: address }, true);
         return;
       }
-      setVerifyResults(candidates);
+      setVerifyResults(relatedPlaces(candidates, [placeName]));
     } catch (error) {
       addLog(`Could not verify address: ${error.message}`, 'error');
       setVerifyResults(null);
@@ -400,7 +475,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     try {
       // Google place first, then the spot tapped on the map. Mapbox is only a fallback.
       let venueDetails = mapsData ?? pinCoords;
-      if (!mapsData && pinCoords) addLog('Using the spot you tapped on the map.', 'info');
+      if (!mapsData && pinCoords) addLog(pinCoords.source === 'mapbox' ? 'Using the place picked from search.' : 'Using the spot you tapped on the map.', 'info');
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
         if (!MAPBOX_TOKEN) {
           addLog('Mapbox token is missing; saved address will not have a map pin.', 'error');
@@ -474,6 +549,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         customInfo: customInfo.trim(),
         url: link,
         eventDate: category === 'event' ? eventDate || null : null,
+        eventEndDate: category === 'event' && eventDate ? eventEndDate || null : null,
       });
       if (draftable) clearDraft();
     } catch (error) {
@@ -769,6 +845,16 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     </button>
                   ))}
                 </div>
+                {onAddAll && (
+                  <button
+                    type="button"
+                    className="step-btn primary full-width"
+                    onClick={addAllListed}
+                    disabled={saving || !!choosingListed || addingAllListed || !collectionId}
+                  >
+                    {addingAllListed ? 'Adding…' : `Add all ${scrapedData.listedPlaces.length} as places`}
+                  </button>
+                )}
               </div>
             )}
 
@@ -795,32 +881,41 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             {/* Address: the input and Verify sit on one row, with a hint underneath */}
             <div className="field">
               <span className="modal-label">Address</span>
-              <div className="address-row">
-                <input
-                  className="step-input"
-                  aria-label="Address"
-                  value={location}
-                  onChange={(e) => {
-                    setLocation(e.target.value);
-                    setMapsData(null);
-                    setPinCoords(null);
-                    setLocationCandidates([]);
-                    setLocationSearchDone(false);
-                  }}
-                  placeholder="Street address, suburb, city"
-                  maxLength={100}
-                  disabled={saving}
-                />
-                <button
-                  type="button"
-                  className="step-btn secondary"
-                  onClick={verifyLocation}
-                  disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
-                >
-                  {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
-                </button>
-              </div>
-              <span className="field-hint">Used for the map pin. Verify to pick the exact Google Maps place.</span>
+              <PlaceSearchInput
+                ariaLabel="Address"
+                value={location}
+                onChange={(text) => {
+                  setLocation(text);
+                  setMapsData(null);
+                  setPinCoords(null);
+                  setLocationCandidates([]);
+                  setLocationSearchDone(false);
+                }}
+                onPick={(picked) => {
+                  setLocation(picked.address);
+                  setMapsData(null);
+                  setPinCoords({ latitude: picked.lat, longitude: picked.lng, source: 'mapbox' });
+                  setLocationCandidates([]);
+                  setLocationSearchDone(false);
+                  // A business picked with no name typed yet names the place too.
+                  if (!name.trim() && picked.name && !picked.address.startsWith(picked.name)) setName(picked.name);
+                  addLog(`Picked ${picked.name || picked.address} from Mapbox search.`, 'success');
+                }}
+                placeholder="Search a place or street address"
+                maxLength={100}
+                disabled={saving}
+                action={(
+                  <button
+                    type="button"
+                    className="step-btn secondary"
+                    onClick={verifyLocation}
+                    disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                  >
+                    {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
+                  </button>
+                )}
+              />
+              <span className="field-hint">Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.</span>
             </div>
 
             {locationCandidates.length > 0 && (
@@ -1081,6 +1176,19 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 />
               </label>
             )}
+            {category === 'event' && eventDatesReady && eventEndDatesReady && eventDate && (
+              <label className="field">
+                <span className="modal-label">Last day (optional)</span>
+                <input
+                  className="step-input"
+                  type="date"
+                  value={eventEndDate}
+                  min={eventDate}
+                  onChange={(e) => setEventEndDate(e.target.value)}
+                  disabled={saving}
+                />
+              </label>
+            )}
 
             {/* Vibe/Feeling */}
             <div className="field">
@@ -1144,6 +1252,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   wordBreak: 'break-all'
                 }}>
                   <span style={{ color: 'var(--text-muted)' }}>[{log.timestamp}]</span> {log.message}
+                  {log.link && (
+                    <> <a href={log.link} target="_blank" rel="noreferrer" style={{ color: '#74c0fc' }}>Open in Google Maps ↗</a></>
+                  )}
                 </div>
               ))}
             </div>
