@@ -224,7 +224,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (popup) {
       setCategory('event');
       setEventDate(popup.startDate || '');
-      setEventEndDate(popup.endDate && popup.endDate !== popup.startDate ? popup.endDate : '');
+      setEventEndDate(popup.endDate || '');
       const days = !popup.endDate ? 'no clear dates in the post, so add them yourself'
         : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
       addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');

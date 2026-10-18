@@ -302,11 +302,11 @@ export function useAppData(userId, showToast) {
     return pa - pb || a.created_at.localeCompare(b.created_at);
   });
 
-  // The event-day columns to save: the first day, and the last when it's a later day (a one-day
-  // event keeps no end). The end is left out until the database has its column.
+  // The event-day columns to save: the first day, and the last (the same day for a one-day pop-up,
+  // empty when nobody gave one). The end is left out until the database has its column.
   const eventDays = (start, end) => {
     const days = { event_date: start || null };
-    if (eventEndDatesReady) days.event_end_date = start && end && end > start ? end : null;
+    if (eventEndDatesReady) days.event_end_date = start && end && end >= start ? end : null;
     return days;
   };
 
