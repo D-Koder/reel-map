@@ -1,6 +1,6 @@
 {
-  "name": "Reel Map",
-  "short_name": "Reel Map",
+  "name": "Waylit Maps",
+  "short_name": "Waylit Maps",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

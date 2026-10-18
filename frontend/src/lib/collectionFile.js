@@ -1,6 +1,6 @@
 // Export a collection to a file, and read one back in.
 // Two formats:
-// - Reel Map file (.json): everything needed to rebuild the collection somewhere else.
+// - Waylit Maps file (.json): everything needed to rebuild the collection somewhere else.
 // - Spreadsheet (.csv): starts with Title, Note, URL like Google Maps' saved-list export
 //   (Google Takeout → Saved), so the same reader takes both. Votes are never exported.
 
@@ -174,7 +174,7 @@ function toImportPlace(raw) {
   };
 }
 
-// Header name → field, for Reel Map's own CSV, Google's saved-list CSV and hand-made sheets.
+// Header name → field, for Waylit Maps's own CSV, Google's saved-list CSV and hand-made sheets.
 const HEADER_FIELDS = {
   title: 'name', name: 'name', place: 'name',
   note: 'note', notes: 'note', comment: 'note', description: 'note',
@@ -211,9 +211,9 @@ function readJSONFile(text) {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't a Reel Map file.");
+    throw new Error("This isn't a Waylit Maps file.");
   }
-  if (data?.kind !== FILE_KIND || !Array.isArray(data.places)) throw new Error("This isn't a Reel Map file.");
+  if (data?.kind !== FILE_KIND || !Array.isArray(data.places)) throw new Error("This isn't a Waylit Maps file.");
   return { name: data.collection?.name || 'Imported places', emoji: cleanText(data.collection?.emoji, 16), places: data.places };
 }
 

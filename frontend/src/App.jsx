@@ -394,7 +394,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   return (
     <div className="app">
       <header className="header">
-        <span className="header-title">reel map<span className="wordmark-dot" aria-hidden="true">.</span></span>
+        <span className="header-title">waylit maps<span className="wordmark-dot" aria-hidden="true">.</span></span>
         <div className="header-buttons">
           <button
             className="header-btn"

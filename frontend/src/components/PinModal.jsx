@@ -49,11 +49,11 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   const nameOf = (person) => (person.id === userId ? 'You' : person.display_name);
 
   const nudge = async () => {
-    const text = `Are you keen on ${placeName}? Vote in Reel Map`;
+    const text = `Are you keen on ${placeName}? Vote in Waylit Maps`;
     const url = window.location.origin;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Reel Map', text, url });
+        await navigator.share({ title: 'Waylit Maps', text, url });
         return;
       }
       await navigator.clipboard.writeText(`${text}: ${url}`);
@@ -313,7 +313,7 @@ export default function PinModal({
                 ))}
               </div>
             )}
-            {/* A link to this place in reel map. The reel itself opens from the thumbnail. */}
+            {/* A link to this place in waylit maps. The reel itself opens from the thumbnail. */}
             <button className="reel-link" onClick={() => sharePlace(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share place
             </button>
