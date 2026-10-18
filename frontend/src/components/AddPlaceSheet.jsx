@@ -208,6 +208,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       if (steps.ruleVenue) addLog(`Caption rules found: ${steps.ruleVenue}`, 'info');
       if (data.tagged?.length) addLog(`Tagged accounts: ${data.tagged.map((handle) => `@${handle}`).join(', ')}`, 'info');
       addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
+      if (steps.category) addLog(`Category: ${steps.category}`, 'info');
       if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
       if (steps.area) addLog(`Area added to search: ${steps.area}`, 'info');
       addLog(`Google Maps search: ${steps.mapsSearch}`, 'info', steps.mapsUrl);

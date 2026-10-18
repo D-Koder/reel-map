@@ -6,7 +6,7 @@ const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide, isProse } = require('./_lib/caption');
 const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
-const { aiPlace } = require('./_lib/ai-place');
+const { aiPlace, aiCategory } = require('./_lib/ai-place');
 
 // How long saved lookups are reused. Kept long while there are few users; opening hours and phone
 // numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
@@ -440,6 +440,21 @@ async function enrich(req, res, getBrowser) {
     venue = '';
   }
 
+  // Every lookup gets a category (cafe, food, event or other). When the AI above didn't give one, a
+  // short AI call sorts the post. It starts now so it runs alongside the Google Maps search.
+  const categoryLookup = reel.category || read.fromCache
+    ? Promise.resolve(null)
+    : aiCategory({ caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator }, reel.placeName);
+  const addCategory = async () => {
+    if (reel.category) {
+      steps.category = `${reel.category} (${read.fromCache ? 'saved lookup' : 'AI, while finding the place'})`;
+      return;
+    }
+    const category = await categoryLookup;
+    steps.category = category ? `${category} (AI)` : 'none, so Food (AI not used)';
+    if (category) reel = { ...reel, category };
+  };
+
   // No "Name:" line, list or 📍 line: look for the place by the handles in and on the post.
   // A pin that is only an address ("📍18 Blender La, Melbourne VIC") has no name, so the handles
   // are tried for one; the address is kept as the location.
@@ -509,6 +524,7 @@ async function enrich(req, res, getBrowser) {
   };
   if (!query) {
     // An empty result isn't cached: it would stop every later try for 100 days.
+    await addCategory();
     return res.status(200).json(withGuess({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } }));
   }
 
@@ -552,6 +568,7 @@ async function enrich(req, res, getBrowser) {
       // Nothing is saved, so the next lookup tries again from the start.
       // What Google's page showed the server (a consent screen, a block, an empty list…).
       steps.mapsPage = searchResponse.body?.page || (searchResponse.body?.details ? { error: searchResponse.body.details } : null);
+      await addCategory();
       return res.status(200).json(withGuess({
         ...reel,
         venue,
@@ -600,6 +617,7 @@ async function enrich(req, res, getBrowser) {
   // Saved for everyone only when the app picked one place by itself and read it without an error.
   // A choice, a typed name, no match or an error isn't saved, so the next person sees the options again.
   // Nor is a pop-up: it's only on for a few days, and the pick is its street, not the pop-up.
+  await addCategory();
   const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup;
   if (save) await saveReel([selectedCandidate]);
   steps.saved = read.fromCache ? 'already saved' : save ? 'yes (the app picked the place by itself)'
