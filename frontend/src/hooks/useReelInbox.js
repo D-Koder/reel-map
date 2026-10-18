@@ -23,6 +23,8 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.r
 // Reels shared into the app. Each one is kept on this device straight away, so it is never lost,
 // then looked up in the background and added to TBD (made the first time it's needed).
 // Item status: 'saving' | 'offline' (waits for a connection) | 'needs-place' (lookup found no venue) | 'failed'.
+// remote: true marks a reel the server is still looking up (shared from the Shortcut). It shows as
+// 'saving' but isn't looked up here; useShortcutReels updates or removes it when the server is done.
 export function useReelInbox({ userId, collections, places, addPlace, createInboxCollection, online, showToast, onSaved }) {
   const [items, setItems] = useState(() => readJSON(inboxKey(userId), []));
   const running = useRef(new Set());
@@ -111,7 +113,9 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     }
   }, [inboxCollectionId, remove]);
 
-  const enqueue = useCallback((url) => {
+  // reelData: a lookup the server already did (shared from the Shortcut, no clear match), so the
+  // reel goes straight to Finish without looking it up again.
+  const enqueue = useCallback((url, { reelData } = {}) => {
     // Null until TBD exists. The lookup makes it.
     const collectionId = pickCollection();
     const { places, collections, showToast } = latest.current;
@@ -121,8 +125,22 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       showToast(`Already saved in ${collectionName}`);
       return true;
     }
-    if (latest.current.items.some((i) => i.url === url)) {
+    const existing = latest.current.items.find((i) => i.url === url);
+    if (existing && !existing.remote) {
       showToast('Already saving this reel');
+      return true;
+    }
+    if (reelData) {
+      const name = reelData.placeName || reelData.venue || reelData.caption?.split('\n')[0].substring(0, 80) || '';
+      const ready = { id: existing?.id ?? newId(), url, collectionId, status: 'needs-place', name, reelData, addedAt: Date.now() };
+      setItems((list) => (existing ? list.map((i) => (i.id === existing.id ? ready : i)) : [...list, ready]));
+      return true;
+    }
+    // The server gave up on a reel it was looking up: look it up here instead.
+    if (existing) {
+      const item = { ...existing, remote: false };
+      setItems((list) => list.map((i) => (i.id === existing.id ? item : i)));
+      if (navigator.onLine) process(item);
       return true;
     }
     const item = { id: newId(), url, collectionId, status: navigator.onLine ? 'saving' : 'offline', addedAt: Date.now() };
@@ -132,13 +150,22 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     return true;
   }, [pickCollection, process]);
 
+  // A reel the server is looking up shows as "Finding the place…" until it's done.
+  const watch = useCallback((url) => {
+    setItems((list) => (list.some((i) => i.url === url)
+      ? list
+      : [...list, { id: newId(), url, collectionId: null, status: 'saving', remote: true, addedAt: Date.now() }]));
+  }, []);
+  // The server finished (saved it, or the reel is gone): the card goes.
+  const unwatch = useCallback((url) => setItems((list) => list.filter((i) => !(i.remote && i.url === url))), []);
+
   // Picks up reels that were waiting for a connection, or were mid-lookup when the app closed.
   useEffect(() => {
     if (!online) return;
-    items.filter((item) => item.status === 'saving' || item.status === 'offline').forEach(process);
+    items.filter((item) => !item.remote && (item.status === 'saving' || item.status === 'offline')).forEach(process);
     // Only when the connection changes; `items` changes on every status update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, process]);
 
-  return { items, enqueue, retry: process, remove };
+  return { items, enqueue, watch, unwatch, retry: process, remove };
 }

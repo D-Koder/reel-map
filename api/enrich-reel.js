@@ -387,12 +387,10 @@ function lookupLogs(body, consoleLines) {
     .filter(Boolean).join('\n\n');
 }
 
-// { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody
-// can pick a place then, so Maps details are only read when the search found exactly one place.
-// (It can only narrow what a lookup does, so anyone sending it is harmless.)
+// /api/save-reel also asks for this while the app is closed ({ background: true }). It picks the place
+// the same way: a clear match is saved to TBD, anything else waits for the person to pick.
 async function enrich(req, res, getBrowser) {
   const startedAt = Date.now();
-  const backgroundOnly = Boolean(req.backgroundOnly || req.body?.background === true);
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const cleanUrl = canonicalInstagramUrl(reelUrl);
@@ -553,9 +551,6 @@ async function enrich(req, res, getBrowser) {
   let autoPicked = false;
   if (mustPick && !req.body?.mapsPlaceUrl && typeof req.selectCandidate !== 'function') {
     selectedCandidate = null;
-  } else if (backgroundOnly) {
-    selectedCandidate = candidates.length === 1 ? candidates[0] : null;
-    autoPicked = true;
   } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
     selectedCandidate = candidates.find((candidate) => candidate.url === choice?.url) || null;
@@ -565,7 +560,7 @@ async function enrich(req, res, getBrowser) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
     autoPicked = !typedName;
   }
-  if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
+  if (!selectedCandidate && !mustPick && typeof req.selectCandidate !== 'function') {
     // A pop-up's search is its street, so no result is named like it: only a single result is used.
     selectedCandidate = candidates.length === 1
       ? candidates[0]

@@ -191,7 +191,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     },
   });
 
-  useShortcutReels({ userId, ready: !data.loading, enqueue: inbox.enqueue });
+  useShortcutReels({ userId, ready: !data.loading, inbox });
 
   // Coming back online: load anything that changed while offline.
   const wasOnline = useRef(online);
@@ -312,6 +312,9 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     setNotificationsOpen(false);
     if (target.place) {
       setOpenPinId(`${target.place.collection_id}:${target.place.id}`);
+    } else if (target.home) {
+      setScreen('home');
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
     } else {
       setScreen('home');
       requestAnimationFrame(() => {
