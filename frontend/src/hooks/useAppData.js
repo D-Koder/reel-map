@@ -31,6 +31,19 @@ function friendlyError(error) {
   return error.message;
 }
 
+// Booking files live at <collection>/<place>/ (see BookingFiles.jsx). When a place gets a new id in a
+// collection, they're copied to the new folder. Members can't move or delete others' files, so only
+// the ones I uploaded are removed from the old folder; that folder isn't shown anywhere after this.
+async function moveBookingFiles(collectionId, oldPlaceId, newPlaceId) {
+  const bucket = supabase.storage.from('booking-files');
+  const { data: files } = await bucket.list(`${collectionId}/${oldPlaceId}`);
+  for (const file of files ?? []) {
+    const from = `${collectionId}/${oldPlaceId}/${file.name}`;
+    const { error } = await bucket.copy(from, `${collectionId}/${newPlaceId}/${file.name}`);
+    if (!error) await bucket.remove([from]);
+  }
+}
+
 function normalisePlace(row) {
   const reactions = Array.isArray(row.reactions)
     ? Object.fromEntries(row.reactions.map((reaction) => [reaction.user_id, reaction.feeling]))
@@ -432,10 +445,12 @@ export function useAppData(userId, showToast) {
     // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
-    // A new location moves the place itself (change_place_location), so it moves in every collection it's in.
+    // A new location only changes this collection's place (relocate_place). When the place is
+    // also in other collections, this collection gets its own copy with a new id.
     updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, location = null }) => {
+      let placeId = place.id;
       if (location) {
-        const { error: locationError } = await supabase.rpc('change_place_location', {
+        const { data: newId, error: locationError } = await supabase.rpc('relocate_place', {
           p_collection_id: place.collection_id,
           p_place_id: place.id,
           p_lat: location.lat,
@@ -452,6 +467,10 @@ export function useAppData(userId, showToast) {
           showToast(`Location not changed: ${friendlyError(locationError)}`);
           return null;
         }
+        if (newId && newId !== place.id) {
+          placeId = newId;
+          await moveBookingFiles(place.collection_id, place.id, newId);
+        }
       }
       const patch = { custom_name: name, custom_emoji: emoji || null, category };
       if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? eventDate : null, eventEndDate));
@@ -459,7 +478,7 @@ export function useAppData(userId, showToast) {
         .from('collection_places')
         .update(patch)
         .eq('collection_id', place.collection_id)
-        .eq('place_id', place.id)
+        .eq('place_id', placeId)
         .select('place_id');
       if (error) {
         showToast(`${friendlyError(error)}`);

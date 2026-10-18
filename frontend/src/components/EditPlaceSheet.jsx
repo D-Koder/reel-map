@@ -247,7 +247,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
               {locationError && <div className="map-search-note place-search-note" role="alert">{locationError}</div>}
               <span className="field-hint">
                 {newSpot
-                  ? 'New spot picked. Save to move this place there. It moves in every collection it\'s in.'
+                  ? 'New spot picked. Save to move this place there. Only this collection changes.'
                   : <>Search to move this place to the right spot. Not listed?{' '}
                     <button type="button" className="link-btn" onClick={searchGoogle} disabled={saving || googleResults === 'searching' || !(name.trim() || locationText.trim())}>
                       <strong>Search Google Maps</strong>
