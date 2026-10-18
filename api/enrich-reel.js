@@ -101,8 +101,38 @@ function hasWholeWords(name, key) {
 // ("YoArt" → "Yo Art Frozen Yoghurt"), else a single name containing the letters. A tie between
 // branches of one chain is broken by the suburb; any other tie asks the user.
 // Same rule as bestPlaceMatch in frontend/src/lib/places.js.
-function bestCandidate(candidates, hints, areas = []) {
-  return matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+// When the post gives a street address and exactly one result is at it, that one wins first: the
+// address is what the author wrote, and a new or renamed shop is often still listed on Google under the
+// old name ("taking over the former Pounding Rice Bowl spot" → Pounding Rice Bowl, 209-211 Russell St).
+function bestCandidate(candidates, hints, areas = [], address = '') {
+  return atStreetAddress(candidates, address) || matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+// The street number(s) and street of an address: "Shop 2/209-211 Russell St, Melbourne" →
+// { from: 209, to: 211, street: 'russell' }. Null when no part has a number then a street name.
+// A short first word ("St Kilda Rd", "Mt Alexander Rd") takes the next word too.
+// Same as in frontend/src/lib/places.js.
+function streetAddress(text) {
+  for (const part of String(text || '').split(',')) {
+    const found = part.replace(/^.*\//, '').match(/(\d+)[a-z]?(?:\s*[-–]\s*(\d+)[a-z]?)?\s+([\p{L}][\p{L}'.]*)(?:\s+([\p{L}][\p{L}'.]*))?/iu);
+    if (!found) continue;
+    const from = Number(found[1]);
+    const to = Math.max(from, Number(found[2] || found[1]));
+    const street = squash(found[3]).length <= 3 && found[4] ? squash(found[3] + found[4]) : squash(found[3]);
+    return { from, to, street };
+  }
+  return null;
+}
+
+// The one result at the post's street address (numbers overlap, same street), else null.
+function atStreetAddress(candidates, address) {
+  const wanted = streetAddress(address);
+  if (!wanted) return null;
+  const at = candidates.filter((candidate) => {
+    const spot = streetAddress(candidate.address);
+    return spot && spot.street === wanted.street && spot.from <= wanted.to && wanted.from <= spot.to;
+  });
+  return at.length === 1 ? at[0] : null;
 }
 
 // Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
@@ -375,6 +405,7 @@ function lookupLogs(body, consoleLines) {
   add(`Likes: ${body.likes || 0}`);
   if (maps?.details?.name) {
     add(`Google Maps matched ${maps.details.name}.`);
+    if (maps.details.googleName) add(`Matched by the post's address; Google lists it as ${maps.details.googleName}.`);
     add(`Address: ${maps.details.address || 'Not listed'}`);
   } else if (maps?.candidates?.length) {
     add(`Searched with: "${maps.query}"`);
@@ -546,6 +577,7 @@ async function enrich(req, res, getBrowser) {
   // A list post shared without a slide: no telling which place was meant, so nothing is picked
   // unless the person chose a result. Nor when the AI said it was unsure of the place.
   const mustPick = reel.listedPlaces?.length > 1 || Boolean(aiFound?.lowConfidence);
+  const nameHints = [String(reel.placeName || '').replace(/^@/, ''), venue, String(reel.location || '').split(',')[0]];
   let selectedCandidate = null;
   // True only when the app picked the place by itself, not from a person's choice or typed name.
   let autoPicked = false;
@@ -564,14 +596,24 @@ async function enrich(req, res, getBrowser) {
     // A pop-up's search is its street, so no result is named like it: only a single result is used.
     selectedCandidate = candidates.length === 1
       ? candidates[0]
-      : popup ? null : bestCandidate(candidates, [String(reel.placeName || '').replace(/^@/, ''), venue, String(reel.location || '').split(',')[0]],
-        [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || '']);
+      : popup ? null : bestCandidate(candidates, nameHints,
+        [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || ''], reel.location);
     autoPicked = true;
   }
 
-  const { details, detailsError } = selectedCandidate
+  const detailsRead = selectedCandidate
     ? await readDetails(selectedCandidate, query, reel, getBrowser)
     : { details: null, detailsError: null };
+  const { detailsError } = detailsRead;
+  let { details } = detailsRead;
+  // Picked by the post's address under another name (the old shop, before Google caught up): the pin
+  // and details are Google's, the name is the post's. googleName keeps what Google calls it.
+  const byAddress = autoPicked && selectedCandidate && details && !popup && reel.placeName &&
+    atStreetAddress([selectedCandidate], reel.location) && !matchByName([selectedCandidate], nameHints);
+  if (byAddress) {
+    details = { ...details, name: reel.placeName, googleName: details.name };
+    steps.pickedBy = `the post's address (${reel.location}); Google lists it as ${details.googleName}`;
+  }
 
   // Saved for everyone only when the app picked one place by itself and read it without an error.
   // A choice, a typed name, no match or an error isn't saved, so the next person sees the options again.

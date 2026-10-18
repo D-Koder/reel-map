@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { bestPlaceMatch, entriesAtSpot, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
+import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
@@ -247,13 +247,17 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         setName(popup?.name || data.maps.details.name || data.placeName || name);
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
+        if (data.maps.details.googleName) addLog(`Matched by the post's address; Google lists it as ${data.maps.details.googleName}.`, 'success');
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-      } else if (!popup && !(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data))) {
+      } else if (!popup && !(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data), data.location)) {
         // (Not for a list post shared without a slide: the person says which place they meant.)
-        // One result, or one whose name (or suburb, for a chain) matches the reel's place: pick it without asking.
-        const best = bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data));
-        addLog(`Picked ${best.name}, the clear match.`, 'success');
-        selectLocationCandidate(best);
+        // One result, or one at the post's address, or one whose name (or suburb, for a chain) matches
+        // the reel's place: pick it without asking. Picked by address, it keeps the post's name.
+        const best = bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data), data.location);
+        const keepName = data.placeName && !namedLike(best, reelPlaceHints(data)) ? data.placeName : '';
+        addLog(keepName ? `Picked ${best.name}, at the post's address; keeping the name ${keepName}.`
+          : `Picked ${best.name}, the clear match.`, 'success');
+        selectLocationCandidate(best, false, keepName);
       } else if (candidates.length) {
         setLocationCandidates(candidates);
         setLocationSearchDone(true);
@@ -265,7 +269,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
-  const selectLocationCandidate = async (candidate, preserveName = false) => {
+  // keepName: the name to keep when the result was picked by its address but Google names it
+  // differently (often the shop that was there before).
+  const selectLocationCandidate = async (candidate, preserveName = false, keepName = '') => {
     setLoadingCandidateUrl(candidate.url);
     try {
       const data = await requestLocationApi({
@@ -276,8 +282,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         placeName: candidate.name,
         location: candidate.address || location || scrapedData?.location || '',
       });
-      setMapsData(popupNameRef.current ? { ...data, name: popupNameRef.current } : data);
-      if (popupNameRef.current) setName(popupNameRef.current);
+      const ownName = popupNameRef.current || keepName;
+      setMapsData(ownName ? { ...data, name: ownName } : data);
+      if (ownName) setName(ownName);
       else if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
       setLocation(data.address || candidate.address || location);
       setLocationCandidates([]);
@@ -392,9 +399,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
       if (!candidates.length) candidates = await searchCandidates(address);
       // One result, or one whose name matches the name or the address's first part: use it straight away.
-      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1));
+      const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1), address);
       if (best) {
-        await selectLocationCandidate({ ...best, searchQuery: address }, true);
+        await selectLocationCandidate({ ...best, searchQuery: address }, true, placeName && !namedLike(best, [placeName]) ? placeName : '');
         return;
       }
       setVerifyResults(relatedPlaces(candidates, [placeName]));

@@ -107,12 +107,45 @@ function hasWholeWords(name, key) {
 //      start of a one-word handle ("sneakerlaundrylabau" → "Sneaker Laundry LAB").
 // A round only picks when exactly one result matches. A tie between branches of one chain is broken
 // by the suburb ("ING Korean BBQ, Glen Waverley" → the Glen Waverley branch, not Vermont South);
-// any other tie asks the user.
+// any other tie asks the user. Before all that, when `address` is a street address and exactly one
+// result is at it, that one is picked: a new or renamed shop is often still on Google under the old name.
 // Same rule as bestCandidate in api/enrich-reel.js.
-export function bestPlaceMatch(candidates, hints = [], areas = []) {
+export function bestPlaceMatch(candidates, hints = [], areas = [], address = '') {
   if (!candidates?.length) return null;
   if (candidates.length === 1) return candidates[0];
-  return matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+  return atStreetAddress(candidates, address) || matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+// True when the result is named like one of the hints (the name rules of bestPlaceMatch).
+export function namedLike(candidate, hints = []) {
+  return Boolean(matchByName([candidate], hints));
+}
+
+// The street number(s) and street of an address: "Shop 2/209-211 Russell St, Melbourne" →
+// { from: 209, to: 211, street: 'russell' }. Null when no part has a number then a street name.
+// A short first word ("St Kilda Rd", "Mt Alexander Rd") takes the next word too.
+// Same as in api/enrich-reel.js.
+function streetAddress(text) {
+  for (const part of String(text || '').split(',')) {
+    const found = part.replace(/^.*\//, '').match(/(\d+)[a-z]?(?:\s*[-–]\s*(\d+)[a-z]?)?\s+([\p{L}][\p{L}'.]*)(?:\s+([\p{L}][\p{L}'.]*))?/iu);
+    if (!found) continue;
+    const from = Number(found[1]);
+    const to = Math.max(from, Number(found[2] || found[1]));
+    const street = squash(found[3]).length <= 3 && found[4] ? squash(found[3] + found[4]) : squash(found[3]);
+    return { from, to, street };
+  }
+  return null;
+}
+
+// The one result at the street address (numbers overlap, same street), else null.
+export function atStreetAddress(candidates, address) {
+  const wanted = streetAddress(address);
+  if (!wanted) return null;
+  const at = (candidates || []).filter((candidate) => {
+    const spot = streetAddress(candidate.address);
+    return spot && spot.street === wanted.street && spot.from <= wanted.to && wanted.from <= spot.to;
+  });
+  return at.length === 1 ? at[0] : null;
 }
 
 function matchByName(candidates, hints) {
