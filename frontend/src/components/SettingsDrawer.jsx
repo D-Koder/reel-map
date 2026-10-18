@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -595,6 +595,42 @@ function LocationToggle({ on, onChange }) {
   );
 }
 
+// The commit this app was built from, and whether a newer build is live. version.json comes from the
+// server (not the browser or service worker cache), so a different commit there means: refresh.
+// eslint-disable-next-line no-undef
+const APP_VERSION = __APP_VERSION__;
+const shortCommit = (commit) => (commit === 'dev' ? 'dev' : String(commit).slice(0, 7));
+
+function AppVersion({ drawerOpen }) {
+  const [live, setLive] = useState(null);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    let cancelled = false;
+    fetch('/version.json', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (!cancelled) setLive(data?.commit ? data : null); })
+      .catch(() => { if (!cancelled) setLive(null); });
+    return () => { cancelled = true; };
+  }, [drawerOpen]);
+
+  const outdated = live && live.commit !== APP_VERSION.commit;
+  const built = new Date(APP_VERSION.builtAt).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  return (
+    <div className="settings-section">
+      <div className="settings-section-title"><Info className="ico" aria-hidden="true" /> App version</div>
+      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        <code>{shortCommit(APP_VERSION.commit)}</code> · built {built}
+        {live && !outdated && ' · up to date'}
+      </div>
+      {outdated && (
+        <button type="button" className="settings-link-btn" onClick={() => window.location.reload()}>
+          <RefreshCw className="ico" aria-hidden="true" /> New version {shortCommit(live.commit)} is live. Refresh
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsDrawer({
   open,
   onClose,
@@ -726,6 +762,8 @@ export default function SettingsDrawer({
             </form>
             {onImportCollection && <ImportCollection onImport={onImportCollection} showToast={showToast} />}
           </div>
+
+          <AppVersion drawerOpen={open} />
         </div>
       </div>
     </>
