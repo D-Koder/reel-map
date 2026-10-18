@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   const payload = JSON.stringify({
-    title: TITLES[type] ?? 'Reel Map',
+    title: TITLES[type] ?? 'Waylit Maps',
     body: message,
     url: row?.id ? `/?notification=${encodeURIComponent(row.id)}` : '/',
   });

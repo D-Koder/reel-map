@@ -53,7 +53,7 @@ export default function SharedPlaceSheet({ placeId, collections = [], signedIn, 
 
         {place && (
           <div className="shared-place-body">
-            <div className="shared-place-from">Shared with you on reel map</div>
+            <div className="shared-place-from">Shared with you on waylit maps</div>
             {place.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
             {place.address && (
               <div className="reel-suburb"><MapPin className="ico" aria-hidden="true" /> {place.address}</div>

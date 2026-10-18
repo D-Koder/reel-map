@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     console.warn('[share-page] lookup failed:', error.message);
   }
-  const title = share ? shareTitle(share) : 'reel map';
+  const title = share ? shareTitle(share) : 'waylit maps';
   const description = share?.place.address || 'Places from reels, on one map.';
   // The same link details go to the picture, which is drawn from the same lookup.
   const query = share?.booking ? `?c=${encodeURIComponent(booking)}` : share?.crew ? `?g=${encodeURIComponent(group)}` : '';
@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
 <meta charset="utf-8">
 <title>${escape(title)}</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="reel map">
+<meta property="og:site_name" content="waylit maps">
 <meta property="og:title" content="${escape(title)}">
 <meta property="og:description" content="${escape(description)}">
 <meta property="og:url" content="${escape(`${origin}/p/${id}${query}`)}">
@@ -51,6 +51,6 @@ module.exports = async function handler(req, res) {
 <meta name="twitter:title" content="${escape(title)}">
 <meta name="twitter:image" content="${escape(image)}">
 </head><body style="margin:0;font-family:-apple-system,sans-serif;background:#12162a;color:#f1eee8;display:flex;min-height:100vh;align-items:center;justify-content:center">
-<a href="${escape(appUrl)}" style="color:#fff;background:#d4421d;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:600">Open in reel map</a>
+<a href="${escape(appUrl)}" style="color:#fff;background:#d4421d;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:600">Open in waylit maps</a>
 </body></html>`);
 };

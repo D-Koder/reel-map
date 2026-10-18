@@ -126,7 +126,7 @@ function ShortcutSetup({ showToast }) {
       </button>
       {open && (
         <div className="shortcut-setup">
-          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Reel Map.</p>
+          <p className="toggle-hint">An iPhone Shortcut saves the reel in the background. You stay in Instagram. The place shows up next time you open Waylit Maps.</p>
 
           {error && <span className="toggle-hint">{error}</span>}
           {connectedAt ? (
@@ -154,7 +154,7 @@ function ShortcutSetup({ showToast }) {
               </button>
               <p className="toggle-hint">
                 Already have the Shortcut? Just tap Connect. Shortcuts opens, saves your key and shows
-                "✅ Reel Map connected". Then come back here.
+                "✅ Waylit Maps connected". Then come back here.
               </p>
             </>
           )}
@@ -175,7 +175,7 @@ function ShortcutSetup({ showToast }) {
                 <button type="button" className="step-btn secondary" disabled={!key} onClick={() => copyText(key, 'key', showToast)}>Copy</button>
               </div>
               <ol className="shortcut-steps">
-                <li>In <strong>Shortcuts</strong>, edit your Reel Map shortcut. Delete any <strong>Open URLs</strong> step.</li>
+                <li>In <strong>Shortcuts</strong>, edit your Waylit Maps shortcut. Delete any <strong>Open URLs</strong> step.</li>
                 <li>Tap <strong>ⓘ</strong>. Turn on <strong>Show in Share Sheet</strong> for <strong>URLs</strong> and <strong>Text</strong>.</li>
                 <li>Add <strong>Get Contents of URL</strong> with the address. Method <strong>POST</strong>, Request Body <strong>JSON</strong>.</li>
                 <li>Add 2 Text fields: <strong>key</strong> = your key. <strong>url</strong> = <strong>Shortcut Input</strong>.</li>
@@ -347,7 +347,7 @@ function JoinCollection({ onJoin, showToast }) {
   );
 }
 
-// Makes a new collection from a Reel Map file, a Google Maps saved list or any spreadsheet with a name column.
+// Makes a new collection from a Waylit Maps file, a Google Maps saved list or any spreadsheet with a name column.
 function ImportCollection({ onImport, showToast }) {
   const inputRef = React.useRef(null);
   const [progress, setProgress] = useState(null);
@@ -393,7 +393,7 @@ function ImportCollection({ onImport, showToast }) {
           ? <><span className="spinner" aria-hidden="true" />Importing {progress.done} of {progress.total}…</>
           : <><Upload className="ico" aria-hidden="true" /> Import a collection</>}
       </button>
-      <p className="toggle-hint">A Reel Map file (.json), a Google Maps saved list (.csv from Google Takeout), or a spreadsheet with a Name column.</p>
+      <p className="toggle-hint">A Waylit Maps file (.json), a Google Maps saved list (.csv from Google Takeout), or a spreadsheet with a Name column.</p>
     </>
   );
 }
@@ -577,7 +577,7 @@ function NearAlertsToggle({ on, onChange }) {
         <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
         <Flame className="ico" aria-hidden="true" /> Tell me when I'm near a place I'm keen on
       </label>
-      <div className="toggle-hint">Works while Reel Map is open. Phones don't let web apps check your location in the background.</div>
+      <div className="toggle-hint">Works while Waylit Maps is open. Phones don't let web apps check your location in the background.</div>
     </div>
   );
 }
@@ -590,7 +590,7 @@ function LocationToggle({ on, onChange }) {
         <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
         <LocateFixed className="ico" aria-hidden="true" /> Show my location on the map
       </label>
-      <div className="toggle-hint">Only you see it. Reel Map never saves your location.</div>
+      <div className="toggle-hint">Only you see it. Waylit Maps never saves your location.</div>
     </div>
   );
 }

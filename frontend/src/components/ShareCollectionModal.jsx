@@ -99,7 +99,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               <button type="button" className="share-row" onClick={() => exportAs('json')}>
                 <span className="share-row-icon is-file"><Download aria-hidden="true" /></span>
                 <span className="share-row-text">
-                  <strong>Reel Map file</strong>
+                  <strong>Waylit Maps file</strong>
                   <span>Back up, or import into another account</span>
                 </span>
                 <span className="share-row-ext">.json</span>

@@ -62,7 +62,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Reel Map', {
+    self.registration.showNotification(data.title || 'Waylit Maps', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',

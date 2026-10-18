@@ -45,7 +45,7 @@ function reply(res, status, message) {
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return reply(res, 405, 'Use POST');
-  if (!SUPABASE_URL || !SUPABASE_KEY) return reply(res, 500, '⚠️ Reel Map is missing its Supabase settings');
+  if (!SUPABASE_URL || !SUPABASE_KEY) return reply(res, 500, '⚠️ Waylit Maps is missing its Supabase settings');
 
   const body = typeof req.body === 'object' && req.body ? req.body : {};
   // Keys are letters and digits only. A file read back by Shortcuts can carry a newline,
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
   const key = typeof body.key === 'string' ? body.key.replace(/^\s*reelmap-key:/i, '').replace(/\s+/g, '') : '';
   const url = typeof body.url === 'string' ? body.url.trim() : '';
   const connecting = body.connect === true || body.connect === 'true';
-  if (!key) return reply(res, 401, '⚠️ Open Reel Map → Settings → Connect first');
+  if (!key) return reply(res, 401, '⚠️ Open Waylit Maps → Settings → Connect first');
   if (!connecting && !url) return reply(res, 400, '⚠️ No link was shared');
 
   let response;
@@ -71,20 +71,20 @@ module.exports = async function handler(req, res) {
       signal: AbortSignal.timeout(10000),
     });
   } catch {
-    return reply(res, 502, '⚠️ Could not reach Reel Map. Try again.');
+    return reply(res, 502, '⚠️ Could not reach Waylit Maps. Try again.');
   }
 
   const result = await response.json().catch(() => null);
   if (response.ok) {
-    if (connecting) return reply(res, 200, '✅ Reel Map connected');
-    if (result === 'duplicate') return reply(res, 200, '👍 Already saved to Reel Map');
+    if (connecting) return reply(res, 200, '✅ Waylit Maps connected');
+    if (result === 'duplicate') return reply(res, 200, '👍 Already saved to Waylit Maps');
     lookInBackground(req, url);
-    return reply(res, 200, '✅ Saved to Reel Map');
+    return reply(res, 200, '✅ Saved to Waylit Maps');
   }
 
   // Postgres error codes raised by save_shared_reel().
   const messages = {
-    28000: [401, '⚠️ Your Shortcut needs reconnecting. Open Reel Map → Settings → Connect.'],
+    28000: [401, '⚠️ Your Shortcut needs reconnecting. Open Waylit Maps → Settings → Connect.'],
     22023: [400, '⚠️ No link found in what was shared'],
     54000: [429, '⏳ Too many reels this hour. Try again later.'],
   };

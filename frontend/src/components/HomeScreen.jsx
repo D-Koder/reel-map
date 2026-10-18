@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
+import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Trash2, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
 import { PlaceCard } from './PlaceRow';
 import MapBanner from './MapBanner';
@@ -186,6 +186,7 @@ export default function HomeScreen({
   onAddPlace,
   onMovePlaces,
   onCopyPlaces,
+  onDeletePlaces,
   onCreateCollection,
   canEdit = () => true,
   showToast,
@@ -242,6 +243,18 @@ export default function HomeScreen({
     if (next.has(pin.id)) next.delete(pin.id);
     else next.set(pin.id, pin);
     setPicked(next);
+  };
+  // Same rule as the place card: my places, unless someone else booked them.
+  const canDelete = (pin) => canEdit(pin.collection_id) && pin.added_by === userId && (!pin.booking || pin.booking.booked_by === userId);
+  const deletePicked = () => {
+    const pins = [...picked.values()].filter(canDelete);
+    const skipped = picked.size - pins.length;
+    if (!pins.length) {
+      showToast?.("You can't delete these places");
+      return;
+    }
+    onDeletePlaces?.(pins, skipped);
+    stopSelecting();
   };
   const tickAll = (pins) => setPicked(new Map(pins.filter(canPick).map((p) => [p.id, p])));
   // newCollection: name and emoji of a collection made just now, which isn't in the list yet.
@@ -410,6 +423,11 @@ export default function HomeScreen({
         {selecting && picked.size > 0 && !moveSheet && (
           <div className="select-bar" role="region" aria-label="Selected places">
             <span className="select-bar-count">{picked.size} selected</span>
+            {!copying && (
+              <button type="button" className="select-bar-delete" onClick={deletePicked} aria-label={`Delete ${picked.size} selected`}>
+                <Trash2 aria-hidden="true" /> Delete
+              </button>
+            )}
             <button type="button" className="select-bar-move" onClick={() => setMoveSheet(true)}>{copying ? 'Copy to…' : 'Move to…'}</button>
           </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
@@ -49,11 +49,11 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   const nameOf = (person) => (person.id === userId ? 'You' : person.display_name);
 
   const nudge = async () => {
-    const text = `Are you keen on ${placeName}? Vote in Reel Map`;
+    const text = `Are you keen on ${placeName}? Vote in Waylit Maps`;
     const url = window.location.origin;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Reel Map', text, url });
+        await navigator.share({ title: 'Waylit Maps', text, url });
         return;
       }
       await navigator.clipboard.writeText(`${text}: ${url}`);
@@ -148,6 +148,31 @@ export default function PinModal({
   const canDelete = canEdit && (booking ? booking.booked_by === userId : place.added_by === userId);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The warning button sends a debug comment about this place to the debug table.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportComment, setReportComment] = useState('');
+  const [reportStatus, setReportStatus] = useState('');
+  const sendReport = async () => {
+    setReportStatus('sending');
+    try {
+      const response = await fetch('/api/report-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reelUrl: place.reel_url || '',
+          placeName: place.name,
+          location: place.address || '',
+          comment: reportComment,
+          reason: `Reported from place card (${place.collection_id}:${place.id})`,
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setReportStatus('sent');
+      setReportComment('');
+    } catch {
+      setReportStatus('failed');
+    }
+  };
   // Decided once, when the sheet opens: an already-booked place skips the checklist entirely,
   // while one booked mid-flow keeps going to the calendar step.
   const [wasBooked] = useState(Boolean(booking));
@@ -258,6 +283,14 @@ export default function PinModal({
         <div className="modal-header">
           <div className="modal-title">{place.emoji && <span aria-hidden="true">{place.emoji} </span>}{place.name}</div>
           <div className="modal-header-actions">
+            <button
+              className="modal-close"
+              onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
+              aria-label="Add a debug comment"
+              title="Add a debug comment"
+            >
+              <TriangleAlert aria-hidden="true" />
+            </button>
             <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
               <Pencil aria-hidden="true" />
             </button>
@@ -275,6 +308,24 @@ export default function PinModal({
             <button className="modal-close" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
           </div>
         </div>
+
+        {reportOpen && (
+          <div className="field" style={{ marginBottom: 12 }}>
+            <span className="modal-label">Debug comment</span>
+            <textarea
+              value={reportComment}
+              onChange={(e) => setReportComment(e.target.value)}
+              placeholder="What's wrong with this place?"
+              rows={3}
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+            <button type="button" disabled={reportStatus === 'sending' || !reportComment.trim()} onClick={sendReport}>
+              {reportStatus === 'sending' ? 'Sending…' : 'Send'}
+            </button>
+            {reportStatus === 'sent' && <span> Sent, thank you.</span>}
+            {reportStatus === 'failed' && <span> Could not send. Try again.</span>}
+          </div>
+        )}
 
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
         {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
@@ -313,7 +364,7 @@ export default function PinModal({
                 ))}
               </div>
             )}
-            {/* A link to this place in reel map. The reel itself opens from the thumbnail. */}
+            {/* A link to this place in waylit maps. The reel itself opens from the thumbnail. */}
             <button className="reel-link" onClick={() => sharePlace(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share place
             </button>

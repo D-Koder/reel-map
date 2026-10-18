@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     venue: text(body.venue),
     query: text(body.query),
     candidates,
-    reason: 'Reported from manual add',
+    reason: text(body.reason, 200) || 'Reported from manual add',
     comment: text(body.comment, 2000),
   });
 
