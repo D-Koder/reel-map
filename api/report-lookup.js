@@ -1,4 +1,4 @@
-const { insertRow } = require('./_lib/lookup-cache');
+const { insertDebugRow } = require('./_lib/lookup-cache');
 
 // Saves a manual add's details and the person's comment to lookup_debug, so a missed place can be looked at later.
 module.exports = async function handler(req, res) {
@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
     ? body.candidates.slice(0, 20).map(({ name, address, category, url }) => ({ name, address, category, url }))
     : [];
 
-  await insertRow('lookup_debug', {
+  await insertDebugRow({
     reel_url: text(body.reelUrl) || '',
     from_cache: false,
     caption: text(body.caption, 10000),
@@ -23,6 +23,8 @@ module.exports = async function handler(req, res) {
     candidates,
     reason: text(body.reason, 200) || 'Reported from manual add',
     comment: text(body.comment, 2000),
+    // The log the app showed for this lookup, one line per entry.
+    logs: text(body.logs, 50000),
   });
 
   return res.status(200).json({ success: true });

@@ -61,9 +61,18 @@ async function insertRow(table, row) {
       signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return true;
   } catch (error) {
     console.warn(`Insert into ${table} failed:`, error.message);
+    return false;
   }
 }
 
-module.exports = { readCache, writeCache, insertRow, DAY };
+// Adds a lookup_debug row. If it fails with the logs (e.g. the logs column isn't there yet),
+// it is saved again without them, so the row itself is never lost.
+async function insertDebugRow(row) {
+  if (await insertRow('lookup_debug', row) || !row.logs) return;
+  await insertRow('lookup_debug', { ...row, logs: undefined });
+}
+
+module.exports = { readCache, writeCache, insertRow, insertDebugRow, DAY };

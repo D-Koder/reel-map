@@ -1,7 +1,8 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
-const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
+const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
+const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide, isProse } = require('./_lib/caption');
 const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
@@ -327,11 +328,14 @@ module.exports = async function handler(req, res) {
     // was matched. Those lookups are kept in lookup_debug before the answer goes back.
     if (req.body?.from !== 'inbox') return await enrich(req, res, getBrowser);
     const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-    await enrich(req, reply, getBrowser);
-    if (reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
-      await logNoPlace(req.body.reelUrl, reply.body);
-    }
-    return res.status(reply.code).json(reply.body);
+    // The server's console lines for this lookup are kept, so the row shows everything it ran.
+    return await captureConsole(async () => {
+      await enrich(req, reply, getBrowser);
+      if (reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
+        await logNoPlace(req.body.reelUrl, reply.body);
+      }
+      return res.status(reply.code).json(reply.body);
+    });
   } finally {
     if (launching) await closeBrowser(await launching.catch(() => null));
   }
@@ -354,7 +358,7 @@ function noPlaceReason(body) {
 
 async function logNoPlace(reelUrl, body) {
   const maps = body?.maps || {};
-  await insertRow('lookup_debug', {
+  await insertDebugRow({
     reel_url: String(reelUrl || body?.reelUrl || '').slice(0, 2048),
     from_cache: body?.source === 'cache',
     caption: body?.caption || null,
@@ -366,7 +370,18 @@ async function logNoPlace(reelUrl, body) {
     query: maps.query || null,
     candidates: (maps.candidates || []).map(({ name, address, category, url }) => ({ name, address, category, url })),
     reason: noPlaceReason(body || {}),
+    logs: lookupLogs(body?.steps, capturedLines()),
   });
+}
+
+// The lookup's steps (what the app's log shows) and then every server console line, as one text.
+function lookupLogs(steps, lines) {
+  const stepLines = Object.entries(steps || {})
+    .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+  return [
+    stepLines.length && `Steps:\n${stepLines.join('\n')}`,
+    lines.length && `Server console:\n${lines.join('\n')}`,
+  ].filter(Boolean).join('\n\n') || null;
 }
 
 // { background: true } is sent by /api/save-reel, which asks for this while the app is closed. Nobody

@@ -631,6 +631,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                       query: mapsData?.query || '',
                       candidates: mapsData?.candidates || [],
                       comment: reportComment,
+                      logs: apiLogs.map((log) => `[${log.timestamp}] ${log.message}${log.link ? ` ${log.link}` : ''}`).join('\n'),
                     }),
                   });
                   if (!response.ok) throw new Error(`HTTP ${response.status}`);
