@@ -112,8 +112,19 @@ function hasWholeWords(name, key) {
 // Same rule as bestCandidate in api/enrich-reel.js.
 export function bestPlaceMatch(candidates, hints = [], areas = [], address = '') {
   if (!candidates?.length) return null;
-  if (candidates.length === 1) return candidates[0];
+  // A town or suburb (Google's answer to a vague search) is never picked by itself.
+  if (candidates.length === 1) return isArea(candidates[0]) ? null : candidates[0];
+  candidates = candidates.filter((candidate) => !isArea(candidate));
   return atStreetAddress(candidates, address) || matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
+}
+
+// A town, suburb or region rather than a business: Google lists it with no address and no rating, under
+// "Melbourne, Victoria, Australia" or its own name. Same as in api/enrich-reel.js.
+function isArea(candidate) {
+  if (candidate.address || candidate.rating) return false;
+  const kind = String(candidate.category || '');
+  const plain = (value) => String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return kind.includes(',') || plain(kind) === plain(candidate.name) || !kind;
 }
 
 // True when the result is named like one of the hints (the name rules of bestPlaceMatch).

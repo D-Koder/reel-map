@@ -108,6 +108,14 @@ function bestCandidate(candidates, hints, areas = [], address = '') {
   return atStreetAddress(candidates, address) || matchByName(candidates, hints) || matchByArea(candidates, hints, areas);
 }
 
+// A town, suburb or region rather than a business: Google lists it with no address and no rating, under
+// "Melbourne, Victoria, Australia" or its own name ("Melbourne" for a caption search of "…in Melbourne").
+function isArea(candidate) {
+  if (candidate.address || candidate.rating) return false;
+  const kind = String(candidate.category || '');
+  return kind.includes(',') || normalize(kind) === normalize(candidate.name) || !kind;
+}
+
 // The street number(s) and street of an address: "Shop 2/209-211 Russell St, Melbourne" →
 // { from: 209, to: 211, street: 'russell' }. Null when no part has a number then a street name.
 // A short first word ("St Kilda Rd", "Mt Alexander Rd") takes the next word too.
@@ -196,7 +204,8 @@ function normalize(value) {
 async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   const cachedPlace = cached?.data?.place;
-  if (cachedPlace && cached.data.candidates?.length === 1) {
+  // A row with no place name (saved by older code from a search of the caption) is a guess: ignored.
+  if (cachedPlace?.placeName && cached.data.candidates?.length === 1) {
     const { placeName = '', location = '', venue = '', category, choices } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
@@ -601,9 +610,11 @@ async function enrich(req, res, getBrowser) {
   if (!selectedCandidate && !mustPick && typeof req.selectCandidate !== 'function') {
     // A pop-up's search is its address, so no result is named like it: only a single result, or the one
     // result at its street address (a pop-up in a shop: the shop's pin, the pop-up's name), is used.
+    // A town or suburb (Google's answer to a vague search) is never picked by itself.
+    const places = candidates.filter((candidate) => !isArea(candidate));
     selectedCandidate = candidates.length === 1
-      ? candidates[0]
-      : popup ? atStreetAddress(candidates, reel.location) : bestCandidate(candidates, nameHints,
+      ? places[0] || null
+      : popup ? atStreetAddress(places, reel.location) : bestCandidate(places, nameHints,
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || ''], reel.location);
     autoPicked = true;
   }
@@ -625,10 +636,12 @@ async function enrich(req, res, getBrowser) {
   // Saved for everyone only when the app picked one place by itself and read it without an error.
   // A choice, a typed name, no match or an error isn't saved, so the next person sees the options again.
   // Nor is a pop-up: it's only on for a few days, and the pick is its street, not the pop-up.
-  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup;
+  // Nor when nothing named the place (a search of the caption): that pick is a guess.
+  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup && Boolean(reel.placeName);
   if (save) await saveReel([selectedCandidate]);
   steps.saved = read.fromCache ? 'already saved' : save ? 'yes (the app picked the place by itself)'
     : popup ? 'no (pop-ups are only on for a few days)'
+      : selectedCandidate && !reel.placeName ? 'no (nothing named the place, so the pick is a guess)'
       : 'no (not picked by the app by itself, so the next person sees the options)';
 
   return res.status(200).json({
