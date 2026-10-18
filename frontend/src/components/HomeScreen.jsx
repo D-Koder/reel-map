@@ -94,20 +94,31 @@ function UpNext({ places, collections, userId, onOpenPin }) {
   );
 }
 
-// Bookings and events on today, from every collection, not yet marked done: bookings by time, then events.
+// Bookings and events on today (the phone's own date), from every collection, done ones included:
+// bookings by time, then events.
 export function placesToday(places, now = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const isToday = (date) => new Date(date).toDateString() === now.toDateString();
-  const open = places.filter((p) => !p.booking?.done_at);
-  const booked = open
+  const booked = places
     .filter((p) => p.booking?.planned_at && isToday(p.booking.planned_at))
     .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at));
-  const events = open.filter((p) => p.category === 'event' && p.event_date === today && !booked.includes(p));
+  const events = places.filter((p) => p.category === 'event' && p.event_date === today && !booked.includes(p));
   return [...booked, ...events];
 }
 
-// "Today": not a real collection, so it's never saved. It shows whatever is booked or on today,
+// A calendar page with today's month and day, since the 📅 emoji always shows "JUL 17".
+function TodayIcon({ now = new Date() }) {
+  return (
+    <span className="today-icon" aria-hidden="true">
+      <span className="today-icon-month">{now.toLocaleDateString('en-AU', { month: 'short' })}</span>
+      <span className="today-icon-day">{now.getDate()}</span>
+    </span>
+  );
+}
+
+// "Today": not a real collection, so it's never saved. It shows whatever is booked or on today
+// (a place marked done still shows, with its Done tag),
 // with each place's own collection underneath. No dragging or selecting: the places live elsewhere.
 function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, onOpenPin }) {
   const pins = placesToday(places);
@@ -121,7 +132,7 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
         onClick={onToggle}
       >
         <span className="collection-title">
-          📅 Today
+          <TodayIcon /> Today
           <span className="collection-subtext">Bookings and events on today</span>
         </span>
         <span className="collection-count">{pins.length} {pins.length === 1 ? 'place' : 'places'}</span>

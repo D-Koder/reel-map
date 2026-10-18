@@ -4951,3 +4951,33 @@ button.profile-open {
   color: var(--text-muted);
   padding: 4px 4px 0;
 }
+
+/* Today's calendar page beside "Today" on Home: the month on a red band, the day underneath. */
+.today-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1.5em;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.today-icon-month {
+  width: 100%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.45em;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 2px 0 1px;
+}
+.today-icon-day {
+  color: #1d1d1f;
+  font-size: 0.8em;
+  font-weight: 700;
+  padding: 1px 0 2px;
+}
