@@ -432,7 +432,27 @@ export function useAppData(userId, showToast) {
     // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
-    updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate }) => {
+    // A new location moves the place itself (change_place_location), so it moves in every collection it's in.
+    updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, location = null }) => {
+      if (location) {
+        const { error: locationError } = await supabase.rpc('change_place_location', {
+          p_collection_id: place.collection_id,
+          p_place_id: place.id,
+          p_lat: location.lat,
+          p_lng: location.lng,
+          p_address: location.address || null,
+          p_name: name,
+          p_hours: location.hours ?? null,
+          p_phone: location.phone ?? null,
+          p_booking_url: location.bookingUrl ?? null,
+          p_source: location.source,
+          p_source_id: location.sourceId ?? null,
+        }).abortSignal(AbortSignal.timeout(20000));
+        if (locationError) {
+          showToast(`Location not changed: ${friendlyError(locationError)}`);
+          return null;
+        }
+      }
       const patch = { custom_name: name, custom_emoji: emoji || null, category };
       if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? eventDate : null, eventEndDate));
       const { data, error } = await supabase

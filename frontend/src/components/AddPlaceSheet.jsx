@@ -5,6 +5,8 @@ import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-rea
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
+import PlaceSearchInput from './PlaceSearchInput';
+import { requestLocationApi } from '../lib/googlePlaces';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -260,22 +262,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
-  const requestLocationApi = async (payload) => {
-    const response = await fetch('/api/scrape-location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(55000),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(data.error || `Google Maps returned HTTP ${response.status}`);
-      error.status = response.status;
-      throw error;
-    }
-    return data;
-  };
-
   const selectLocationCandidate = async (candidate, preserveName = false) => {
     setLoadingCandidateUrl(candidate.url);
     try {
@@ -489,7 +475,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     try {
       // Google place first, then the spot tapped on the map. Mapbox is only a fallback.
       let venueDetails = mapsData ?? pinCoords;
-      if (!mapsData && pinCoords) addLog('Using the spot you tapped on the map.', 'info');
+      if (!mapsData && pinCoords) addLog(pinCoords.source === 'mapbox' ? 'Using the place picked from search.' : 'Using the spot you tapped on the map.', 'info');
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
         if (!MAPBOX_TOKEN) {
           addLog('Mapbox token is missing; saved address will not have a map pin.', 'error');
@@ -895,32 +881,41 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             {/* Address: the input and Verify sit on one row, with a hint underneath */}
             <div className="field">
               <span className="modal-label">Address</span>
-              <div className="address-row">
-                <input
-                  className="step-input"
-                  aria-label="Address"
-                  value={location}
-                  onChange={(e) => {
-                    setLocation(e.target.value);
-                    setMapsData(null);
-                    setPinCoords(null);
-                    setLocationCandidates([]);
-                    setLocationSearchDone(false);
-                  }}
-                  placeholder="Street address, suburb, city"
-                  maxLength={100}
-                  disabled={saving}
-                />
-                <button
-                  type="button"
-                  className="step-btn secondary"
-                  onClick={verifyLocation}
-                  disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
-                >
-                  {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
-                </button>
-              </div>
-              <span className="field-hint">Used for the map pin. Verify to pick the exact Google Maps place.</span>
+              <PlaceSearchInput
+                ariaLabel="Address"
+                value={location}
+                onChange={(text) => {
+                  setLocation(text);
+                  setMapsData(null);
+                  setPinCoords(null);
+                  setLocationCandidates([]);
+                  setLocationSearchDone(false);
+                }}
+                onPick={(picked) => {
+                  setLocation(picked.address);
+                  setMapsData(null);
+                  setPinCoords({ latitude: picked.lat, longitude: picked.lng, source: 'mapbox' });
+                  setLocationCandidates([]);
+                  setLocationSearchDone(false);
+                  // A business picked with no name typed yet names the place too.
+                  if (!name.trim() && picked.name && !picked.address.startsWith(picked.name)) setName(picked.name);
+                  addLog(`Picked ${picked.name || picked.address} from Mapbox search.`, 'success');
+                }}
+                placeholder="Search a place or street address"
+                maxLength={100}
+                disabled={saving}
+                action={(
+                  <button
+                    type="button"
+                    className="step-btn secondary"
+                    onClick={verifyLocation}
+                    disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                  >
+                    {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
+                  </button>
+                )}
+              />
+              <span className="field-hint">Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.</span>
             </div>
 
             {locationCandidates.length > 0 && (
