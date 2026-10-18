@@ -1,6 +1,5 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./browser');
 const { fetchInstagramOembed } = require('./instagram-oembed');
-const { captionVenue } = require('./caption');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
 const SKIP = ['media', 'font'];
@@ -10,30 +9,6 @@ function parseCount(value) {
   if (!match) return null;
   const multiplier = { K: 1_000, M: 1_000_000, B: 1_000_000_000 }[match[2]?.toUpperCase()] ?? 1;
   return Math.round(Number(match[1]) * multiplier);
-}
-
-// "Name:" and "Address:" lines win. Falls back to the 📍 line.
-function parseCaptionDetails(caption) {
-  const field = (label) => {
-    const match = caption.match(new RegExp(`^\\s*${label}\\s*:\\s*(.+)$`, 'mi'));
-    return match ? match[1].trim() : '';
-  };
-  const fromLine = parseCaptionLocation(caption);
-  return {
-    placeName: field('Name') || fromLine.placeName,
-    location: field('Address') || fromLine.location,
-  };
-}
-
-// "Venue - Suburb" splits into a name and a location; anything else is all location.
-function parseCaptionLocation(caption) {
-  const line = captionVenue(caption);
-  const separator = line.match(/\s+[-–—]\s+/u);
-  if (!separator || separator.index === undefined) return { placeName: '', location: line };
-  return {
-    placeName: line.slice(0, separator.index).trim(),
-    location: line.slice(separator.index + separator[0].length).trim(),
-  };
 }
 
 function isInstagramUrl(value) {
@@ -98,7 +73,6 @@ async function readInstagramQuickly(reelUrl) {
     return null;
   }
   if (!oembed.ok || !oembed.caption) return null;
-  const details = parseCaptionDetails(oembed.caption);
   return {
     success: true,
     reelUrl,
@@ -107,8 +81,9 @@ async function readInstagramQuickly(reelUrl) {
     // oEmbed doesn't give counts or the date.
     likes: null,
     comments: null,
-    placeName: details.placeName,
-    location: details.location,
+    // The AI reads the caption for the place (enrich-reel.js), so none is taken from it here.
+    placeName: '',
+    location: '',
     date: '',
     hashtags: [...oembed.caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
     videoUrl: '',
@@ -218,9 +193,6 @@ module.exports = async function handler(req, res) {
       const imageCandidates = [...(main?.querySelectorAll('img') ?? [])]
         .filter((image) => !/profile picture/i.test(image.alt) && image.naturalWidth > 100)
         .sort((a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight);
-      const locationLine = caption.split(/\r?\n/).find((line) => /^\s*[📍📌]/u.test(line))
-        ?.replace(/^\s*[📍📌]\s*/u, '').trim() ?? '';
-      const separator = locationLine.match(/\s+[-–—]\s+/u);
       const thumbnail = video?.poster ||
         document.querySelector('meta[property="og:image"]')?.content ||
         document.querySelector('meta[name="twitter:image"]')?.content || imageCandidates[0]?.currentSrc || '';
@@ -234,12 +206,9 @@ module.exports = async function handler(req, res) {
         locationTag,
         likes: parseCount(countLabels[0]),
         comments: parseCount(countLabels[1]),
-        placeName: separator && separator.index !== undefined
-          ? locationLine.slice(0, separator.index).trim()
-          : '',
-        location: separator && separator.index !== undefined
-          ? locationLine.slice(separator.index + separator[0].length).trim()
-          : locationLine,
+        // The AI reads the caption for the place (enrich-reel.js), so none is taken from it here.
+        placeName: '',
+        location: '',
         date: main?.querySelector('time[datetime]')?.dateTime ?? '',
         hashtags: [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
         videoUrl: directVideoUrl.startsWith('http') ? directVideoUrl : '',
@@ -250,10 +219,6 @@ module.exports = async function handler(req, res) {
     if (isTikTok && !scraped.caption) throw new Error('TikTok caption was not found on the page');
     if (!isTikTok) scraped.tagged = taggedAccounts(await page.content());
 
-    const captionDetails = parseCaptionDetails(scraped.caption || '');
-    // The caption rule always wins over the in-page guess, which takes any first pin (even "📌 Details:").
-    scraped.placeName = captionDetails.placeName;
-    scraped.location = captionDetails.location;
 
     // Reels show their platform's own embed, so no cover image is kept.
     scraped.thumbnailUrl = '';
