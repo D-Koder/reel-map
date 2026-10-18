@@ -81,23 +81,28 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         return;
       }
 
+      // A pop-up keeps its own name (the Maps match is only its street) and is saved as an event on its days.
+      const popup = data.popup;
+      const name = popup?.name || details.name;
       const created = await latest.current.addPlace({
-        name: details.name,
+        name,
         location: details.address || data.location || '',
-        category: 'food',
+        category: popup ? 'event' : 'food',
         collectionId,
         reelUrl: item.url,
-        venueDetails: details,
+        venueDetails: popup ? { ...details, name } : details,
         // Sharing a reel means you're keen on it.
         feeling: 'keen',
+        eventDate: popup?.startDate || null,
+        eventEndDate: popup?.endDate || null,
       });
       if (!created) {
-        update(item.id, { status: 'failed', collectionId, name: details.name, reelData: data });
+        update(item.id, { status: 'failed', collectionId, name, reelData: data });
         return;
       }
       remove(item.id);
       const collection = latest.current.collections.find((c) => c.id === collectionId);
-      latest.current.onSaved?.(created.id, details.name, collection?.name);
+      latest.current.onSaved?.(created.id, name, collection?.name);
     } catch {
       update(item.id, { status: navigator.onLine ? 'failed' : 'offline' });
     } finally {

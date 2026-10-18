@@ -592,6 +592,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           collections={collections}
           places={places}
           eventDatesReady={data.eventDatesReady}
+          eventEndDatesReady={data.eventEndDatesReady}
           userId={userId}
           canEdit={canEdit}
           onCopy={async (targetId) => {
@@ -624,6 +625,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           collections={editableCollections}
           places={places}
           eventDatesReady={data.eventDatesReady}
+          eventEndDatesReady={data.eventEndDatesReady}
           onAdd={async (fields) => {
             const created = await data.addPlace(fields);
             if (created) {

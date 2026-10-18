@@ -31,12 +31,14 @@ export function pickUpNext(places, userId, now = new Date()) {
   if (booked) return { kind: 'booked', place: booked };
 
   const unbooked = open.filter((p) => !p.booking?.planned_at);
-  // event_date is a plain day ("2026-10-17"), read as local midnight.
+  // event_date is a plain day ("2026-10-17"), read as local midnight. An event on for several days
+  // counts until its last day (event_end_date), and shows today's date while it's on.
   const eventDay = (p) => new Date(`${p.event_date}T00:00:00`);
+  const lastDay = (p) => new Date(`${p.event_end_date || p.event_date}T00:00:00`);
   const event = unbooked
-    .filter((p) => p.category === 'event' && p.event_date && eventDay(p) >= startOfToday && eventDay(p) <= horizon)
+    .filter((p) => p.category === 'event' && p.event_date && lastDay(p) >= startOfToday && eventDay(p) <= horizon)
     .sort((a, b) => eventDay(a) - eventDay(b))[0];
-  if (event) return { kind: 'event', place: event, date: eventDay(event) };
+  if (event) return { kind: 'event', place: event, date: eventDay(event) < startOfToday ? startOfToday : eventDay(event) };
 
   const keenCount = (p) => Object.values(p.reactions ?? {}).filter((v) => v === 'keen').length;
   const eatOut = unbooked.filter((p) => p.category === 'food' || p.category === 'cafe');
@@ -95,7 +97,7 @@ function UpNext({ places, collections, userId, onOpenPin }) {
 }
 
 // Bookings and events on today (the phone's own date), from every collection, done ones included:
-// bookings by time, then events.
+// bookings by time, then events. An event on for several days shows on each of them.
 export function placesToday(places, now = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -103,7 +105,8 @@ export function placesToday(places, now = new Date()) {
   const booked = places
     .filter((p) => p.booking?.planned_at && isToday(p.booking.planned_at))
     .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at));
-  const events = places.filter((p) => p.category === 'event' && p.event_date === today && !booked.includes(p));
+  const events = places.filter((p) => p.category === 'event' && p.event_date && p.event_date <= today &&
+    (p.event_end_date || p.event_date) >= today && !booked.includes(p));
   return [...booked, ...events];
 }
 
@@ -147,7 +150,9 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
               const collection = collections.find((c) => c.id === pin.collection_id);
               const time = pin.booking?.planned_at
                 ? new Date(pin.booking.planned_at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
-                : 'Event today';
+                : pin.event_end_date && pin.event_end_date > pin.event_date
+                  ? `On until ${new Date(`${pin.event_end_date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`
+                  : 'Event today';
               return (
                 <div className="place-row" key={`${pin.collection_id}:${pin.id}`}>
                   <PlaceCard

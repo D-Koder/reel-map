@@ -35,6 +35,7 @@ function placeForFile(place) {
     hours: Array.isArray(place.hours) && place.hours.length ? place.hours : null,
     note: place.custom_info || null,
     event_date: place.event_date || null,
+    event_end_date: place.event_end_date || null,
   };
 }
 
@@ -169,6 +170,7 @@ function toImportPlace(raw) {
       : null,
     note,
     eventDate: /^\d{4}-\d{2}-\d{2}$/.test(String(raw.event_date || '')) ? raw.event_date : null,
+    eventEndDate: /^\d{4}-\d{2}-\d{2}$/.test(String(raw.event_end_date || '')) ? raw.event_end_date : null,
   };
 }
 

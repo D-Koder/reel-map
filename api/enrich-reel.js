@@ -4,7 +4,7 @@ const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 const { readCache, writeCache, insertRow } = require('./_lib/lookup-cache');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { captionVenue, captionPlaceForSlide, isProse } = require('./_lib/caption');
-const { requestCountry } = require('./_lib/country');
+const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { aiPlace } = require('./_lib/ai-place');
 
@@ -82,11 +82,17 @@ function applyAi(reel, ai) {
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
     ? { listedPlaces: ai.places.map(({ name: listed, address, evidence }) => ({ name: listed, address, line: evidence })) }
     : {};
+  // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
+  // name would find the brand's permanent shops instead.
+  const popup = ai.temporary
+    ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence }
+    : null;
   return {
     reel: { ...reel, placeName: name, location: pick.address || where, placeSource: pick.source, ...choices },
-    venue: [name, pick.address || where].filter(Boolean).join(', '),
+    venue: popup ? pick.address || where : [name, pick.address || where].filter(Boolean).join(', '),
     area: ai.postArea || pick.area,
     lowConfidence: ai.confidence === 'low',
+    popup,
   };
 }
 
@@ -233,7 +239,7 @@ async function readPageExtras(reel, cleanUrl, getBrowser) {
   if (page.statusCode >= 400 || !page.body?.success) return { ...reel, pageRead: true };
   return {
     ...reel, pageRead: true, collaborators: page.body.collaborators || [], tagged: page.body.tagged || [],
-    locationTag: page.body.locationTag || '',
+    locationTag: page.body.locationTag || '', date: reel.date || page.body.date || '',
   };
 }
 
@@ -384,6 +390,7 @@ async function enrich(req, res, getBrowser) {
 
   let { reel, venue } = read;
   const country = requestCountry(req);
+  const timeZone = requestTimeZone(req);
   // No single clear venue from the caption rules: the AI reads the post. The page is read first
   // for the location tag and collab posters, which the AI weighs too.
   let aiFound = null;
@@ -404,9 +411,11 @@ async function enrich(req, res, getBrowser) {
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
       collaborators: reel.collaborators, tagged: reel.tagged, slide, userCountry: country,
+      postDay: reel.date ? dayIn(timeZone, reel.date) : '',
     });
     steps.ai = `${when}${!ai ? 'no answer' : ai.kind === 'order_only' ? 'order/pickup post, no place'
-      : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})`
+      : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})${
+        ai.temporary ? `; pop-up${ai.endDate ? ` on ${ai.startDate === ai.endDate ? ai.endDate : `${ai.startDate} to ${ai.endDate}`} — quote: "${ai.dateEvidence}"` : ', no clear dates'}` : ''}`
         : 'found no place'}`;
     return ai;
   };
@@ -482,7 +491,18 @@ async function enrich(req, res, getBrowser) {
   steps.mapsUrl = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
   steps.mapsSearch = read.candidates ? 'skipped (results from saved lookup)' : handleHit ? 'done while trying handles' : query ? 'searched' : 'nothing to search';
   // Nothing found: the place picker opens with the best guess from the handles filled in.
-  const withGuess = (body) => ({ ...(guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body), steps });
+  // A pop-up's name and days, with whether it's already over (by the person's own date).
+  // Read when the answer is sent, since the AI can still run after the first Maps search.
+  const popupInfo = () => (aiFound?.popup
+    ? { ...aiFound.popup, ended: Boolean(aiFound.popup.endDate) && aiFound.popup.endDate < dayIn(timeZone) }
+    : null);
+  const withGuess = (body) => {
+    const popup = popupInfo();
+    return {
+      ...(guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body),
+      steps, ...(popup ? { popup } : {}),
+    };
+  };
   if (!query) {
     // An empty result isn't cached: it would stop every later try for 100 days.
     return res.status(200).json(withGuess({ ...reel, venue, maps: { success: false, error: 'No place/location text was found in the Reel.' } }));
@@ -537,6 +557,7 @@ async function enrich(req, res, getBrowser) {
     candidates = searchResponse.body.candidates || [];
   }
 
+  const popup = popupInfo();
   const typedName = typeof req.body?.placeName === 'string';
   const requestedName = typedName ? req.body.placeName : reel.placeName;
   // A list post shared without a slide: no telling which place was meant, so nothing is picked
@@ -560,9 +581,10 @@ async function enrich(req, res, getBrowser) {
     autoPicked = !typedName;
   }
   if (!selectedCandidate && !mustPick && !backgroundOnly && typeof req.selectCandidate !== 'function') {
+    // A pop-up's search is its street, so no result is named like it: only a single result is used.
     selectedCandidate = candidates.length === 1
       ? candidates[0]
-      : bestCandidate(candidates, [String(reel.placeName || '').replace(/^@/, ''), venue, String(reel.location || '').split(',')[0]],
+      : popup ? null : bestCandidate(candidates, [String(reel.placeName || '').replace(/^@/, ''), venue, String(reel.location || '').split(',')[0]],
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || '']);
     autoPicked = true;
   }
@@ -573,16 +595,19 @@ async function enrich(req, res, getBrowser) {
 
   // Saved for everyone only when the app picked one place by itself and read it without an error.
   // A choice, a typed name, no match or an error isn't saved, so the next person sees the options again.
-  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError;
+  // Nor is a pop-up: it's only on for a few days, and the pick is its street, not the pop-up.
+  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup;
   if (save) await saveReel([selectedCandidate]);
   steps.saved = read.fromCache ? 'already saved' : save ? 'yes (the app picked the place by itself)'
-    : 'no (not picked by the app by itself, so the next person sees the options)';
+    : popup ? 'no (pop-ups are only on for a few days)'
+      : 'no (not picked by the app by itself, so the next person sees the options)';
 
   return res.status(200).json({
     ...reel,
     venue,
     area,
     steps,
+    ...(popup ? { popup } : {}),
     maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
   });
 }

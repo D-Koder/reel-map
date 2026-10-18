@@ -15,4 +15,23 @@ function requestCountry(req) {
   }
 }
 
-module.exports = { requestCountry };
+// The person's time zone, from their connection (x-vercel-ip-timezone: "Australia/Melbourne"), so a
+// post's date and "today" are their days, not the server's. UTC when it's missing or unknown.
+function requestTimeZone(req) {
+  const zone = String(req.headers?.['x-vercel-ip-timezone'] || '');
+  try {
+    if (zone) new Intl.DateTimeFormat('en', { timeZone: zone });
+    return zone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+// A moment as a plain day in a time zone: "2026-10-17T22:00:00Z" in Melbourne → "2026-10-18".
+function dayIn(timeZone, moment = new Date()) {
+  const date = new Date(moment);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+module.exports = { requestCountry, requestTimeZone, dayIn };

@@ -61,7 +61,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, eventEndDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -99,6 +99,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
   const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
   const [eventDate, setEventDate] = useState(draft?.eventDate ?? '');
+  // The last day of an event on for several days (a pop-up "this weekend"), else empty.
+  const [eventEndDate, setEventEndDate] = useState(draft?.eventEndDate ?? '');
+  // A pop-up's own name. The Maps search only finds its street, so the street's name never replaces it.
+  const popupNameRef = useRef(draft?.scrapedData?.popup?.name || '');
   const [entryUrl, setEntryUrl] = useState(draft?.entryUrl ?? '');
   const [entryUrlError, setEntryUrlError] = useState('');
   // Saved places already at this location. Shown as a warning before a second entry is added.
@@ -130,10 +134,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate,
+      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -214,19 +218,32 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       }
       if (steps.saved) addLog(`Saved for other people: ${steps.saved}`, 'info');
     }
+    // A pop-up or stall: saved as an event on its days, pinned on its street.
+    const popup = data.popup;
+    popupNameRef.current = popup?.name || '';
+    if (popup) {
+      setCategory('event');
+      setEventDate(popup.startDate || '');
+      setEventEndDate(popup.endDate && popup.endDate !== popup.startDate ? popup.endDate : '');
+      const days = !popup.endDate ? 'no clear dates in the post, so add them yourself'
+        : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
+      addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');
+      if (popup.ended) addLog(`⚠️ This pop-up ended on ${popup.endDate}. You can still save it.`, 'error');
+    }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
     if (data.maps) {
       // Results not named like the reel's place (a nearby business Maps adds) are left out.
-      const candidates = relatedPlaces(data.maps.candidates, reelPlaceHints(data))
+      // A pop-up's search is its street, which isn't named like the pop-up, so nothing is left out.
+      const candidates = (popup ? data.maps.candidates || [] : relatedPlaces(data.maps.candidates, reelPlaceHints(data)))
         .map((candidate) => ({ ...candidate, searchQuery: data.maps.query }));
       if (data.maps.details) {
-        setMapsData(data.maps.details);
-        setName(data.maps.details.name || data.placeName || name);
+        setMapsData(popup ? { ...data.maps.details, name: popup.name } : data.maps.details);
+        setName(popup?.name || data.maps.details.name || data.placeName || name);
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
-      } else if (!(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data))) {
+      } else if (!popup && !(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data))) {
         // (Not for a list post shared without a slide: the person says which place they meant.)
         // One result, or one whose name (or suburb, for a chain) matches the reel's place: pick it without asking.
         const best = bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data));
@@ -270,8 +287,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         placeName: candidate.name,
         location: candidate.address || location || scrapedData?.location || '',
       });
-      setMapsData(data);
-      if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
+      setMapsData(popupNameRef.current ? { ...data, name: popupNameRef.current } : data);
+      if (popupNameRef.current) setName(popupNameRef.current);
+      else if (!preserveName || !nameTypedRef.current || !name.trim()) setName(data.name || candidate.name);
       setLocation(data.address || candidate.address || location);
       setLocationCandidates([]);
       setLocationSearchDone(false);
@@ -545,6 +563,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         customInfo: customInfo.trim(),
         url: link,
         eventDate: category === 'event' ? eventDate || null : null,
+        eventEndDate: category === 'event' && eventDate ? eventEndDate || null : null,
       });
       if (draftable) clearDraft();
     } catch (error) {
@@ -1158,6 +1177,19 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   type="date"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
+                  disabled={saving}
+                />
+              </label>
+            )}
+            {category === 'event' && eventDatesReady && eventEndDatesReady && eventDate && (
+              <label className="field">
+                <span className="modal-label">Last day (optional)</span>
+                <input
+                  className="step-input"
+                  type="date"
+                  value={eventEndDate}
+                  min={eventDate}
+                  onChange={(e) => setEventEndDate(e.target.value)}
                   disabled={saving}
                 />
               </label>
