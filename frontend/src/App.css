@@ -4942,3 +4942,12 @@ button.profile-open {
 .shared-place-actions .step-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
 .shared-place-save { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
 .share-booking { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; }
+
+/* Under each place in Home's "Today": the booking time (or "Event today") and its collection. */
+.today-when {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 4px 4px 0;
+}

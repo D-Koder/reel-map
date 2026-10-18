@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Users } from 'lucide-react';
 import PlaceList from './PlaceList';
+import { PlaceCard } from './PlaceRow';
 import MapBanner from './MapBanner';
 import { categories, formatDateTime } from '../lib/constants';
 import { readJSON, writeJSON } from '../lib/storage';
@@ -90,6 +91,69 @@ function UpNext({ places, collections, userId, onOpenPin }) {
         </span>
       </span>
     </button>
+  );
+}
+
+// Bookings and events on today, from every collection, not yet marked done: bookings by time, then events.
+export function placesToday(places, now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const isToday = (date) => new Date(date).toDateString() === now.toDateString();
+  const open = places.filter((p) => !p.booking?.done_at);
+  const booked = open
+    .filter((p) => p.booking?.planned_at && isToday(p.booking.planned_at))
+    .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at));
+  const events = open.filter((p) => p.category === 'event' && p.event_date === today && !booked.includes(p));
+  return [...booked, ...events];
+}
+
+// "Today": not a real collection, so it's never saved. It shows whatever is booked or on today,
+// with each place's own collection underneath. No dragging or selecting: the places live elsewhere.
+function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, onOpenPin }) {
+  const pins = placesToday(places);
+  return (
+    <div className={`collection-board ${isOpen ? '' : 'is-collapsed'}`} id="collection-today">
+      <button
+        type="button"
+        className="collection-header collection-toggle"
+        aria-expanded={isOpen}
+        aria-controls="collection-body-today"
+        onClick={onToggle}
+      >
+        <span className="collection-title">
+          📅 Today
+          <span className="collection-subtext">Bookings and events on today</span>
+        </span>
+        <span className="collection-count">{pins.length} {pins.length === 1 ? 'place' : 'places'}</span>
+        <ChevronDown className="collection-chevron" aria-hidden="true" />
+      </button>
+      {isOpen && (
+        <div id="collection-body-today" className="collection-body">
+          {pins.length === 0 && <div className="collection-empty">Nothing booked or on today.</div>}
+          <div className="pin-list">
+            {pins.map((pin) => {
+              const open = () => onOpenPin(`${pin.collection_id}:${pin.id}`);
+              const collection = collections.find((c) => c.id === pin.collection_id);
+              const time = pin.booking?.planned_at
+                ? new Date(pin.booking.planned_at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
+                : 'Event today';
+              return (
+                <div className="place-row" key={`${pin.collection_id}:${pin.id}`}>
+                  <PlaceCard
+                    pin={pin}
+                    members={membersOf[pin.collection_id] ?? []}
+                    userId={userId}
+                    onClick={open}
+                    onKeyDown={(e) => { if (e.key === 'Enter') open(); }}
+                  />
+                  <div className="today-when">{time}{collection && ` · ${collection.emoji} ${collection.name}`}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -232,6 +296,16 @@ export default function HomeScreen({
             </button>
           </div>
         )}
+
+        <TodayBoard
+          places={places}
+          collections={collections}
+          membersOf={membersOf}
+          userId={userId}
+          isOpen={!collapsed.has('today')}
+          onToggle={() => toggleCollapsed('today')}
+          onOpenPin={onOpenPin}
+        />
 
         {collections.map((collection) => {
           const pins = places.filter((p) => p.collection_id === collection.id);
