@@ -3,14 +3,31 @@ const chromium = require('@sparticuz/chromium');
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-function launchBrowser() {
+// On Vercel, Chrome is unpacked to /tmp once per server. One server can run several lookups at once,
+// and chromium.executablePath() hands back a half-written file while another lookup is still
+// unpacking it, so Chrome fails to start with "spawn ETXTBSY". Every lookup waits on the same unpack.
+let unpacking = null;
+const executablePath = () => {
+  unpacking ??= chromium.executablePath().catch((error) => { unpacking = null; throw error; });
+  return unpacking;
+};
+
+async function launchBrowser() {
   const isVercel = Boolean(process.env.VERCEL);
-  return (async () => puppeteer.launch({
+  const launch = async () => puppeteer.launch({
     args: isVercel ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
     defaultViewport: { width: 1280, height: 900 },
-    executablePath: isVercel ? await chromium.executablePath() : process.env.PUPPETEER_EXECUTABLE_PATH,
+    executablePath: isVercel ? await executablePath() : process.env.PUPPETEER_EXECUTABLE_PATH,
     headless: process.env.REEL_ENRICHMENT_VISIBLE !== '1',
-  }))();
+  });
+  try {
+    return await launch();
+  } catch (error) {
+    // Another process (an earlier server on the same machine) may still be writing the file: try once more.
+    if (!/ETXTBSY/.test(error.message)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return launch();
+  }
 }
 
 // Tabs already handed out, so two steps never share Chrome's starting tab.

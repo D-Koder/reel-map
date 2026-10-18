@@ -320,7 +320,8 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   let launching = null;
-  const getBrowser = () => (launching ??= launchBrowser());
+  // A Chrome that failed to start isn't kept, so the next step (e.g. the retry search) starts it again.
+  const getBrowser = () => (launching ??= launchBrowser().catch((error) => { launching = null; throw error; }));
   try {
     // The reel inbox ({ from: 'inbox' }) shows "We couldn't tell which place this is" when no place
     // was matched. Those lookups are kept in lookup_debug before the answer goes back.
