@@ -341,7 +341,11 @@ module.exports = async function handler(req, res) {
 function noPlaceReason(body) {
   const maps = body.maps || {};
   if (body.unreadable) return "Couldn't read the post";
-  if (!maps.success) return maps.error || 'Google Maps search failed';
+  // The server's own error ("spawn ETXTBSY") says why, where the message for the app doesn't.
+  if (!maps.success) {
+    const detail = body.steps?.mapsPage?.error;
+    return [maps.error || 'Google Maps search failed', detail && `(${detail})`].filter(Boolean).join(' ');
+  }
   const count = maps.candidates?.length ?? 0;
   if (!count) return 'Google Maps found nothing';
   if (!maps.selectedCandidate) return `${count} results, none named like the place`;
