@@ -124,7 +124,8 @@ function streetAddress(text) {
   return null;
 }
 
-// The one result at the post's street address (numbers overlap, same street), else null.
+// The one result at the post's street address (numbers overlap, same street). When several overlap, the one
+// with exactly the same number(s) ("164" → 164, not 163-165). Else null.
 function atStreetAddress(candidates, address) {
   const wanted = streetAddress(address);
   if (!wanted) return null;
@@ -132,7 +133,12 @@ function atStreetAddress(candidates, address) {
     const spot = streetAddress(candidate.address);
     return spot && spot.street === wanted.street && spot.from <= wanted.to && wanted.from <= spot.to;
   });
-  return at.length === 1 ? at[0] : null;
+  if (at.length === 1) return at[0];
+  const exact = at.filter((candidate) => {
+    const spot = streetAddress(candidate.address);
+    return spot.from === wanted.from && spot.to === wanted.to;
+  });
+  return exact.length === 1 ? exact[0] : null;
 }
 
 // Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
@@ -593,10 +599,11 @@ async function enrich(req, res, getBrowser) {
     autoPicked = !typedName;
   }
   if (!selectedCandidate && !mustPick && typeof req.selectCandidate !== 'function') {
-    // A pop-up's search is its street, so no result is named like it: only a single result is used.
+    // A pop-up's search is its address, so no result is named like it: only a single result, or the one
+    // result at its street address (a pop-up in a shop: the shop's pin, the pop-up's name), is used.
     selectedCandidate = candidates.length === 1
       ? candidates[0]
-      : popup ? null : bestCandidate(candidates, nameHints,
+      : popup ? atStreetAddress(candidates, reel.location) : bestCandidate(candidates, nameHints,
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || ''], reel.location);
     autoPicked = true;
   }
