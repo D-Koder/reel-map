@@ -5,14 +5,6 @@ import { INBOX_COLLECTION } from './useReelInbox';
 
 const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
 
-const PLACE_SELECT = `
-  id, name, category, reel_url, reel_thumbnail_url, created_at,
-  address, lat, lng, hours, phone, booking_url, website_url, subtitle, menu_url, menu, source, source_id,
-  reactions(user_id, feeling),
-  booking:bookings(collection_id, booked_by, planned_at, done_at, marked_by),
-  collection_places!collection_places_place_id_fkey(collection_id, added_by, added_at, position)
-`;
-
 const COLLECTION_SELECT = `
   id, name, emoji, is_private, owner_id, created_at,
   collection_members(user_id, role, profile:profiles(id, display_name, avatar, avatar_url))
@@ -47,7 +39,6 @@ function normalisePlace(row) {
       collection_id: null,
       added_by: null,
       added_at: null,
-      position: null,
       booking: null,
       reactions,
     }];
@@ -65,7 +56,6 @@ function normalisePlace(row) {
     collectionIds: collections.map((c) => c.collection_id),
     added_by: cp.added_by,
     added_at: cp.added_at,
-    position: cp.position,
     // Each collection has its own booking, so booking a place in one group doesn't show in another.
     booking: cp.booking ?? null,
     // The day an event is on, if someone set one, and its last day when it runs for several
@@ -347,10 +337,9 @@ export function useAppData(userId, showToast) {
         p_phone: venueDetails?.phone || null,
         p_booking_url: venueDetails?.bookingUrl || null,
         p_reel_url: reelUrl || null,
-        // Reels show their platform's own embed, so no cover image is saved.
-        p_reel_thumbnail_url: null,
-        p_source: venueDetails?.source || (venueDetails ? 'google_maps' : 'manual'),
-        p_source_id: venueDetails?.mapsUrl || null,
+        p_maps_url: venueDetails?.mapsUrl || null,
+        p_website_url: venueDetails?.websiteUrl || null,
+        p_menu_url: venueDetails?.menuUrl || null,
         p_custom_info: customInfo || null,
         p_url: url || null,
       }).abortSignal(AbortSignal.timeout(20000));
@@ -406,9 +395,9 @@ export function useAppData(userId, showToast) {
           p_phone: row.phone,
           p_booking_url: row.bookingUrl,
           p_reel_url: row.reelUrl,
-          p_reel_thumbnail_url: null,
-          p_source: row.mapsUrl ? 'google_maps' : 'import',
-          p_source_id: row.mapsUrl,
+          p_maps_url: row.mapsUrl,
+          p_website_url: row.websiteUrl,
+          p_menu_url: row.menuUrl,
           p_custom_info: row.note,
           p_url: row.url,
         }).abortSignal(AbortSignal.timeout(20000));

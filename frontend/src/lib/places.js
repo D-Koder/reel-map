@@ -48,7 +48,7 @@ const coordsLink = (place) => `https://www.google.com/maps/search/?api=1&query=$
 // The Google Maps link to open for a place: its own Google Maps page when it came from there,
 // otherwise a search for its name and address so Google shows the business.
 export function googleMapsLink(place) {
-  if (/^https:\/\/www\.google\.[a-z.]+\/maps\/place\//.test(place.source_id ?? '')) return place.source_id;
+  if (/^https:\/\/www\.google\.[a-z.]+\/maps\/place\//.test(place.maps_url ?? '')) return place.maps_url;
   if (!place.address) return hasCoords(place) ? coordsLink(place) : null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.venue_name ?? place.name}, ${place.address}`)}`;
 }
@@ -57,7 +57,7 @@ export function googleMapsLink(place) {
 // so Google doesn't open the wrong spot.
 export async function checkedGoogleMapsLink(place, signal) {
   const link = googleMapsLink(place);
-  if (link === place.source_id || !place.address || !hasCoords(place) || !MAPBOX_TOKEN) return link;
+  if (link === place.maps_url || !place.address || !hasCoords(place) || !MAPBOX_TOKEN) return link;
   try {
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(place.address)}.json`);
     url.searchParams.set('access_token', MAPBOX_TOKEN);

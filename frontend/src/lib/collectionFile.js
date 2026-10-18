@@ -15,7 +15,7 @@ function slug(text) {
 
 // A link that opens the place on Google Maps: the saved Maps link, else a search for its address or name.
 export function mapsLinkFor(place) {
-  if (place.source_id && /^https?:\/\//.test(place.source_id)) return place.source_id;
+  if (place.maps_url && /^https?:\/\//.test(place.maps_url)) return place.maps_url;
   const query = [place.name, place.address].filter(Boolean).join(', ');
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
 }
@@ -32,6 +32,8 @@ function placeForFile(place) {
     url: place.url || null,
     phone: place.phone || null,
     booking_url: place.booking_url || null,
+    website_url: place.website_url || null,
+    menu_url: place.menu_url || null,
     hours: Array.isArray(place.hours) && place.hours.length ? place.hours : null,
     note: place.custom_info || null,
     event_date: place.event_date || null,
@@ -162,6 +164,8 @@ function toImportPlace(raw) {
     url: cleanUrl(raw.url),
     phone: cleanText(raw.phone, 40),
     bookingUrl: cleanUrl(raw.booking_url),
+    websiteUrl: cleanUrl(raw.website_url),
+    menuUrl: cleanUrl(raw.menu_url),
     hours: Array.isArray(raw.hours)
       ? raw.hours
         .filter((h) => h && typeof h.days === 'string' && typeof h.time === 'string')
