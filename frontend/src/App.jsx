@@ -83,7 +83,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll } = useNotifications(userId);
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification } = useNotifications(userId);
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
   const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
@@ -584,6 +584,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         onClose={() => setNotificationsOpen(false)}
         notifications={notifications}
         onClear={clearAll}
+        onRemove={removeNotification}
         canOpen={(notif) => Boolean(targetOf(notif))}
         onOpen={(notif) => openTarget(targetOf(notif))}
       />

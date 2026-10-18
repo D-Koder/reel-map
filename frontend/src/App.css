@@ -3318,6 +3318,23 @@ svg.nav-icon {
 .notification-link:active { transform: scale(0.99); }
 .notification-go { margin-left: auto; align-self: center; font-size: 20px; color: var(--text-muted); }
 
+/* Each notification with its own ✕ beside it. */
+.notification-row { display: flex; align-items: center; gap: 4px; }
+.notification-row > .notification-item { flex: 1; min-width: 0; }
+.notification-remove {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.notification-remove svg { width: 18px; height: 18px; }
+
 /* A collection opened from a notification flashes once. */
 .collection-flash { animation: collection-flash 1.6s ease-out; }
 

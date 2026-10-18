@@ -2,7 +2,8 @@ import React from 'react';
 import { Bell, X } from 'lucide-react';
 
 // `canOpen(notif)` says whether a notification leads somewhere; tapping it calls `onOpen(notif)`.
-export default function NotificationPanel({ open, onClose, notifications, onClear, canOpen = () => false, onOpen }) {
+// `onRemove(id)` deletes one notification (its ✕ sits beside it, since the item itself can be a button).
+export default function NotificationPanel({ open, onClose, notifications, onClear, onRemove, canOpen = () => false, onOpen }) {
   return (
     <>
       <div className={`overlay-bg ${open ? 'open' : ''}`} onClick={onClose} />
@@ -33,9 +34,8 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
                       </div>
                     </>
                   );
-                  return canOpen(notif) ? (
+                  const item = canOpen(notif) ? (
                     <button
-                      key={notif.id}
                       type="button"
                       className={`notification-item notification-${notif.type} notification-link`}
                       onClick={() => onOpen(notif)}
@@ -44,7 +44,15 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
                       <span className="notification-go" aria-hidden="true">›</span>
                     </button>
                   ) : (
-                    <div key={notif.id} className={`notification-item notification-${notif.type}`}>{body}</div>
+                    <div className={`notification-item notification-${notif.type}`}>{body}</div>
+                  );
+                  return (
+                    <div key={notif.id} className="notification-row">
+                      {item}
+                      <button type="button" className="notification-remove" onClick={() => onRemove(notif.id)} aria-label="Remove this notification">
+                        <X aria-hidden="true" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>

@@ -65,6 +65,12 @@ export function useNotifications(userId) {
     await supabase.from('notifications').delete().eq('user_id', userId);
   }, [userId]);
 
+  // One notification, gone from the list straight away.
+  const remove = useCallback(async (id) => {
+    setRows((prev) => prev.filter((n) => n.id !== id));
+    await supabase.from('notifications').delete().eq('id', id);
+  }, []);
+
   const items = rows.map((n) => ({
     id: n.id,
     type: n.type,
@@ -82,5 +88,6 @@ export function useNotifications(userId) {
     unreadCount: items.filter((n) => !n.read).length,
     markAllRead,
     clearAll,
+    remove,
   };
 }
