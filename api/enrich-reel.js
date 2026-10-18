@@ -395,8 +395,11 @@ async function enrich(req, res, getBrowser) {
     ai: read.fromCache ? 'skipped (saved lookup)' : read.listed ? 'skipped (list post)'
       : needsAi(reel, venue) ? 'called' : 'not needed (caption rules found the place)',
   };
-  // The AI reads the post (with its location tag and collab posters from the page).
+  // The AI reads the post (with its location tag and collab posters from the page), at most once per
+  // lookup: asking again about the same post gives the same answer.
+  let aiRan = false;
   const askAi = async (when) => {
+    aiRan = true;
     reel = await readPageExtras(reel, cleanUrl, getBrowser);
     const ai = await aiPlace({
       caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
@@ -502,8 +505,9 @@ async function enrich(req, res, getBrowser) {
     const noResults = () => searchResponse.statusCode >= 400 || !searchResponse.body?.success || !searchResponse.body.candidates?.length;
     // The caption rules' venue found nothing ("📍Dancebakesmelbourne"): the AI reads the caption, and
     // its venue is searched instead, when it names a different one.
-    // Only with time left for an AI call and a second search before the 120-second limit.
-    if (noResults() && venue && !aiFound && !aiOrderOnly && !read.fromCache && !read.listed && reel.caption &&
+    // Only with time left for an AI call and a second search before the 120-second limit, and only
+    // when the AI hasn't already read this post.
+    if (noResults() && venue && !aiRan && !aiOrderOnly && !read.fromCache && !read.listed && reel.caption &&
         Date.now() - startedAt < RETRY_BEFORE_MS) {
       const firstUrl = steps.mapsUrl;
       const ai = await askAi('called after Google Maps found nothing: ');
