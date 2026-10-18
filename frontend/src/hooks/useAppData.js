@@ -31,19 +31,6 @@ function friendlyError(error) {
   return error.message;
 }
 
-// Booking files live at <collection>/<place>/ (see BookingFiles.jsx). When a place gets a new id in a
-// collection, they're copied to the new folder. Members can't move or delete others' files, so only
-// the ones I uploaded are removed from the old folder; that folder isn't shown anywhere after this.
-async function moveBookingFiles(collectionId, oldPlaceId, newPlaceId) {
-  const bucket = supabase.storage.from('booking-files');
-  const { data: files } = await bucket.list(`${collectionId}/${oldPlaceId}`);
-  for (const file of files ?? []) {
-    const from = `${collectionId}/${oldPlaceId}/${file.name}`;
-    const { error } = await bucket.copy(from, `${collectionId}/${newPlaceId}/${file.name}`);
-    if (!error) await bucket.remove([from]);
-  }
-}
-
 function normalisePlace(row) {
   const reactions = Array.isArray(row.reactions)
     ? Object.fromEntries(row.reactions.map((reaction) => [reaction.user_id, reaction.feeling]))
@@ -67,6 +54,17 @@ function normalisePlace(row) {
   }
   return collections.map((cp) => ({
     ...row,
+    // This collection's own location, when it has one (see 20261018120000_collection_place_location.sql).
+    // The old spot's website and menu don't belong to the new one.
+    ...(Number.isFinite(cp.location?.lat) && {
+      ...cp.location,
+      website_url: null,
+      subtitle: null,
+      menu_url: null,
+      menu: null,
+    }),
+    // True when the location above is this collection's own, so a copy can take it along.
+    has_own_location: Number.isFinite(cp.location?.lat),
     name: cp.custom_name || row.name,
     // The place's real name, for looking it up on Google Maps even when it's been renamed here.
     venue_name: row.name,
@@ -128,11 +126,31 @@ async function readReactions() {
   return { ...res, hasCollections: !res.error };
 }
 
-// Every collection entry I can see, with its event days when the database has those columns
+// A collection's own location for a place (see 20261018120000_collection_place_location.sql).
+const LOCATION_COLUMNS = 'address, lat, lng, hours, phone, booking_url, location_source, location_source_id';
+
+// The location fields a place uses, from a collection entry's own columns. null when it has none.
+function entryLocation(entry) {
+  if (!Number.isFinite(entry?.lat) || !Number.isFinite(entry?.lng)) return null;
+  return {
+    address: entry.address,
+    lat: entry.lat,
+    lng: entry.lng,
+    hours: entry.hours,
+    phone: entry.phone,
+    booking_url: entry.booking_url,
+    source: entry.location_source,
+    source_id: entry.location_source_id,
+  };
+}
+
+// Every collection entry I can see, with its event days and own location when the database has those columns
 // (see 20261013090000_event_dates.sql and 20261018090000_event_end_dates.sql). Before then, it is read
 // again without them.
 async function readEntries() {
   const columns = 'place_id, collection_id, custom_name, custom_emoji, category';
+  const withLocations = await supabase.from('collection_places').select(`${columns}, event_date, event_end_date, ${LOCATION_COLUMNS}`);
+  if (!withLocations.error) return { ...withLocations, hasEventDates: true, hasEventEndDates: true };
   const withEnds = await supabase.from('collection_places').select(`${columns}, event_date, event_end_date`);
   if (!withEnds.error) return { ...withEnds, hasEventDates: true, hasEventEndDates: true };
   const withDates = await supabase.from('collection_places').select(`${columns}, event_date`);
@@ -222,6 +240,7 @@ export function useAppData(userId, showToast) {
           ...(reactionsRes.hasCollections && { reactions: votes[`${cp.collection_id}:${p.id}`] ?? {} }),
           event_date: eventDates[`${cp.collection_id}:${p.id}`] ?? null,
           event_end_date: eventEndDates[`${cp.collection_id}:${p.id}`] ?? null,
+          location: entryLocation(entry),
         };
       }),
     }));
@@ -445,12 +464,10 @@ export function useAppData(userId, showToast) {
     // Name, emoji and category are per collection (collection_places).
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
-    // A new location only changes this collection's place (relocate_place). When the place is
-    // also in other collections, this collection gets its own copy with a new id.
+    // A new location is saved for this collection only (relocate_place), like its name and emoji.
     updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, location = null }) => {
-      let placeId = place.id;
       if (location) {
-        const { data: newId, error: locationError } = await supabase.rpc('relocate_place', {
+        const { error: locationError } = await supabase.rpc('relocate_place', {
           p_collection_id: place.collection_id,
           p_place_id: place.id,
           p_lat: location.lat,
@@ -467,10 +484,6 @@ export function useAppData(userId, showToast) {
           showToast(`Location not changed: ${friendlyError(locationError)}`);
           return null;
         }
-        if (newId && newId !== place.id) {
-          placeId = newId;
-          await moveBookingFiles(place.collection_id, place.id, newId);
-        }
       }
       const patch = { custom_name: name, custom_emoji: emoji || null, category };
       if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? eventDate : null, eventEndDate));
@@ -478,7 +491,7 @@ export function useAppData(userId, showToast) {
         .from('collection_places')
         .update(patch)
         .eq('collection_id', place.collection_id)
-        .eq('place_id', placeId)
+        .eq('place_id', place.id)
         .select('place_id');
       if (error) {
         showToast(`${friendlyError(error)}`);
@@ -503,6 +516,17 @@ export function useAppData(userId, showToast) {
           category: place.category,
           custom_name: place.name,
           custom_emoji: place.emoji ?? null,
+          // A location this collection set for itself goes along with the copy.
+          ...(place.has_own_location && {
+            address: place.address,
+            lat: place.lat,
+            lng: place.lng,
+            hours: place.hours,
+            phone: place.phone,
+            booking_url: place.booking_url,
+            location_source: place.source,
+            location_source_id: place.source_id,
+          }),
         })
       ),
 
