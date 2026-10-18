@@ -4,6 +4,7 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
+import CandidateAddress from './CandidateAddress';
 import PlaceSearchInput from './PlaceSearchInput';
 import { requestLocationApi } from '../lib/googlePlaces';
 
@@ -236,7 +237,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
                   {googleResults.map((candidate) => (
                     <button key={candidate.url} type="button" className="map-search-result" disabled={!!loadingGoogleUrl} onClick={() => pickGoogle(candidate)}>
                       <strong>{loadingGoogleUrl === candidate.url ? 'Loading…' : candidate.name}</strong>
-                      <span>{candidate.address || candidate.summary || 'Google Maps place'}</span>
+                      <span><CandidateAddress candidate={candidate} /></span>
                     </button>
                   ))}
                 </div>

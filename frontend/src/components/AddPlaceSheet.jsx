@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
+import CandidateAddress from './CandidateAddress';
 import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
@@ -984,8 +985,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                         {loadingCandidateUrl === candidate.url ? <span className="skeleton-bar" style={{ width: '60%' }} aria-label="Loading details" /> : candidate.name}
                       </strong>
                       <span style={{ display: 'block', marginTop: '3px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {[candidate.address, candidate.category, candidate.rating && `★ ${candidate.rating}`]
-                          .filter(Boolean).join(' · ') || candidate.summary || 'Google Maps place'}
+                        <CandidateAddress candidate={candidate} />
                       </span>
                     </button>
                   ))}
@@ -1041,7 +1041,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                             onClick={() => setVerifyCandidate(candidate)}
                           >
                             <strong>{candidate.name}</strong>
-                            <span>{candidate.address || candidate.summary || 'Address not listed'}</span>
+                            <span><CandidateAddress candidate={candidate} fallback="Address not listed" /></span>
                           </button>
                         ))}
                       </div>

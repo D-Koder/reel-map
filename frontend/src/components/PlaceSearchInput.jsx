@@ -10,6 +10,8 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState(''); // '' | 'searching' | 'retrieving' | 'none' | 'error'
   const [bias, setBias] = useState(null);
+  // Bumped when the box is tapped holding text filled in for the person, so that text is searched too.
+  const [tapped, setTapped] = useState(0);
   // True while the text is what the person typed. Text filled in for them (a pick, a reel lookup,
   // the place being edited) doesn't open the list.
   const typedRef = useRef(false);
@@ -55,7 +57,7 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
     };
     // origin is a new array each render; its numbers are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, origin[0], origin[1]]);
+  }, [value, tapped, origin[0], origin[1]]);
 
   const choose = async (result) => {
     const sessionToken = sessionRef.current ?? crypto.randomUUID();
@@ -87,7 +89,14 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
         typedRef.current = true;
         onChange(e.target.value);
       }}
-      onFocus={requestUserLocation}
+      onFocus={() => {
+        requestUserLocation();
+        // Text from a reel lookup: show Mapbox's suggestions for it straight away.
+        if (!typedRef.current && value.trim().length >= 3) {
+          typedRef.current = true;
+          setTapped((count) => count + 1);
+        }
+      }}
       onKeyDown={(e) => {
         // Enter picks the top suggestion instead of sending the form.
         if (e.key === 'Enter' && results[0]) {

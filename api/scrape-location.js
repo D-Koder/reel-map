@@ -90,7 +90,7 @@ module.exports = async function handler(req, res) {
           const lines = (card?.innerText || anchor.innerText || '').split('\n').map((line) => line.trim()).filter(Boolean);
           const summary = [...new Set(lines.filter((line) => line !== name))].slice(0, 5).join(' · ');
           const address = lines.flatMap((line) => line.split('·').map((part) => part.trim())).find((line) => /\d/.test(line) &&
-            /\b(?:street|st|road|rd|avenue|ave|highway|hwy|drive|dr|lane|ln|court|ct|way|place|pl)\b/i.test(line)) || '';
+            /\b(?:street|st|road|rd|avenue|ave|highway|hwy|drive|dr|lane|ln|court|ct|way|place|pl|alley|arcade|parade|pde|boulevard|blvd|crescent|cres|terrace|tce|square|sq|walk|esplanade|esp|grove|gr|close|circuit|cct|mall|laneway|row)\b/i.test(line)) || '';
           const category = lines.find((line) => line.includes('·'))?.split('·')[0].trim() || '';
           const rating = lines.find((line) => /^[1-5](?:\.\d)?$/.test(line)) || '';
           return [{ name, url, address, category, rating, summary }];

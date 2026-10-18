@@ -56,3 +56,23 @@ export async function retrievePlace(mapboxId, sessionToken, signal) {
     category: props.poi_category ? guessCategory(props.poi_category) : null,
   };
 }
+
+// The street, suburb and state at a spot, for Google results whose list card has no address:
+// { street: '1 Rainbow Alley', area: 'Melbourne VIC' }. Null when Mapbox has nothing there.
+export async function addressAt(lng, lat, signal) {
+  const url = new URL(`${SEARCH_BASE}/reverse`);
+  url.searchParams.set('longitude', String(lng));
+  url.searchParams.set('latitude', String(lat));
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('types', 'address');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('language', 'en');
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox reverse returned HTTP ${response.status}`);
+  const props = (await response.json()).features?.[0]?.properties;
+  if (!props) return null;
+  const context = props.context ?? {};
+  const suburb = context.locality?.name || context.place?.name || '';
+  const state = context.region?.region_code || context.region?.name || '';
+  return { street: props.name || context.address?.name || '', area: [suburb, state].filter(Boolean).join(' ') };
+}
