@@ -1,7 +1,7 @@
 import React from 'react';
 import { Coffee, MapPin, PartyPopper, UtensilsCrossed } from 'lucide-react';
 
-const CATEGORY_ICONS = { cafe: Coffee, food: UtensilsCrossed, event: PartyPopper };
+const CATEGORY_ICONS = { cafe: Coffee, food: UtensilsCrossed, event: PartyPopper, other: MapPin };
 
 // A tile in the category's colour with the place's emoji or the category icon.
 // Reels show their platform's own embed instead (ReelEmbedThumb); no reel cover image is copied.

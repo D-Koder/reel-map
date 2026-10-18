@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Coffee, PartyPopper, UtensilsCrossed } from 'lucide-react';
+import { Coffee, MapPin, PartyPopper, UtensilsCrossed } from 'lucide-react';
 import PlaceThumb from './PlaceThumb';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const PIN_ICONS = { cafe: Coffee, event: PartyPopper, food: UtensilsCrossed };
+const PIN_ICONS = { cafe: Coffee, event: PartyPopper, food: UtensilsCrossed, other: MapPin };
 
 // A Mapbox Static Images map centred on the place. Mapbox's logo and attribution stay on the image.
 function staticMapUrl(style, lng, lat) {

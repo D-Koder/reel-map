@@ -10,6 +10,7 @@ export const categories = [
   { id: 'cafe', icon: '☕', label: 'Cafe' },
   { id: 'food', icon: '🍽️', label: 'Food' },
   { id: 'event', icon: '🎉', label: 'Event' },
+  { id: 'other', icon: '📍', label: 'Other' },
 ];
 
 export const AVATARS = ['🙂', '😎', '🧑', '👩', '👨', '🦊', '🐼', '🐨', '🌸', '⚡'];

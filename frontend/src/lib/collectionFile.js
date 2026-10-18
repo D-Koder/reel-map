@@ -5,7 +5,7 @@
 //   (Google Takeout → Saved), so the same reader takes both. Votes are never exported.
 
 const FILE_KIND = 'reel-map-collection';
-const CATEGORIES = new Set(['cafe', 'food', 'event']);
+const CATEGORIES = new Set(['cafe', 'food', 'event', 'other']);
 // Large files are cut here so an import can't run for minutes.
 export const IMPORT_LIMIT = 300;
 

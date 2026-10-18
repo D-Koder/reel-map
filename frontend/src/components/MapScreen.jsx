@@ -11,7 +11,7 @@ const LONG_PRESS_MS = 1000;
 const LONG_PRESS_MAX_MOVE_PX = 10;
 
 // Markers are plain DOM, so each category's icon is rendered to SVG markup once and reused.
-const PIN_ICONS = { cafe: Coffee, event: PartyPopper, food: UtensilsCrossed };
+const PIN_ICONS = { cafe: Coffee, event: PartyPopper, food: UtensilsCrossed, other: MapPin };
 const pinIconMarkup = {};
 function categoryPinIcon(category) {
   const key = PIN_ICONS[category] ? category : 'food';
