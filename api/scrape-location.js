@@ -8,6 +8,15 @@ const PLACE_CACHE_DAYS = 100;
 // Maps results are read as text, so images (map tiles, photos), video and fonts are skipped.
 const SKIP = ['image', 'media', 'font'];
 
+// Google answers in the server's language (English) unless asked, so 裕興記 comes back as "Yuxing Ji",
+// which no name check can match. A search written in Chinese, Japanese or Korean asks for that language.
+function mapsLanguage(text) {
+  if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return 'ja';
+  if (/\p{Script=Hangul}/u.test(text)) return 'ko';
+  if (/\p{Script=Han}/u.test(text)) return 'zh-CN';
+  return '';
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -20,7 +29,8 @@ module.exports = async function handler(req, res) {
     [location, placeName].filter(Boolean).join(' ') || caption;
   if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  const language = mapsLanguage(`${query} ${placeName}`);
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}${language ? `&hl=${language}` : ''}`;
   let selectedPlaceUrl = '';
   let selectedPlaceSlug = '';
   let selectedPlaceCoordinates = null;
@@ -31,6 +41,7 @@ module.exports = async function handler(req, res) {
           !candidateUrl.pathname.startsWith('/maps/place/')) {
         return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
       }
+      if (language) candidateUrl.searchParams.set('hl', language);
       selectedPlaceUrl = candidateUrl.href;
       selectedPlaceSlug = decodeURIComponent(candidateUrl.pathname.split('/')[3] || '').replace(/\+/g, ' ');
       selectedPlaceCoordinates = candidateUrl.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
@@ -97,10 +108,15 @@ module.exports = async function handler(req, res) {
           }
           const lines = (card?.innerText || anchor.innerText || '').split('\n').map((line) => line.trim()).filter(Boolean);
           const summary = [...new Set(lines.filter((line) => line !== name))].slice(0, 5).join(' · ');
-          const address = lines.flatMap((line) => line.split('·').map((part) => part.trim())).find((line) => /\d/.test(line) &&
-            /\b(?:street|st|road|rd|avenue|ave|highway|hwy|drive|dr|lane|ln|court|ct|way|place|pl|alley|arcade|parade|pde|boulevard|blvd|crescent|cres|terrace|tce|square|sq|walk|esplanade|esp|grove|gr|close|circuit|cct|mall|laneway|row)\b/i.test(line)) || '';
+          // An address has a number and a street word: "830 Weihai Rd", or in Chinese, Japanese or Korean a
+          // number with 号/番地/丁目/번지 or after a street (威海路830号, 松涛街1088号, 神南1-2-3, 세종대로 110).
+          const parts = lines.flatMap((line) => line.split('·').map((part) => part.trim()));
+          const address = parts.find((line) => /\d/.test(line) &&
+            (/\b(?:street|st|road|rd|avenue|ave|highway|hwy|drive|dr|lane|ln|court|ct|way|place|pl|alley|arcade|parade|pde|boulevard|blvd|crescent|cres|terrace|tce|square|sq|walk|esplanade|esp|grove|gr|close|circuit|cct|mall|laneway|row)\b/i.test(line) ||
+              /\d\s*(?:号|號|番地?|丁目|번지|번길)|(?:路|街|道|巷|弄|里|町|로|길)\s*\d|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]\d+-\d+/u.test(line))) || '';
           const category = lines.find((line) => line.includes('·'))?.split('·')[0].trim() || '';
-          const rating = lines.find((line) => /^[1-5](?:\.\d)?$/.test(line)) || '';
+          // "4.6" on its own line, or "4.6(153)" with the review count.
+          const rating = parts.map((part) => part.match(/^([1-5](?:\.\d)?)(?:\s*\([\d,]+\))?$/)?.[1]).find(Boolean) || '';
           return [{ name, url, address, category, rating, summary }];
         }).slice(0, 5);
       });

@@ -86,9 +86,10 @@ const squash = (text) => String(text ?? '')
 // How long a squashed name is for the "too short to match by chance" rules. A Chinese, Japanese or
 // Korean character says as much as two letters, so a three-character name like 人和馆 counts.
 // Same as in api/_lib/names.js.
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 function letters(key) {
   let count = 0;
-  for (const char of key) count += /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(char) ? 2 : 1;
+  for (const char of key) count += CJK.test(char) ? 2 : 1;
   return count;
 }
 
@@ -225,7 +226,9 @@ function nameInsideHint(name, hint) {
 
 // The results named like the place, so a search that also returns unrelated places nearby ("Sole Wash"
 // for "Sneaker Laundry LAB") only offers the ones that fit. Each hint (best first) is tried; the first
-// that matches any result decides. When nothing matches, every result is kept.
+// that matches any result decides. When nothing matches, every result is kept. A result written in
+// another script than a Chinese, Japanese or Korean hint ("Yuxing Ji" for 裕興記) can't be compared, so
+// it's kept too.
 export function relatedPlaces(candidates, hints = []) {
   if (!candidates?.length) return [];
   for (const hint of hints) {
@@ -233,7 +236,7 @@ export function relatedPlaces(candidates, hints = []) {
     if (letters(key) < 4) continue;
     const related = candidates.filter((candidate) => hasWholeWords(candidate.name, key) ||
       squash(candidate.name).includes(key) || nameInsideHint(candidate.name, hint));
-    if (related.length) return related;
+    if (related.length) return candidates.filter((candidate) => related.includes(candidate) || (CJK.test(hint) && !CJK.test(candidate.name)));
   }
   return candidates;
 }
