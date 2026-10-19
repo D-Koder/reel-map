@@ -10,6 +10,7 @@ const SKIP = ['image', 'media', 'font'];
 
 // Google answers in the server's language (English) unless asked, so 裕興記 comes back as "Yuxing Ji",
 // which no name check can match. A search written in Chinese, Japanese or Korean asks for that language.
+// A place's details stay in English, so the saved address reads "830 Weihai Rd, Jing'an, Shanghai".
 function mapsLanguage(text) {
   if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return 'ja';
   if (/\p{Script=Hangul}/u.test(text)) return 'ko';
@@ -29,7 +30,7 @@ module.exports = async function handler(req, res) {
     [location, placeName].filter(Boolean).join(' ') || caption;
   if (!query) return res.status(400).json({ error: 'Provide a place name or address to search Google Maps' });
 
-  const language = mapsLanguage(`${query} ${placeName}`);
+  const language = action === 'details' ? '' : mapsLanguage(`${query} ${placeName}`);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}${language ? `&hl=${language}` : ''}`;
   let selectedPlaceUrl = '';
   let selectedPlaceSlug = '';
@@ -41,7 +42,7 @@ module.exports = async function handler(req, res) {
           !candidateUrl.pathname.startsWith('/maps/place/')) {
         return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
       }
-      if (language) candidateUrl.searchParams.set('hl', language);
+      candidateUrl.searchParams.set('hl', 'en');
       selectedPlaceUrl = candidateUrl.href;
       selectedPlaceSlug = decodeURIComponent(candidateUrl.pathname.split('/')[3] || '').replace(/\+/g, ' ');
       selectedPlaceCoordinates = candidateUrl.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
@@ -49,7 +50,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
     }
     // A place's details are shared by everyone who picks it (table place_lookups, keyed by its link).
-    const cached = await readCache('place_lookups', req.body.placeUrl, PLACE_CACHE_DAYS);
+    const cached = await readCache('place_lookups', selectedPlaceUrl, PLACE_CACHE_DAYS);
     if (cached?.data) return res.status(200).json(cached.data);
   }
   let browser;
@@ -273,6 +274,9 @@ module.exports = async function handler(req, res) {
 
     if (action === 'details') {
       if (!result.address) result.address = req.body?.placeAddress || location;
+      // Keep the name the post and the results list use (裕兴记) rather than Google's English one (Yuxing Ji).
+      const cjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+      if (cjk.test(placeName) && !cjk.test(result.name)) result.name = placeName;
       if (selectedPlaceCoordinates) {
         result.latitude = Number(selectedPlaceCoordinates[1]);
         result.longitude = Number(selectedPlaceCoordinates[2]);
@@ -368,7 +372,7 @@ module.exports = async function handler(req, res) {
 
     const output = { success: true, query, ...result };
     console.log('[scrape-location] Extracted place details:', JSON.stringify(output, null, 2));
-    if (action === 'details') await writeCache('place_lookups', req.body.placeUrl, output);
+    if (action === 'details') await writeCache('place_lookups', selectedPlaceUrl, output);
     return res.status(200).json(output);
   } catch (error) {
     console.error('[scrape-location] Google Maps scrape failed:', error);
