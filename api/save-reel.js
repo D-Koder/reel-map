@@ -11,8 +11,8 @@ const { requestCountry } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-// The server key when there is one, so save_shared_reel and mark_shortcut_connected needn't be open to
-// the public (anon). The anon key still works until those are revoked from anon.
+// The server key: save_shared_reel and mark_shortcut_connected are only open to it (see migration
+// 20261020090000_shortcut_functions_server_only.sql), so local dev needs SUPABASE_SERVICE_ROLE_KEY too.
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 // Calls a database function as the server.
