@@ -206,13 +206,14 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   // A row with no place name (saved by older code from a search of the caption) is a guess: ignored.
   // A list post is kept with its list and the first place's results, so the next person picks from the list.
   if (cachedPlace?.placeName && (cached.data.candidates?.length === 1 || cachedPlace.choices?.length > 1)) {
-    const { placeName = '', location = '', venue = '', category, choices, area } = cachedPlace;
+    const { placeName = '', location = '', venue = '', category, choices, area, orderOnly } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
       ...(category ? { category } : {}),
       ...(choices?.length ? { listedPlaces: choices } : {}),
       ...(area ? { area } : {}),
+      ...(orderOnly ? { orderOnly } : {}),
     };
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
@@ -470,12 +471,18 @@ async function enrich(req, res, getBrowser) {
       collaborators: reel.collaborators, tagged: reel.tagged, slide, userCountry: country,
       postDay: reel.date ? dayIn(timeZone, reel.date) : '',
     });
-    steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only' ? 'order/pickup post, no place'
+    steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
+      ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
+        : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`
       : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})${
         ai.temporary ? `; pop-up${ai.endDate ? ` on ${ai.startDate === ai.endDate ? ai.endDate : `${ai.startDate} to ${ai.endDate}`} — quote: "${ai.dateEvidence}"` : ', no clear dates'}` : ''}`
         : 'found no place'}`;
     if (ai?.kind === 'order_only') {
+      // A business with no shop: its name is searched, but never a guess. orderOnly goes back to the app
+      // (and into the saved lookup), which pins the suburb when nothing is found.
       aiOrderOnly = true;
+      if (ai.places.length) ({ reel, venue } = aiFound = applyAi(reel, ai));
+      reel = { ...reel, orderOnly: { area: ai.places[0]?.area || ai.postArea || '', pickupPlace: ai.pickupPlace } };
     } else if (ai?.places.length) {
       aiFound = applyAi(reel, ai);
       ({ reel, venue } = aiFound);
@@ -515,9 +522,9 @@ async function enrich(req, res, getBrowser) {
   const placeName = String(reel.placeName || '').replace(/^@/, '');
   // The AI's venue is searched on its own with the area: the rest of the caption only adds noise.
   // With no venue at all, the whole caption is the last resort: captions usually end with the venue,
-  // so the flipped caption leads with it. An order/pickup post (the AI says so) is not searched:
-  // no place is better than the collection point.
-  const orderOnly = aiOrderOnly;
+  // so the flipped caption leads with it. An order/pickup post (the AI says so) only searches the
+  // business's name: anything else would find a random place nearby.
+  const orderOnly = aiOrderOnly || Boolean(reel.orderOnly);
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
@@ -531,6 +538,7 @@ async function enrich(req, res, getBrowser) {
       ...(reel.category ? { category: reel.category } : {}),
       ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
       ...(area ? { area } : {}),
+      ...(reel.orderOnly ? { orderOnly: reel.orderOnly } : {}),
     },
     candidates,
   });
@@ -607,15 +615,35 @@ async function enrich(req, res, getBrowser) {
     // result at its street address (a pop-up in a shop: the shop's pin, the pop-up's name), is used.
     // A town or suburb (Google's answer to a vague search) is never picked by itself.
     const places = candidates.filter((candidate) => !isArea(candidate));
-    selectedCandidate = candidates.length === 1
+    // A business with no shop is only picked when Google lists it by its own name (not the suburb's).
+    selectedCandidate = orderOnly ? matchByName(places, [reel.placeName, reel.otherName].filter(Boolean)) : candidates.length === 1
       ? places[0] || null
       : popup ? atStreetAddress(places, reel.location) : bestCandidate(places, nameHints,
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || ''], reel.location);
     autoPicked = true;
   }
 
+  // Google doesn't list the business: its public pickup spot (a hall, a market) is pinned instead,
+  // under the business's name. With no pickup spot, nothing is picked and the app pins the suburb.
+  let pickupQuery = '';
+  if (orderOnly && !selectedCandidate && !req.body?.mapsPlaceUrl && reel.orderOnly?.pickupPlace) {
+    pickupQuery = withArea(reel.orderOnly.pickupPlace, area);
+    const pickupResponse = await invoke(scrapeLocation.run, { action: 'search', query: pickupQuery, location: reel.orderOnly.pickupPlace }, getBrowser);
+    const found = pickupResponse.statusCode < 400 && pickupResponse.body?.success ? pickupResponse.body.candidates || [] : [];
+    const spots = found.filter((candidate) => !isArea(candidate));
+    selectedCandidate = (found.length === 1 ? spots[0] : null) || atStreetAddress(spots, reel.orderOnly.pickupPlace) ||
+      matchByName(spots, [reel.orderOnly.pickupPlace.split(',')[0]]) || null;
+    steps.pickup = selectedCandidate ? `pinned the pickup spot: ${selectedCandidate.name}` : `pickup spot not found: ${pickupQuery}`;
+  }
+  const atPickup = Boolean(pickupQuery && selectedCandidate);
+  if (orderOnly && !selectedCandidate) {
+    // Results not named like the business are someone else's place: none are offered.
+    candidates = [];
+    steps.pickup = `${steps.pickup ? `${steps.pickup}; ` : ''}${reel.orderOnly?.area ? `the app pins the area: ${reel.orderOnly.area}` : 'no area to pin'}`;
+  }
+
   const detailsRead = selectedCandidate
-    ? await readDetails(selectedCandidate, query, reel, getBrowser)
+    ? await readDetails(selectedCandidate, atPickup ? pickupQuery : query, reel, getBrowser)
     : { details: null, detailsError: null };
   const { detailsError } = detailsRead;
   let { details } = detailsRead;
@@ -627,12 +655,16 @@ async function enrich(req, res, getBrowser) {
     details = { ...details, name: reel.placeName, googleName: details.name };
     steps.pickedBy = `the post's address (${reel.location}); Google lists it as ${details.googleName}`;
   }
+  // The pickup spot's pin and address, under the business's name.
+  if (atPickup && details && reel.placeName) details = { ...details, name: reel.placeName, googleName: details.name };
 
   // Saved for everyone only when the app picked one place by itself and read it without an error.
   // A choice, a typed name, no match or an error isn't saved, so the next person sees the options again.
   // Nor is a pop-up: it's only on for a few days, and the pick is its street, not the pop-up.
   // Nor when nothing named the place (a search of the caption): that pick is a guess.
-  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup && Boolean(reel.placeName);
+  // Nor a pickup spot: a later lookup would name it as the spot, not the business.
+  const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup && !atPickup &&
+    Boolean(reel.placeName);
   // A list post shared without a slide: nothing is picked, but the list and the first place's results
   // are saved, so the next share shows the list straight away. /api/listed-place saves each place's results.
   const saveList = !read.fromCache && !popup && reel.listedPlaces?.length > 1 && Boolean(reel.placeName);
@@ -641,6 +673,7 @@ async function enrich(req, res, getBrowser) {
   steps.saved = read.fromCache ? 'already saved' : save ? 'yes (the app picked the place by itself)'
     : saveList ? 'yes (the list of places; the person picks which one)'
     : popup ? 'no (pop-ups are only on for a few days)'
+      : atPickup ? 'no (pinned at the pickup spot)'
       : selectedCandidate && !reel.placeName ? 'no (nothing named the place, so the pick is a guess)'
       : 'no (not picked by the app by itself, so the next person sees the options)';
 
@@ -650,6 +683,7 @@ async function enrich(req, res, getBrowser) {
     area,
     steps,
     ...(popup ? { popup } : {}),
-    maps: { success: true, query, candidates, selectedCandidate, details, detailsError },
+    maps: { success: true, query: pickupQuery || query, candidates: atPickup ? [selectedCandidate] : candidates, selectedCandidate,
+      details, detailsError },
   });
 }

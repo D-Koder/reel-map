@@ -9,6 +9,7 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import PlaceSearchInput from './PlaceSearchInput';
 import { requestListedPlace, requestLocationApi } from '../lib/googlePlaces';
 import { apiFetch } from '../lib/api';
+import { findArea } from '../lib/mapboxSearch';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -240,6 +241,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         addLog(page.error ? `Google Maps error: ${page.error}`
           : `Google showed: "${page.title}" ${page.url} · ${page.text.replace(/\s+/g, ' ').slice(0, 200)}`, 'error');
       }
+      if (steps.pickup) addLog(`No shop to visit: ${steps.pickup}`, 'info');
       if (steps.saved) addLog(`Saved for other people: ${steps.saved}`, 'info');
     }
     // The AI's category (cafe, food, event or other), when it read the caption.
@@ -269,7 +271,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         setName(popup?.name || data.maps.details.name || data.placeName || name);
         setLocation(data.maps.details.address || data.location || '');
         addLog(`Google Maps matched ${data.maps.details.name}.`, 'success');
-        if (data.maps.details.googleName) addLog(`Matched by the post's address; Google lists it as ${data.maps.details.googleName}.`, 'success');
+        if (data.maps.details.googleName) {
+          addLog(data.orderOnly ? `Pinned at the pickup spot, ${data.maps.details.googleName}.`
+            : `Matched by the post's address; Google lists it as ${data.maps.details.googleName}.`, 'success');
+        }
         addLog(`Address: ${data.maps.details.address || 'Not listed'}`, 'success');
       } else if (!popup && !(data.listedPlaces?.length > 1) && bestPlaceMatch(candidates, reelPlaceHints(data), reelPlaceAreas(data), data.location)) {
         // (Not for a list post shared without a slide: the person says which place they meant.)
@@ -288,6 +293,33 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       } else if (data.maps.error) {
         addLog(`Google Maps: ${data.maps.error}`, 'error');
       }
+    }
+    // A business with no shop (pre-orders, a home bakery): "Pre-order" goes in custom info, and when
+    // Google lists neither the business nor its pickup spot, its suburb is pinned instead.
+    const orderOnly = data.orderOnly;
+    if (orderOnly) {
+      const spot = orderOnly.pickupPlace?.split(',')[0].trim();
+      const pickup = spot ? ` · pickup at ${spot}` : orderOnly.area ? ` · pickup in ${orderOnly.area}` : '';
+      setCustomInfo((typed) => typed || `Pre-order${pickup}`);
+      if (!data.maps?.details && orderOnly.area) pinArea(orderOnly.area);
+    }
+  };
+
+  // Pins a suburb or city, for a business with no shop that Google doesn't list.
+  const pinArea = async (area) => {
+    if (!MAPBOX_TOKEN) return;
+    try {
+      const found = await findArea(area, AbortSignal.timeout(12000));
+      if (!found) {
+        addLog(`Couldn't find ${area} on the map; add the address yourself.`, 'error');
+        return;
+      }
+      setLocation(found.address);
+      setMapsData(null);
+      setPinCoords({ latitude: found.lat, longitude: found.lng, source: 'area' });
+      addLog(`No shop to visit, so the pin is the pickup area: ${found.address}.`, 'success');
+    } catch (error) {
+      addLog(`Couldn't pin ${area}: ${error.message}`, 'error');
     }
   };
 
@@ -573,7 +605,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     try {
       // Google place first, then the spot tapped on the map. Mapbox is only a fallback.
       let venueDetails = mapsData ?? pinCoords;
-      if (!mapsData && pinCoords) addLog(pinCoords.source === 'mapbox' ? 'Using the place picked from search.' : 'Using the spot you tapped on the map.', 'info');
+      if (!mapsData && pinCoords) {
+        addLog(pinCoords.source === 'mapbox' ? 'Using the place picked from search.'
+          : pinCoords.source === 'area' ? 'Using the pickup area.' : 'Using the spot you tapped on the map.', 'info');
+      }
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
         if (!MAPBOX_TOKEN) {
           addLog('Mapbox token is missing; saved address will not have a map pin.', 'error');
@@ -1031,7 +1066,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               <span className="field-hint">
                 {pinCoords?.source === 'mapbox'
                   ? 'Pinned from your pick. Change the address to search again.'
-                  : 'Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.'}
+                  : pinCoords?.source === 'area'
+                    ? 'Approximate: pickup area only. Change the address to search again.'
+                    : 'Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.'}
               </span>
             </div>
 

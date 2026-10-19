@@ -76,3 +76,22 @@ export async function addressAt(lng, lat, signal) {
   const state = context.region?.region_code || context.region?.name || '';
   return { street: props.name || context.address?.name || '', area: [suburb, state].filter(Boolean).join(' ') };
 }
+
+// A suburb or city by name, for a business with no shop: { lng, lat, address }, ranked near the person
+// (by their IP), so "Heathwood" is the one in their part of the world. Null when Mapbox has no such area.
+export async function findArea(text, signal) {
+  const url = new URL(`${SEARCH_BASE}/forward`);
+  url.searchParams.set('q', text);
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('types', 'neighborhood,locality,place,district');
+  url.searchParams.set('proximity', 'ip');
+  url.searchParams.set('language', 'en');
+  url.searchParams.set('limit', '1');
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox search returned HTTP ${response.status}`);
+  const feature = (await response.json()).features?.[0];
+  const [lng, lat] = feature?.geometry?.coordinates ?? [];
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  const props = feature.properties ?? {};
+  return { lng, lat, address: props.full_address || props.place_formatted || props.name || text };
+}
