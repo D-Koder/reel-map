@@ -1,4 +1,9 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
+const { readCache, writeCache } = require('./_lib/lookup-cache');
+
+// How long a place's saved details are reused. Kept long while there are few users; opening hours and
+// phone numbers can change, so lower it as the app grows.
+const PLACE_CACHE_DAYS = 100;
 
 // Maps results are read as text, so images (map tiles, photos), video and fonts are skipped.
 const SKIP = ['image', 'media', 'font'];
@@ -32,6 +37,9 @@ module.exports = async function handler(req, res) {
     } catch {
       return res.status(400).json({ error: 'Choose a valid Google Maps place result' });
     }
+    // A place's details are shared by everyone who picks it (table place_lookups, keyed by its link).
+    const cached = await readCache('place_lookups', req.body.placeUrl, PLACE_CACHE_DAYS);
+    if (cached?.data) return res.status(200).json(cached.data);
   }
   let browser;
   let owned = false;
@@ -344,6 +352,7 @@ module.exports = async function handler(req, res) {
 
     const output = { success: true, query, ...result };
     console.log('[scrape-location] Extracted place details:', JSON.stringify(output, null, 2));
+    if (action === 'details') await writeCache('place_lookups', req.body.placeUrl, output);
     return res.status(200).json(output);
   } catch (error) {
     console.error('[scrape-location] Google Maps scrape failed:', error);

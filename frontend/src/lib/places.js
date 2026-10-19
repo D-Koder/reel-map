@@ -1,3 +1,6 @@
+import { CustomConverter } from 'opencc-js/core';
+import TSCharacters from 'opencc-js/dict/TSCharacters';
+
 // Two saved places are at the same spot when their coordinates match to about a metre.
 const SAME_SPOT_DEGREES = 0.00001;
 
@@ -76,12 +79,25 @@ export async function checkedGoogleMapsLink(place, signal) {
   }
 }
 
-// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
-const squash = (text) => String(text ?? '')
+// Traditional Chinese characters as simplified ones, so a caption's 人和館 matches Google's 人和馆.
+// Character by character only: the word lists would add about 50 kB to the app for names.
+const toSimplified = CustomConverter(TSCharacters);
+
+// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal. Same as in api/_lib/names.js.
+const squash = (text) => toSimplified(String(text ?? ''))
   .toLocaleLowerCase()
   .normalize('NFKD')
   .replace(/[̀-ͯ]/g, '')
   .replace(/[^\p{L}\p{N}]+/gu, '');
+
+// How long a squashed name is for the "too short to match by chance" rules. A Chinese, Japanese or
+// Korean character says as much as two letters, so a three-character name like 人和馆 counts.
+// Same as in api/_lib/names.js.
+function letters(key) {
+  let count = 0;
+  for (const char of key) count += /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(char) ? 2 : 1;
+  return count;
+}
 
 // Whole words of a name, squashed: "Yo Art Frozen (The Glen)" → ["yo", "art", "frozen", "the", "glen"].
 const words = (text) => String(text ?? '').split(/[^\p{L}\p{N}]+/u).map(squash).filter(Boolean);
@@ -169,7 +185,7 @@ export function atStreetAddress(candidates, address) {
 function matchByName(candidates, hints) {
   for (const hint of hints) {
     const key = squash(hint);
-    if (key.length < 4) continue;
+    if (letters(key) < 4) continue;
     const whole = candidates.filter((candidate) => hasWholeWords(candidate.name, key));
     if (whole.length === 1) return whole[0];
     if (whole.length > 1) continue;
@@ -185,13 +201,13 @@ function matchByName(candidates, hints) {
 
 // Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
 function matchByArea(candidates, hints, areas) {
-  const hint = hints.map(squash).find((key) => key.length >= 4 &&
+  const hint = hints.map(squash).find((key) => letters(key) >= 4 &&
     candidates.filter((candidate) => hasWholeWords(candidate.name, key)).length > 1);
   if (!hint) return null;
   const branches = candidates.filter((candidate) => hasWholeWords(candidate.name, hint));
   for (const area of areas) {
     const key = squash(area);
-    if (key.length < 4) continue;
+    if (letters(key) < 4) continue;
     const inArea = branches.filter((candidate) => hasWholeWords(`${candidate.name} ${candidate.address || ''}`, key));
     if (inArea.length === 1) return inArea[0];
   }
@@ -209,9 +225,9 @@ export function reelPlaceAreas(reel) {
 // Names under 4 letters (6 for the handle case) are too likely to appear by chance.
 function nameInsideHint(name, hint) {
   const key = squash(name);
-  if (key.length < 4) return false;
+  if (letters(key) < 4) return false;
   if (hasWholeWords(hint, key)) return true;
-  return key.length >= 6 && words(hint).length === 1 && squash(hint).startsWith(key);
+  return letters(key) >= 6 && words(hint).length === 1 && squash(hint).startsWith(key);
 }
 
 // The results named like the place, so a search that also returns unrelated places nearby ("Sole Wash"
@@ -221,7 +237,7 @@ export function relatedPlaces(candidates, hints = []) {
   if (!candidates?.length) return [];
   for (const hint of hints) {
     const key = squash(hint);
-    if (key.length < 4) continue;
+    if (letters(key) < 4) continue;
     const related = candidates.filter((candidate) => hasWholeWords(candidate.name, key) ||
       squash(candidate.name).includes(key) || nameInsideHint(candidate.name, hint));
     if (related.length) return related;

@@ -7,11 +7,20 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import PlaceSearchInput from './PlaceSearchInput';
-import { requestLocationApi } from '../lib/googlePlaces';
+import { requestListedPlace, requestLocationApi } from '../lib/googlePlaces';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
 const NEW_COLLECTION = '__new__';
+// A list post: how many of its places are looked up as soon as the list shows. The rest wait for a tap.
+const LISTED_AHEAD = 8;
+// What each listed place's lookup found, under its name in the list.
+const LISTED_STATUS = {
+  looking: 'Looking it up…',
+  found: 'Found on Google Maps',
+  pick: 'Pick from Google’s results',
+  none: 'Not found on Google Maps',
+};
 
 const isValidReelUrl = (url) => {
   try {
@@ -120,6 +129,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [leftToPick, setLeftToPick] = useState(null);
   // The listed place the form is showing now (its line in the post).
   const activeListedRef = useRef(null);
+  // Each listed place's Google Maps lookup, by its line in the post: a promise of { candidates, best,
+  // details }, shared by the early lookup, a tap and "Add all", so no place is searched twice.
+  const listedLookupsRef = useRef(new Map());
+  // How each listed place's lookup went, by its line: a key of LISTED_STATUS.
+  const [listedStatus, setListedStatus] = useState({});
   const [addingAllListed, setAddingAllListed] = useState(false);
   const [verifyResults, setVerifyResults] = useState(null);
   const [verifyCandidate, setVerifyCandidate] = useState(null);
@@ -204,6 +218,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
   const applyReelData = (data) => {
     setScrapedData(data);
+    listedLookupsRef.current = new Map();
+    setListedStatus({});
     // No name found: the first part of a "Name, Suburb" location, unless it's a street address.
     const locationName = /\d/.test(data.location?.split(',')[0] ?? '') || !data.location?.includes(',')
       ? '' : data.location.split(',')[0].trim();
@@ -276,10 +292,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   // keepName: the name to keep when the result was picked by its address but Google names it
   // differently (often the shop that was there before).
-  const selectLocationCandidate = async (candidate, preserveName = false, keepName = '') => {
-    setLoadingCandidateUrl(candidate.url);
+  // details: the place's details when they were already read, so there's nothing to wait for.
+  const selectLocationCandidate = async (candidate, preserveName = false, keepName = '', details = null) => {
+    if (!details) setLoadingCandidateUrl(candidate.url);
     try {
-      const data = await requestLocationApi({
+      const data = details || await requestLocationApi({
         action: 'details',
         query: candidate.searchQuery,
         placeUrl: candidate.url,
@@ -306,7 +323,66 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
-  // A place tapped in "This post lists N places": fill the form with it and find it on Google Maps.
+  // One listed place's Google Maps lookup: its results, the clear match (if any) and the match's details,
+  // read now so picking it doesn't wait. Asked once per place; later asks get the same promise. The
+  // reel lookup already searched the first place, so its results are used as they are.
+  const lookupListed = (item) => {
+    const known = listedLookupsRef.current.get(item.line);
+    if (known) return known;
+    const first = item.name === scrapedData?.placeName && scrapedData?.maps?.candidates?.length ? scrapedData.maps : null;
+    const lookup = (async () => {
+      const data = first || await requestListedPlace({
+        reelUrl: reelUrl.trim(), name: item.name, address: item.address || '', area: scrapedData?.area || '',
+      });
+      const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
+      const best = bestPlaceMatch(candidates, [item.name], [], item.address);
+      addLog(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
+        first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
+      const details = best ? await requestLocationApi({
+        action: 'details',
+        query: best.searchQuery,
+        placeUrl: best.url,
+        placeAddress: best.address,
+        placeName: best.name,
+        location: best.address || item.address || scrapedData?.area || '',
+      }).catch(() => null) : null;
+      return { candidates, best, details };
+    })();
+    const lookups = listedLookupsRef.current;
+    lookups.set(item.line, lookup);
+    setListedStatus((now) => ({ ...now, [item.line]: 'looking' }));
+    // Only while this reel is still the one in the sheet.
+    const setStatus = (status) => lookups === listedLookupsRef.current && setListedStatus((now) => {
+      const { [item.line]: _, ...rest } = now;
+      return status ? { ...rest, [item.line]: status } : rest;
+    });
+    lookup.then(
+      ({ candidates, best }) => setStatus(best ? 'found' : candidates.length ? 'pick' : 'none'),
+      () => {
+        // A failed lookup is forgotten, so a tap tries again.
+        lookups.delete(item.line);
+        setStatus(null);
+      },
+    );
+    return lookup;
+  };
+
+  // A list post: its places are looked up as soon as the list shows, two at a time, so tapping one
+  // or "Add all" doesn't wait for Google Maps.
+  useEffect(() => {
+    const list = scrapedData?.listedPlaces;
+    if (!(list?.length > 1)) return;
+    const queue = list.slice(0, LISTED_AHEAD);
+    const work = async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) await lookupListed(item).catch(() => {});
+    };
+    work();
+    work();
+    // lookupListed reads the reel from this render; a new reel gives a new scrapedData.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrapedData]);
+
+  // A place tapped in "This post lists N places": fill the form with it and its Google Maps match.
   const chooseListed = async (item) => {
     activeListedRef.current = item.line;
     nameTypedRef.current = false;
@@ -318,26 +394,25 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setLocationSearchDone(false);
     setChoosingListed(item.line);
     try {
-      const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
-      const candidates = relatedPlaces(await searchCandidates(query), [item.name])
-        .map((candidate) => ({ ...candidate, searchQuery: query }));
-      const best = bestPlaceMatch(candidates, [item.name]);
+      const { candidates, best, details } = await lookupListed(item);
+      // Another place was tapped while this one was still being looked up.
+      if (activeListedRef.current !== item.line) return;
       if (best) {
-        await selectLocationCandidate(best);
+        await selectLocationCandidate(best, false, '', details);
       } else {
-        setLocationCandidates(candidates);
+        setLocationCandidates(relatedPlaces(candidates, [item.name]));
         setLocationSearchDone(true);
       }
     } catch (error) {
-      addLog(`Could not find ${item.name}: ${error.message}`, 'error');
+      if (activeListedRef.current === item.line) addLog(`Could not find ${item.name}: ${error.message}`, 'error');
     } finally {
-      setChoosingListed(null);
+      setChoosingListed((now) => (now === item.line ? null : now));
     }
   };
 
-  // "Add all" on a list post: every listed place is looked up on Google Maps, and the clear matches are
-  // saved to the chosen collection. The ones Maps can't match stay in the sheet to pick one by one,
-  // rather than being saved with no map pin.
+  // "Add all" on a list post: every listed place's Google Maps match (already looked up, or looked up
+  // now), and the clear matches are saved to the chosen collection. The ones Maps can't match stay in
+  // the sheet to pick one by one, rather than being saved with no map pin.
   const addAllListed = async () => {
     if (!collectionId || !onAddAll || !scrapedData?.listedPlaces?.length) return;
     setAddingAllListed(true);
@@ -346,18 +421,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const unclear = [];
     try {
       for (const item of scrapedData.listedPlaces) {
-        addLog(`Looking up ${item.name}…`, 'info');
-        const query = [item.name, item.address, scrapedData?.area].filter(Boolean).join(', ');
-        const candidates = (await searchCandidates(query)).map((candidate) => ({ ...candidate, searchQuery: query }));
-        const best = bestPlaceMatch(candidates, [item.name], [], item.address);
+        const { best, details } = await lookupListed(item);
         if (!best) {
           addLog(`No clear match for ${item.name}; pick it below.`, 'info');
           unclear.push(item);
           continue;
         }
-        const venueDetails = await requestLocationApi({
+        const venueDetails = details || await requestLocationApi({
           action: 'details',
-          query,
+          query: best.searchQuery,
           placeUrl: best.url,
           placeAddress: best.address,
           placeName: best.name,
@@ -877,10 +949,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                       className={`listed-place ${name === item.name ? 'is-on' : ''}`}
                       aria-pressed={name === item.name}
                       onClick={() => chooseListed(item)}
-                      disabled={saving || !!choosingListed || !!loadingCandidateUrl}
+                      disabled={saving || !!loadingCandidateUrl}
                     >
                       <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
                       {item.address && <span>{item.address}</span>}
+                      {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
                     </button>
                   ))}
                 </div>

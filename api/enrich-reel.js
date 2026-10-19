@@ -1,17 +1,16 @@
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
+const { reelLookupKey } = require('./_lib/reel-url');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { aiPlace } = require('./_lib/ai-place');
+const { squash, letters } = require('./_lib/names');
 
-// How long saved lookups are reused. Kept long while there are few users; opening hours and phone
-// numbers can change, so lower PLACE_CACHE_DAYS as the app grows.
+// How long saved reel lookups are reused (place details: PLACE_CACHE_DAYS in scrape-location.js).
 const REEL_CACHE_DAYS = 100;
-const PLACE_CACHE_DAYS = 100;
 
 async function invoke(handler, body, getBrowser) {
   const response = {
@@ -76,11 +75,6 @@ function applyAi(reel, ai) {
     lowConfidence: ai.confidence === 'low',
     popup,
   };
-}
-
-// Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
-function squash(value) {
-  return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
 // True when some run of whole words in the name spells the key: "Yo Art Frozen" spells "yoart",
@@ -151,13 +145,13 @@ function atStreetAddress(candidates, address) {
 
 // Branches named like the place (whole words), narrowed to the one whose name or address has the suburb.
 function matchByArea(candidates, hints, areas) {
-  const hint = hints.map(squash).find((key) => key.length >= 4 &&
+  const hint = hints.map(squash).find((key) => letters(key) >= 4 &&
     candidates.filter((candidate) => hasWholeWords(candidate.name, key)).length > 1);
   if (!hint) return null;
   const branches = candidates.filter((candidate) => hasWholeWords(candidate.name, hint));
   for (const area of areas) {
     const key = squash(area);
-    if (key.length < 4) continue;
+    if (letters(key) < 4) continue;
     const inArea = branches.filter((candidate) => hasWholeWords(`${candidate.name} ${candidate.address || ''}`, key));
     if (inArea.length === 1) return inArea[0];
   }
@@ -167,7 +161,7 @@ function matchByArea(candidates, hints, areas) {
 function matchByName(candidates, hints) {
   for (const hint of hints) {
     const key = squash(hint);
-    if (key.length < 4) continue;
+    if (letters(key) < 4) continue;
     const whole = candidates.filter((candidate) => hasWholeWords(candidate.name, key));
     if (whole.length === 1) return whole[0];
     if (whole.length > 1) continue;
@@ -185,10 +179,10 @@ function matchByName(candidates, hints) {
 // handle with a suffix ("sneakerlaundrylabau" → "Sneaker Laundry LAB"). Same as in places.js.
 function nameInsideHint(name, hint) {
   const key = squash(name);
-  if (key.length < 4) return false;
+  if (letters(key) < 4) return false;
   if (hasWholeWords(hint, key)) return true;
   const hintWords = String(hint || '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  return key.length >= 6 && hintWords.length === 1 && squash(hint).startsWith(key);
+  return letters(key) >= 6 && hintWords.length === 1 && squash(hint).startsWith(key);
 }
 
 function normalize(value) {
@@ -197,21 +191,24 @@ function normalize(value) {
 
 // What a reel lookup needs, from the shared cache when anyone has looked the reel up before.
 // The cache keeps only the venue it found ({ placeName, location, venue }) and the one Google result the
-// app picked by itself: never the caption, hashtags or creator. Rows with several results or none (saved
-// by older code, before a person chose) are ignored, so the next person sees the choices again.
+// app picked by itself: never the caption, hashtags or creator. A list post also keeps its list, its area
+// and its first place's results. Other rows with several results or none (saved by older code, before a
+// person chose) are ignored, so the next person sees the choices again.
 // Returns { reel, venue, candidates, fromCache } on success, or { status, body } with the scraper's error.
 // cleanUrl is the link that is read; cacheKey also names the slide for carousel links.
 async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cached = await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS);
   const cachedPlace = cached?.data?.place;
   // A row with no place name (saved by older code from a search of the caption) is a guess: ignored.
-  if (cachedPlace?.placeName && cached.data.candidates?.length === 1) {
-    const { placeName = '', location = '', venue = '', category, choices } = cachedPlace;
+  // A list post is kept with its list and the first place's results, so the next person picks from the list.
+  if (cachedPlace?.placeName && (cached.data.candidates?.length === 1 || cachedPlace.choices?.length > 1)) {
+    const { placeName = '', location = '', venue = '', category, choices, area } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
       placeName, location, date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'cache',
       ...(category ? { category } : {}),
       ...(choices?.length ? { listedPlaces: choices } : {}),
+      ...(area ? { area } : {}),
     };
     return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
   }
@@ -230,11 +227,8 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   return { reel, venue: '', candidates: null, fromCache: false };
 }
 
-// Google Maps details for one result, shared by everyone who saves that place.
+// Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
 async function readDetails(candidate, query, reel, getBrowser) {
-  const cached = await readCache('place_lookups', candidate.url, PLACE_CACHE_DAYS);
-  if (cached?.data) return { details: cached.data, detailsError: null };
-
   const detailsResponse = await invoke(scrapeLocation, {
     action: 'details',
     query,
@@ -246,7 +240,6 @@ async function readDetails(candidate, query, reel, getBrowser) {
   if (detailsResponse.statusCode >= 400) {
     return { details: null, detailsError: detailsResponse.body?.error || 'Could not read Google Maps details' };
   }
-  await writeCache('place_lookups', candidate.url, detailsResponse.body);
   return { details: detailsResponse.body, detailsError: null };
 }
 
@@ -290,7 +283,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     if (searches >= HANDLE_SEARCHES || Date.now() - startedAt > HANDLE_BUDGET_MS) return null;
     tried.add(handle);
     const { name } = handleToPlace(handle);
-    if (squash(name).length < 3) return null;
+    if (letters(squash(name)) < 3) return null;
     const where = current.locationTag || '';
     guess ??= { name, location: where };
     searches += 1;
@@ -299,7 +292,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     const found = response.statusCode < 400 && response.body?.success ? response.body.candidates || [] : [];
     const key = squash(name);
     const named = found.filter((candidate) => hasWholeWords(candidate.name, key) || squash(candidate.name).includes(key) ||
-      (squash(candidate.name).length >= 6 && key.startsWith(squash(candidate.name))));
+      (letters(squash(candidate.name)) >= 6 && key.startsWith(squash(candidate.name))));
     if (!named.length) return null;
     return {
       reel: { ...current, placeName: name, location: where },
@@ -439,11 +432,7 @@ async function enrich(req, res, getBrowser) {
   const startedAt = Date.now();
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
-  const cleanUrl = canonicalInstagramUrl(reelUrl);
-  // Each photo of a carousel can be a different place, so the slide is part of the cache key.
-  const bodySlide = Number(req.body?.slide);
-  const slide = instagramSlide(reelUrl) ?? (Number.isInteger(bodySlide) && bodySlide >= 1 && bodySlide <= 20 ? bodySlide : null);
-  const cacheKey = cleanUrl && slide ? `${cleanUrl}?img_index=${slide}` : cleanUrl;
+  const { cleanUrl, slide, cacheKey } = reelLookupKey(reelUrl, req.body?.slide);
   const read = await readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser);
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
@@ -510,7 +499,7 @@ async function enrich(req, res, getBrowser) {
   // Where the post is: the area the AI read from the caption, else the post's location tag, else the
   // person's own country. It's added to the search, so Google doesn't answer a vague search with
   // places near the server (in the US). The page is only opened for the tag when nothing else says where.
-  let area = '';
+  let area = read.fromCache ? reel.area || '' : '';
   if (!read.fromCache && !handleHit) {
     area = aiFound?.area || reel.locationTag;
     if (!area) {
@@ -529,7 +518,7 @@ async function enrich(req, res, getBrowser) {
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
   const query = handleHit?.query ||
-    (venue ? `📍${withArea(venue, area)}` : captionQuery) ||
+    (venue ? withArea(venue, area) : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
@@ -537,6 +526,7 @@ async function enrich(req, res, getBrowser) {
       placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
       ...(reel.category ? { category: reel.category } : {}),
       ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
+      ...(area ? { area } : {}),
     },
     candidates,
   });
@@ -638,8 +628,13 @@ async function enrich(req, res, getBrowser) {
   // Nor is a pop-up: it's only on for a few days, and the pick is its street, not the pop-up.
   // Nor when nothing named the place (a search of the caption): that pick is a guess.
   const save = !read.fromCache && autoPicked && selectedCandidate && details && !detailsError && !popup && Boolean(reel.placeName);
+  // A list post shared without a slide: nothing is picked, but the list and the first place's results
+  // are saved, so the next share shows the list straight away. /api/listed-place saves each place's results.
+  const saveList = !read.fromCache && !popup && reel.listedPlaces?.length > 1 && Boolean(reel.placeName);
   if (save) await saveReel([selectedCandidate]);
+  else if (saveList) await saveReel(candidates);
   steps.saved = read.fromCache ? 'already saved' : save ? 'yes (the app picked the place by itself)'
+    : saveList ? 'yes (the list of places; the person picks which one)'
     : popup ? 'no (pop-ups are only on for a few days)'
       : selectedCandidate && !reel.placeName ? 'no (nothing named the place, so the pick is a guess)'
       : 'no (not picked by the app by itself, so the next person sees the options)';

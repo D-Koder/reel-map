@@ -8,6 +8,9 @@
     "api/scrape-location.js": {
       "maxDuration": 60
     },
+    "api/listed-place.js": {
+      "maxDuration": 60
+    },
     "api/enrich-reel.js": {
       "maxDuration": 120
     },

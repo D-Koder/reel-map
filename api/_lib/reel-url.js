@@ -24,4 +24,14 @@ function instagramSlide(value) {
   }
 }
 
-module.exports = { canonicalInstagramUrl, instagramSlide };
+// The reel's clean link, its slide and its key in the shared lookup cache (table reel_lookups). Each
+// photo of a carousel can be a different place, so the slide (from the link, else `bodySlide`) is part
+// of the key. Only Instagram lookups are cached: cacheKey is null for anything else.
+function reelLookupKey(reelUrl, bodySlide) {
+  const cleanUrl = canonicalInstagramUrl(reelUrl);
+  const asked = Number(bodySlide);
+  const slide = instagramSlide(reelUrl) ?? (Number.isInteger(asked) && asked >= 1 && asked <= 20 ? asked : null);
+  return { cleanUrl, slide, cacheKey: cleanUrl && slide ? `${cleanUrl}?img_index=${slide}` : cleanUrl };
+}
+
+module.exports = { canonicalInstagramUrl, instagramSlide, reelLookupKey };
