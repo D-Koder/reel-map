@@ -14,6 +14,8 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const NEW_COLLECTION = '__new__';
 // A list post: how many of its places are looked up as soon as the list shows. The rest wait for a tap.
 const LISTED_AHEAD = 8;
+// Name hints for a listed place: its name, then the same name in the other Chinese script (人和館 → 人和馆).
+const listedHints = (item) => [item.name, item.otherName].filter(Boolean);
 // What each listed place's lookup found, under its name in the list.
 const LISTED_STATUS = {
   looking: 'Looking it up…',
@@ -335,7 +337,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         reelUrl: reelUrl.trim(), name: item.name, address: item.address || '', area: scrapedData?.area || '',
       });
       const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
-      const best = bestPlaceMatch(candidates, [item.name], [], item.address);
+      const best = bestPlaceMatch(candidates, listedHints(item), [], item.address);
       addLog(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
         first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
       const details = best ? await requestLocationApi({
@@ -400,7 +402,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       if (best) {
         await selectLocationCandidate(best, false, '', details);
       } else {
-        setLocationCandidates(relatedPlaces(candidates, [item.name]));
+        setLocationCandidates(relatedPlaces(candidates, listedHints(item)));
         setLocationSearchDone(true);
       }
     } catch (error) {

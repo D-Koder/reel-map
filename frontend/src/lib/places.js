@@ -238,10 +238,12 @@ export function relatedPlaces(candidates, hints = []) {
   return candidates;
 }
 
-// Name hints from a reel lookup, best first: the place the AI read, then the first part of the location.
+// Name hints from a reel lookup, best first: the place the AI read, the same name in the other Chinese script
+// (人和館 → 人和馆), then the first part of the location.
 export function reelPlaceHints(reel) {
   return [
     String(reel?.placeName ?? '').replace(/^@/, ''),
+    reel?.otherName,
     reel?.location?.split(',')[0],
   ].filter(Boolean);
 }

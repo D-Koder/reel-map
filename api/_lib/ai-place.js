@@ -57,6 +57,12 @@ Some general patterns, not word lists:
 Rules:
 - Copy names exactly as written in the post, in their original language
   and script. Do not translate, correct spelling, or add words.
+- When a name is written in Chinese characters, also give the same name
+  in the other Chinese script in "other_script_name": traditional →
+  simplified (人和館 → 人和馆), simplified → traditional. Change only the
+  characters, one for one: same name, same length, nothing translated.
+  Google Maps often lists a place in the other script. For any other
+  name, or when both scripts are the same, "other_script_name" is "".
 - When the venue is named by a handle (rules 4, 5, 6 or 7), put the handle
   exactly as written, without the @, in "handle". Its "name" is the
   business name the handle spells, as the business would write it: every
@@ -125,7 +131,7 @@ Follow @kel.eats for more 🍴
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Lunetta Bakehouse", "handle": "", "area": "Melbourne",
+ "places": [{"name": "Lunetta Bakehouse", "other_script_name": "", "handle": "", "area": "Melbourne",
    "address": "22 Hardware Lane, Melbourne VIC 3000", "category": "cafe", "source": "pin",
    "evidence": "Lunetta Bakehouse, 22 Hardware Lane, Melbourne VIC 3000"}],
  "slide_place": null, "post_area": "Melbourne", "confidence": "high", "post_category": "cafe",
@@ -150,7 +156,7 @@ Go hungry 😋 #melbourneevents
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Dumpling Festival", "handle": "", "area": "Fitzroy",
+ "places": [{"name": "Dumpling Festival", "other_script_name": "", "handle": "", "area": "Fitzroy",
    "address": "Gertrude Street, Fitzroy", "category": "event", "source": "text", "evidence": "DUMPLING FESTIVAL"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "high", "post_category": "event",
  "temporary": true, "start_date": "2026-10-17", "end_date": "2026-10-18",
@@ -177,14 +183,15 @@ weekend" is Saturday 17 and Sunday 18 October.
 <answer>
 {"kind": "list",
  "places": [
-  {"name": "金湯小館", "handle": "", "area": "信義區", "address": "信義區松仁路28號", "category": "food", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
-  {"name": "鼎香樓", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "category": "food", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
-  {"name": "小巷湯包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "category": "food", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
+  {"name": "金湯小館", "other_script_name": "金汤小馆", "handle": "", "area": "信義區", "address": "信義區松仁路28號", "category": "food", "source": "text", "evidence": "金湯小館｜信義區松仁路28號"},
+  {"name": "鼎香樓", "other_script_name": "鼎香楼", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "category": "food", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
+  {"name": "小巷湯包", "other_script_name": "小巷汤包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "category": "food", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
  "slide_place": 1, "post_area": "台北市", "confidence": "high", "post_category": "food",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
 </answer>
 Why: a list with one place per slide. Slide 1 is the cover, so slide 3
-is the second place. Names stay in Chinese, untranslated.
+is the second place. Names stay in Chinese, untranslated; each also comes
+in simplified characters, since the caption is in traditional.
 </example>
 
 <example>
@@ -220,7 +227,7 @@ See you at the shop ☺️
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Kick Bakery Fitzroy", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
+ "places": [{"name": "Kick Bakery Fitzroy", "other_script_name": "", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
    "address": "", "category": "cafe", "source": "creator", "evidence": "See you at the shop"}],
  "slide_place": null, "post_area": "Fitzroy", "confidence": "medium", "post_category": "cafe",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
@@ -245,7 +252,7 @@ Merci @cafelumiere.paris 🙏 and shoutout to @parisfoodguide for the rec
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Café Lumière", "handle": "", "area": "Le Marais, Paris",
+ "places": [{"name": "Café Lumière", "other_script_name": "", "handle": "", "area": "Le Marais, Paris",
    "address": "41 rue des Tournelles, 75004", "category": "cafe", "source": "location_tag",
    "evidence": "Café Lumière"}],
  "slide_place": null, "post_area": "Paris", "confidence": "high", "post_category": "cafe",
@@ -270,7 +277,7 @@ Which would you order first? 👀
 </post>
 <answer>
 {"kind": "single",
- "places": [{"name": "Salt and Ember Sydney", "handle": "saltandember.sydney", "area": "Sydney",
+ "places": [{"name": "Salt and Ember Sydney", "other_script_name": "", "handle": "saltandember.sydney", "area": "Sydney",
    "address": "", "category": "food", "source": "mention", "evidence": "saltandember.sydney"}],
  "slide_place": null, "post_area": "Sydney", "confidence": "medium", "post_category": "food",
  "temporary": false, "start_date": "", "end_date": "", "date_evidence": ""}
@@ -313,6 +320,7 @@ const SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string' },
+          other_script_name: { type: 'string' },
           handle: { type: 'string' },
           area: { type: 'string' },
           address: { type: 'string' },
@@ -320,7 +328,7 @@ const SCHEMA = {
           source: { type: 'string', enum: ['label', 'location_tag', 'pin', 'mention', 'creator', 'text'] },
           evidence: { type: 'string' },
         },
-        required: ['name', 'handle', 'area', 'address', 'category', 'source', 'evidence'],
+        required: ['name', 'other_script_name', 'handle', 'area', 'address', 'category', 'source', 'evidence'],
         additionalProperties: false,
       },
     },
@@ -359,6 +367,15 @@ const flat = (text) => String(text || '').replace(/\s+/g, ' ').trim().toLocaleLo
 const squash = (text) => String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase()
   .replace(/[^\p{L}\p{N}]+/gu, '');
 
+// The other-script spelling, when it is the same name: as many characters, every changed one Chinese.
+function otherScript(name, other) {
+  const from = [...String(name || '').trim()];
+  const to = [...String(other || '').trim()];
+  if (!to.length || to.length !== from.length || to.join('') === from.join('')) return '';
+  const han = /\p{Script=Han}/u;
+  return to.every((char, i) => char === from[i] || (han.test(char) && han.test(from[i]))) ? to.join('') : '';
+}
+
 const DAY_MS = 86400000;
 const dayNumber = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}T00:00:00Z`) / DAY_MS : NaN);
 
@@ -382,7 +399,7 @@ function checkDates(answer, post) {
 }
 
 // The venue(s) the post is about, or null when the AI can't be used.
-// Returns { kind, places: [{ name, handle, area, address, category, source, evidence }], slidePlace, postArea, confidence,
+// Returns { kind, places: [{ name, otherName, handle, area, address, category, source, evidence }], slidePlace, postArea, confidence,
 //   postCategory, temporary, startDate, endDate, dateEvidence }. postCategory: the kind of place the whole post is
 //   about. temporary: a pop-up, stall or market with no shop of its own.
 // A place whose evidence isn't really in the post is dropped: the AI made it up.
@@ -390,6 +407,8 @@ function checkDates(answer, post) {
 // "The Brunswick Fish and Chippery" passes for thebrunswick_fishandchippery; "The Brunswick" and
 // "Brunswick Seafood" don't.
 // When it doesn't, the handle itself is used as the name.
+// otherName: a Chinese name in the other script (人和館 → 人和馆), only kept when it changes characters one
+// for one, so a translation or a made-up name never becomes a match hint. Else ''.
 async function aiPlace(post) {
   if (!process.env.ANTHROPIC_API_KEY || !post?.caption) return null;
   try {
@@ -421,10 +440,10 @@ async function aiPlace(post) {
       if (spellsExactly(place.name, handle)) return { ...place, handle };
       console.warn('AI name not spelled by its handle, using the handle:', place.name, '←', handle);
       return { ...place, name: handle, handle };
-    });
+    }).map(({ other_script_name: other, ...place }) => ({ ...place, otherName: otherScript(place.name, other) }));
     const places = checked.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
       spells(place.name, seenSquashed));
-    console.log('AI places:', JSON.stringify(places.map(({ name, handle, evidence }) => ({ name, handle, evidence }))),
+    console.log('AI places:', JSON.stringify(places.map(({ name, otherName, handle, evidence }) => ({ name, otherName, handle, evidence }))),
       'confidence:', answer.confidence);
     // The slide's place, found again after any made-up places were dropped.
     const slideIndex = Number.isInteger(answer.slide_place) ? places.indexOf(checked[answer.slide_place]) : -1;

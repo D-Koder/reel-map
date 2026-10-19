@@ -38,6 +38,15 @@ const CASES = [
     expect: { kind: 'order_only' },
   },
   {
+    label: 'Traditional Chinese list, simplified spellings',
+    post: {
+      creator: 'sasa_finger_licking',
+      caption: '🇨🇳上海4間必吃蟹黃系列🦀\n🥇 人和館｜蟹粉拌飯\n🥈 屋有鮮｜感謝貴客 綜合小籠\n🥉 裕興記｜金牌蟹黃大湯包\n' +
+        '④萊萊小籠｜蟹粉鮮肉小籠\n\n#莎莎玩上海 #上海美食 #小籠包 #shanghai',
+    },
+    expect: { kind: 'list', count: 4, otherName: '人和馆' },
+  },
+  {
     label: 'Travel vlog, no venue',
     post: {
       creator: 'sam.travels',
@@ -59,7 +68,8 @@ async function main() {
     const names = result?.places.map((place) => place.name) ?? [];
     const ok = result && result.kind === expect.kind &&
       (!expect.name || names[0] === expect.name) &&
-      (!expect.count || names.length === expect.count);
+      (!expect.count || names.length === expect.count) &&
+      (!expect.otherName || result.places[0]?.otherName === expect.otherName);
     if (ok) passed += 1;
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
     console.log(`      ${JSON.stringify(result)}`);
