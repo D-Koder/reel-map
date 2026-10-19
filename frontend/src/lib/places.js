@@ -1,6 +1,3 @@
-import { CustomConverter } from 'opencc-js/core';
-import TSCharacters from 'opencc-js/dict/TSCharacters';
-
 // Two saved places are at the same spot when their coordinates match to about a metre.
 const SAME_SPOT_DEGREES = 0.00001;
 
@@ -79,12 +76,8 @@ export async function checkedGoogleMapsLink(place, signal) {
   }
 }
 
-// Traditional Chinese characters as simplified ones, so a caption's 人和館 matches Google's 人和馆.
-// Character by character only: the word lists would add about 50 kB to the app for names.
-const toSimplified = CustomConverter(TSCharacters);
-
 // Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal. Same as in api/_lib/names.js.
-const squash = (text) => toSimplified(String(text ?? ''))
+const squash = (text) => String(text ?? '')
   .toLocaleLowerCase()
   .normalize('NFKD')
   .replace(/[̀-ͯ]/g, '')

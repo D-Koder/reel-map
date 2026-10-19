@@ -1,12 +1,8 @@
 // Place names as the name-matching rules compare them. Same as in frontend/src/lib/places.js.
-const { Converter } = require('opencc-js/t2cn');
-
-// Traditional Chinese characters as simplified ones, so a caption's 人和館 matches Google's 人和馆.
-const toSimplified = Converter({ from: 't', to: 'cn' });
 
 // Lower-case letters and digits only, so "Yo Art" and "YoArt" compare equal.
 function squash(value) {
-  return toSimplified(String(value || '')).toLocaleLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+  return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
