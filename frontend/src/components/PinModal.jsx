@@ -3,6 +3,7 @@ import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar } from '../lib/calendar';
+import { apiFetch } from '../lib/api';
 import { shareBooking, sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
 import ConfirmDialog from './ConfirmDialog';
@@ -155,9 +156,7 @@ export default function PinModal({
   const sendReport = async () => {
     setReportStatus('sending');
     try {
-      const response = await fetch('/api/report-lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await apiFetch('/api/report-lookup', {
         body: JSON.stringify({
           reelUrl: place.reel_url || '',
           placeName: place.name,

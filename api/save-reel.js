@@ -6,6 +6,7 @@
 // a clear match is saved to TBD, otherwise the lookup waits for the app's Finish card. Either way a
 // push says so (migration 20261019140000_background_shared_reels.sql).
 
+const { internalHeaders } = require('./_lib/auth');
 const { requestCountry } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 
@@ -74,7 +75,8 @@ function lookInBackground(req, key, sharedText) {
     try {
       const response = await fetch(`${protocol}://${host}/api/enrich-reel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Lets this server past enrich-reel's sign-in check (see api/_lib/auth.js).
+        headers: { 'Content-Type': 'application/json', ...internalHeaders() },
         // This request comes from Vercel itself, so the person's country is passed on from theirs.
         // from: 'inbox' keeps a lookup_debug row when no place is matched, like a reel shared in the app.
         body: JSON.stringify({ reelUrl, slide, background: true, from: 'inbox', country: requestCountry(req) }),

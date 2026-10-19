@@ -1,3 +1,4 @@
+const { requireUser } = require('./_lib/auth');
 const scrapeLocation = require('./scrape-location');
 const { reelLookupKey } = require('./_lib/reel-url');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
@@ -14,7 +15,7 @@ const text = (value) => (typeof value === 'string' ? value.trim().slice(0, 500) 
 // Only a place on the list saved by /api/enrich-reel is saved, searched the way the list says, so a
 // request can't save results for anything else. Any other place is searched but not saved.
 // Body: { reelUrl, name, address, area }. Returns { success, query, candidates, saved }.
-module.exports = async function handler(req, res) {
+module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const name = text(req.body?.name);
   if (!name) return res.status(400).json({ error: 'Name the listed place to look up' });
@@ -37,11 +38,11 @@ module.exports = async function handler(req, res) {
   }
 
   const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-  await scrapeLocation({ method: 'POST', body: { action: 'search', query, placeName: name, location: query } }, reply);
+  await scrapeLocation.run({ method: 'POST', body: { action: 'search', query, placeName: name, location: query } }, reply);
   // "No results" is an empty list, not an error. It isn't saved, so the next try searches again.
   if (reply.code === 404) return res.status(200).json({ success: true, query, candidates: [], saved: false });
   if (reply.code >= 400 || !reply.body?.success) return res.status(reply.code >= 400 ? reply.code : 502).json(reply.body || {});
   const candidates = reply.body.candidates || [];
   if (key && candidates.length) await writeCache('reel_lookups', key, { query, candidates });
   return res.status(200).json({ success: true, query, candidates, saved: Boolean(key && candidates.length) });
-};
+});

@@ -8,6 +8,7 @@ import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import PlaceSearchInput from './PlaceSearchInput';
 import { requestListedPlace, requestLocationApi } from '../lib/googlePlaces';
+import { apiFetch } from '../lib/api';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -181,9 +182,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     addLog('Starting to fetch reel data...', 'info');
 
     try {
-      const response = await fetch('/api/enrich-reel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await apiFetch('/api/enrich-reel', {
         body: JSON.stringify({ reelUrl: url }),
       });
       const data = await response.json().catch(() => ({}));
@@ -720,9 +719,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               onClick={async () => {
                 setReportStatus('sending');
                 try {
-                  const response = await fetch('/api/report-lookup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                  const response = await apiFetch('/api/report-lookup', {
                     body: JSON.stringify({
                       reelUrl: reelUrl || reelUrlInput.trim(),
                       caption: scrapedData?.caption || '',

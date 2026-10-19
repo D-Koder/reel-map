@@ -1,7 +1,8 @@
+const { requireUser } = require('./_lib/auth');
 const { insertDebugRow } = require('./_lib/lookup-cache');
 
 // Saves a manual add's details and the person's comment to lookup_debug, so a missed place can be looked at later.
-module.exports = async function handler(req, res) {
+module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const text = (value, max = 2048) => (typeof value === 'string' ? value.trim().slice(0, max) : '') || null;
@@ -28,4 +29,4 @@ module.exports = async function handler(req, res) {
   });
 
   return res.status(200).json({ success: true });
-};
+});

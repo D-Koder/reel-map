@@ -1,3 +1,4 @@
+const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { reelLookupKey } = require('./_lib/reel-url');
@@ -232,7 +233,7 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
 
 // Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
 async function readDetails(candidate, query, reel, getBrowser) {
-  const detailsResponse = await invoke(scrapeLocation, {
+  const detailsResponse = await invoke(scrapeLocation.run, {
     action: 'details',
     query,
     placeUrl: candidate.url,
@@ -291,7 +292,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
     guess ??= { name, location: where };
     searches += 1;
     const query = [name, where].filter(Boolean).join(' ');
-    const response = await invoke(scrapeLocation, { action: 'search', query, placeName: name, location: where }, getBrowser);
+    const response = await invoke(scrapeLocation.run, { action: 'search', query, placeName: name, location: where }, getBrowser);
     const found = response.statusCode < 400 && response.body?.success ? response.body.candidates || [] : [];
     const key = squash(name);
     const named = found.filter((candidate) => hasWholeWords(candidate.name, key) || squash(candidate.name).includes(key) ||
@@ -328,7 +329,7 @@ async function findByHandles(reel, cleanUrl, getBrowser, startedAt) {
 
 // One Chrome for every step of this lookup (reel, Maps search, Maps details), started only when a
 // step needs it. Starting Chrome takes a second or two each time, so this saves up to two starts.
-module.exports = async function handler(req, res) {
+module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   let launching = null;
   // A Chrome that failed to start isn't kept, so the next step (e.g. the retry search) starts it again.
@@ -349,7 +350,7 @@ module.exports = async function handler(req, res) {
   } finally {
     if (launching) await closeBrowser(await launching.catch(() => null));
   }
-};
+});
 
 // Why no place was picked, in words, for lookup_debug.
 function noPlaceReason(body) {
@@ -559,7 +560,7 @@ async function enrich(req, res, getBrowser) {
   } else if (handleHit) {
     ({ candidates } = handleHit);
   } else {
-    const searchResponse = await invoke(scrapeLocation, {
+    const searchResponse = await invoke(scrapeLocation.run, {
       action: 'search',
       query,
       placeName: reel.placeName,

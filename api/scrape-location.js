@@ -1,3 +1,4 @@
+const { requireUser } = require('./_lib/auth');
 const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
 
@@ -18,7 +19,7 @@ function mapsLanguage(text) {
   return '';
 }
 
-module.exports = async function handler(req, res) {
+module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const placeName = typeof req.body?.placeName === 'string' ? req.body.placeName.trim() : '';
@@ -386,4 +387,4 @@ module.exports = async function handler(req, res) {
     if (owned) await closeBrowser(browser);
     else await closePage(page);
   }
-};
+});

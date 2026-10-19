@@ -1,9 +1,9 @@
+import { apiFetch } from './api';
+
 // Google Maps lookups through /api/scrape-location (see api/scrape-location.js).
 // { action: 'search', query } lists matching places; { action: 'details', placeUrl, ... } reads one.
 export async function requestLocationApi(payload) {
-  const response = await fetch('/api/scrape-location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await apiFetch('/api/scrape-location', {
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(55000),
   });
@@ -20,9 +20,7 @@ export async function requestLocationApi(payload) {
 // { reelUrl, name, address, area } → { query, candidates }. Its results are saved for everyone who
 // shares the reel, so a second look is instant.
 export async function requestListedPlace(payload) {
-  const response = await fetch('/api/listed-place', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await apiFetch('/api/listed-place', {
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(55000),
   });

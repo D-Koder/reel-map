@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
 import { knownCategory } from '../lib/constants';
+import { apiFetch } from '../lib/api';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -65,9 +66,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         ? item.collectionId
         : await inboxCollectionId();
       if (!collectionId) throw new Error('No collection to save into');
-      const response = await fetch('/api/enrich-reel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await apiFetch('/api/enrich-reel', {
         // from: 'inbox' asks the server to keep a debug row when no place is matched.
         body: JSON.stringify({ reelUrl: item.url, from: 'inbox' }),
         signal: AbortSignal.timeout(120000),
