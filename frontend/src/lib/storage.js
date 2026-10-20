@@ -26,3 +26,20 @@ export function clearUserStorage(userId) {
     // Nothing to clear.
   }
 }
+
+// Everything was reset on 20 Oct 2026 (only profiles and empty collections kept), so each device drops
+// what it saved before, once. The sign-in (Supabase's "sb-…" keys) is kept. Change WIPE_ID to wipe again.
+const WIPE_ID = '2026-10-20';
+const WIPE_KEY = 'reelmap:wiped';
+export function wipeOldStorage() {
+  try {
+    if (localStorage.getItem(WIPE_KEY) === WIPE_ID) return;
+    Object.keys(localStorage)
+      .filter((key) => !key.startsWith('sb-'))
+      .forEach((key) => localStorage.removeItem(key));
+    sessionStorage.clear();
+    localStorage.setItem(WIPE_KEY, WIPE_ID);
+  } catch {
+    // Storage is blocked: nothing saved to wipe.
+  }
+}
