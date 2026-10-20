@@ -92,6 +92,8 @@ export async function findArea(text, signal) {
   const feature = (await response.json()).features?.[0];
   const [lng, lat] = feature?.geometry?.coordinates ?? [];
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  // A suburb has no full_address: its name and place_formatted ("Queensland, Australia") are joined.
   const props = feature.properties ?? {};
-  return { lng, lat, address: props.full_address || props.place_formatted || props.name || text };
+  const address = props.full_address || [props.name || text, props.place_formatted].filter(Boolean).join(', ');
+  return { lng, lat, address };
 }
