@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
 import { knownCategory } from '../lib/constants';
 import { apiFetch } from '../lib/api';
-import { prefetchListedPlaces } from '../lib/listedLookups';
+import { forgetListedLookups, prefetchListedPlaces } from '../lib/listedLookups';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -172,5 +172,12 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, process]);
 
-  return { items, enqueue, watch, unwatch, retry: process, remove };
+  // Removing a card (its ✕) also drops the place lookups kept for it on this device.
+  const dismiss = useCallback((id) => {
+    const item = latest.current.items.find((i) => i.id === id);
+    if (item) forgetListedLookups(item.url);
+    remove(id);
+  }, [remove]);
+
+  return { items, enqueue, watch, unwatch, retry: process, remove, dismiss };
 }

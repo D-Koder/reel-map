@@ -450,7 +450,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
             collections={collections}
             banner={
               <>
-                <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.remove} />
+                <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />
               </>
             }
