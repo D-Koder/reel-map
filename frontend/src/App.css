@@ -843,8 +843,18 @@ button.collection-empty {
 .address-row { display: flex; gap: 8px; align-items: center; }
 .address-row .step-input { flex: 1; min-width: 0; }
 .address-row .step-btn { flex-shrink: 0; white-space: nowrap; }
-/* Verify is a small binoculars button, so the address gets the row. */
-.address-row .verify-btn { width: 44px; min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+/* Verify is a binoculars button inside the box's right edge, so the address gets the whole row. */
+.address-row { position: relative; }
+.address-row:has(.verify-btn) .step-input { padding-right: 52px; }
+.address-row .verify-btn {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  flex: none; width: 40px; height: 40px; min-height: 0; padding: 0;
+  display: inline-grid; place-items: center;
+  border: none; border-radius: 50%; background: transparent; color: var(--text-muted);
+}
+.address-row .verify-btn:not(:disabled):hover,
+.address-row .verify-btn:not(:disabled):active { background: var(--surface); color: var(--text); }
+.address-row .verify-btn:disabled { opacity: 0.4; }
 .address-row .verify-btn .spinner { margin: 0; }
 .field-hint { display: block; margin-top: 6px; color: var(--text-muted); font-size: 14px; }
 
