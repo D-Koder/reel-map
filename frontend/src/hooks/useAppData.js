@@ -408,25 +408,6 @@ export function useAppData(userId, showToast) {
     // Makes a new collection from an imported file (see lib/collectionFile.js) and adds its places
     // one at a time, each reel looked up again first (detailsForImport). onProgress(done, total) runs
     // after each. Returns { collectionId, added, failed, noPin } or null.
-    // Hours, phone, website and menu read after a place was saved ("Add all" on a list post). Nothing
-    // is shown when it fails: the place is already saved, just without them.
-    fillPlaceDetails: async (collectionId, placeId, details) => {
-      if (!details) return;
-      const { error } = await supabase.rpc('fill_place_details', {
-        p_collection_id: collectionId,
-        p_place_id: placeId,
-        p_address: details.address || null,
-        p_hours: details.hours?.length ? details.hours : null,
-        p_phone: details.phone || null,
-        p_booking_url: details.bookingUrl || null,
-        p_maps_url: details.mapsUrl || null,
-        p_website_url: details.websiteUrl || null,
-        p_menu_url: details.menuUrl || null,
-      }).abortSignal(AbortSignal.timeout(20000));
-      if (error) console.warn('Could not fill place details:', error.message);
-      else void refresh().catch(() => {});
-    },
-
     importCollection: async ({ name, emoji, places: rows }, onProgress) => {
       const { data: collectionId, error } = await supabase.rpc('create_collection', { p_name: name, p_emoji: emoji || '📥' });
       if (error || !collectionId) {
