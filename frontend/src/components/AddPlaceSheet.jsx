@@ -346,6 +346,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       setLocationSearchDone(false);
       setVerifyResults(null);
       setVerifyCandidate(null);
+      rememberListedPick(candidate, data);
       addLog(`Selected ${data.name}; scraped its place details.`, 'success');
       addLog(`Address: ${data.address || 'Not listed'}`, 'success');
       addLog(`Google Maps: ${data.mapsUrl || candidate.url}`, 'success');
@@ -354,6 +355,17 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     } finally {
       setLoadingCandidateUrl(null);
     }
+  };
+
+  // A place picked by hand for a listed place counts as its match, so "Add all" and the status line
+  // use it instead of asking to pick it again.
+  const rememberListedPick = (candidate, details) => {
+    const line = activeListedRef.current;
+    const lookups = listedLookupsRef.current;
+    const known = lookups.get(line);
+    if (line == null || !known) return;
+    lookups.set(line, known.then(({ candidates }) => ({ candidates, best: candidate, details })));
+    setListedStatus((now) => ({ ...now, [line]: 'found' }));
   };
 
   // One listed place's Google Maps lookup: its results, the clear match (if any) and the match's details,
@@ -368,7 +380,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         reelUrl: reelUrl.trim(), name: item.name, address: item.address || '', area: scrapedData?.area || '',
       });
       const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
-      const best = bestPlaceMatch(candidates, listedHints(item), [], item.address);
+      // A single Google result is taken as the match.
+      const best = bestPlaceMatch(candidates, listedHints(item), [], item.address)
+        || (candidates.length === 1 ? candidates[0] : null);
       addLog(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
         first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
       const details = best ? await requestLocationApi({
