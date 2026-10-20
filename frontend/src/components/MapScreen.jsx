@@ -151,7 +151,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const [hiddenCollections, setHiddenCollections] = useState(() => new Set());
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
-  const [placesListOpen, setPlacesListOpen] = useState(true);
+  const [placesListOpen, setPlacesListOpen] = useState(false);
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);

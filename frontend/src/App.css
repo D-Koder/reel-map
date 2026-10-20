@@ -562,7 +562,10 @@ button.collection-empty {
   font-size: 14px;
 }
 
-.mapbox-canvas {
+.mapbox-canvas,
+/* mapbox-gl.css now loads after this file (with the map's own chunk) and sets .mapboxgl-map to
+   position: relative, which collapsed the map to 0px tall. The extra class keeps ours on top. */
+.mapbox-canvas.mapboxgl-map {
   position: absolute;
   inset: 0;
 }
