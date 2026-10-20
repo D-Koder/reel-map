@@ -6,10 +6,10 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/scrape-location.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/listed-place.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/enrich-reel.js": {
       "maxDuration": 120
