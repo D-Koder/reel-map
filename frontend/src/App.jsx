@@ -666,8 +666,16 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           }}
           onAddAll={async (list, { more = 0 } = {}) => {
             let added = 0;
-            for (const fields of list) {
-              if (await data.addPlace(fields)) added += 1;
+            for (const { detailsLater, ...fields } of list) {
+              const created = await data.addPlace(fields);
+              if (!created) continue;
+              added += 1;
+              // Saved with its name, pin and address: hours, phone and the rest are filled in once read.
+              if (detailsLater) {
+                detailsLater()
+                  .then((details) => data.fillPlaceDetails(fields.collectionId, created.id, details))
+                  .catch(() => {});
+              }
             }
             if (added) {
               rememberCollection(userId, list[0].collectionId);

@@ -24,6 +24,12 @@ const LISTED_STATUS = {
   none: 'Not found on Google Maps',
 };
 
+// The pin in a Google Maps result's link ("…!3d31.24!4d121.48…"), or null.
+const spotInLink = (url) => {
+  const match = String(url || '').match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  return match ? { lat: Number(match[1]), lng: Number(match[2]) } : null;
+};
+
 const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
@@ -467,23 +473,30 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           unclear.push(item);
           continue;
         }
-        // Details failing for one place leaves it to pick below, rather than stopping the rest.
-        const venueDetails = details || await requestLocationApi({
+        const readDetails = () => requestLocationApi({
           action: 'details',
           query: best.searchQuery,
           placeUrl: best.url,
           placeAddress: best.address,
           placeName: best.name,
           location: best.address || item.address || scrapedData?.area || '',
-        }).catch((error) => {
-          addLog(`Could not read ${item.name}'s details: ${error.message}; pick it below.`, 'error');
-          return null;
         });
+        // The place is saved now with its name, pin and address, and its hours, phone, website and
+        // menu are read in the background and filled in after (detailsLater). Only a result whose link
+        // has no pin waits for its details, since a place isn't saved without one.
+        const spot = spotInLink(best.url);
+        const venueDetails = details || (spot
+          ? { name: best.name, address: best.address || item.address || '', latitude: spot.lat, longitude: spot.lng, mapsUrl: best.url }
+          : await readDetails().catch((error) => {
+            addLog(`Could not read ${item.name}'s details: ${error.message}; pick it below.`, 'error');
+            return null;
+          }));
         if (!venueDetails) {
           unclear.push(item);
           continue;
         }
         places.push({
+          ...(details || !spot ? {} : { detailsLater: readDetails }),
           name: (venueDetails?.name || best.name || item.name).trim(),
           location: (venueDetails?.address || best.address || item.address || '').trim(),
           category: knownCategory(item.category) || category,
