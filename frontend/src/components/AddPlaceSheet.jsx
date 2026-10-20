@@ -397,26 +397,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     return lookup;
   };
 
-  // "Search again": every listed place is searched on Google again, skipping saved results, and the
-  // place open in the form is filled from its new results.
-  const researchListed = async () => {
-    const list = scrapedData?.listedPlaces;
-    if (!(list?.length > 1)) return;
-    addLog('Searching the listed places on Google Maps again.', 'info');
-    forgetListedLookups(reelUrl.trim());
-    listedLookupsRef.current = new Map();
-    setListedStatus({});
-    const active = list.find((item) => item.line === activeListedRef.current);
-    const queue = list.filter((item) => item !== active).slice(0, LISTED_AHEAD);
-    const work = async () => {
-      for (let item = queue.shift(); item; item = queue.shift()) await lookupListed(item, true).catch(() => {});
-    };
-    if (active) {
-      lookupListed(active, true).catch(() => {});
-      chooseListed(active);
-    }
-    work();
-    work();
+  // A listed place's ↻: searched on Google again, skipping saved results, and shown in the form.
+  const researchListed = (item) => {
+    addLog(`Searching ${item.name} on Google Maps again.`, 'info');
+    lookupListed(item, true).catch(() => {});
+    chooseListed(item);
   };
 
   // A list post: its places are looked up as soon as the list shows, two at a time, so tapping one
@@ -993,39 +978,36 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             {/* A list post shared without a slide: which of its places is this? */}
             {(leftToPick?.length > 0 || scrapedData?.listedPlaces?.length > 1) && (
               <div className="field">
-                <div className="listed-head">
-                  <span className="modal-label">
-                    {leftToPick
-                      ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
-                      : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
-                  </span>
-                  {!leftToPick && (
-                    <button
-                      type="button"
-                      className="listed-refresh"
-                      onClick={researchListed}
-                      disabled={saving || addingAllListed || !!loadingCandidateUrl}
-                      aria-label="Search the listed places on Google Maps again"
-                      title="Search again"
-                    >
-                      <RefreshCw size={16} aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
+                <span className="modal-label">
+                  {leftToPick
+                    ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
+                    : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
+                </span>
                 <div className="listed-places">
                   {(leftToPick ?? scrapedData.listedPlaces).map((item) => (
-                    <button
-                      key={item.line}
-                      type="button"
-                      className={`listed-place ${name === item.name ? 'is-on' : ''}`}
-                      aria-pressed={name === item.name}
-                      onClick={() => chooseListed(item)}
-                      disabled={saving || !!loadingCandidateUrl}
-                    >
-                      <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
-                      {item.address && <span>{item.address}</span>}
-                      {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
-                    </button>
+                    <div key={item.line} className="listed-row">
+                      <button
+                        type="button"
+                        className={`listed-place ${name === item.name ? 'is-on' : ''}`}
+                        aria-pressed={name === item.name}
+                        onClick={() => chooseListed(item)}
+                        disabled={saving || !!loadingCandidateUrl}
+                      >
+                        <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
+                        {item.address && <span>{item.address}</span>}
+                        {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
+                      </button>
+                      <button
+                        type="button"
+                        className="listed-refresh"
+                        onClick={() => researchListed(item)}
+                        disabled={saving || addingAllListed || !!loadingCandidateUrl || listedStatus[item.line] === 'looking'}
+                        aria-label={`Search ${item.name} on Google Maps again`}
+                        title="Search again"
+                      >
+                        <RefreshCw size={16} aria-hidden="true" />
+                      </button>
+                    </div>
                   ))}
                 </div>
                 {onAddAll && !leftToPick && (

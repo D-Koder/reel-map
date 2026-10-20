@@ -4550,15 +4550,20 @@ button.profile-open {
 }
 
 /* "This post lists N places": one button per listed place. */
-.listed-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.listed-row {
+  position: relative;
 }
 
+.listed-row .listed-place {
+  padding-right: 56px;
+}
+
+/* Each listed place's ↻, inside its card on the right. */
 .listed-refresh {
-  flex-shrink: 0;
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
   display: inline-grid;
   place-items: center;
   width: 36px;
