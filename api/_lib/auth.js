@@ -44,12 +44,41 @@ async function requestUser(req) {
   }
 }
 
-// Wraps an endpoint so it answers 401 unless the caller is signed in or is this server.
+// Counts one call for this person and says whether it's within the hourly limit (migration
+// 20261020100000_api_rate_limits.sql). When the count can't be made, the call is let through.
+async function withinLimit(userId, endpoint, perHour) {
+  if (!SUPABASE_URL || !SERVICE_KEY) return true;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/count_api_call`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_KEY,
+        // New secret keys (sb_secret_…) go in apikey only; legacy JWT keys go in both.
+        ...(SERVICE_KEY.startsWith('sb_secret_') ? {} : { Authorization: `Bearer ${SERVICE_KEY}` }),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_user_id: userId, p_endpoint: endpoint, p_limit: perHour }),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) !== false;
+  } catch (error) {
+    console.warn('Rate limit check failed, letting the call through:', error.message);
+    return true;
+  }
+}
+
+// Wraps an endpoint so it answers 401 unless the caller is signed in or is this server, and 429 once a
+// person has made `perHour` calls to it this hour. The server's own calls aren't counted.
 // The unwrapped handler stays on .run for endpoints that call each other in-process.
-function requireUser(handler) {
+function requireUser(handler, { endpoint, perHour } = {}) {
   const guarded = async function guardedHandler(req, res) {
-    if (process.env.VERCEL && !isInternal(req) && !(await requestUser(req))) {
-      return res.status(401).json({ error: 'Sign in to look places up' });
+    if (process.env.VERCEL && !isInternal(req)) {
+      const user = await requestUser(req);
+      if (!user) return res.status(401).json({ error: 'Sign in to look places up' });
+      if (endpoint && perHour && !(await withinLimit(user.id, endpoint, perHour))) {
+        return res.status(429).json({ error: 'Too many lookups this hour. Try again later.' });
+      }
     }
     return handler(req, res);
   };

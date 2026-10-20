@@ -45,4 +45,4 @@ module.exports = requireUser(async function handler(req, res) {
   const candidates = reply.body.candidates || [];
   if (key && candidates.length) await writeCache('reel_lookups', key, { query, candidates });
   return res.status(200).json({ success: true, query, candidates, saved: Boolean(key && candidates.length) });
-});
+}, { endpoint: 'listed-place', perHour: 100 });

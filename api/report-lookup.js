@@ -29,4 +29,4 @@ module.exports = requireUser(async function handler(req, res) {
   });
 
   return res.status(200).json({ success: true });
-});
+}, { endpoint: 'report-lookup', perHour: 20 });

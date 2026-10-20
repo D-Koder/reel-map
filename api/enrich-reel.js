@@ -351,7 +351,7 @@ module.exports = requireUser(async function handler(req, res) {
   } finally {
     if (launching) await closeBrowser(await launching.catch(() => null));
   }
-});
+}, { endpoint: 'enrich-reel', perHour: 60 });
 
 // Why no place was picked, in words, for lookup_debug.
 function noPlaceReason(body) {

@@ -387,4 +387,4 @@ module.exports = requireUser(async function handler(req, res) {
     if (owned) await closeBrowser(browser);
     else await closePage(page);
   }
-});
+}, { endpoint: 'scrape-location', perHour: 150 });
