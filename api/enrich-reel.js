@@ -60,8 +60,8 @@ function applyAi(reel, ai) {
   const name = fromHandle ? handleToPlace(pick.name).name : pick.name;
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
-    ? { listedPlaces: ai.places.map(({ name: listed, otherName, address, category, evidence }) => ({
-      name: listed, ...(otherName ? { otherName } : {}), address, category, line: evidence,
+    ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, category, evidence }) => ({
+      name: listed, ...(otherName ? { otherName } : {}), ...(localName ? { localName } : {}), address, category, line: evidence,
     })) }
     : {};
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
@@ -72,9 +72,11 @@ function applyAi(reel, ai) {
   return {
     // Cafe, food, event or other. A pop-up is always an event.
     // otherName: the name in the other Chinese script (人和館 → 人和馆), also matched against Google's names.
-    reel: { ...reel, placeName: name, otherName: fromHandle ? '' : pick.otherName || '', location: pick.address || where,
+    // localName: the name as written locally (Zhapu Road Bridge → 乍浦路桥), searched with and matched against.
+    reel: { ...reel, placeName: name, otherName: fromHandle ? '' : pick.otherName || '',
+      localName: fromHandle ? '' : pick.localName || '', location: pick.address || where,
       placeSource: pick.source, category: ai.temporary ? 'event' : pick.category, ...choices },
-    venue: popup ? pick.address || where : [name, pick.address || where].filter(Boolean).join(', '),
+    venue: popup ? pick.address || where : [(!fromHandle && pick.localName) || name, pick.address || where].filter(Boolean).join(', '),
     area: ai.postArea || pick.area,
     lowConfidence: ai.confidence === 'low',
     popup,
@@ -594,7 +596,7 @@ async function enrich(req, res, getBrowser) {
   // A list post shared without a slide: no telling which place was meant, so nothing is picked
   // unless the person chose a result. Nor when the AI said it was unsure of the place.
   const mustPick = reel.listedPlaces?.length > 1 || Boolean(aiFound?.lowConfidence);
-  const nameHints = [String(reel.placeName || '').replace(/^@/, ''), reel.otherName, venue, String(reel.location || '').split(',')[0]]
+  const nameHints = [String(reel.placeName || '').replace(/^@/, ''), reel.otherName, reel.localName, venue, String(reel.location || '').split(',')[0]]
     .filter(Boolean);
   let selectedCandidate = null;
   // True only when the app picked the place by itself, not from a person's choice or typed name.

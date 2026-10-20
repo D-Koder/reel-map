@@ -63,6 +63,13 @@ Rules:
   characters, one for one: same name, same length, nothing translated.
   Google Maps often lists a place in the other script. For any other
   name, or when both scripts are the same, "other_script_name" is "".
+- When a place in China, Hong Kong, Taiwan, Macau, Japan or Korea is
+  written in English or pinyin ("Zhapu Road Bridge", "Duo Yun Bookstore"),
+  give its name as written locally in "local_name" (乍浦路桥, 朵云书院),
+  only when you know it for sure. Google Maps finds these places by their
+  local name. Use the whole name: "Zhapu Road Bridge" is 乍浦路桥, not
+  乍浦路. Otherwise, or when the name is already in that script,
+  "local_name" is "".
 - When the venue is named by a handle (rules 4, 5, 6 or 7), put the handle
   exactly as written, without the @, in "handle". Its "name" is the
   business name the handle spells, as the business would write it: every
@@ -355,6 +362,7 @@ const SCHEMA = {
         properties: {
           name: { type: 'string' },
           other_script_name: { type: 'string' },
+          local_name: { type: 'string' },
           handle: { type: 'string' },
           area: { type: 'string' },
           address: { type: 'string' },
@@ -362,7 +370,7 @@ const SCHEMA = {
           source: { type: 'string', enum: ['label', 'location_tag', 'pin', 'mention', 'creator', 'text'] },
           evidence: { type: 'string' },
         },
-        required: ['name', 'other_script_name', 'handle', 'area', 'address', 'category', 'source', 'evidence'],
+        required: ['name', 'other_script_name', 'local_name', 'handle', 'area', 'address', 'category', 'source', 'evidence'],
         additionalProperties: false,
       },
     },
@@ -411,6 +419,14 @@ function otherScript(name, other) {
   return to.every((char, i) => char === from[i] || (han.test(char) && han.test(from[i]))) ? to.join('') : '';
 }
 
+// A place's local name (乍浦路桥 for "Zhapu Road Bridge"), kept only for a name written in Latin letters
+// and an answer in Chinese, Japanese or Korean script. It is only searched with, never shown as the name.
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+function localScript(name, local) {
+  const answer = String(local || '').trim();
+  return answer && !CJK.test(name) && CJK.test(answer) && answer.length <= 60 ? answer : '';
+}
+
 const DAY_MS = 86400000;
 const dayNumber = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}T00:00:00Z`) / DAY_MS : NaN);
 
@@ -446,6 +462,8 @@ function checkDates(answer, post) {
 // When it doesn't, the handle itself is used as the name.
 // otherName: a Chinese name in the other script (人和館 → 人和馆), only kept when it changes characters one
 // for one, so a translation or a made-up name never becomes a match hint. Else ''.
+// localName: an English or pinyin name as written locally (Zhapu Road Bridge → 乍浦路桥), searched with
+// instead of the English name, since Google Maps finds Chinese, Japanese and Korean places by it. Else ''.
 async function aiPlace(post) {
   if (!process.env.ANTHROPIC_API_KEY || !post?.caption) return null;
   try {
@@ -477,10 +495,12 @@ async function aiPlace(post) {
       if (spellsExactly(place.name, handle)) return { ...place, handle };
       console.warn('AI name not spelled by its handle, using the handle:', place.name, '←', handle);
       return { ...place, name: handle, handle };
-    }).map(({ other_script_name: other, ...place }) => ({ ...place, otherName: otherScript(place.name, other) }));
+    }).map(({ other_script_name: other, local_name: local, ...place }) => ({
+      ...place, otherName: otherScript(place.name, other), localName: localScript(place.name, local),
+    }));
     const places = checked.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
       spells(place.name, seenSquashed));
-    console.log('AI places:', JSON.stringify(places.map(({ name, otherName, handle, evidence }) => ({ name, otherName, handle, evidence }))),
+    console.log('AI places:', JSON.stringify(places.map(({ name, otherName, localName, handle, evidence }) => ({ name, otherName, localName, handle, evidence }))),
       'confidence:', answer.confidence);
     // The slide's place, found again after any made-up places were dropped.
     const slideIndex = Number.isInteger(answer.slide_place) ? places.indexOf(checked[answer.slide_place]) : -1;

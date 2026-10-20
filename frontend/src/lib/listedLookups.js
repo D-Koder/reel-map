@@ -10,8 +10,9 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 // How many of a post's places are looked up ahead, two at a time.
 export const LISTED_AHEAD = 8;
 
-// Name hints for a listed place: its name, then the same name in the other Chinese script (人和館 → 人和馆).
-export const listedHints = (item) => [item.name, item.otherName].filter(Boolean);
+// Name hints for a listed place: its name, the same name in the other Chinese script (人和館 → 人和馆),
+// and its local name when it was written in English (Zhapu Road Bridge → 乍浦路桥).
+export const listedHints = (item) => [item.name, item.otherName, item.localName].filter(Boolean);
 
 // Lookups running now, by reel and line, so the inbox and the add sheet share one.
 const running = new Map();

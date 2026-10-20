@@ -25,7 +25,9 @@ module.exports = requireUser(async function handler(req, res) {
   const listed = entry?.place?.choices?.find((choice) => choice.name === name);
   const address = listed ? listed.address || '' : text(req.body?.address);
   const area = listed ? entry.place.area || '' : text(req.body?.area);
-  const query = [name, address, area].filter(Boolean).join(', ');
+  // A place written in English but local in another script (Zhapu Road Bridge) is searched by its local
+  // name (乍浦路桥), which Google Maps finds; the English one often lands on something else (the road).
+  const query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
 
   // The reel lookup already searched the first place.
   if (listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {

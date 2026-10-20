@@ -247,6 +247,7 @@ export function reelPlaceHints(reel) {
   return [
     String(reel?.placeName ?? '').replace(/^@/, ''),
     reel?.otherName,
+    reel?.localName,
     reel?.location?.split(',')[0],
   ].filter(Boolean);
 }
