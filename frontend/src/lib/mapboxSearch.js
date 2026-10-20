@@ -77,6 +77,19 @@ export async function addressAt(lng, lat, signal) {
   return { street: props.name || context.address?.name || '', area: [suburb, state].filter(Boolean).join(' ') };
 }
 
+// The address at a spot from Mapbox Geocoding, for a Google place listed only as a city (a road or
+// an area: "Shanghai"): "Zhapu Rd, Hongkou District, Shanghai, China". '' when Mapbox has nothing.
+export async function placeNameAt(lng, lat, signal) {
+  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
+  url.searchParams.set('access_token', MAPBOX_TOKEN);
+  url.searchParams.set('types', 'address,street,neighborhood,locality');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('language', 'en');
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`Mapbox geocoding returned HTTP ${response.status}`);
+  return (await response.json()).features?.[0]?.place_name || '';
+}
+
 // The best match for some text, ranked near the person (by their IP): { lng, lat, address }, or null.
 async function forwardSearch(text, types, signal) {
   const url = new URL(`${SEARCH_BASE}/forward`);

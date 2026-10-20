@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import { placeNameAt } from './mapboxSearch';
 
 // Google Maps lookups through /api/scrape-location (see api/scrape-location.js).
 // { action: 'search', query } lists matching places; { action: 'details', placeUrl, ... } reads one.
@@ -13,7 +14,20 @@ export async function requestLocationApi(payload) {
     error.status = response.status;
     throw error;
   }
-  return data;
+  return payload.action === 'details' ? withFullAddress(data) : data;
+}
+
+// Google lists a road or an area with only its city ("Shanghai"), so its address comes from Mapbox at
+// its pin instead. Places with a street address are left as they are.
+async function withFullAddress(details) {
+  const { address = '', latitude, longitude } = details || {};
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || /[\d,，]/.test(address)) return details;
+  try {
+    const full = await placeNameAt(longitude, latitude, AbortSignal.timeout(5000));
+    return full ? { ...details, address: full } : details;
+  } catch {
+    return details;
+  }
 }
 
 // One place of a list post shared without a slide, through /api/listed-place (see api/listed-place.js):
