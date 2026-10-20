@@ -18,6 +18,24 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
   const sessionRef = useRef(null);
   const locationRequestedRef = useRef(false);
   const origin = near ?? bias ?? MELBOURNE_CENTER;
+  const boxRef = useRef(null);
+  const open = results.length > 0 || status === 'none' || status === 'error';
+
+  const close = () => {
+    typedRef.current = false;
+    setResults([]);
+    setStatus('');
+  };
+
+  // A tap anywhere outside the box and its list closes the list, like Escape.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onOutside = (event) => {
+      if (!boxRef.current?.contains(event.target)) close();
+    };
+    document.addEventListener('pointerdown', onOutside);
+    return () => document.removeEventListener('pointerdown', onOutside);
+  }, [open]);
 
   // Asked once, when the box is first tapped, unless there's already a spot to search around.
   const requestUserLocation = () => {
@@ -105,9 +123,7 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
         }
         if (e.key === 'Escape' && results.length) {
           e.stopPropagation();
-          typedRef.current = false;
-          setResults([]);
-          setStatus('');
+          close();
         }
       }}
       placeholder={placeholder}
@@ -118,8 +134,9 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
     />
   );
 
+  // display: contents, so the wrapper only marks what counts as "inside" and leaves the layout alone.
   return (
-    <>
+    <div ref={boxRef} style={{ display: 'contents' }}>
       {action ? <div className="address-row">{input}{action}</div> : input}
       {(status === 'searching' || status === 'retrieving') && (
         <div className="map-search-results place-search-results" role="status" aria-label={status === 'searching' ? 'Searching' : 'Finding place'}>
@@ -143,6 +160,6 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
