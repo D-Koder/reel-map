@@ -408,6 +408,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     };
     work();
     work();
+    // The form opens on the reel's own place (or the first listed), its Google match picked when clear.
+    if (!mapsData && !leftToPick) chooseListed(list.find((item) => item.name === scrapedData.placeName) ?? list[0]);
     // lookupListed reads the reel from this render; a new reel gives a new scrapedData.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrapedData]);
