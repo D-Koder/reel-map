@@ -460,12 +460,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const unclear = [];
     try {
       for (const item of scrapedData.listedPlaces) {
-        const { best, details } = await lookupListed(item);
+        // A failed search is left to pick below too.
+        const { best, details } = await lookupListed(item).catch(() => ({ best: null, details: null }));
         if (!best) {
           addLog(`No clear match for ${item.name}; pick it below.`, 'info');
           unclear.push(item);
           continue;
         }
+        // Details failing for one place leaves it to pick below, rather than stopping the rest.
         const venueDetails = details || await requestLocationApi({
           action: 'details',
           query: best.searchQuery,
@@ -473,7 +475,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           placeAddress: best.address,
           placeName: best.name,
           location: best.address || item.address || scrapedData?.area || '',
+        }).catch((error) => {
+          addLog(`Could not read ${item.name}'s details: ${error.message}; pick it below.`, 'error');
+          return null;
         });
+        if (!venueDetails) {
+          unclear.push(item);
+          continue;
+        }
         places.push({
           name: (venueDetails?.name || best.name || item.name).trim(),
           location: (venueDetails?.address || best.address || item.address || '').trim(),
@@ -1015,7 +1024,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     type="button"
                     className="step-btn primary full-width"
                     onClick={addAllListed}
-                    disabled={saving || !!choosingListed || addingAllListed || !collectionId}
+                    // Not held up by a place still filling the form: Add all waits for the lookups itself.
+                    disabled={saving || addingAllListed || !collectionId}
                   >
                     {addingAllListed ? 'Adding…' : `Add all ${scrapedData.listedPlaces.length} as places`}
                   </button>
