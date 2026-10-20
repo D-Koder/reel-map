@@ -187,11 +187,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     addLog('Starting to fetch reel data...', 'info');
 
     try {
-      // The server gives up after 120s; past that the request was lost (a dropped connection), so it
-      // stops waiting rather than loading forever.
       const response = await apiFetch('/api/enrich-reel', {
         body: JSON.stringify({ reelUrl: url }),
-        signal: AbortSignal.timeout(130000),
       });
       const data = await response.json().catch(() => ({}));
       const error = response.ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
@@ -218,9 +215,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         addLog(`Response not successful: ${JSON.stringify(data)}`, 'error');
       }
     } catch (error) {
-      addLog(error.name === 'TimeoutError'
-        ? 'The lookup never came back (the connection may have dropped). Try again.'
-        : `Scrape failed: ${error.message}`, 'error');
+      addLog(`Scrape failed: ${error.message}`, 'error');
       console.error('Scrape error:', error);
     }
     setLoading(false);
