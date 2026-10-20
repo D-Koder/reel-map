@@ -1,12 +1,11 @@
 import { apiFetch } from './api';
 
-// Google Maps lookups through /api/scrape-location (see api/scrape-location.js). A cold search can take
-// over a minute (Chrome starting, then a slow Maps page), so both wait up to the server's 120s.
+// Google Maps lookups through /api/scrape-location (see api/scrape-location.js).
 // { action: 'search', query } lists matching places; { action: 'details', placeUrl, ... } reads one.
 export async function requestLocationApi(payload) {
   const response = await apiFetch('/api/scrape-location', {
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(115000),
+    signal: AbortSignal.timeout(55000),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -23,7 +22,7 @@ export async function requestLocationApi(payload) {
 export async function requestListedPlace(payload) {
   const response = await apiFetch('/api/listed-place', {
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(115000),
+    signal: AbortSignal.timeout(55000),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Google Maps returned HTTP ${response.status}`);
