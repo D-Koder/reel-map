@@ -14,7 +14,7 @@ const text = (value) => (typeof value === 'string' ? value.trim().slice(0, 500) 
 // Results are shared by everyone who shares the reel: saved in reel_lookups under "<reel key>#<name>".
 // Only a place on the list saved by /api/enrich-reel is saved, searched the way the list says, so a
 // request can't save results for anything else. Any other place is searched but not saved.
-// Body: { reelUrl, name, address, area }. Returns { success, query, candidates, saved }.
+// Body: { reelUrl, name, address, area, fresh }. fresh: search Google again, skipping saved results. Returns { success, query, candidates, saved }.
 module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const name = text(req.body?.name);
@@ -29,14 +29,15 @@ module.exports = requireUser(async function handler(req, res) {
   // name (乍浦路桥), which Google Maps finds; the English one often lands on something else (the road).
   let query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
 
+  const fresh = req.body?.fresh === true;
   // The reel lookup already searched the first place.
-  if (listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {
+  if (!fresh && listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {
     return res.status(200).json({ success: true, query, candidates: entry.candidates, saved: true });
   }
   const key = listed ? `${cacheKey}#${squash(name)}` : null;
-  const saved = key ? await readCache('reel_lookups', key, REEL_CACHE_DAYS) : null;
+  const saved = key && !fresh ? await readCache('reel_lookups', key, REEL_CACHE_DAYS) : null;
   // Results saved without the place's local name (by older code, or before the AI gave one) are searched again.
-  if (saved?.data?.candidates?.length && (saved.data.localName || '') === (listed.localName || '')) {
+  if (!fresh && saved?.data?.candidates?.length && (saved.data.localName || '') === (listed.localName || '')) {
     return res.status(200).json({ success: true, query: saved.data.query || query, candidates: saved.data.candidates, saved: true });
   }
 

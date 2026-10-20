@@ -843,6 +843,9 @@ button.collection-empty {
 .address-row { display: flex; gap: 8px; align-items: center; }
 .address-row .step-input { flex: 1; min-width: 0; }
 .address-row .step-btn { flex-shrink: 0; white-space: nowrap; }
+/* Verify is a small binoculars button, so the address gets the row. */
+.address-row .verify-btn { width: 44px; min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.address-row .verify-btn .spinner { margin: 0; }
 .field-hint { display: block; margin-top: 6px; color: var(--text-muted); font-size: 14px; }
 
 .profile-avatar-image { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
@@ -4537,6 +4540,31 @@ button.profile-open {
 }
 
 /* "This post lists N places": one button per listed place. */
+.listed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.listed-refresh {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.listed-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .listed-places {
   display: grid;
   gap: 8px;

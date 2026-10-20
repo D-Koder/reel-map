@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import CandidateAddress from './CandidateAddress';
-import { ArrowUpRight, Heart, MessageCircle, TriangleAlert, X } from 'lucide-react';
+import { ArrowUpRight, Binoculars, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -374,10 +374,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // One listed place's Google Maps lookup: its results, the clear match (if any) and the match's details,
   // read now so picking it doesn't wait. Asked once per place; later asks get the same promise. Kept on
   // this device (see lib/listedLookups.js), so reopening the reel doesn't look it up again.
-  const lookupListed = (item) => {
-    const known = listedLookupsRef.current.get(item.line);
+  const lookupListed = (item, fresh = false) => {
+    const known = fresh ? null : listedLookupsRef.current.get(item.line);
     if (known) return known;
-    const lookup = lookupListedPlace(reelUrl.trim(), item, scrapedData, addLog);
+    const lookup = lookupListedPlace(reelUrl.trim(), item, scrapedData, addLog, fresh);
     const lookups = listedLookupsRef.current;
     lookups.set(item.line, lookup);
     setListedStatus((now) => ({ ...now, [item.line]: 'looking' }));
@@ -395,6 +395,28 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       },
     );
     return lookup;
+  };
+
+  // "Search again": every listed place is searched on Google again, skipping saved results, and the
+  // place open in the form is filled from its new results.
+  const researchListed = async () => {
+    const list = scrapedData?.listedPlaces;
+    if (!(list?.length > 1)) return;
+    addLog('Searching the listed places on Google Maps again.', 'info');
+    forgetListedLookups(reelUrl.trim());
+    listedLookupsRef.current = new Map();
+    setListedStatus({});
+    const active = list.find((item) => item.line === activeListedRef.current);
+    const queue = list.filter((item) => item !== active).slice(0, LISTED_AHEAD);
+    const work = async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) await lookupListed(item, true).catch(() => {});
+    };
+    if (active) {
+      lookupListed(active, true).catch(() => {});
+      chooseListed(active);
+    }
+    work();
+    work();
   };
 
   // A list post: its places are looked up as soon as the list shows, two at a time, so tapping one
@@ -971,11 +993,25 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             {/* A list post shared without a slide: which of its places is this? */}
             {(leftToPick?.length > 0 || scrapedData?.listedPlaces?.length > 1) && (
               <div className="field">
-                <span className="modal-label">
-                  {leftToPick
-                    ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
-                    : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
-                </span>
+                <div className="listed-head">
+                  <span className="modal-label">
+                    {leftToPick
+                      ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
+                      : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
+                  </span>
+                  {!leftToPick && (
+                    <button
+                      type="button"
+                      className="listed-refresh"
+                      onClick={researchListed}
+                      disabled={saving || addingAllListed || !!loadingCandidateUrl}
+                      aria-label="Search the listed places on Google Maps again"
+                      title="Search again"
+                    >
+                      <RefreshCw size={16} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
                 <div className="listed-places">
                   {(leftToPick ?? scrapedData.listedPlaces).map((item) => (
                     <button
@@ -1056,11 +1092,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 action={pinCoords?.source === 'mapbox' ? null : (
                   <button
                     type="button"
-                    className="step-btn secondary"
+                    className="step-btn secondary verify-btn"
                     onClick={verifyLocation}
                     disabled={saving || loading || verifyingLocation || !location.trim() || !!loadingCandidateUrl}
+                    aria-label="Verify the address on Google Maps"
+                    title="Verify on Google Maps"
                   >
-                    {verifyingLocation ? <><span className="spinner" aria-hidden="true" />Searching…</> : 'Verify'}
+                    {verifyingLocation ? <span className="spinner" aria-hidden="true" /> : <Binoculars size={18} aria-hidden="true" />}
                   </button>
                 )}
               />
@@ -1069,7 +1107,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   ? 'Pinned from your pick. Change the address to search again.'
                   : pinCoords?.source === 'area'
                     ? 'Approximate: pickup area only. Change the address to search again.'
-                    : 'Pick a suggestion for the map pin. Not listed? Verify searches Google Maps.'}
+                    : 'Pick a suggestion for the map pin. Not listed? The binoculars search Google Maps.'}
               </span>
             </div>
 

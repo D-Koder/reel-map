@@ -62,21 +62,22 @@ export function forgetListedLookups(reelUrl) {
 
 // One listed place's lookup: kept, running, or asked now. log(message, type) hears how a new one went.
 // The reel lookup already searched the first place, so its results are used as they are.
-export function lookupListedPlace(reelUrl, item, reelData, log = () => {}) {
+// fresh: Google is searched again, skipping what this device and the server saved ("Search again").
+export function lookupListedPlace(reelUrl, item, reelData, log = () => {}, fresh = false) {
   const key = runKey(reelUrl, item.line);
-  const known = running.get(key);
+  const known = fresh ? null : running.get(key);
   if (known) return known;
   // A lookup kept from before the place had its local name (乍浦路桥) is done again, unless picked by hand.
-  const saved = savedListedLookup(reelUrl, item.line);
+  const saved = fresh ? null : savedListedLookup(reelUrl, item.line);
   if (saved && (saved.picked || (saved.localName || '') === (item.localName || ''))) {
     const lookup = Promise.resolve(saved);
     running.set(key, lookup);
     return lookup;
   }
-  const first = item.name === reelData?.placeName && reelData?.maps?.candidates?.length ? reelData.maps : null;
+  const first = !fresh && item.name === reelData?.placeName && reelData?.maps?.candidates?.length ? reelData.maps : null;
   const lookup = (async () => {
     const data = first || await requestListedPlace({
-      reelUrl, name: item.name, address: item.address || '', area: reelData?.area || '',
+      reelUrl, name: item.name, address: item.address || '', area: reelData?.area || '', ...(fresh ? { fresh } : {}),
     });
     const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
     const hints = listedHints(item);
