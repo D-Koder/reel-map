@@ -35,7 +35,8 @@ module.exports = requireUser(async function handler(req, res) {
   }
   const key = listed ? `${cacheKey}#${squash(name)}` : null;
   const saved = key ? await readCache('reel_lookups', key, REEL_CACHE_DAYS) : null;
-  if (saved?.data?.candidates?.length) {
+  // Results saved without the place's local name (by older code, or before the AI gave one) are searched again.
+  if (saved?.data?.candidates?.length && (saved.data.localName || '') === (listed.localName || '')) {
     return res.status(200).json({ success: true, query: saved.data.query || query, candidates: saved.data.candidates, saved: true });
   }
 
@@ -54,6 +55,8 @@ module.exports = requireUser(async function handler(req, res) {
   if (reply.code === 404) return res.status(200).json({ success: true, query, candidates: [], saved: false });
   if (reply.code >= 400 || !reply.body?.success) return res.status(reply.code >= 400 ? reply.code : 502).json(reply.body || {});
   const candidates = reply.body.candidates || [];
-  if (key && candidates.length) await writeCache('reel_lookups', key, { query, candidates });
+  if (key && candidates.length) {
+    await writeCache('reel_lookups', key, { query, candidates, ...(listed.localName ? { localName: listed.localName } : {}) });
+  }
   return res.status(200).json({ success: true, query, candidates, saved: Boolean(key && candidates.length) });
 }, { endpoint: 'listed-place', perHour: 100 });

@@ -1,5 +1,5 @@
 import { readJSON, writeJSON } from './storage';
-import { bestPlaceMatch } from './places';
+import { bestPlaceMatch, namedLike } from './places';
 import { requestListedPlace, requestLocationApi } from './googlePlaces';
 
 // Each listed place's Google Maps lookup for a list post: { candidates, best, details }. Kept on this
@@ -40,7 +40,16 @@ export function savedListedLookup(reelUrl, line) {
 // The place picked by hand for a listed place becomes its match, here and on this device.
 export function saveListedPick(reelUrl, line, lookup) {
   running.set(runKey(reelUrl, line), Promise.resolve(lookup));
-  saveLookup(reelUrl, line, lookup);
+  saveLookup(reelUrl, line, { ...lookup, picked: true });
+}
+
+// A single Google result is only taken as the match when it's named like the place, or written in a
+// script none of the names are in, so it can't be compared (Duo Yun Bookstore → 朵云书院). Google's
+// only answer for "Zhapu Road Bridge" was the road, Zha Pu Lu: that one is picked by hand.
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+function soleMatch(candidate, hints) {
+  const comparable = hints.some((hint) => CJK.test(hint) === CJK.test(candidate.name));
+  return !comparable || namedLike(candidate, hints) ? candidate : null;
 }
 
 // The reel's places are all saved: its lookups aren't needed any more.
@@ -57,8 +66,9 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}) {
   const key = runKey(reelUrl, item.line);
   const known = running.get(key);
   if (known) return known;
+  // A lookup kept from before the place had its local name (乍浦路桥) is done again, unless picked by hand.
   const saved = savedListedLookup(reelUrl, item.line);
-  if (saved) {
+  if (saved && (saved.picked || (saved.localName || '') === (item.localName || ''))) {
     const lookup = Promise.resolve(saved);
     running.set(key, lookup);
     return lookup;
@@ -69,9 +79,9 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}) {
       reelUrl, name: item.name, address: item.address || '', area: reelData?.area || '',
     });
     const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
-    // A single Google result is taken as the match.
-    const best = bestPlaceMatch(candidates, listedHints(item), [], item.address)
-      || (candidates.length === 1 ? candidates[0] : null);
+    const hints = listedHints(item);
+    const best = candidates.length === 1 ? soleMatch(candidates[0], hints)
+      : bestPlaceMatch(candidates, hints, [], item.address);
     log(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
       first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
     const details = best ? await requestLocationApi({
@@ -82,7 +92,7 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}) {
       placeName: best.name,
       location: best.address || item.address || reelData?.area || '',
     }).catch(() => null) : null;
-    const result = { candidates, best, details };
+    const result = { candidates, best, details, ...(item.localName ? { localName: item.localName } : {}) };
     saveLookup(reelUrl, item.line, result);
     return result;
   })();

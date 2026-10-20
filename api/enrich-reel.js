@@ -207,7 +207,10 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   const cachedPlace = cached?.data?.place;
   // A row with no place name (saved by older code from a search of the caption) is a guess: ignored.
   // A list post is kept with its list and the first place's results, so the next person picks from the list.
-  if (cachedPlace?.placeName && (cached.data.candidates?.length === 1 || cachedPlace.choices?.length > 1)) {
+  // A list saved before the AI gave local names (乍浦路桥 for "Zhapu Road Bridge") is read again, so its
+  // places are searched by them.
+  const listUsable = cachedPlace?.choices?.length > 1 && cachedPlace.localNames;
+  if (cachedPlace?.placeName && (cached.data.candidates?.length === 1 || listUsable)) {
     const { placeName = '', location = '', venue = '', category, choices, area, orderOnly } = cachedPlace;
     const reel = {
       success: true, reelUrl, caption: '', creator: null, likes: null, comments: null,
@@ -538,7 +541,8 @@ async function enrich(req, res, getBrowser) {
     place: {
       placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
       ...(reel.category ? { category: reel.category } : {}),
-      ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces } : {}),
+      // localNames: the list was read with local names, so readReel uses it as it is.
+      ...(reel.listedPlaces?.length ? { choices: reel.listedPlaces, localNames: true } : {}),
       ...(area ? { area } : {}),
       ...(reel.orderOnly ? { orderOnly: reel.orderOnly } : {}),
     },
