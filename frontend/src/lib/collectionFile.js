@@ -1,8 +1,14 @@
 // Export a collection to a file, and read one back in.
-// Two formats:
-// - Waylit Maps file (.json): everything needed to rebuild the collection somewhere else.
-// - Spreadsheet (.csv): starts with Title, Note, URL like Google Maps' saved-list export
-//   (Google Takeout → Saved), so the same reader takes both. Votes are never exported.
+// Both formats hold only each place's name, address, reel link and custom info (when it's set): on
+// import, a reel is looked up again like a fresh add (detailsForImport), so its details are current.
+// - Waylit Maps file (.json), version 2. Version 1 files (with every detail) still import.
+// - Spreadsheet (.csv): Name, Address, Reel URL, Custom info. The reader also takes Google Maps'
+//   saved-list export (Google Takeout → Saved: Title, Note, URL) and older Waylit Maps sheets.
+// Votes are never exported.
+
+import { apiFetch } from './api';
+import { knownCategory } from './constants';
+import { findPlace } from './mapboxSearch';
 
 const FILE_KIND = 'reel-map-collection';
 const CATEGORIES = new Set(['cafe', 'food', 'event', 'other']);
@@ -13,38 +19,19 @@ function slug(text) {
   return String(text || 'collection').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'collection';
 }
 
-// A link that opens the place on Google Maps: the saved Maps link, else a search for its address or name.
-export function mapsLinkFor(place) {
-  if (place.maps_url && /^https?:\/\//.test(place.maps_url)) return place.maps_url;
-  const query = [place.name, place.address].filter(Boolean).join(', ');
-  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
-}
-
 function placeForFile(place) {
   return {
     name: place.name,
-    category: place.category,
     address: place.address || null,
-    lat: Number.isFinite(place.lat) ? place.lat : null,
-    lng: Number.isFinite(place.lng) ? place.lng : null,
-    maps_url: mapsLinkFor(place) || null,
     reel_url: place.reel_url || null,
-    url: place.url || null,
-    phone: place.phone || null,
-    booking_url: place.booking_url || null,
-    website_url: place.website_url || null,
-    menu_url: place.menu_url || null,
-    hours: Array.isArray(place.hours) && place.hours.length ? place.hours : null,
-    note: place.custom_info || null,
-    event_date: place.event_date || null,
-    event_end_date: place.event_end_date || null,
+    custom_info: place.custom_info || null,
   };
 }
 
 export function collectionToJSON(collection, places) {
   return JSON.stringify({
     kind: FILE_KIND,
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     collection: { name: collection.name, emoji: collection.emoji || null },
     places: places.map(placeForFile),
@@ -56,12 +43,12 @@ function csvCell(value) {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-const CSV_COLUMNS = ['Title', 'Note', 'URL', 'Address', 'Category', 'Reel', 'Website', 'Latitude', 'Longitude'];
+const CSV_COLUMNS = ['Name', 'Address', 'Reel URL', 'Custom info'];
 
 export function collectionToCSV(places) {
   const rows = places.map((place) => {
     const p = placeForFile(place);
-    return [p.name, p.note, p.maps_url, p.address, p.category, p.reel_url, p.url, p.lat, p.lng];
+    return [p.name, p.address, p.reel_url, p.custom_info];
   });
   return [CSV_COLUMNS, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
 }
@@ -144,11 +131,13 @@ function cleanUrl(value) {
   return /^https?:\/\//i.test(text) ? text.slice(0, 2000) : null;
 }
 
-// One place in the shape addPlace understands, from a row of either format. Null when it has no name.
+// One place in the shape addPlace understands, from a row of either format. Null when it has neither a
+// name nor a reel link (a reel's name comes from its lookup).
 function toImportPlace(raw) {
   const name = cleanText(raw.name, 80);
-  if (!name) return null;
-  const note = cleanText(raw.note, 120);
+  const reelUrl = cleanUrl(raw.reel_url);
+  if (!name && !reelUrl) return null;
+  const note = cleanText(raw.note ?? raw.custom_info, 120);
   const mapsUrl = cleanUrl(raw.maps_url);
   const lat = Number.isFinite(Number(raw.lat)) && raw.lat !== null && raw.lat !== '' ? Number(raw.lat) : null;
   const lng = Number.isFinite(Number(raw.lng)) && raw.lng !== null && raw.lng !== '' ? Number(raw.lng) : null;
@@ -160,7 +149,7 @@ function toImportPlace(raw) {
     lat: coords?.lat ?? null,
     lng: coords?.lng ?? null,
     mapsUrl,
-    reelUrl: cleanUrl(raw.reel_url),
+    reelUrl,
     url: cleanUrl(raw.url),
     phone: cleanText(raw.phone, 40),
     bookingUrl: cleanUrl(raw.booking_url),
@@ -181,7 +170,7 @@ function toImportPlace(raw) {
 // Header name → field, for Waylit Maps's own CSV, Google's saved-list CSV and hand-made sheets.
 const HEADER_FIELDS = {
   title: 'name', name: 'name', place: 'name',
-  note: 'note', notes: 'note', comment: 'note', description: 'note',
+  note: 'note', notes: 'note', comment: 'note', description: 'note', 'custom info': 'note',
   url: 'maps_url', 'google maps url': 'maps_url', 'maps url': 'maps_url', 'maps link': 'maps_url', link: 'maps_url',
   address: 'address', location: 'address',
   category: 'category', type: 'category',
@@ -195,7 +184,7 @@ function readCSVFile(text, filename) {
   const [header, ...rows] = parseCSV(text);
   if (!header) throw new Error('This file is empty.');
   const fields = header.map((h) => HEADER_FIELDS[h.trim().toLowerCase()] ?? null);
-  if (!fields.includes('name')) throw new Error('No Title or Name column found in this spreadsheet.');
+  if (!fields.includes('name') && !fields.includes('reel_url')) throw new Error('No Name or Reel URL column found in this spreadsheet.');
   const places = rows.map((cells) => {
     const raw = {};
     fields.forEach((field, i) => { if (field && raw[field] == null) raw[field] = cells[i]; });
@@ -234,4 +223,55 @@ export function readCollectionFile(text, filename) {
     skipped: all.length - places.length,
     cut: Math.max(0, places.length - IMPORT_LIMIT),
   };
+}
+
+// ---------- Details on import ----------
+
+// A row's place details, as importCollection saves them: a reel is looked up again like a fresh add,
+// keeping the file's name and custom info. A row without a reel, or a reel with no clear match, is
+// pinned from its name and address on the map. Fields the file already has (an older export's pin
+// and details) are kept when nothing better is found.
+export async function detailsForImport(row) {
+  let place = row;
+  if (row.reelUrl) {
+    try {
+      const response = await apiFetch('/api/enrich-reel', {
+        body: JSON.stringify({ reelUrl: row.reelUrl }),
+        signal: AbortSignal.timeout(120000),
+      });
+      const data = await response.json().catch(() => ({}));
+      const details = data.maps?.details;
+      if (response.ok && Number.isFinite(details?.latitude) && Number.isFinite(details?.longitude)) {
+        return {
+          ...row,
+          name: row.name || details.name,
+          category: knownCategory(data.category) || row.category,
+          address: details.address || row.address,
+          lat: details.latitude,
+          lng: details.longitude,
+          hours: details.hours?.length ? details.hours : row.hours,
+          phone: details.phone || row.phone,
+          bookingUrl: details.bookingUrl || row.bookingUrl,
+          mapsUrl: details.mapsUrl || row.mapsUrl,
+          websiteUrl: details.websiteUrl || row.websiteUrl,
+          menuUrl: details.menuUrl || row.menuUrl,
+        };
+      }
+      place = {
+        ...row,
+        name: row.name || data.placeName || 'Place from a reel',
+        category: knownCategory(data.category) || row.category,
+      };
+    } catch {
+      place = { ...row, name: row.name || 'Place from a reel' };
+    }
+  }
+  if (place.lat != null && place.lng != null) return place;
+  const query = [place.name, place.address].filter(Boolean).join(', ');
+  try {
+    const found = query ? await findPlace(query, AbortSignal.timeout(12000)) : null;
+    return found ? { ...place, address: place.address || found.address, lat: found.lat, lng: found.lng } : place;
+  } catch {
+    return place;
+  }
 }

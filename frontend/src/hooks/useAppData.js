@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { readJSON, writeJSON } from '../lib/storage';
 import { INBOX_COLLECTION } from './useReelInbox';
+import { detailsForImport } from '../lib/collectionFile';
 
 const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
 
@@ -405,7 +406,8 @@ export function useAppData(userId, showToast) {
     },
 
     // Makes a new collection from an imported file (see lib/collectionFile.js) and adds its places
-    // one at a time. onProgress(done, total) runs after each. Returns { collectionId, added, failed } or null.
+    // one at a time, each reel looked up again first (detailsForImport). onProgress(done, total) runs
+    // after each. Returns { collectionId, added, failed, noPin } or null.
     importCollection: async ({ name, emoji, places: rows }, onProgress) => {
       const { data: collectionId, error } = await supabase.rpc('create_collection', { p_name: name, p_emoji: emoji || '📥' });
       if (error || !collectionId) {
@@ -414,7 +416,9 @@ export function useAppData(userId, showToast) {
       }
       let added = 0;
       let failed = 0;
-      for (const [index, row] of rows.entries()) {
+      let noPin = 0;
+      for (const [index, fileRow] of rows.entries()) {
+        const row = await detailsForImport(fileRow);
         const { data: placeId, error: placeError } = await supabase.rpc('add_place_to_collection', {
           p_collection_id: collectionId,
           p_name: row.name,
@@ -435,6 +439,7 @@ export function useAppData(userId, showToast) {
         if (placeError) failed += 1;
         else {
           added += 1;
+          if (row.lat == null || row.lng == null) noPin += 1;
           if (row.eventDate && row.category === 'event' && eventDatesReady) {
             await supabase
               .from('collection_places')
@@ -446,7 +451,7 @@ export function useAppData(userId, showToast) {
         onProgress?.(index + 1, rows.length);
       }
       await refresh();
-      return { collectionId, added, failed };
+      return { collectionId, added, failed, noPin };
     },
 
     // Name, emoji and category are per collection (collection_places).

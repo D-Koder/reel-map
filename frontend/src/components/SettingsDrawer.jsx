@@ -377,11 +377,10 @@ function ImportCollection({ onImport, showToast }) {
     const outcome = await onImport(parsed, (done, total) => setProgress({ done, total }));
     setProgress(null);
     if (!outcome) return;
-    const noPin = parsed.places.filter((p) => p.lat == null).length;
     showToast(
       `Imported ${outcome.added} places into "${parsed.name}"`
       + (outcome.failed ? `, ${outcome.failed} failed` : '')
-      + (noPin ? `. ${noPin} have no map pin yet` : '')
+      + (outcome.noPin ? `. ${outcome.noPin} have no map pin yet` : '')
     );
   };
 
@@ -393,7 +392,7 @@ function ImportCollection({ onImport, showToast }) {
           ? <><span className="spinner" aria-hidden="true" />Importing {progress.done} of {progress.total}…</>
           : <><Upload className="ico" aria-hidden="true" /> Import a collection</>}
       </button>
-      <p className="toggle-hint">A Waylit Maps file (.json), a Google Maps saved list (.csv from Google Takeout), or a spreadsheet with a Name column.</p>
+      <p className="toggle-hint">A Waylit Maps file (.json or .csv), a Google Maps saved list (.csv from Google Takeout), or a spreadsheet with a Name or Reel URL column. Reels are looked up again, so a big file takes a few minutes.</p>
     </>
   );
 }

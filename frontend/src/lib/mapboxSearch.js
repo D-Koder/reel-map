@@ -77,13 +77,12 @@ export async function addressAt(lng, lat, signal) {
   return { street: props.name || context.address?.name || '', area: [suburb, state].filter(Boolean).join(' ') };
 }
 
-// A suburb or city by name, for a business with no shop: { lng, lat, address }, ranked near the person
-// (by their IP), so "Heathwood" is the one in their part of the world. Null when Mapbox has no such area.
-export async function findArea(text, signal) {
+// The best match for some text, ranked near the person (by their IP): { lng, lat, address }, or null.
+async function forwardSearch(text, types, signal) {
   const url = new URL(`${SEARCH_BASE}/forward`);
   url.searchParams.set('q', text);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('types', 'neighborhood,locality,place,district');
+  url.searchParams.set('types', types);
   url.searchParams.set('proximity', 'ip');
   url.searchParams.set('language', 'en');
   url.searchParams.set('limit', '1');
@@ -96,4 +95,15 @@ export async function findArea(text, signal) {
   const props = feature.properties ?? {};
   const address = props.full_address || [props.name || text, props.place_formatted].filter(Boolean).join(', ');
   return { lng, lat, address };
+}
+
+// A suburb or city by name, for a business with no shop, so "Heathwood" is the one in the person's
+// part of the world.
+export function findArea(text, signal) {
+  return forwardSearch(text, 'neighborhood,locality,place,district', signal);
+}
+
+// A place, street address or area from text like "Name, Address", for an imported place with no pin.
+export function findPlace(text, signal) {
+  return forwardSearch(text, 'poi,address,neighborhood,locality,place', signal);
 }
