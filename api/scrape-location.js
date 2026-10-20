@@ -8,6 +8,12 @@ const PLACE_CACHE_DAYS = 100;
 
 // Maps results are read as text, so images (map tiles, photos), video and fonts are skipped.
 const SKIP = ['image', 'media', 'font'];
+// Also skipped: the map's tiles (fetched as data, not images), and Google's logging and ads. None of it
+// is read, and the tiles are most of what a Maps page downloads.
+const SKIP_URLS = [
+  /\/maps\/vt[/?]/, /\/maps\/preview\/log/, /\/gen_204/, /\/log\?/, /play\.google\.com\/log/,
+  /doubleclick\.net/, /googlesyndication\.com/, /googleadservices\.com/, /google-analytics\.com/,
+];
 
 // Google answers in the server's language (English) unless asked, so 裕興記 comes back as "Yuxing Ji",
 // which no name check can match. A search written in Chinese, Japanese or Korean asks for that language.
@@ -60,7 +66,7 @@ module.exports = requireUser(async function handler(req, res) {
   try {
     console.log(`[scrape-location] Search query: ${query}`);
     ({ browser, owned } = await browserFor(req));
-    page = await openPage(browser, SKIP);
+    page = await openPage(browser, SKIP, SKIP_URLS);
     await page.goto(action === 'details' ? selectedPlaceUrl : mapsUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 25000,
@@ -284,41 +290,8 @@ module.exports = requireUser(async function handler(req, res) {
       }
     }
 
-    const menu = await page.evaluate(() => {
-      const tabs = [...document.querySelectorAll('[role="tab"]')]
-        .map((tab) => (tab.innerText || tab.textContent || '').trim());
-      const menuTab = [...document.querySelectorAll('[role="tab"]')]
-        .find((tab) => /^menu$/i.test((tab.innerText || tab.textContent || '').trim()));
-      if (!menuTab) return { opened: false, tabs };
-      menuTab.click();
-      return { opened: true, tabs };
-    });
-    console.log('[scrape-location] Menu tab state:', JSON.stringify(menu));
-    if (menu.opened) {
-      await page.waitForFunction(() => [...document.querySelectorAll('[role="region"]')]
-        .some((region) => /^menu$/i.test(region.getAttribute('aria-label') || '')),
-      { timeout: 7000 }).catch(() => {});
-    }
-    const menuDetails = await page.evaluate(() => {
-      const menuRegion = [...document.querySelectorAll('[role="region"]')]
-        .find((region) => /^menu$/i.test(region.getAttribute('aria-label') || ''));
-      const links = [...(menuRegion?.querySelectorAll('a[href]') ?? [])];
-      const menuLink = links.find((anchor) => {
-        const text = `${anchor.innerText || ''} ${anchor.getAttribute('aria-label') || ''}`.trim();
-        return /^menu(?:\s|$)/i.test(text) || /drive\.google\.com|menu/i.test(anchor.href);
-      });
-      return {
-        url: menuLink?.href || '',
-        text: (menuRegion?.innerText || '').trim(),
-      };
-    });
-    result.menuUrl = menuDetails.url;
-    result.menuText = menuDetails.text;
-
-    // Menu is a page-changing action in Maps. Return to the place details, then
-    // expand and read hours last so the dropdown does not disrupt other scraping.
-    await page.goto(result.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-    await page.waitForFunction(() => document.querySelector('h1'), { timeout: 12000 }).catch(() => {});
+    // Hours are read first, on the page as it loaded. The menu tab changes the page, so it's opened
+    // last: reading hours after it used to mean loading the whole place page a second time.
     const hoursOpened = await page.evaluate(() => {
       const textOf = (element) => (element?.innerText || element?.textContent || '').trim();
       const controls = [...document.querySelectorAll('button,[role="button"]')];
@@ -363,6 +336,37 @@ module.exports = requireUser(async function handler(req, res) {
       return week;
     });
     console.log('[scrape-location] Hours dropdown state:', JSON.stringify({ ...hoursOpened, pageUrl: page.url(), rows: result.hours }));
+
+    const menu = await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll('[role="tab"]')]
+        .map((tab) => (tab.innerText || tab.textContent || '').trim());
+      const menuTab = [...document.querySelectorAll('[role="tab"]')]
+        .find((tab) => /^menu$/i.test((tab.innerText || tab.textContent || '').trim()));
+      if (!menuTab) return { opened: false, tabs };
+      menuTab.click();
+      return { opened: true, tabs };
+    });
+    console.log('[scrape-location] Menu tab state:', JSON.stringify(menu));
+    if (menu.opened) {
+      await page.waitForFunction(() => [...document.querySelectorAll('[role="region"]')]
+        .some((region) => /^menu$/i.test(region.getAttribute('aria-label') || '')),
+      { timeout: 7000 }).catch(() => {});
+    }
+    const menuDetails = await page.evaluate(() => {
+      const menuRegion = [...document.querySelectorAll('[role="region"]')]
+        .find((region) => /^menu$/i.test(region.getAttribute('aria-label') || ''));
+      const links = [...(menuRegion?.querySelectorAll('a[href]') ?? [])];
+      const menuLink = links.find((anchor) => {
+        const text = `${anchor.innerText || ''} ${anchor.getAttribute('aria-label') || ''}`.trim();
+        return /^menu(?:\s|$)/i.test(text) || /drive\.google\.com|menu/i.test(anchor.href);
+      });
+      return {
+        url: menuLink?.href || '',
+        text: (menuRegion?.innerText || '').trim(),
+      };
+    });
+    result.menuUrl = menuDetails.url;
+    result.menuText = menuDetails.text;
 
     if (!result.name) {
       return res.status(404).json({ error: `Google Maps first result did not open for "${query}"`, query, mapsUrl });

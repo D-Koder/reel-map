@@ -33,21 +33,25 @@ async function launchBrowser() {
 // Tabs already handed out, so two steps never share Chrome's starting tab.
 const claimed = new WeakSet();
 
-// A tab that skips downloads the scraper never reads, e.g. ['image', 'media', 'font'].
+// A tab that skips downloads the scraper never reads, e.g. ['image', 'media', 'font'], and requests
+// whose link matches one of the patterns in skipUrls (map tiles, logging).
 // Pages load faster and use less memory, which is what Vercel bills for.
 // Stylesheets are kept: clicking an element needs the page laid out.
 // Chrome starts with one empty tab; the first step uses it instead of opening a second one.
-async function openPage(browser, skip = []) {
+async function openPage(browser, skip = [], skipUrls = []) {
   const blank = (await browser.pages()).find((tab) => tab.url() === 'about:blank' && !claimed.has(tab));
   const page = blank ?? await browser.newPage();
   claimed.add(page);
   await page.setUserAgent(USER_AGENT);
-  if (skip.length) {
+  if (skip.length || skipUrls.length) {
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       if (request.isInterceptResolutionHandled()) return;
-      if (skip.includes(request.resourceType())) request.abort().catch(() => {});
-      else request.continue().catch(() => {});
+      if (skip.includes(request.resourceType()) || skipUrls.some((pattern) => pattern.test(request.url()))) {
+        request.abort().catch(() => {});
+      } else {
+        request.continue().catch(() => {});
+      }
     });
   }
   return page;

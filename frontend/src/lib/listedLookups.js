@@ -1,10 +1,11 @@
 import { readJSON, writeJSON } from './storage';
 import { bestPlaceMatch, namedLike } from './places';
-import { requestListedPlace, requestLocationApi } from './googlePlaces';
+import { requestListedPlace } from './googlePlaces';
 
-// Each listed place's Google Maps lookup for a list post: { candidates, best, details }. Kept on this
-// device by reel and the place's line in the post, so closing the add sheet or the app doesn't look
-// it up again. Started when the reel is shared, so Finish opens with them ready. Kept 7 days.
+// Each listed place's Google Maps lookup for a list post: { candidates, best, details }, with details null
+// until the place is tapped. Kept on this device by reel and the place's line in the post, so closing
+// the add sheet or the app doesn't look it up again. Started when the reel is shared, so Finish opens
+// with them ready. Kept 7 days.
 const KEY = 'reelmap:listed-lookups';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 // How many of a post's places are looked up ahead, two at a time.
@@ -85,15 +86,9 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}, fresh
       : bestPlaceMatch(candidates, hints, [], item.address);
     log(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
       first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
-    const details = best ? await requestLocationApi({
-      action: 'details',
-      query: best.searchQuery,
-      placeUrl: best.url,
-      placeAddress: best.address,
-      placeName: best.name,
-      location: best.address || item.address || reelData?.area || '',
-    }).catch(() => null) : null;
-    const result = { candidates, best, details, ...(item.localName ? { localName: item.localName } : {}) };
+    // Only the search runs ahead. The match's details (hours, phone, menu) are read when the place is
+    // tapped or saved with "Add all", so places that are skipped never wait on them.
+    const result = { candidates, best, details: null, ...(item.localName ? { localName: item.localName } : {}) };
     saveLookup(reelUrl, item.line, result);
     return result;
   })();
