@@ -58,13 +58,19 @@ export async function retrievePlace(mapboxId, sessionToken, signal) {
 }
 
 // The street, suburb and state at a spot, for Google results whose list card has no address:
-// { street: '1 Rainbow Alley', area: 'Melbourne VIC' }. Null when Mapbox has nothing there.
+// { street: '1 Rainbow Alley', area: 'Melbourne VIC' }. Where Mapbox has no numbered address (most of
+// China), the street or district there instead: { street: 'Huanghe Road', area: 'Huangpu Shanghai' }.
+// Null when Mapbox has nothing there.
 export async function addressAt(lng, lat, signal) {
+  return await reverseAt(lng, lat, 'address', signal) ?? reverseAt(lng, lat, 'street,neighborhood,locality,place', signal);
+}
+
+async function reverseAt(lng, lat, types, signal) {
   const url = new URL(`${SEARCH_BASE}/reverse`);
   url.searchParams.set('longitude', String(lng));
   url.searchParams.set('latitude', String(lat));
   url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('types', 'address');
+  url.searchParams.set('types', types);
   url.searchParams.set('limit', '1');
   url.searchParams.set('language', 'en');
   const response = await fetch(url, { signal });
@@ -74,7 +80,10 @@ export async function addressAt(lng, lat, signal) {
   const context = props.context ?? {};
   const suburb = context.locality?.name || context.place?.name || '';
   const state = context.region?.region_code || context.region?.name || '';
-  return { street: props.name || context.address?.name || '', area: [suburb, state].filter(Boolean).join(' ') };
+  // A district or city found by itself is the area, not a street ("Huangpu", not "Huangpu, Huangpu").
+  const street = ['address', 'street'].includes(props.feature_type) ? props.name || '' : context.address?.name || '';
+  const area = [street ? '' : props.name, suburb, state].filter((part, i, all) => part && all.indexOf(part) === i).join(' ');
+  return { street, area };
 }
 
 // The address at a spot from Mapbox Geocoding, for a Google place listed only as a city (a road or
