@@ -27,7 +27,7 @@ module.exports = requireUser(async function handler(req, res) {
   const area = listed ? entry.place.area || '' : text(req.body?.area);
   // A place written in English but local in another script (Zhapu Road Bridge) is searched by its local
   // name (乍浦路桥), which Google Maps finds; the English one often lands on something else (the road).
-  const query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
+  let query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
 
   // The reel lookup already searched the first place.
   if (listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {
@@ -39,8 +39,17 @@ module.exports = requireUser(async function handler(req, res) {
     return res.status(200).json({ success: true, query: saved.data.query || query, candidates: saved.data.candidates, saved: true });
   }
 
-  const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-  await scrapeLocation.run({ method: 'POST', body: { action: 'search', query, placeName: name, location: query } }, reply);
+  const search = async () => {
+    const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+    await scrapeLocation.run({ method: 'POST', body: { action: 'search', query, placeName: name, location: query } }, reply);
+    return reply;
+  };
+  let reply = await search();
+  // Nothing for the AI's local name (it may have it wrong): the name as the post wrote it is searched instead.
+  if (listed?.localName && (reply.code >= 400 || !reply.body?.candidates?.length)) {
+    query = [name, address, area].filter(Boolean).join(', ');
+    reply = await search();
+  }
   // "No results" is an empty list, not an error. It isn't saved, so the next try searches again.
   if (reply.code === 404) return res.status(200).json({ success: true, query, candidates: [], saved: false });
   if (reply.code >= 400 || !reply.body?.success) return res.status(reply.code >= 400 ? reply.code : 502).json(reply.body || {});

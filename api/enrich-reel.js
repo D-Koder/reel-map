@@ -530,7 +530,7 @@ async function enrich(req, res, getBrowser) {
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  const query = handleHit?.query ||
+  let query = handleHit?.query ||
     (venue ? withArea(venue, area) : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
@@ -570,13 +570,22 @@ async function enrich(req, res, getBrowser) {
   } else if (handleHit) {
     ({ candidates } = handleHit);
   } else {
-    const searchResponse = await invoke(scrapeLocation.run, {
+    const search = () => invoke(scrapeLocation.run, {
       action: 'search',
       query,
       placeName: reel.placeName,
       location: reel.location,
       caption: reel.caption,
     }, getBrowser);
+    let searchResponse = await search();
+    // Searched by the AI's local name (乍浦路桥) and Google found nothing: the AI may have it wrong, so
+    // the name as the post wrote it is searched instead.
+    const foundNothing = searchResponse.statusCode >= 400 || !searchResponse.body?.success || !searchResponse.body.candidates?.length;
+    if (foundNothing && reel.localName && query.includes(reel.localName)) {
+      query = query.replace(reel.localName, reel.placeName);
+      steps.localName = `nothing for ${reel.localName}; searched ${reel.placeName} instead`;
+      searchResponse = await search();
+    }
     if (searchResponse.statusCode >= 400 || !searchResponse.body?.success) {
       // Nothing is saved, so the next lookup tries again from the start.
       // What Google's page showed the server (a consent screen, a block, an empty list…).
