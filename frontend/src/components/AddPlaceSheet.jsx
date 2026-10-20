@@ -7,7 +7,8 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import PlaceSearchInput from './PlaceSearchInput';
-import { requestListedPlace, requestLocationApi } from '../lib/googlePlaces';
+import { requestLocationApi } from '../lib/googlePlaces';
+import { LISTED_AHEAD, forgetListedLookups, listedHints, lookupListedPlace, saveListedPick } from '../lib/listedLookups';
 import { apiFetch } from '../lib/api';
 import { findArea } from '../lib/mapboxSearch';
 
@@ -15,9 +16,6 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
 const NEW_COLLECTION = '__new__';
 // A list post: how many of its places are looked up as soon as the list shows. The rest wait for a tap.
-const LISTED_AHEAD = 8;
-// Name hints for a listed place: its name, then the same name in the other Chinese script (人和館 → 人和馆).
-const listedHints = (item) => [item.name, item.otherName].filter(Boolean);
 // What each listed place's lookup found, under its name in the list.
 const LISTED_STATUS = {
   looking: 'Looking it up…',
@@ -364,37 +362,22 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const lookups = listedLookupsRef.current;
     const known = lookups.get(line);
     if (line == null || !known) return;
-    lookups.set(line, known.then(({ candidates }) => ({ candidates, best: candidate, details })));
+    const picked = known.then(({ candidates }) => {
+      const lookup = { candidates, best: candidate, details };
+      saveListedPick(reelUrl.trim(), line, lookup);
+      return lookup;
+    });
+    lookups.set(line, picked);
     setListedStatus((now) => ({ ...now, [line]: 'found' }));
   };
 
   // One listed place's Google Maps lookup: its results, the clear match (if any) and the match's details,
-  // read now so picking it doesn't wait. Asked once per place; later asks get the same promise. The
-  // reel lookup already searched the first place, so its results are used as they are.
+  // read now so picking it doesn't wait. Asked once per place; later asks get the same promise. Kept on
+  // this device (see lib/listedLookups.js), so reopening the reel doesn't look it up again.
   const lookupListed = (item) => {
     const known = listedLookupsRef.current.get(item.line);
     if (known) return known;
-    const first = item.name === scrapedData?.placeName && scrapedData?.maps?.candidates?.length ? scrapedData.maps : null;
-    const lookup = (async () => {
-      const data = first || await requestListedPlace({
-        reelUrl: reelUrl.trim(), name: item.name, address: item.address || '', area: scrapedData?.area || '',
-      });
-      const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
-      // A single Google result is taken as the match.
-      const best = bestPlaceMatch(candidates, listedHints(item), [], item.address)
-        || (candidates.length === 1 ? candidates[0] : null);
-      addLog(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
-        first ? ' (from the reel lookup)' : data.saved ? ' (saved lookup)' : ''}`, best ? 'success' : 'info');
-      const details = best ? await requestLocationApi({
-        action: 'details',
-        query: best.searchQuery,
-        placeUrl: best.url,
-        placeAddress: best.address,
-        placeName: best.name,
-        location: best.address || item.address || scrapedData?.area || '',
-      }).catch(() => null) : null;
-      return { candidates, best, details };
-    })();
+    const lookup = lookupListedPlace(reelUrl.trim(), item, scrapedData, addLog);
     const lookups = listedLookupsRef.current;
     lookups.set(item.line, lookup);
     setListedStatus((now) => ({ ...now, [item.line]: 'looking' }));
@@ -496,6 +479,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         });
       }
       if (places.length) await onAddAll(places, { more: unclear.length });
+      if (places.length && !unclear.length) forgetListedLookups(reelUrl.trim());
       if (unclear.length) {
         setLeftToPick(unclear);
         setSaving(false);
@@ -707,6 +691,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         await chooseListed(next[0]);
         return;
       }
+      if (created && scrapedData?.listedPlaces?.length > 1) forgetListedLookups(reelUrl.trim());
       if (draftable) clearDraft();
     } catch (error) {
       addLog(`Could not save place: ${error.message}`, 'error');

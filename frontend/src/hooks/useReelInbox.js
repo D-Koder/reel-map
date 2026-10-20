@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
 import { knownCategory } from '../lib/constants';
 import { apiFetch } from '../lib/api';
+import { prefetchListedPlaces } from '../lib/listedLookups';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -80,6 +81,8 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         const guess = data.placeName || data.venue || data.caption?.split('\n')[0].substring(0, 80) || '';
         // Keep what the lookup found, so Finish fills the add sheet without looking it up again.
         update(item.id, { status: 'needs-place', collectionId, name: guess, reelData: data });
+        // A list post: its places are looked up now, so Finish opens with them ready.
+        prefetchListedPlaces(item.url, data);
         return;
       }
 
@@ -133,6 +136,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       const name = reelData.placeName || reelData.venue || reelData.caption?.split('\n')[0].substring(0, 80) || '';
       const ready = { id: existing?.id ?? newId(), url, collectionId, status: 'needs-place', name, reelData, addedAt: Date.now() };
       setItems((list) => (existing ? list.map((i) => (i.id === existing.id ? ready : i)) : [...list, ready]));
+      prefetchListedPlaces(url, reelData);
       return true;
     }
     // The server gave up on a reel it was looking up: look it up here instead.
@@ -162,6 +166,8 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
   useEffect(() => {
     if (!online) return;
     items.filter((item) => !item.remote && (item.status === 'saving' || item.status === 'offline')).forEach(process);
+    // List posts waiting for Finish: look up any of their places not kept from before.
+    items.filter((item) => item.status === 'needs-place').forEach((item) => prefetchListedPlaces(item.url, item.reelData));
     // Only when the connection changes; `items` changes on every status update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, process]);
