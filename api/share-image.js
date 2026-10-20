@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { loadShare, areaOf, bookingWhen, streetOf } = require('./_lib/share-card');
+// Sends this file's console.error to Sentry when SENTRY_DSN is set.
+require('./_lib/report-error');
 
 // The app's own faces (SIL Open Font License, see api/_lib/fonts): Figtree for text, Bricolage for big type.
 const FONTS = [

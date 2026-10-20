@@ -13,6 +13,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@sentry/browser": "^8.55.2",
     "@supabase/supabase-js": "^2.109.0",
     "lucide-react": "^0.460.0",
     "mapbox-gl": "^3.32.0",

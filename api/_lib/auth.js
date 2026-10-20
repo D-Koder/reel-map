@@ -4,6 +4,7 @@
 // Off Vercel (vite dev, tools/live-scraper, the test scripts) nothing is checked.
 
 const crypto = require('crypto');
+const { reportError } = require('./report-error');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -80,7 +81,12 @@ function requireUser(handler, { endpoint, perHour } = {}) {
         return res.status(429).json({ error: 'Too many lookups this hour. Try again later.' });
       }
     }
-    return handler(req, res);
+    try {
+      return await handler(req, res);
+    } catch (error) {
+      await reportError(error, { url: req.url });
+      throw error;
+    }
   };
   guarded.run = handler;
   return guarded;
