@@ -555,6 +555,13 @@ button.collection-empty {
   background: var(--surface-muted);
 }
 
+.map-loading {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .mapbox-canvas {
   position: absolute;
   inset: 0;

@@ -1,7 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
-import MapScreen from './components/MapScreen';
 import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
 import AddPlaceSheet from './components/AddPlaceSheet';
@@ -10,6 +9,9 @@ import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import ShareCollectionModal from './components/ShareCollectionModal';
+
+// The map and Mapbox (most of the app's code) load in their own file, so Home shows without waiting for them.
+const MapScreen = lazy(() => import('./components/MapScreen'));
 import ReelInbox from './components/ReelInbox';
 import FridayPickCard from './components/FridayPickCard';
 import Celebration from './components/Celebration';
@@ -507,7 +509,9 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           )}
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
-          <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+          <Suspense fallback={<div className="mapbox-map map-loading">Loading map…</div>}>
+            <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+          </Suspense>
         </section>
       </main>
 
