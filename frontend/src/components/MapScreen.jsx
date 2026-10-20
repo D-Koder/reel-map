@@ -7,17 +7,7 @@ import { categories, getVibe } from '../lib/constants';
 import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory, retrievePlace, searchSuggestions } from '../lib/mapboxSearch';
 
 const LONG_PRESS_MS = 1000;
-const VIEW_KEY = 'waylit.mapView';
 
-// Where the map was last moved to, so it opens there again. null if never saved.
-function savedView() {
-  try {
-    const view = JSON.parse(localStorage.getItem(VIEW_KEY));
-    return Array.isArray(view?.center) && Number.isFinite(view.zoom) ? view : null;
-  } catch {
-    return null;
-  }
-}
 const LONG_PRESS_MAX_MOVE_PX = 10;
 
 // Markers are plain DOM, so each category's icon is rendered to SVG markup once and reused.
@@ -262,9 +252,6 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     if (!MAPBOX_TOKEN || !mapContainer.current || mapRef.current) return undefined;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    const startView = savedView();
-    // A saved spot wins over fitting the map to the pins.
-    if (startView) hasFittedBounds.current = true;
     let map;
     try {
       map = new mapboxgl.Map({
@@ -281,8 +268,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
             show3dObjects: false,
           },
         },
-        center: startView?.center ?? MELBOURNE_CENTER,
-        zoom: startView?.zoom ?? 11,
+        center: MELBOURNE_CENTER,
+        zoom: 11,
         attributionControl: true,
       });
     } catch (error) {
@@ -295,16 +282,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     map.on('error', (event) => {
       if (event.error) setMapError('Mapbox could not load the map. Check the Mapbox token and allowed URLs.');
     });
-    // Dragging the map closes the shown places list. Where it stops is kept for next time.
+    // Dragging the map closes the shown places list.
     map.on('dragstart', () => setPlacesListOpen(false));
-    map.on('moveend', (event) => {
-      if (!event.originalEvent) return;
-      hasFittedBounds.current = true;
-      const { lng, lat } = map.getCenter();
-      try {
-        localStorage.setItem(VIEW_KEY, JSON.stringify({ center: [lng, lat], zoom: map.getZoom() }));
-      } catch { /* private mode: the map just opens on the default spot */ }
-    });
     map.once('load', () => {
       setMapError('');
       setMapReady(true);
