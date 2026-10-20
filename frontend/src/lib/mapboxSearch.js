@@ -79,10 +79,11 @@ export async function addressAt(lng, lat, signal) {
 
 // The address at a spot from Mapbox Geocoding, for a Google place listed only as a city (a road or
 // an area: "Shanghai"): "Zhapu Rd, Hongkou District, Shanghai, China". '' when Mapbox has nothing.
+// v5 has no "street" type: a road is an "address" feature without a number. Asking for "street" fails the whole request.
 export async function placeNameAt(lng, lat, signal) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
   url.searchParams.set('access_token', MAPBOX_TOKEN);
-  url.searchParams.set('types', 'address,street,neighborhood,locality');
+  url.searchParams.set('types', 'address,neighborhood,locality,place');
   url.searchParams.set('limit', '1');
   url.searchParams.set('language', 'en');
   const response = await fetch(url, { signal });
