@@ -1634,6 +1634,23 @@ select.step-input {
   letter-spacing: 0.5px;
 }
 
+.step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.step-back {
+  background: none;
+  border: none;
+  padding: 0 0 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
 .step-title {
   font-size: 16px;
   font-weight: 700;

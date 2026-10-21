@@ -36,7 +36,7 @@ const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
     if (urlObj.hostname.includes('instagram.com')) return urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/');
-    if (urlObj.hostname === 'vm.tiktok.com') return true;
+    if (['vm.tiktok.com', 'vt.tiktok.com'].includes(urlObj.hostname)) return true;
     return urlObj.hostname.endsWith('tiktok.com') && urlObj.pathname.includes('/video/');
   } catch {
     return false;

@@ -268,6 +268,16 @@ export default function PinModal({
   const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
   const stepLabel = (n) => `Step ${steps.indexOf(n) + 1} of ${steps.length}`;
+  // Going back only changes the step shown: a saved booking stays.
+  const prevStep = (n) => steps[steps.indexOf(n) - 1];
+  const stepHead = (n) => (
+    <div className="step-head">
+      <div className="step-number">{stepLabel(n)}</div>
+      {prevStep(n) && (
+        <button type="button" className="step-back" onClick={() => setStep(prevStep(n))}>← Back</button>
+      )}
+    </div>
+  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -457,7 +467,7 @@ export default function PinModal({
           <>
             {step === 1 && (
               <div className="checklist-step">
-                <div className="step-number">{stepLabel(1)}</div>
+                {stepHead(1)}
                 <div className="step-title"><Clock className="ico" aria-hidden="true" /> Check Hours</div>
                 <div className="step-description">{hoursSummary}</div>
                 <div className="step-buttons">
@@ -473,7 +483,7 @@ export default function PinModal({
 
             {step === 2 && (
               <div className="checklist-step">
-                <div className="step-number">{stepLabel(2)}</div>
+                {stepHead(2)}
                 <div className="step-title"><Link className="ico" aria-hidden="true" /> Book Reservation</div>
                 <div className="step-description">Choose when you'd like to visit. We'll help you find a table.</div>
                 <input
@@ -505,7 +515,7 @@ export default function PinModal({
 
             {step === 3 && (
               <div className="checklist-step">
-                <div className="step-number">{stepLabel(3)}</div>
+                {stepHead(3)}
                 <div className="step-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar</div>
                 <div className="step-description">Add this date to your calendar so you don't forget!</div>
                 <input

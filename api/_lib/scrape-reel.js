@@ -25,7 +25,7 @@ function isTikTokUrl(value) {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:') return false;
-    if (url.hostname === 'vm.tiktok.com') return /^\/[^/]+\/?$/.test(url.pathname);
+    if (['vm.tiktok.com', 'vt.tiktok.com'].includes(url.hostname)) return /^\/[^/]+\/?$/.test(url.pathname);
     return ['tiktok.com', 'www.tiktok.com'].includes(url.hostname) &&
       /^\/@[^/]+\/video\/\d+\/?$/.test(url.pathname);
   } catch {
