@@ -40,6 +40,8 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   const [scale, setScale] = useState(0);
   // The box shows a light placeholder until the player has loaded, then the player fades in.
   const [loaded, setLoaded] = useState(false);
+  // Off-screen cards drop the iframe's src, which stops the player. Scrolling back restores it, so the reel starts again.
+  const [onScreen, setOnScreen] = useState(true);
   const embed = reelEmbed(reelUrl);
   const embedWidth = embed?.width;
 
@@ -53,6 +55,14 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
     return () => observer.disconnect();
   }, [embedWidth]);
 
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box || !embed || typeof IntersectionObserver === 'undefined') return undefined;
+    const watcher = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    watcher.observe(box);
+    return () => watcher.disconnect();
+  }, [embed?.src]);
+
   if (!embed) return null;
   return (
     <span
@@ -62,7 +72,7 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
     >
       {scale > 0 && (
         <iframe
-          src={embed.src}
+          src={onScreen ? embed.src : undefined}
           title={embed.platform === 'tiktok' ? 'TikTok video' : 'Instagram reel'}
           loading="lazy"
           scrolling="no"
