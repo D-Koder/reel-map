@@ -30,8 +30,11 @@ module.exports = requireUser(async function handler(req, res) {
   let query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
 
   const fresh = req.body?.fresh === true;
-  // The reel lookup already searched the first place.
-  if (!fresh && listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {
+  // The reel lookup already searched the first place. Same name and same address, so a second branch
+  // with the same name (Swanston St after Bourke St) is searched on its own.
+  const isFirst = listed && squash(name) === squash(entry.place.placeName) &&
+    (!address || squash(entry.place.location || '').includes(squash(address)));
+  if (!fresh && isFirst && entry.candidates?.length) {
     return res.status(200).json({ success: true, query, candidates: entry.candidates, saved: true });
   }
   // By name and address, so two branches with the same name (Nana's Green Tea on Bourke St and on

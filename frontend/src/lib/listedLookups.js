@@ -75,7 +75,11 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}, fresh
     running.set(key, lookup);
     return lookup;
   }
-  const first = !fresh && item.name === reelData?.placeName && reelData?.maps?.candidates?.length ? reelData.maps : null;
+  // The reel lookup's own place: same name and, when the list gives one, same address. A second branch
+  // with the same name (Nana's Green Tea on Swanston St after Bourke St) is looked up on its own.
+  const plain = (text) => String(text || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const sameSpot = !item.address || plain(reelData?.location).includes(plain(item.address));
+  const first = !fresh && item.name === reelData?.placeName && sameSpot && reelData?.maps?.candidates?.length ? reelData.maps : null;
   const lookup = (async () => {
     const data = first || await requestListedPlace({
       reelUrl, name: item.name, address: item.address || '', area: reelData?.area || '', ...(fresh ? { fresh } : {}),
