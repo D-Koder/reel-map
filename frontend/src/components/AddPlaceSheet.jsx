@@ -133,6 +133,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const activeListedRef = useRef(null);
   // The listed place open in the form, for its card's highlight (its name may now be Google's).
   const [activeListed, setActiveListed] = useState(null);
+  // Google's name for each listed place's match, by line, shown on its card (萊萊小籠 → 莱莱小吃汤包馆).
+  const [listedNames, setListedNames] = useState({});
   // Each listed place's Google Maps lookup, by its line in the post: a promise of { candidates, best,
   // details }, shared by the early lookup, a tap and "Add all", so no place is searched twice.
   const listedLookupsRef = useRef(new Map());
@@ -222,6 +224,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setScrapedData(data);
     listedLookupsRef.current = new Map();
     setListedStatus({});
+    setListedNames({});
     // No name found: the first part of a "Name, Suburb" location, unless it's a street address.
     const locationName = /\d/.test(data.location?.split(',')[0] ?? '') || !data.location?.includes(',')
       ? '' : data.location.split(',')[0].trim();
@@ -371,6 +374,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     });
     lookups.set(line, picked);
     setListedStatus((now) => ({ ...now, [line]: 'found' }));
+    const found = details?.name || candidate.name;
+    if (found) setListedNames((now) => ({ ...now, [line]: found }));
   };
 
   // One listed place's Google Maps lookup: its results, the clear match (if any) and the match's details,
@@ -389,7 +394,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       return status ? { ...rest, [item.line]: status } : rest;
     });
     lookup.then(
-      ({ candidates, best }) => setStatus(best ? 'found' : candidates.length ? 'pick' : 'none'),
+      ({ candidates, best, details }) => {
+        setStatus(best ? 'found' : candidates.length ? 'pick' : 'none');
+        const found = details?.name || best?.name;
+        if (found && lookups === listedLookupsRef.current) setListedNames((now) => ({ ...now, [item.line]: found }));
+      },
       () => {
         // A failed lookup is forgotten, so a tap tries again.
         lookups.delete(item.line);
@@ -467,13 +476,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // now), and the clear matches are saved to the chosen collection. The ones Maps can't match stay in
   // the sheet to pick one by one, rather than being saved with no map pin.
   const addAllListed = async () => {
-    if (!collectionId || !onAddAll || !scrapedData?.listedPlaces?.length) return;
+    // After a first "Add all", only the places still to pick are left.
+    const list = leftToPick ?? scrapedData?.listedPlaces;
+    if (!collectionId || !onAddAll || !list?.length) return;
     setAddingAllListed(true);
     setSaving(true);
     const places = [];
     const unclear = [];
     try {
-      for (const item of scrapedData.listedPlaces) {
+      for (const item of list) {
         // A failed search is left to pick below too.
         const { best, details } = await lookupListed(item).catch(() => ({ best: null, details: null }));
         if (!best) {
@@ -1016,7 +1027,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                         onClick={() => chooseListed(item)}
                         disabled={saving || !!loadingCandidateUrl}
                       >
-                        <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
+                        <strong>{choosingListed === item.line && <span className="spinner" aria-hidden="true" />}{listedNames[item.line] || item.name}</strong>
+                        {listedNames[item.line] && listedNames[item.line] !== item.name && <span>In the post: {item.name}</span>}
                         {item.address && <span>{item.address}</span>}
                         {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
                         {(listedStatus[item.line] === 'looking' || choosingListed === item.line) && (
@@ -1036,7 +1048,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     </div>
                   ))}
                 </div>
-                {onAddAll && !leftToPick && (
+                {onAddAll && (
                   <button
                     type="button"
                     className="step-btn primary full-width"
@@ -1044,7 +1056,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     // Not held up by a place still filling the form: Add all waits for the lookups itself.
                     disabled={saving || addingAllListed || !collectionId}
                   >
-                    {addingAllListed ? 'Adding…' : `Add all ${scrapedData.listedPlaces.length} as places`}
+                    {addingAllListed ? 'Adding…' : leftToPick
+                      ? `Add ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}`
+                      : `Add all ${scrapedData.listedPlaces.length} as places`}
                   </button>
                 )}
               </div>
