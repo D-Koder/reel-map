@@ -131,6 +131,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [leftToPick, setLeftToPick] = useState(null);
   // The listed place the form is showing now (its line in the post).
   const activeListedRef = useRef(null);
+  // The listed place open in the form, for its card's highlight (its name may now be Google's).
+  const [activeListed, setActiveListed] = useState(null);
   // Each listed place's Google Maps lookup, by its line in the post: a promise of { candidates, best,
   // details }, shared by the early lookup, a tap and "Add all", so no place is searched twice.
   const listedLookupsRef = useRef(new Map());
@@ -424,6 +426,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // A place tapped in "This post lists N places": fill the form with it and its Google Maps match.
   const chooseListed = async (item) => {
     activeListedRef.current = item.line;
+    setActiveListed(item.line);
     nameTypedRef.current = false;
     setName(item.name);
     setLocation(item.address || '');
@@ -437,7 +440,18 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       // Another place was tapped while this one was still being looked up.
       if (activeListedRef.current !== item.line) return;
       if (best) {
-        await selectLocationCandidate(best, false, '', details);
+        // The details are read here, not in selectLocationCandidate, so a place tapped while another was
+        // still loading never gets that other place's name and address when it arrives late.
+        const data = details || await requestLocationApi({
+          action: 'details',
+          query: best.searchQuery,
+          placeUrl: best.url,
+          placeAddress: best.address,
+          placeName: best.name,
+          location: best.address || item.address || scrapedData?.area || '',
+        });
+        if (activeListedRef.current !== item.line) return;
+        await selectLocationCandidate(best, false, '', data);
       } else {
         setLocationCandidates(relatedPlaces(candidates, listedHints(item)));
         setLocationSearchDone(true);
@@ -997,14 +1011,17 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     <div key={item.line} className="listed-row">
                       <button
                         type="button"
-                        className={`listed-place ${name === item.name ? 'is-on' : ''}`}
-                        aria-pressed={name === item.name}
+                        className={`listed-place ${activeListed === item.line ? 'is-on' : ''}`}
+                        aria-pressed={activeListed === item.line}
                         onClick={() => chooseListed(item)}
                         disabled={saving || !!loadingCandidateUrl}
                       >
                         <strong>{choosingListed === item.line ? <><span className="spinner" aria-hidden="true" />{item.name}</> : item.name}</strong>
                         {item.address && <span>{item.address}</span>}
                         {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
+                        {(listedStatus[item.line] === 'looking' || choosingListed === item.line) && (
+                          <span className="listed-progress" role="progressbar" aria-label={`Looking up ${item.name}`} />
+                        )}
                       </button>
                       <button
                         type="button"

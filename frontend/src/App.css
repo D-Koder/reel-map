@@ -4609,6 +4609,36 @@ button.profile-open {
   color: var(--text-muted);
 }
 
+/* A moving bar under a listed place while it's looked up, so the wait shows it's working. */
+.listed-place .listed-progress {
+  position: relative;
+  display: block;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.listed-place .listed-progress::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: listed-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes listed-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listed-place .listed-progress::after { animation: none; width: 100%; opacity: 0.5; }
+}
+
 .listed-place.is-on {
   border-color: var(--ink);
 }
