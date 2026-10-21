@@ -1,7 +1,7 @@
 const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { reelLookupKey } = require('./_lib/reel-url');
+const { expandTikTokUrl, reelLookupKey } = require('./_lib/reel-url');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
@@ -440,7 +440,7 @@ function lookupLogs(body, consoleLines) {
 // the same way: a clear match is saved to TBD, anything else waits for the person to pick.
 async function enrich(req, res, getBrowser) {
   const startedAt = Date.now();
-  const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
+  const reelUrl = await expandTikTokUrl(typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '');
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const { cleanUrl, slide, cacheKey } = reelLookupKey(reelUrl, req.body?.slide);
   const read = await readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser);

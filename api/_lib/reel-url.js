@@ -34,4 +34,26 @@ function reelLookupKey(reelUrl, bodySlide) {
   return { cleanUrl, slide, cacheKey: cleanUrl && slide ? `${cleanUrl}?img_index=${slide}` : cleanUrl };
 }
 
-module.exports = { canonicalInstagramUrl, instagramSlide, reelLookupKey };
+// A short TikTok link (vm./vt.tiktok.com) has no video id, so the app can't embed it. It redirects
+// to the full tiktok.com/@name/video/123 link; returns that, or the link as given if it can't.
+async function expandTikTokUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value || '').trim());
+  } catch {
+    return value;
+  }
+  if (!['vm.tiktok.com', 'vt.tiktok.com'].includes(url.hostname)) return value;
+  try {
+    const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(5000) });
+    response.body?.cancel().catch(() => {});
+    const full = new URL(response.url);
+    const match = full.pathname.match(/^\/@[^/]+\/video\/\d+/);
+    return ['tiktok.com', 'www.tiktok.com'].includes(full.hostname) && match ? `https://www.tiktok.com${match[0]}` : value;
+  } catch (error) {
+    console.warn('TikTok short link not expanded:', error.message);
+    return value;
+  }
+}
+
+module.exports = { canonicalInstagramUrl, expandTikTokUrl, instagramSlide, reelLookupKey };

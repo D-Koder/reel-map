@@ -230,6 +230,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
   const applyReelData = (data) => {
     setScrapedData(data);
+    // A short TikTok link comes back as the full one, which has the video id the embed needs.
+    if (/^https:\/\/www\.tiktok\.com\/@[^/]+\/video\/\d+/.test(data.reelUrl || '')) setReelUrl(data.reelUrl);
     listedLookupsRef.current = new Map();
     setListedStatus({});
     setListedNames({});
@@ -767,29 +769,31 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">{sheetTitle}</div>
-          {step === 'details' && (
+          <div className="modal-header-actions">
+            {step === 'details' && (
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
+                aria-label="Report a problem with this lookup"
+                title="Report a problem with this lookup"
+              >
+                <TriangleAlert aria-hidden="true" />
+              </button>
+            )}
+            {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
             <button
               type="button"
               className="modal-close"
-              onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
-              aria-label="Report a problem with this lookup"
-              title="Report a problem with this lookup"
+              onClick={() => {
+                if (draftable) clearDraft();
+                onClose();
+              }}
+              aria-label="Close"
             >
-              <TriangleAlert aria-hidden="true" />
+              <X aria-hidden="true" />
             </button>
-          )}
-          {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
-          <button
-            type="button"
-            className="modal-close"
-            onClick={() => {
-              if (draftable) clearDraft();
-              onClose();
-            }}
-            aria-label="Close"
-          >
-            <X aria-hidden="true" />
-          </button>
+          </div>
         </div>
 
         {reportOpen && (
