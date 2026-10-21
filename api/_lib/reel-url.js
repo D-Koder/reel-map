@@ -34,7 +34,7 @@ function reelLookupKey(reelUrl, bodySlide) {
   return { cleanUrl, slide, cacheKey: cleanUrl && slide ? `${cleanUrl}?img_index=${slide}` : cleanUrl };
 }
 
-// A short TikTok link (vm./vt.tiktok.com) has no video id, so the app can't embed it. It redirects
+// A short TikTok link (vm./vt.tiktok.com, or tiktok.com/t/abc) has no video id, so the app can't embed it. It redirects
 // to the full tiktok.com/@name/video/123 link; returns that, or the link as given if it can't.
 async function expandTikTokUrl(value) {
   let url;
@@ -43,7 +43,9 @@ async function expandTikTokUrl(value) {
   } catch {
     return value;
   }
-  if (!['vm.tiktok.com', 'vt.tiktok.com'].includes(url.hostname)) return value;
+  const short = ['vm.tiktok.com', 'vt.tiktok.com'].includes(url.hostname) ||
+    (['tiktok.com', 'www.tiktok.com'].includes(url.hostname) && /^\/t\/[^/]+\/?$/.test(url.pathname));
+  if (!short) return value;
   try {
     const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(5000) });
     response.body?.cancel().catch(() => {});
