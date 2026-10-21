@@ -3109,36 +3109,6 @@ select.step-input {
   opacity: 1;
 }
 
-.reel-embed-thumb img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.reel-embed-thumb.is-loaded img {
-  opacity: 1;
-}
-
-.reel-embed-credit {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 4px;
-  padding: 2px 5px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* TikTok's player is dark, so its placeholder is too. */
 .reel-embed-thumb.is-tiktok,
 .reel-embed-thumb.is-tiktok.is-loaded {
