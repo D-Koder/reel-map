@@ -7,6 +7,7 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import PlaceSearchInput from './PlaceSearchInput';
+import LookupProgress from './LookupProgress';
 import { requestLocationApi } from '../lib/googlePlaces';
 import { LISTED_AHEAD, forgetListedLookups, listedHints, lookupListedPlace, saveListedPick } from '../lib/listedLookups';
 import { apiFetch } from '../lib/api';
@@ -937,6 +938,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         {/* STEP 2: Place Details */}
         {step === 'details' && (
           <form onSubmit={submit}>
+            {loading && <LookupProgress />}
             {/* Reel Thumbnail Preview */}
             {scrapedData && (
               <div style={{
