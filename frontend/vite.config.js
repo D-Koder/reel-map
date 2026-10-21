@@ -4,6 +4,11 @@ import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
+// The local API runs inside this process, so it reads the repo root's .env.local (e.g. ANTHROPIC_API_KEY)
+// from process.env. Values already set in the shell win. A missing file is fine.
+try {
+  process.loadEnvFile(new URL('../.env.local', import.meta.url));
+} catch {}
 const apiHandlers = {
   '/api/enrich-reel': require('../api/enrich-reel.js'),
   '/api/scrape-location': require('../api/scrape-location.js'),
