@@ -488,7 +488,10 @@ async function aiPlace(post) {
     const seenSquashed = squash(sources);
     const spellings = (name) => [name, String(name).replace(/&/g, ' and ')].map(squash).filter(Boolean);
     const spells = (name, letters) => spellings(name).some((key) => letters.includes(key));
-    const spellsExactly = (name, handle) => spellings(name).includes(squash(handle));
+    // A handle often shares a letter where two words meet ("nanas.greenteaustralia" for "Nana's Green Tea
+    // Australia"), so doubled letters count once on both sides.
+    const single = (letters) => letters.replace(/(.)\1+/gu, '$1');
+    const spellsExactly = (name, handle) => spellings(name).some((key) => key === squash(handle) || single(key) === single(squash(handle)));
     const checked = answer.places.map((place) => {
       const handle = String(place.handle || '').trim().replace(/^@/, '');
       if (!handle || !seenSquashed.includes(squash(handle))) return { ...place, handle: '' };
