@@ -24,6 +24,14 @@ const LISTED_STATUS = {
   none: 'Not found on Google Maps',
 };
 
+// The same name, or the same Chinese name in the other script (人和館 / 人和馆): it changes characters
+// one for one. Same rule as otherScript in api/_lib/ai-place.js.
+const HAN = /\p{Script=Han}/u;
+const sameName = (a, b) => {
+  const [x, y] = [[...a], [...b]];
+  return x.length === y.length && x.every((char, i) => char === y[i] || (HAN.test(char) && HAN.test(y[i])));
+};
+
 const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
@@ -522,7 +530,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         });
       }
       if (places.length) await onAddAll(places, { more: unclear.length });
-      if (places.length && !unclear.length) forgetListedLookups(reelUrl.trim());
+      // Everything is saved: the reel isn't kept as a draft for the next "Add a place".
+      if (places.length && !unclear.length) {
+        forgetListedLookups(reelUrl.trim());
+        if (draftable) clearDraft();
+      }
       if (unclear.length) {
         setLeftToPick(unclear);
         setSaving(false);
@@ -1028,7 +1040,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                         disabled={saving || !!loadingCandidateUrl}
                       >
                         <strong>{choosingListed === item.line && <span className="spinner" aria-hidden="true" />}{listedNames[item.line] || item.name}</strong>
-                        {listedNames[item.line] && listedNames[item.line] !== item.name && <span>In the post: {item.name}</span>}
+                        {listedNames[item.line] && !sameName(listedNames[item.line], item.name) && <span>In the post: {item.name}</span>}
                         {item.address && <span>{item.address}</span>}
                         {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
                         {(listedStatus[item.line] === 'looking' || choosingListed === item.line) && (
