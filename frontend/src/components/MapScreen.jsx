@@ -838,7 +838,10 @@ const openListedPlace = (place) => {
               </div>
               <p className="modal-label">{venuePicker.length} places saved here. Choose one:</p>
               <div className="location-verify-results">
-                {venuePicker.map((place) => (
+                {venuePicker
+                  .map((place) => ({ place, collection: collections.find((c) => c.id === place.collection_id)?.name || '' }))
+                  .sort((a, b) => a.collection.localeCompare(b.collection) || a.place.name.localeCompare(b.place.name))
+                  .map(({ place, collection }) => (
                   <button
                     key={`${place.collection_id}:${place.id}`}
                     type="button"
@@ -849,7 +852,8 @@ const openListedPlace = (place) => {
                     }}
                   >
                     <strong>{place.name}</strong>
-                    <span>{place.custom_info || 'No custom info'}</span>
+                    {collection && <span>📌 {collection}</span>}
+                    {place.custom_info && <span>{place.custom_info}</span>}
                   </button>
                 ))}
               </div>
