@@ -98,6 +98,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [reelUrlInput, setReelUrlInput] = useState(initialReelUrl ?? draft?.reelUrlInput ?? '');
   const [urlError, setUrlError] = useState('');
   const [loading, setLoading] = useState(false);
+  // True once the lookup has answered; the progress bar fills, then the form opens.
+  const [lookupDone, setLookupDone] = useState(false);
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
@@ -191,6 +193,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   const scrapeReel = async (url) => {
     setLoading(true);
+    setLookupDone(false);
     setApiLogs([]);
     addLog('Starting to fetch reel data...', 'info');
 
@@ -218,7 +221,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
       if (data?.success) {
         addLog(`Successfully scraped reel data`, 'success');
-        applyReelData(data);
+        await applyReelData(data);
       } else {
         addLog(`Response not successful: ${JSON.stringify(data)}`, 'error');
       }
@@ -227,10 +230,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       console.error('Scrape error:', error);
     }
     setLoading(false);
+    setLookupDone(true);
   };
 
   // Fills the form from a reel lookup: the name, address and Google Maps match or choices.
-  const applyReelData = (data) => {
+  // Async so the form opens only once a clear Maps match's details are read too.
+  const applyReelData = async (data) => {
     setScrapedData(data);
     // A short TikTok link comes back as the full one, which has the video id the embed needs.
     if (/^https:\/\/www\.tiktok\.com\/@[^/]+\/video\/\d+/.test(data.reelUrl || '')) setReelUrl(data.reelUrl);
@@ -299,7 +304,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         const keepName = data.placeName && !namedLike(best, reelPlaceHints(data)) ? data.placeName : '';
         addLog(keepName ? `Picked ${best.name}, at the post's address; keeping the name ${keepName}.`
           : `Picked ${best.name}, the clear match.`, 'success');
-        selectLocationCandidate(best, false, keepName);
+        await selectLocationCandidate(best, false, keepName);
       } else if (candidates.length) {
         setLocationCandidates(candidates);
         setLocationSearchDone(true);
@@ -316,7 +321,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       const spot = orderOnly.pickupPlace?.split(',')[0].trim();
       const pickup = spot ? ` · pickup at ${spot}` : orderOnly.area ? ` · pickup in ${orderOnly.area}` : '';
       setCustomInfo((typed) => typed || `Pre-order${pickup}`);
-      if (!data.maps?.details && orderOnly.area) pinArea(orderOnly.area);
+      if (!data.maps?.details && orderOnly.area) await pinArea(orderOnly.area);
     }
   };
 
@@ -623,8 +628,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     // URL is valid, proceed to step 2
     setReelUrl(trimmedUrl);
     setMapsData(null);
+    // The reel step stays up with the progress bar; the form opens when the lookup is done.
     scrapeReel(trimmedUrl);
-    setTimeout(() => setStep('details'), 300);
   };
 
   // A link shared from Instagram or TikTok goes straight to the lookup, with no extra tap.
@@ -869,49 +874,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               )}
             </div>
 
-            {/* Loading State with Skeleton */}
-            {loading && (
-              <div style={{
-                padding: '12px',
-                backgroundColor: 'var(--surface-muted)',
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: '16px'
-              }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  Fetching reel data…
-                </div>
-                <div role="status" aria-label="Fetching reel data" style={{ marginBottom: '8px' }}>
-                  <span className="skeleton-bar" style={{ width: '70%' }} />
-                  <span className="skeleton-bar" style={{ width: '45%' }} />
-                  <span className="skeleton-bar" style={{ width: '90%' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{
-                    width: '60px',
-                    height: '60px',
-                    backgroundColor: 'var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    animation: 'pulse 2s infinite'
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      height: '12px',
-                      backgroundColor: 'var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      marginBottom: '8px',
-                      width: '80%',
-                      animation: 'pulse 2s infinite'
-                    }} />
-                    <div style={{
-                      height: '10px',
-                      backgroundColor: 'var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      width: '60%',
-                      animation: 'pulse 2s infinite'
-                    }} />
-                  </div>
-                </div>
-              </div>
+            {/* The lookup's progress; the form replaces this step once the bar is full. */}
+            {(loading || lookupDone) && (
+              <LookupProgress done={lookupDone} onDone={() => setStep('details')} />
             )}
 
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
@@ -938,7 +903,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         {/* STEP 2: Place Details */}
         {step === 'details' && (
           <form onSubmit={submit}>
-            {loading && <LookupProgress />}
             {/* Reel Thumbnail Preview */}
             {scrapedData && (
               <div style={{

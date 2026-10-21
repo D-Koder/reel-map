@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // The lookup is one request, so the server doesn't report its steps. The bar moves through them on
 // estimated times, and holds below full until the answer comes back.
@@ -22,17 +22,28 @@ function stageAt(elapsed) {
 }
 
 // Shown while a reel is looked up. Mounted only during the lookup, so each one starts at zero.
-export default function LookupProgress() {
+// When done, it fills to full, then calls onDone so the form can open.
+export default function LookupProgress({ done = false, onDone }) {
   const [elapsed, setElapsed] = useState(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
+    if (done) return undefined;
     const started = Date.now();
     const timer = setInterval(() => setElapsed(Date.now() - started), 100);
     return () => clearInterval(timer);
-  }, []);
+  }, [done]);
 
-  const percent = Math.min(elapsed / TOTAL_MS, 1) * HOLD_AT;
-  const label = stageAt(elapsed);
+  // Long enough for the bar to reach full before the form replaces it.
+  useEffect(() => {
+    if (!done) return undefined;
+    const timer = setTimeout(() => onDoneRef.current?.(), 400);
+    return () => clearTimeout(timer);
+  }, [done]);
+
+  const percent = done ? 100 : Math.min(elapsed / TOTAL_MS, 1) * HOLD_AT;
+  const label = done ? 'Done' : stageAt(elapsed);
 
   return (
     <div
