@@ -11,6 +11,7 @@ import LookupProgress from './LookupProgress';
 import { requestLocationApi } from '../lib/googlePlaces';
 import { LISTED_AHEAD, forgetListedLookups, listedHints, lookupListedPlace, saveListedPick } from '../lib/listedLookups';
 import { apiFetch } from '../lib/api';
+import { lookupReel, savedReel } from '../lib/reelCache';
 import { findArea } from '../lib/mapboxSearch';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -198,11 +199,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     addLog('Starting to fetch reel data...', 'info');
 
     try {
-      const response = await apiFetch('/api/enrich-reel', {
-        body: JSON.stringify({ reelUrl: url }),
-      });
-      const data = await response.json().catch(() => ({}));
-      const error = response.ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${response.status}`);
+      // A reel looked up before is used from this device, with no new lookup.
+      const saved = savedReel(url);
+      if (saved) addLog('Loaded from this device; no new lookup.', 'info');
+      const { ok, status, data } = saved ? { ok: true, status: 200, data: saved } : await lookupReel(url);
+      const error = ok ? null : new Error(data.error || `Reel enrichment returned HTTP ${status}`);
 
       if (error) {
         let detail = error.message;
@@ -610,6 +611,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       setNewCollectionName('');
     }
   };
+
+  // Starts the lookup once a valid link has been pasted and paused for a moment, so a link still being
+  // typed isn't looked up half way. Confirm then waits for it, or shows it at once when it's saved.
+  useEffect(() => {
+    const url = reelUrlInput.trim();
+    if (step !== 'reel' || !isValidReelUrl(url) || savedReel(url)) return undefined;
+    const timer = setTimeout(() => lookupReel(url).catch(() => {}), 600);
+    return () => clearTimeout(timer);
+  }, [reelUrlInput, step]);
 
   const handleConfirmReel = () => {
     const trimmedUrl = reelUrlInput.trim();

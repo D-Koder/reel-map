@@ -102,7 +102,9 @@ export default function LookupProgress({ done = false, onDone }) {
     if (!done) return undefined;
     const now = performance.now();
     finishRef.current = { at: now, from: shownRef.current };
-    rememberMs(now - startedRef.current);
+    // A saved lookup finishes at once; that isn't a real lookup's time, so it isn't remembered.
+    const took = now - startedRef.current;
+    if (took >= MIN_MS) rememberMs(took);
     const timer = setTimeout(() => onDoneRef.current?.(), FILL_MS + 150);
     return () => clearTimeout(timer);
   }, [done]);
