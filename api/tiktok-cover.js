@@ -10,12 +10,24 @@ module.exports = async function handler(req, res) {
   const oembedUrl = new URL('https://www.tiktok.com/oembed');
   oembedUrl.searchParams.set('url', `https://www.tiktok.com${path}`);
   try {
-    const response = await fetch(oembedUrl, { signal: AbortSignal.timeout(8000) });
+    const response = await fetch(oembedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!response.ok) console.warn(`TikTok oEmbed returned HTTP ${response.status} for ${path}`);
     if (!response.ok) return res.status(404).json({ error: `TikTok returned HTTP ${response.status}` });
-    const data = await response.json().catch(() => ({}));
+    const text = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Not JSON: logged below with the start of what came back.
+    }
     const thumbnailUrl = typeof data.thumbnail_url === 'string' && data.thumbnail_url.startsWith('https://') ? data.thumbnail_url : null;
-    if (!thumbnailUrl) console.warn(`TikTok oEmbed had no cover for ${path}`);
+    if (!thumbnailUrl) console.warn(`TikTok oEmbed had no cover for ${path}:`, response.headers.get('content-type'), text.slice(0, 300));
     if (!thumbnailUrl) return res.status(404).json({ error: 'No cover for this video' });
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
     return res.status(200).json({
