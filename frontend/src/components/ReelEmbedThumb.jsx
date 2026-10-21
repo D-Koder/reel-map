@@ -1,14 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-// TikTok covers already asked for this visit, by video id: a promise of { thumbnailUrl, creator } or null.
+// TikTok covers already asked for this visit, by /@name/video/123: a promise of { thumbnailUrl, creator } or null.
 const tiktokCovers = new Map();
-function tiktokCover(videoId) {
-  if (!tiktokCovers.has(videoId)) {
-    tiktokCovers.set(videoId, fetch(`/api/tiktok-cover?id=${videoId}`)
+function tiktokCover(videoPath) {
+  if (!tiktokCovers.has(videoPath)) {
+    tiktokCovers.set(videoPath, fetch(`/api/tiktok-cover?path=${encodeURIComponent(videoPath)}`)
       .then((response) => (response.ok ? response.json() : null))
       .catch(() => null));
   }
-  return tiktokCovers.get(videoId);
+  return tiktokCovers.get(videoPath);
 }
 
 // Each platform's official embed: the size it is laid out at (then scaled down to the box's width)
@@ -35,9 +35,9 @@ export function reelEmbed(reelUrl) {
     return { ...PLATFORMS.instagram, platform: 'instagram', src: `https://www.instagram.com/${kind}/${instagram[2]}/embed/` };
   }
   // Full links only (tiktok.com/@name/video/123). Short vm.tiktok.com links don't carry the video id.
-  const tiktok = url.pathname.match(/^\/@[^/]+\/video\/(\d+)/);
+  const tiktok = url.pathname.match(/^\/@[^/]+\/video\/\d+/);
   if (/(^|\.)tiktok\.com$/.test(url.hostname) && tiktok) {
-    return { ...PLATFORMS.tiktok, platform: 'tiktok', videoId: tiktok[1] };
+    return { ...PLATFORMS.tiktok, platform: 'tiktok', videoPath: tiktok[0] };
   }
   return null;
 }
@@ -52,16 +52,16 @@ export default function ReelEmbedThumb({ reelUrl, className = '' }) {
   const [loaded, setLoaded] = useState(false);
   const embed = reelEmbed(reelUrl);
   const embedWidth = embed?.width;
-  const videoId = embed?.videoId;
+  const videoPath = embed?.videoPath;
   const [cover, setCover] = useState(null);
 
   useEffect(() => {
     setCover(null);
-    if (!videoId) return undefined;
+    if (!videoPath) return undefined;
     let current = true;
-    tiktokCover(videoId).then((found) => { if (current) setCover(found); });
+    tiktokCover(videoPath).then((found) => { if (current) setCover(found); });
     return () => { current = false; };
-  }, [videoId]);
+  }, [videoPath]);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
