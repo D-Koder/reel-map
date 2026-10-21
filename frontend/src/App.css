@@ -4678,7 +4678,6 @@ button.profile-open {
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
-  transition: width 0.1s linear;
 }
 
 .listed-place.is-on {
