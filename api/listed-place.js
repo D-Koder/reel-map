@@ -34,7 +34,9 @@ module.exports = requireUser(async function handler(req, res) {
   if (!fresh && listed && squash(name) === squash(entry.place.placeName) && entry.candidates?.length) {
     return res.status(200).json({ success: true, query, candidates: entry.candidates, saved: true });
   }
-  const key = listed ? `${cacheKey}#${squash(name)}` : null;
+  // By name and address, so two branches with the same name (Nana's Green Tea on Bourke St and on
+  // Swanston St) never share saved results.
+  const key = listed ? `${cacheKey}#${squash(name)}${address ? `@${squash(address)}` : ''}` : null;
   const saved = key && !fresh ? await readCache('reel_lookups', key, REEL_CACHE_DAYS) : null;
   // Results saved without the place's local name (by older code, or before the AI gave one) are searched again.
   if (!fresh && saved?.data?.candidates?.length && (saved.data.localName || '') === (listed.localName || '')) {
