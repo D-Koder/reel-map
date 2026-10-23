@@ -101,8 +101,9 @@ function RunPanel({ run, today, disabled, onChange, onRemove, onDone }) {
 }
 
 // "When is it on?" for an event. runs: [{ start, end, open, close }]; onChange gets the new list.
+// price / onPrice: an optional text box for what it costs, as written.
 // Nothing is open until someone taps Add dates or a saved run. A run with no day picked is dropped on Done.
-export default function EventTimesEditor({ runs, onChange, disabled = false, fromCaption = false }) {
+export default function EventTimesEditor({ runs, onChange, price = '', onPrice = null, disabled = false, fromCaption = false }) {
   const [openIndex, setOpenIndex] = useState(-1);
   const today = dayString();
   const update = (index, run) => onChange(runs.map((r, i) => (i === index ? run : r)));
@@ -144,6 +145,13 @@ export default function EventTimesEditor({ runs, onChange, disabled = false, fro
         <button type="button" className="evt-link" onClick={add} disabled={disabled}>
           {runs.length ? '+ Add more dates' : '+ Add dates'}
         </button>
+      )}
+      {onPrice && (
+        <label className="evt-time">
+          <span>Price (optional)</span>
+          <input type="text" value={price} maxLength={60} placeholder="e.g. Free, $25, $15–$40" disabled={disabled}
+            onChange={(e) => onPrice(e.target.value)} />
+        </label>
       )}
     </div>
   );

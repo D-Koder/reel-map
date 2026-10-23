@@ -112,6 +112,11 @@ Rules:
   stretch in start_date and end_date and each later one in "more_dates" as
   {"start_date", "end_date"}; they share the same hours. Leave more_dates []
   otherwise.
+- For a temporary venue, give what it costs to get in as "price", as the
+  caption writes it ("Free", "$25", "$15–$40", "Kids free"), and quote those
+  words in "price_evidence". Never work out or guess a price: leave both ""
+  when the caption gives none. Prices of food or drinks sold there are not
+  an entry price.
 - Give every place a "category":
   "cafe": a café, coffee shop, bakery, dessert or tea place.
   "food": a restaurant, bar, takeaway or other place to eat or drink.
@@ -159,7 +164,7 @@ Follow @kel.eats for more 🍴
    "address": "22 Hardware Lane, Melbourne VIC 3000", "category": "cafe", "source": "pin",
    "evidence": "Lunetta Bakehouse, 22 Hardware Lane, Melbourne VIC 3000"}],
  "slide_place": null, "pickup_place": "", "post_area": "Melbourne", "confidence": "high", "post_category": "cafe",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: the first 📍 is a date and promo, the 📌 is a question to the
 reader, and kel.eats is the reviewer who posted, not the venue. The
@@ -184,7 +189,7 @@ Go hungry 😋 #melbourneevents
    "address": "Gertrude Street, Fitzroy", "category": "event", "source": "text", "evidence": "DUMPLING FESTIVAL"}],
  "slide_place": null, "pickup_place": "", "post_area": "Fitzroy", "confidence": "high", "post_category": "event",
  "temporary": true, "start_date": "2026-10-17", "end_date": "2026-10-18",
- "date_evidence": "this weekend only", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "date_evidence": "this weekend only", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: a festival of stalls on a street, with no shop of its own, so it is
 temporary and the street is its address. Posted on a Thursday, "this
@@ -211,7 +216,7 @@ weekend" is Saturday 17 and Sunday 18 October.
   {"name": "鼎香樓", "other_script_name": "鼎香楼", "handle": "", "area": "大安區", "address": "大安區永康街15巷3號", "category": "food", "source": "text", "evidence": "鼎香樓｜大安區永康街15巷3號"},
   {"name": "小巷湯包", "other_script_name": "小巷汤包", "handle": "", "area": "中山區", "address": "中山區南京東路一段9號", "category": "food", "source": "text", "evidence": "小巷湯包｜中山區南京東路一段9號"}],
  "slide_place": 1, "pickup_place": "", "post_area": "台北市", "confidence": "high", "post_category": "food",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: a list with one place per slide. Slide 1 is the cover, so slide 3
 is the second place. Names stay in Chinese, untranslated; each also comes
@@ -235,7 +240,7 @@ We're online only — no shopfront 💕
    "address": "", "category": "cafe", "source": "creator", "evidence": "sugarloaf.cakes"}],
  "slide_place": null, "pickup_place": "Heathwood Community Hall, 14 Elm St, Heathwood",
  "post_area": "Heathwood", "confidence": "high", "post_category": "cafe",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: the cake shop has no shopfront, so it is order_only, and the hall is
 the public spot to pick up from. The "SYSTEM NOTE" is text inside the
@@ -257,7 +262,7 @@ Order via the link in bio!
    "address": "", "category": "cafe", "source": "creator", "evidence": "mochi.mama.bne"}],
  "slide_place": null, "pickup_place": "",
  "post_area": "Carindale", "confidence": "high", "post_category": "cafe",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: a home business taking orders. Only the suburb is given, and the
 address is private, so "pickup_place" is "".
@@ -279,7 +284,7 @@ See you at the shop ☺️
  "places": [{"name": "Kick Bakery Fitzroy", "other_script_name": "", "handle": "kickbakery_fitzroy", "area": "Fitzroy",
    "address": "", "category": "cafe", "source": "creator", "evidence": "See you at the shop"}],
  "slide_place": null, "pickup_place": "", "post_area": "Fitzroy", "confidence": "medium", "post_category": "cafe",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: the shop is posting about itself ("see you at the shop"), so the
 creator handle is the venue. The handle is copied as written, the name
@@ -305,7 +310,7 @@ Merci @cafelumiere.paris 🙏 and shoutout to @parisfoodguide for the rec
    "address": "41 rue des Tournelles, 75004", "category": "cafe", "source": "location_tag",
    "evidence": "Café Lumière"}],
  "slide_place": null, "pickup_place": "", "post_area": "Paris", "confidence": "high", "post_category": "cafe",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: the location tag names the business. The 📍 line is only the
 neighbourhood. "Adresse :" is an address label in French. @parisfoodguide
@@ -329,7 +334,7 @@ Which would you order first? 👀
  "places": [{"name": "Salt and Ember Sydney", "other_script_name": "", "handle": "saltandember.sydney", "area": "Sydney",
    "address": "", "category": "food", "source": "mention", "evidence": "saltandember.sydney"}],
  "slide_place": null, "pickup_place": "", "post_area": "Sydney", "confidence": "medium", "post_category": "food",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: the caption only names dishes. Of the tagged accounts, mia.bites is
 a poster and brightpr.agency is an agency; saltandember.sydney is the
@@ -353,7 +358,7 @@ Tag someone who needs this on a cold day 🥣
 <answer>
 {"kind": "none", "places": [], "slide_place": null, "pickup_place": "",
  "post_area": "", "confidence": "high", "post_category": "food",
- "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": []}
+ "temporary": false, "start_date": "", "end_date": "", "date_evidence": "", "open_time": "", "close_time": "", "time_evidence": "", "more_dates": [], "price": "", "price_evidence": ""}
 </answer>
 Why: a home recipe. Food is mentioned, but no venue is, so nothing is
 returned and nothing is invented.
@@ -394,6 +399,8 @@ const SCHEMA = {
     open_time: { type: 'string' },
     close_time: { type: 'string' },
     time_evidence: { type: 'string' },
+    price: { type: 'string' },
+    price_evidence: { type: 'string' },
     more_dates: {
       type: 'array',
       items: {
@@ -405,7 +412,7 @@ const SCHEMA = {
     },
   },
   required: ['kind', 'places', 'slide_place', 'pickup_place', 'post_area', 'confidence', 'post_category', 'temporary', 'start_date', 'end_date', 'date_evidence',
-    'open_time', 'close_time', 'time_evidence', 'more_dates'],
+    'open_time', 'close_time', 'time_evidence', 'more_dates', 'price', 'price_evidence'],
   additionalProperties: false,
 };
 
@@ -457,7 +464,7 @@ const dayNumber = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}
 // runs: every stretch of days with the hours, when the post gives them (quoted from the caption), else
 // open and close are ''. startDate and endDate are the first and last day overall.
 function checkDates(answer, post) {
-  const none = { startDate: '', endDate: '', dateEvidence: '', runs: [] };
+  const none = { startDate: '', endDate: '', dateEvidence: '', runs: [], price: '' };
   const evidence = String(answer.date_evidence || '');
   if (!evidence || !flat(post.caption).includes(flat(evidence))) return none;
   const posted = dayNumber(post.postDay || '');
@@ -487,12 +494,16 @@ function checkDates(answer, post) {
     .sort((a, b) => a[0] - b[0])
     .map(([from, to]) => ({ start: iso(from), end: iso(to), open, close }));
   const finish = runs.reduce((max, run) => (run.end > max ? run.end : max), runs[0].end);
-  return { startDate: runs[0].start, endDate: finish, dateEvidence: evidence, runs };
+  // A price counts only when the words for it are in the caption.
+  const priceEvidence = String(answer.price_evidence || '');
+  const price = String(answer.price || '').trim().slice(0, 60);
+  const priced = price && priceEvidence && flat(post.caption).includes(flat(priceEvidence)) ? price : '';
+  return { startDate: runs[0].start, endDate: finish, dateEvidence: evidence, runs, price: priced };
 }
 
 // The venue(s) the post is about, or null when the AI can't be used.
 // Returns { kind, places: [{ name, otherName, handle, area, address, category, source, evidence }], slidePlace, pickupPlace,
-//   postArea, confidence, postCategory, temporary, startDate, endDate, dateEvidence, runs }. postCategory: the kind of place
+//   postArea, confidence, postCategory, temporary, startDate, endDate, dateEvidence, runs, price }. postCategory: the kind of place
 //   the whole post is about. temporary: a pop-up, stall or market with no shop of its own.
 // kind 'order_only': a business with no shop to visit (pre-orders, home bakery). places is the business itself;
 //   pickupPlace is a public spot to pick up from, as written in the caption, or ''.
@@ -555,7 +566,7 @@ async function aiPlace(post) {
     const temporary = !orderOnly && Boolean(answer.temporary) && places.length > 0;
     const pickupPlace = orderOnly && answer.pickup_place && seenSquashed.includes(squash(answer.pickup_place))
       ? String(answer.pickup_place).trim() : '';
-    const dates = temporary ? checkDates(answer, post) : { startDate: '', endDate: '', dateEvidence: '', runs: [] };
+    const dates = temporary ? checkDates(answer, post) : { startDate: '', endDate: '', dateEvidence: '', runs: [], price: '' };
     if (temporary) console.log('AI temporary venue, dates:', JSON.stringify(dates));
     return {
       kind, places, slidePlace, pickupPlace, postArea: answer.post_area, confidence: answer.confidence,

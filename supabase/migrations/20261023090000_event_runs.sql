@@ -11,3 +11,13 @@ alter table public.collection_places
 alter table public.collection_places
   add constraint collection_places_event_runs_is_array
   check (event_runs is null or jsonb_typeof(event_runs) = 'array');
+
+-- What it costs, as written ("Free", "$25", "$15-$40"), when someone gave it or the caption said.
+alter table public.collection_places
+  add column if not exists event_price text;
+
+alter table public.collection_places
+  drop constraint if exists collection_places_event_price_length;
+alter table public.collection_places
+  add constraint collection_places_event_price_length
+  check (event_price is null or char_length(event_price) <= 60);

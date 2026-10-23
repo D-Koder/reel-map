@@ -267,7 +267,7 @@ export default function PinModal({
   ].filter(Boolean);
   const satHours = hours.find((h) => /sat/i.test(h.days));
   const hoursSummary = hasRuns
-    ? eventSummary(place.name, runs)
+    ? eventSummary(place.name, runs, place.event_price)
     : hours.length
     ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
     : "We don't have opening hours for this place yet — check before you go.";
@@ -456,6 +456,7 @@ export default function PinModal({
               ))}
             </ul>
             {eventNow && <div className={`evt-status is-${eventNow.kind}`}>{eventNow.text}</div>}
+            {place.event_price && <div className="evt-price"><span>Price</span><b>{place.event_price}</b></div>}
           </div>
         )}
 

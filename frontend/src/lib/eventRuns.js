@@ -120,14 +120,15 @@ export function eventStatus(runsIn, now = new Date()) {
   return { kind: 'over', text: 'This event has finished' };
 }
 
-// One sentence for the place page's check step.
-export function eventSummary(name, runsIn, now = new Date()) {
+// One sentence for the place page's check step, with the price when there is one.
+export function eventSummary(name, runsIn, price = '', now = new Date()) {
   const runs = cleanRuns(runsIn);
   const today = dayString(now);
+  const cost = price ? ` ${/^free\b/i.test(price) ? 'Free entry.' : `Price: ${price}.`}` : '';
   const on = runOn(runs, today);
-  if (on) return `${name} is on today, ${timesText(on).toLowerCase() === 'all day' ? 'all day' : timesText(on)}. Does that work for you?`;
+  if (on) return `${name} is on today, ${timesText(on) === 'All day' ? 'all day' : timesText(on)}.${cost} Does that work for you?`;
   const next = nextDay(runs, today);
   return next
-    ? `${name} is next on ${dayShort(next)}, ${timesText(runOn(runs, next)).replace(/^All day$/, 'all day')}. Does that work for you?`
+    ? `${name} is next on ${dayShort(next)}, ${timesText(runOn(runs, next)).replace(/^All day$/, 'all day')}.${cost} Does that work for you?`
     : `${name} has finished. Check before you go.`;
 }

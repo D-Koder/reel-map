@@ -19,6 +19,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
   const [eventRuns, setEventRuns] = useState(() => runsOf(place));
+  const [eventPrice, setEventPrice] = useState(place.event_price ?? '');
   const [saving, setSaving] = useState(false);
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
@@ -157,7 +158,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
       }
     }
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventRuns: cleanRuns(eventRuns), location: newSpot });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventRuns: cleanRuns(eventRuns), eventPrice, location: newSpot });
     setSaving(false);
   };
 
@@ -287,7 +288,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
 
         {category === 'event' && eventDatesReady && (
           <>
-            <EventTimesEditor runs={eventRuns} onChange={setEventRuns} disabled={!isAdder} />
+            <EventTimesEditor runs={eventRuns} onChange={setEventRuns} price={eventPrice} onPrice={setEventPrice} disabled={!isAdder} />
             <span className="place-collection-note">Events in the next 3 months show in Up next, and in Today on each day they are on.</span>
           </>
         )}

@@ -132,6 +132,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // When an event is on: runs of days with optional open and close times (see lib/eventRuns.js).
   const [eventRuns, setEventRuns] = useState(() => draft?.eventRuns
     ?? (draft?.eventDate ? [{ start: draft.eventDate, end: draft.eventEndDate || draft.eventDate, open: '', close: '' }] : []));
+  // What it costs, as written ("Free", "$25"), read from the post when it says.
+  const [eventPrice, setEventPrice] = useState(draft?.eventPrice ?? '');
   // True when the AI read the runs from a post, so the editor says so.
   const [runsFromCaption, setRunsFromCaption] = useState(false);
   // A pop-up's own name. The Maps search only finds its street, so the street's name never replaces it.
@@ -180,10 +182,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns,
+      locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns, eventPrice,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns, eventPrice]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -282,6 +284,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       const read = cleanRuns(popup.runs?.length ? popup.runs : popup.startDate ? [{ start: popup.startDate, end: popup.endDate }] : []);
       setEventRuns(read);
       setRunsFromCaption(read.length > 0);
+      setEventPrice(popup.price || '');
       const days = !popup.endDate ? 'no clear dates in the post, so add them yourself'
         : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
       addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');
@@ -786,6 +789,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         customInfo: customInfo.trim(),
         url: link,
         eventRuns: category === 'event' ? cleanRuns(eventRuns) : [],
+        eventPrice: category === 'event' ? eventPrice.trim() : '',
       }, { keepOpen: next.length > 0 });
       if (created && next.length) {
         setLeftToPick(next);
@@ -1417,6 +1421,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               <EventTimesEditor
                 runs={eventRuns}
                 onChange={setEventRuns}
+                price={eventPrice}
+                onPrice={setEventPrice}
                 disabled={saving}
                 fromCaption={runsFromCaption}
               />
