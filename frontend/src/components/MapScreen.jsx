@@ -4,7 +4,8 @@ import { Coffee, LocateFixed, MapPin, PartyPopper, UtensilsCrossed, X } from 'lu
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
-import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory, retrievePlace, searchSuggestions } from '../lib/mapboxSearch';
+import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory } from '../lib/mapboxSearch';
+import { addressAtSpot, nearbyPlaces, retrievePlace, searchSuggestions } from '../lib/placeSearch';
 
 const LONG_PRESS_MS = 1000;
 
@@ -23,7 +24,7 @@ function categoryPinIcon(category) {
 }
 
 // Turns a tapped spot into a street address for the add sheet. Returns '' if Mapbox can't.
-async function reverseGeocode(lng, lat) {
+async function mapboxReverseGeocode(lng, lat) {
   try {
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
     url.searchParams.set('access_token', MAPBOX_TOKEN);
@@ -52,7 +53,7 @@ function formatDistance(metres) {
 }
 
 // Named places (shops, cafes, venues) around a held spot, nearest first. Up to 10, Mapbox's limit.
-async function nearbyPlaces(lng, lat, signal) {
+async function mapboxNearbyPlaces(lng, lat, signal) {
   const url = new URL(`${SEARCH_BASE}/reverse`);
   url.searchParams.set('longitude', String(lng));
   url.searchParams.set('latitude', String(lat));
@@ -571,8 +572,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     if (map) pressMarkerRef.current = new mapboxgl.Marker({ color: '#c2410c' }).setLngLat([lng, lat]).addTo(map);
     setNearby({ lng, lat, status: 'loading', results: [], address: '' });
     const [results, address] = await Promise.all([
-      nearbyPlaces(lng, lat, AbortSignal.timeout(8000)).catch(() => null),
-      reverseGeocode(lng, lat),
+      nearbyPlaces(lng, lat, AbortSignal.timeout(8000), () => mapboxNearbyPlaces(lng, lat, AbortSignal.timeout(8000))).catch(() => null),
+      addressAtSpot(lng, lat, () => mapboxReverseGeocode(lng, lat)),
     ]);
     // Ignore the answer if the picker was closed or another spot was held meanwhile.
     setNearby((current) => (current?.lng === lng && current?.lat === lat

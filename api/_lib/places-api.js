@@ -34,13 +34,13 @@ function placeIdFromUrl(href) {
   }
 }
 
-async function call(path, { method = 'GET', body, fields, language }) {
-  const response = await fetch(`${BASE}${path}`, {
+async function call(path, { method = 'GET', body, fields, language, base = BASE }) {
+  const response = await fetch(`${base}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
-      'X-Goog-FieldMask': fields,
+      ...(fields ? { 'X-Goog-FieldMask': fields } : {}),
     },
     body: body ? JSON.stringify({ ...body, ...(language ? { languageCode: language } : {}) }) : undefined,
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -94,4 +94,71 @@ async function placeDetails(placeId) {
   };
 }
 
-module.exports = { enabled, searchPlaces, placeDetails, placeIdFromUrl };
+// Suggestions as you type, ranked around [lng, lat] if given: [{ id, name, address }].
+// The session token groups the typing and the pick that follows (retrievePlace) into one billed search.
+async function autocomplete(text, { lng, lat, sessionToken } = {}) {
+  const body = { input: text, ...(sessionToken ? { sessionToken } : {}) };
+  if (Number.isFinite(lng) && Number.isFinite(lat)) {
+    body.locationBias = { circle: { center: { latitude: lat, longitude: lng }, radius: 50000 } };
+  }
+  const data = await call('/places:autocomplete', { method: 'POST', body, language: 'en' });
+  return (data.suggestions || []).map((item) => item.placePrediction).filter(Boolean).slice(0, 5).map((prediction) => ({
+    id: prediction.placeId,
+    name: prediction.structuredFormat?.mainText?.text || prediction.text?.text || '',
+    address: prediction.structuredFormat?.secondaryText?.text || prediction.text?.text || '',
+  })).filter((suggestion) => suggestion.id && suggestion.name);
+}
+
+// The picked suggestion's spot and name: { lng, lat, name, address, types }.
+async function retrievePlace(placeId, sessionToken) {
+  const path = `/places/${encodeURIComponent(placeId)}${sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : ''}`;
+  const place = await call(path, {
+    fields: 'id,displayName,formattedAddress,location,types,primaryType', language: 'en',
+  });
+  return {
+    lng: place.location?.longitude, lat: place.location?.latitude,
+    name: place.displayName?.text || '', address: place.formattedAddress || '',
+    types: place.types || [],
+  };
+}
+
+// Places around a spot, nearest first: [{ id, name, address, lng, lat, types }]. Google allows up to 20.
+async function nearby(lng, lat, radius = 500) {
+  const data = await call('/places:searchNearby', {
+    method: 'POST',
+    body: {
+      maxResultCount: 20, rankPreference: 'DISTANCE',
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius } },
+    },
+    fields: 'places.id,places.displayName,places.formattedAddress,places.location,places.types',
+    language: 'en',
+  });
+  return (data.places || []).map((place) => ({
+    id: place.id, name: place.displayName?.text || '', address: place.formattedAddress || '',
+    lng: place.location?.longitude, lat: place.location?.latitude, types: place.types || [],
+  })).filter((place) => place.name && Number.isFinite(place.lng) && Number.isFinite(place.lat));
+}
+
+// Geocoding API v4. Each result has formattedAddress and location { latitude, longitude }.
+const GEOCODE_BASE = 'https://geocode.googleapis.com/v4beta/geocode';
+const GEOCODE_FIELDS = 'results.formattedAddress,results.location';
+
+// The address at a spot, or ''.
+async function reverseGeocode(lng, lat) {
+  const data = await call(`/location/${lat},${lng}`, { base: GEOCODE_BASE, fields: GEOCODE_FIELDS });
+  return data.results?.[0]?.formattedAddress || '';
+}
+
+// The spot for an address: { lng, lat, address }, or null.
+async function geocodeAddress(address) {
+  const data = await call(`/address/${encodeURIComponent(address)}`, { base: GEOCODE_BASE, fields: GEOCODE_FIELDS });
+  const result = data.results?.[0];
+  const { latitude, longitude } = result?.location || {};
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { lng: longitude, lat: latitude, address: result.formattedAddress || address };
+}
+
+module.exports = {
+  enabled, searchPlaces, placeDetails, placeIdFromUrl,
+  autocomplete, retrievePlace, nearby, reverseGeocode, geocodeAddress,
+};

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MAPBOX_TOKEN, MELBOURNE_CENTER, retrievePlace, searchSuggestions } from '../lib/mapboxSearch';
+import { MELBOURNE_CENTER } from '../lib/mapboxSearch';
+import { CAN_SEARCH, retrievePlace, searchSuggestions } from '../lib/placeSearch';
 
-// A text box that suggests places and addresses from Mapbox as you type, like the map's search bar.
+// A text box that suggests places and addresses (Google when it's on, else Mapbox) as you type, like the map's search bar.
 // Typing still works on its own: onChange gets the text, and onPick gets
 // { name, address, lat, lng, category } when a suggestion is tapped.
 // `near` ([lng, lat]) ranks suggestions around a spot, else the user's location, else Melbourne.
@@ -51,7 +52,7 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
   // Suggestions wait 350ms after the last keystroke. Older requests are cancelled.
   useEffect(() => {
     const text = value.trim();
-    if (!MAPBOX_TOKEN || text.length < 3 || !typedRef.current) {
+    if (!CAN_SEARCH || text.length < 3 || !typedRef.current) {
       setResults([]);
       setStatus('');
       return undefined;

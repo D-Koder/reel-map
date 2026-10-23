@@ -11,6 +11,7 @@ import { requestLocationApi } from '../lib/googlePlaces';
 import { LISTED_AHEAD, forgetListedLookups, listedHints, lookupListedPlace, saveListedPick } from '../lib/listedLookups';
 import { apiFetch } from '../lib/api';
 import { findArea } from '../lib/mapboxSearch';
+import { CAN_SEARCH, findAddress } from '../lib/placeSearch';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 // Value of the last Collection option. Picking it opens the "New collection" pop-up.
@@ -666,31 +667,34 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           : pinCoords.source === 'area' ? 'Using the pickup area.' : 'Using the spot you tapped on the map.', 'info');
       }
       if (location.trim() && (!Number.isFinite(venueDetails?.latitude) || !Number.isFinite(venueDetails?.longitude))) {
-        if (!MAPBOX_TOKEN) {
+        if (!CAN_SEARCH) {
           addLog('Mapbox token is missing; saved address will not have a map pin.', 'error');
         } else {
           addLog(`Finding map coordinates for: ${name.trim()}, ${location.trim()}`, 'info');
           try {
             const query = [name.trim(), location.trim()].filter(Boolean).join(', ');
-            const geocodeUrl = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
-            geocodeUrl.searchParams.set('access_token', MAPBOX_TOKEN);
-            geocodeUrl.searchParams.set('limit', '1');
-            geocodeUrl.searchParams.set('types', 'address,poi');
-            const response = await fetch(geocodeUrl, { signal: AbortSignal.timeout(12000) });
-            if (!response.ok) throw new Error(`Mapbox geocoding returned HTTP ${response.status}`);
-
-            const result = await response.json();
-            const feature = result.features?.[0];
-            if (feature?.center?.length === 2) {
+            const found = await findAddress(query, async () => {
+              const geocodeUrl = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
+              geocodeUrl.searchParams.set('access_token', MAPBOX_TOKEN);
+              geocodeUrl.searchParams.set('limit', '1');
+              geocodeUrl.searchParams.set('types', 'address,poi');
+              const response = await fetch(geocodeUrl, { signal: AbortSignal.timeout(12000) });
+              if (!response.ok) throw new Error(`Mapbox geocoding returned HTTP ${response.status}`);
+              const feature = (await response.json()).features?.[0];
+              return feature?.center?.length === 2
+                ? { lng: feature.center[0], lat: feature.center[1], address: feature.place_name || feature.text || 'Mapbox result' }
+                : null;
+            });
+            if (found) {
               venueDetails = {
                 ...venueDetails,
-                latitude: feature.center[1],
-                longitude: feature.center[0],
+                latitude: found.lat,
+                longitude: found.lng,
                 address: venueDetails?.address || location.trim(),
                 name: venueDetails?.name || name.trim(),
                 source: 'mapbox',
               };
-              addLog(`Coordinates: ${feature.center[1].toFixed(5)}, ${feature.center[0].toFixed(5)} (${feature.place_name || feature.text || 'Mapbox result'})`, 'success');
+              addLog(`Coordinates: ${found.lat.toFixed(5)}, ${found.lng.toFixed(5)} (${found.address})`, 'success');
             } else {
               addLog('No coordinates found. Place will save without a map pin; add a full street address and try again.', 'error');
             }
