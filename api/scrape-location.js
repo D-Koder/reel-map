@@ -67,6 +67,7 @@ module.exports = requireUser(async function handler(req, res) {
   const placeId = action === 'details' ? placesApi.placeIdFromUrl(selectedPlaceUrl) : '';
   if (placesApi.enabled() && (action === 'search' || placeId)) {
     try {
+      console.log(`[scrape-location] Places API ${action}: ${query}`);
       if (action === 'search') {
         const candidates = await placesApi.searchPlaces(query, language);
         if (!candidates.length) {
