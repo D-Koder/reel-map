@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import CandidateAddress from './CandidateAddress';
-import { ArrowUpRight, Binoculars, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
+import { ArrowUpRight, Binoculars, ClipboardPaste, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -111,6 +111,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [name, setName] = useState(initialPlace?.name ?? draft?.name ?? '');
   // True once the user types a name. Picking a Google place then keeps it; otherwise the place's name
   // replaces the guess from the caption (like "0 likes, 0 comments - …").
+  const reelInputRef = useRef(null);
   const nameTypedRef = useRef(false);
   const [location, setLocation] = useState(initialPlace?.address ?? draft?.location ?? '');
   // Exact spot tapped on the map. Used as the pin until a Google place is picked.
@@ -622,6 +623,25 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     return () => clearTimeout(timer);
   }, [reelUrlInput, step]);
 
+  // The paste button fills the box from the clipboard, and the lookup starts as it does for a typed link.
+  // A blocked or empty clipboard leaves the box as it was.
+  const pasteReelInput = async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text) return;
+      setReelUrlInput(text);
+      setUrlError('');
+    } catch {
+      reelInputRef.current?.focus();
+    }
+  };
+
+  const clearReelInput = () => {
+    setReelUrlInput('');
+    setUrlError('');
+    reelInputRef.current?.focus();
+  };
+
   const handleConfirmReel = () => {
     const trimmedUrl = reelUrlInput.trim();
     setUrlError('');
@@ -868,19 +888,32 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           <div>
             <div className="field">
               <span className="modal-label">Reel link (optional)</span>
-              <input
-                className="step-input"
-                type="url"
-                inputMode="url"
-                value={reelUrlInput}
-                onChange={(e) => {
-                  setReelUrlInput(e.target.value);
-                  setUrlError('');
-                }}
-                placeholder="Instagram reel or TikTok video link…"
-                disabled={loading}
-                autoFocus
-              />
+              {/* Paste when empty, clear when there's text: the button sits inside the box's right edge. */}
+              <div className="address-row">
+                <input
+                  ref={reelInputRef}
+                  className="step-input"
+                  type="url"
+                  inputMode="url"
+                  value={reelUrlInput}
+                  onChange={(e) => {
+                    setReelUrlInput(e.target.value);
+                    setUrlError('');
+                  }}
+                  placeholder="Instagram reel or TikTok video link…"
+                  disabled={loading}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="verify-btn"
+                  onClick={reelUrlInput ? clearReelInput : pasteReelInput}
+                  disabled={loading}
+                  aria-label={reelUrlInput ? 'Clear link' : 'Paste link'}
+                >
+                  {reelUrlInput ? <X className="ico" aria-hidden="true" /> : <ClipboardPaste className="ico" aria-hidden="true" />}
+                </button>
+              </div>
               {urlError && (
                 <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
                   <TriangleAlert className="ico" aria-hidden="true" /> {urlError}
