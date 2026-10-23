@@ -12,6 +12,7 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { openStatus, suburbOf } from '../lib/hours';
+import { datesText, eventStatus, eventSummary, runsOf, timesText } from '../lib/eventRuns';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -250,7 +251,11 @@ export default function PinModal({
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
   // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
-  const status = openStatus(hours);
+  // An event is on at its own times, not the venue's hours (a park is "open 24 hours").
+  const runs = place?.category === 'event' ? runsOf(place) : [];
+  const hasRuns = runs.length > 0;
+  const eventNow = hasRuns ? eventStatus(runs) : null;
+  const status = hasRuns ? (eventNow && { open: eventNow.kind === 'open', text: eventNow.text }) : openStatus(hours);
   const suburb = suburbOf(place?.address);
   const quickActions = [
     place?.address && mapsLink && { label: 'Directions', href: mapsLink, Icon: Navigation },
@@ -261,7 +266,9 @@ export default function PinModal({
     place?.url && { label: 'Open link', href: place.url, Icon: Link },
   ].filter(Boolean);
   const satHours = hours.find((h) => /sat/i.test(h.days));
-  const hoursSummary = hours.length
+  const hoursSummary = hasRuns
+    ? eventSummary(place.name, runs)
+    : hours.length
     ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
     : "We don't have opening hours for this place yet — check before you go.";
 
@@ -437,7 +444,22 @@ export default function PinModal({
           </div>
         )}
 
-        {hours.length > 0 && (
+        {hasRuns && (
+          <div className="modal-section">
+            <div className="modal-label">When it's on</div>
+            <ul className="evt-list">
+              {runs.map((run) => (
+                <li key={run.start}>
+                  <span className="evt-sum-dates">{datesText(run)}</span>
+                  <span className="evt-sum-times">{timesText(run)}</span>
+                </li>
+              ))}
+            </ul>
+            {eventNow && <div className={`evt-status is-${eventNow.kind}`}>{eventNow.text}</div>}
+          </div>
+        )}
+
+        {!hasRuns && hours.length > 0 && (
           <div className="modal-section">
             <div className="modal-label">Business Hours</div>
             <table className="hours-table">
@@ -468,7 +490,7 @@ export default function PinModal({
             {step === 1 && (
               <div className="checklist-step">
                 {stepHead(1)}
-                <div className="step-title"><Clock className="ico" aria-hidden="true" /> Check Hours</div>
+                <div className="step-title"><Clock className="ico" aria-hidden="true" /> {hasRuns ? 'Check times' : 'Check Hours'}</div>
                 <div className="step-description">{hoursSummary}</div>
                 <div className="step-buttons">
                   <button className="step-btn primary" onClick={() => completeStep(1)}>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { cleanRuns, runDays } from '../lib/eventRuns';
 import { readJSON, writeJSON } from '../lib/storage';
 import { INBOX_COLLECTION } from './useReelInbox';
 import { detailsForImport } from '../lib/collectionFile';
@@ -74,6 +75,8 @@ function normalisePlace(row) {
     // (null = a one-day event). Only used for events.
     event_date: cp.event_date ?? null,
     event_end_date: cp.event_end_date ?? null,
+    // Every run of days (with optional open and close times) the event is on; see lib/eventRuns.js.
+    event_runs: cp.event_runs ?? null,
     // Votes belong to this collection's entry (see 20261015090000_reactions_per_collection.sql).
     // Before that migration, cp.reactions is unset and the place's votes are used.
     reactions: cp.reactions ?? reactions,
@@ -135,17 +138,19 @@ function entryLocation(entry) {
 }
 
 // Every collection entry I can see, with its event days and own location when the database has those columns
-// (see 20261013090000_event_dates.sql and 20261018090000_event_end_dates.sql). Before then, it is read
+// (see 20261013090000_event_dates.sql, 20261018090000_event_end_dates.sql and 20261023090000_event_runs.sql). Before then, it is read
 // again without them.
 async function readEntries() {
   const columns = 'place_id, collection_id, custom_name, custom_emoji, category';
+  const withRuns = await supabase.from('collection_places').select(`${columns}, event_date, event_end_date, event_runs, ${LOCATION_COLUMNS}`);
+  if (!withRuns.error) return { ...withRuns, hasEventDates: true, hasEventEndDates: true, hasEventRuns: true };
   const withLocations = await supabase.from('collection_places').select(`${columns}, event_date, event_end_date, ${LOCATION_COLUMNS}`);
-  if (!withLocations.error) return { ...withLocations, hasEventDates: true, hasEventEndDates: true };
+  if (!withLocations.error) return { ...withLocations, hasEventDates: true, hasEventEndDates: true, hasEventRuns: false };
   const withEnds = await supabase.from('collection_places').select(`${columns}, event_date, event_end_date`);
-  if (!withEnds.error) return { ...withEnds, hasEventDates: true, hasEventEndDates: true };
+  if (!withEnds.error) return { ...withEnds, hasEventDates: true, hasEventEndDates: true, hasEventRuns: false };
   const withDates = await supabase.from('collection_places').select(`${columns}, event_date`);
-  if (!withDates.error) return { ...withDates, hasEventDates: true, hasEventEndDates: false };
-  return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false, hasEventEndDates: false };
+  if (!withDates.error) return { ...withDates, hasEventDates: true, hasEventEndDates: false, hasEventRuns: false };
+  return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false, hasEventEndDates: false, hasEventRuns: false };
 }
 
 export function useAppData(userId, showToast) {
@@ -161,6 +166,8 @@ export function useAppData(userId, showToast) {
   const [eventDatesReady, setEventDatesReady] = useState(false);
   // False until the database has the event_end_date column (see 20261018090000_event_end_dates.sql).
   const [eventEndDatesReady, setEventEndDatesReady] = useState(false);
+  // False until the database has the event_runs column (see 20261023090000_event_runs.sql).
+  const [eventRunsReady, setEventRunsReady] = useState(false);
   const [collectionOrder, setCollectionOrder] = useState(() => readJSON(collectionOrderKey(userId), []));
   // False until the database has profiles.collection_order; until then the order stays on this device.
   const orderSyncReady = useRef(false);
@@ -199,6 +206,7 @@ export function useAppData(userId, showToast) {
     setInbox({ ready: !inboxRes.error, id: inboxRes.data?.[0]?.id ?? null });
     setEventDatesReady(entriesRes.hasEventDates);
     setEventEndDatesReady(entriesRes.hasEventEndDates);
+    setEventRunsReady(entriesRes.hasEventRuns);
     const eventDates = Object.fromEntries(
       (entriesRes.data ?? []).map((e) => [`${e.collection_id}:${e.place_id}`, e.event_date ?? null])
     );
@@ -230,6 +238,7 @@ export function useAppData(userId, showToast) {
           ...(reactionsRes.hasCollections && { reactions: votes[`${cp.collection_id}:${p.id}`] ?? {} }),
           event_date: eventDates[`${cp.collection_id}:${p.id}`] ?? null,
           event_end_date: eventEndDates[`${cp.collection_id}:${p.id}`] ?? null,
+          event_runs: entry?.event_runs ?? null,
           location: entryLocation(entry),
         };
       }),
@@ -324,13 +333,18 @@ export function useAppData(userId, showToast) {
     return pa - pb || a.created_at.localeCompare(b.created_at);
   });
 
-  // The event-day columns to save: the first day, and the last (the same day for a one-day pop-up,
-  // empty when nobody gave one). The end is left out until the database has its column.
-  const eventDays = (start, end) => {
-    const days = { event_date: start || null };
-    if (eventEndDatesReady) days.event_end_date = start && end && end >= start ? end : null;
+  // The event columns to save for a list of runs (see lib/eventRuns.js): the first and last day overall,
+  // and the runs themselves. Each is left out until the database has its column. No runs clears them.
+  const eventDays = (runs) => {
+    const { eventDate, eventEndDate } = runDays(runs);
+    const days = { event_date: eventDate };
+    if (eventEndDatesReady) days.event_end_date = eventEndDate;
+    if (eventRunsReady) days.event_runs = eventDate ? cleanRuns(runs) : null;
     return days;
   };
+  // Runs from what a caller gives: the runs, or just a first and last day (all day).
+  const runsFrom = ({ eventRuns, eventDate, eventEndDate }) =>
+    eventRuns ?? (eventDate ? [{ start: eventDate, end: eventEndDate || eventDate }] : []);
 
   const actions = {
     refresh,
@@ -356,7 +370,7 @@ export function useAppData(userId, showToast) {
       );
     },
 
-    addPlace: async ({ name, location, category, collectionId, reelUrl, venueDetails, feeling, customInfo, url, eventDate, eventEndDate }) => {
+    addPlace: async ({ name, location, category, collectionId, reelUrl, venueDetails, feeling, customInfo, url, eventDate, eventEndDate, eventRuns }) => {
       // Call the add_place_to_collection() function. It reuses the venue for this location and always adds a new entry.
       const { data, error } = await supabase.rpc('add_place_to_collection', {
         p_collection_id: collectionId,
@@ -382,10 +396,11 @@ export function useAppData(userId, showToast) {
         return null;
       }
       const placeId = data;
-      if (eventDate && category === 'event' && eventDatesReady) {
+      const runs = runsFrom({ eventRuns, eventDate, eventEndDate });
+      if (cleanRuns(runs).length && category === 'event' && eventDatesReady) {
         const { error: dateError } = await supabase
           .from('collection_places')
-          .update(eventDays(eventDate, eventEndDate))
+          .update(eventDays(runs))
           .eq('collection_id', collectionId)
           .eq('place_id', placeId);
         if (dateError) showToast(`Place saved, but the event date didn't save: ${friendlyError(dateError)}`);
@@ -443,7 +458,7 @@ export function useAppData(userId, showToast) {
           if (row.eventDate && row.category === 'event' && eventDatesReady) {
             await supabase
               .from('collection_places')
-              .update(eventDays(row.eventDate, row.eventEndDate))
+              .update(eventDays(runsFrom(row)))
               .eq('collection_id', collectionId)
               .eq('place_id', placeId);
           }
@@ -458,7 +473,7 @@ export function useAppData(userId, showToast) {
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
     // A new location is saved for this collection only (relocate_place), like its name and emoji.
-    updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, location = null }) => {
+    updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, eventRuns, location = null }) => {
       if (location) {
         const { error: locationError } = await supabase.rpc('relocate_place', {
           p_collection_id: place.collection_id,
@@ -478,7 +493,7 @@ export function useAppData(userId, showToast) {
         }
       }
       const patch = { custom_name: name, custom_emoji: emoji || null, category };
-      if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? eventDate : null, eventEndDate));
+      if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? runsFrom({ eventRuns, eventDate, eventEndDate }) : []));
       const { data, error } = await supabase
         .from('collection_places')
         .update(patch)
@@ -657,5 +672,5 @@ export function useAppData(userId, showToast) {
     return orderCollections(marked, collectionOrder);
   }, [state.collections, collectionOrder, inbox, userId]);
 
-  return { ...state, collections, places, eventDatesReady, eventEndDatesReady, ...actions };
+  return { ...state, collections, places, eventDatesReady, eventEndDatesReady, eventRunsReady, ...actions };
 }

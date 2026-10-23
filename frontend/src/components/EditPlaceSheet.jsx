@@ -6,18 +6,19 @@ import { entriesAtSpot } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import CandidateAddress from './CandidateAddress';
 import PlaceSearchInput from './PlaceSearchInput';
+import EventTimesEditor from './EventTimesEditor';
+import { cleanRuns, runsOf } from '../lib/eventRuns';
 import { requestLocationApi } from '../lib/googlePlaces';
 
 // Any member can open this to copy the place. Only whoever added it can change its name, emoji, category or collection,
 // and not in a collection they only view.
-export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, eventEndDatesReady = false, canEdit = () => true, onSave, onCopy, onMove, onClose }) {
+export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, canEdit = () => true, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const [name, setName] = useState(place.name);
   const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
-  const [eventDate, setEventDate] = useState(place.event_date ?? '');
-  const [eventEndDate, setEventEndDate] = useState(place.event_end_date ?? '');
+  const [eventRuns, setEventRuns] = useState(() => runsOf(place));
   const [saving, setSaving] = useState(false);
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
@@ -156,7 +157,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
       }
     }
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventDate, eventEndDate, location: newSpot });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventRuns: cleanRuns(eventRuns), location: newSpot });
     setSaving(false);
   };
 
@@ -285,31 +286,10 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
         </label>
 
         {category === 'event' && eventDatesReady && (
-          <label className="field">
-            <span className="modal-label">Event date (optional)</span>
-            <input
-              className="step-input"
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              disabled={!isAdder}
-            />
-            <span className="place-collection-note">Events in the next 3 months show in Up next.</span>
-          </label>
-        )}
-        {category === 'event' && eventDatesReady && eventEndDatesReady && eventDate && (
-          <label className="field">
-            <span className="modal-label">Last day (optional)</span>
-            <input
-              className="step-input"
-              type="date"
-              value={eventEndDate}
-              min={eventDate}
-              onChange={(e) => setEventEndDate(e.target.value)}
-              disabled={!isAdder}
-            />
-            <span className="place-collection-note">For pop-ups and events on for several days. It shows in Today on each day.</span>
-          </label>
+          <>
+            <EventTimesEditor runs={eventRuns} onChange={setEventRuns} disabled={!isAdder} />
+            <span className="place-collection-note">Events in the next 3 months show in Up next, and in Today on each day they are on.</span>
+          </>
         )}
 
         <div className="field">

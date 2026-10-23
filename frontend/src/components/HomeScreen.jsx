@@ -4,6 +4,7 @@ import PlaceList from './PlaceList';
 import { PlaceCard } from './PlaceRow';
 import MapBanner from './MapBanner';
 import { categories, formatDateTime } from '../lib/constants';
+import { dayShort, dayString, nextDay, runOn, runsOf, timesText } from '../lib/eventRuns';
 import { readJSON, writeJSON } from '../lib/storage';
 
 // Set after the first reorder, so the hint stops showing on this device.
@@ -31,14 +32,13 @@ export function pickUpNext(places, userId, now = new Date()) {
   if (booked) return { kind: 'booked', place: booked };
 
   const unbooked = open.filter((p) => !p.booking?.planned_at);
-  // event_date is a plain day ("2026-10-17"), read as local midnight. An event on for several days
-  // counts until its last day (event_end_date), and shows today's date while it's on.
-  const eventDay = (p) => new Date(`${p.event_date}T00:00:00`);
-  const lastDay = (p) => new Date(`${p.event_end_date || p.event_date}T00:00:00`);
+  // An event counts from its next day on (today while it's on, or the start of its next run), and
+  // shows that day. Days are plain days ("2026-10-17"), read as local midnight.
+  const nextEventDay = (p) => nextDay(runsOf(p), dayString(startOfToday));
   const event = unbooked
-    .filter((p) => p.category === 'event' && p.event_date && lastDay(p) >= startOfToday && eventDay(p) <= horizon)
-    .sort((a, b) => eventDay(a) - eventDay(b))[0];
-  if (event) return { kind: 'event', place: event, date: eventDay(event) < startOfToday ? startOfToday : eventDay(event) };
+    .filter((p) => p.category === 'event' && nextEventDay(p) && new Date(`${nextEventDay(p)}T00:00:00`) <= horizon)
+    .sort((a, b) => nextEventDay(a).localeCompare(nextEventDay(b)))[0];
+  if (event) return { kind: 'event', place: event, date: new Date(`${nextEventDay(event)}T00:00:00`) };
 
   const keenCount = (p) => Object.values(p.reactions ?? {}).filter((v) => v === 'keen').length;
   const eatOut = unbooked.filter((p) => p.category === 'food' || p.category === 'cafe');
@@ -105,9 +105,17 @@ export function placesToday(places, now = new Date()) {
   const booked = places
     .filter((p) => p.booking?.planned_at && isToday(p.booking.planned_at))
     .sort((a, b) => new Date(a.booking.planned_at) - new Date(b.booking.planned_at));
-  const events = places.filter((p) => p.category === 'event' && p.event_date && p.event_date <= today &&
-    (p.event_end_date || p.event_date) >= today && !booked.includes(p));
+  const events = places.filter((p) => p.category === 'event' && runOn(runsOf(p), today) && !booked.includes(p));
   return [...booked, ...events];
+}
+
+// What to show under an event on today: "Event today", or "On until Sun 15 Nov" for a run of days,
+// plus its times when it has them.
+function eventTimeText(pin) {
+  const run = runOn(runsOf(pin), dayString());
+  if (!run) return 'Event today';
+  const base = run.end > run.start ? `On until ${dayShort(run.end)}` : 'Event today';
+  return run.open ? `${base} · ${timesText(run)}` : base;
 }
 
 // A calendar page with today's month and day, since the 📅 emoji always shows "JUL 17".
@@ -150,9 +158,7 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
               const collection = collections.find((c) => c.id === pin.collection_id);
               const time = pin.booking?.planned_at
                 ? new Date(pin.booking.planned_at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
-                : pin.event_end_date && pin.event_end_date > pin.event_date
-                  ? `On until ${new Date(`${pin.event_end_date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`
-                  : 'Event today';
+                : eventTimeText(pin);
               return (
                 <div className="place-row" key={`${pin.collection_id}:${pin.id}`}>
                   <PlaceCard

@@ -5158,3 +5158,49 @@ button.profile-open {
   font-weight: 700;
   padding: 1px 0 2px;
 }
+
+/* Event times: "When is it on?" with one calendar for the first and last day, then open and close times */
+.evt { display: grid; gap: 10px; padding: 14px; border: 1.5px solid var(--accent); border-radius: 16px; background: var(--accent-softer); }
+.evt > * { min-width: 0; }
+.evt-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.evt-tag { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-text); }
+.evt-sumrow { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+.evt-sum { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; min-height: 48px; }
+.evt-sum-dates { font-weight: 700; }
+.evt-sum-times { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
+.evt-x { border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text-muted); cursor: pointer; display: grid; place-items: center; }
+.evt-link { justify-self: start; background: none; border: 0; padding: 8px 2px; font: inherit; font-weight: 700; color: var(--accent-text); cursor: pointer; }
+.evt-link:disabled, .evt-sum:disabled, .evt-x:disabled { opacity: .5; cursor: default; }
+.evt-panel { display: grid; gap: 10px; padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+.evt-pick { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.evt-box { border: 1.5px solid var(--border); border-radius: 12px; padding: 7px 10px; min-width: 0; background: var(--surface); }
+.evt-box.is-now { border-color: var(--accent); }
+.evt-box small { display: block; font-size: 11.5px; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; font-weight: 700; }
+.evt-box b { font-size: 15px; white-space: nowrap; }
+.evt-box b.is-empty { color: var(--text-muted); font-weight: 500; }
+.evt-arrow { color: var(--text-muted); }
+.evt-cal-head { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 17px; }
+.evt-nav { height: 40px; border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer; display: grid; place-items: center; }
+.evt-nav:disabled { opacity: .25; cursor: default; }
+.evt-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; }
+.evt-dow { text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; color: var(--text-muted); padding-bottom: 4px; }
+.evt-day { position: relative; height: 42px; border: 0; background: none; color: var(--text); font: inherit; font-size: 15px; padding: 0; cursor: pointer; }
+.evt-day span { position: relative; z-index: 1; display: grid; place-items: center; width: 38px; height: 38px; margin: auto; border-radius: 50%; font-variant-numeric: tabular-nums; }
+.evt-day:disabled { opacity: .3; cursor: default; }
+.evt-day.in-range::before, .evt-day.range-start::before, .evt-day.range-end::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 0; right: 0; background: color-mix(in srgb, var(--accent) 28%, var(--card)); }
+.evt-day.range-start::before { left: 50%; }
+.evt-day.range-end::before { right: 50%; }
+.evt-day.is-edge span { background: var(--accent); color: #fff; font-weight: 700; }
+.evt-day.is-today span { box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.evt-day.is-today.is-edge span { box-shadow: none; }
+.evt-hint { margin: 0; font-size: 13px; color: var(--text-muted); }
+.evt-times { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.evt-time { display: grid; gap: 5px; min-width: 0; font-size: 13px; color: var(--text-muted); }
+.evt-time input { font: inherit; font-size: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 10px; min-height: 44px; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
+.evt-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.evt-status { font-size: 14px; font-weight: 700; padding: 10px 12px; border-radius: 12px; background: var(--surface-muted); color: var(--text-muted); }
+.evt-status.is-open { background: var(--success-bg); color: var(--success-text); }
+.evt-status.is-soon { background: var(--warn-bg); color: var(--warn-text); }
+.evt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.evt-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.evt-list .evt-sum-dates { color: var(--text); }

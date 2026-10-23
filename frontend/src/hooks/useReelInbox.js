@@ -100,6 +100,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         feeling: 'keen',
         eventDate: popup?.startDate || null,
         eventEndDate: popup?.endDate || null,
+        eventRuns: popup?.runs?.length ? popup.runs : undefined,
       });
       if (!created) {
         update(item.id, { status: 'failed', collectionId, name, reelData: data });

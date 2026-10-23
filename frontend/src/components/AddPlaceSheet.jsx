@@ -11,6 +11,8 @@ import LookupProgress from './LookupProgress';
 import { requestLocationApi } from '../lib/googlePlaces';
 import { LISTED_AHEAD, forgetListedLookups, listedHints, lookupListedPlace, saveListedPick } from '../lib/listedLookups';
 import { apiFetch } from '../lib/api';
+import EventTimesEditor from './EventTimesEditor';
+import { cleanRuns } from '../lib/eventRuns';
 import { lookupReel, savedReel } from '../lib/reelCache';
 import { findArea } from '../lib/mapboxSearch';
 import { CAN_SEARCH, findAddress } from '../lib/placeSearch';
@@ -87,7 +89,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, eventEndDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -127,9 +129,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [feeling, setFeeling] = useState(draft?.feeling ?? 'keen');
   // What this entry is at the location, e.g. "Pottery class", and an optional link for it.
   const [customInfo, setCustomInfo] = useState(draft?.customInfo ?? '');
-  const [eventDate, setEventDate] = useState(draft?.eventDate ?? '');
-  // The last day of an event on for several days (a pop-up "this weekend"), else empty.
-  const [eventEndDate, setEventEndDate] = useState(draft?.eventEndDate ?? '');
+  // When an event is on: runs of days with optional open and close times (see lib/eventRuns.js).
+  const [eventRuns, setEventRuns] = useState(() => draft?.eventRuns
+    ?? (draft?.eventDate ? [{ start: draft.eventDate, end: draft.eventEndDate || draft.eventDate, open: '', close: '' }] : []));
+  // True when the AI read the runs from a post, so the editor says so.
+  const [runsFromCaption, setRunsFromCaption] = useState(false);
   // A pop-up's own name. The Maps search only finds its street, so the street's name never replaces it.
   const popupNameRef = useRef(draft?.scrapedData?.popup?.name || '');
   const [entryUrl, setEntryUrl] = useState(draft?.entryUrl ?? '');
@@ -176,10 +180,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (!draftable) return;
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-      locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate,
+      locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns,
     });
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
-    locationCandidates, locationSearchDone, customInfo, entryUrl, eventDate, eventEndDate]);
+    locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns]);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -275,8 +279,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     popupNameRef.current = popup?.name || '';
     if (popup) {
       setCategory('event');
-      setEventDate(popup.startDate || '');
-      setEventEndDate(popup.endDate || '');
+      const read = cleanRuns(popup.runs?.length ? popup.runs : popup.startDate ? [{ start: popup.startDate, end: popup.endDate }] : []);
+      setEventRuns(read);
+      setRunsFromCaption(read.length > 0);
       const days = !popup.endDate ? 'no clear dates in the post, so add them yourself'
         : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
       addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');
@@ -780,8 +785,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         feeling,
         customInfo: customInfo.trim(),
         url: link,
-        eventDate: category === 'event' ? eventDate || null : null,
-        eventEndDate: category === 'event' && eventDate ? eventEndDate || null : null,
+        eventRuns: category === 'event' ? cleanRuns(eventRuns) : [],
       }, { keepOpen: next.length > 0 });
       if (created && next.length) {
         setLeftToPick(next);
@@ -1410,29 +1414,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             </div>
 
             {category === 'event' && eventDatesReady && (
-              <label className="field">
-                <span className="modal-label">Event date (optional)</span>
-                <input
-                  className="step-input"
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  disabled={saving}
-                />
-              </label>
-            )}
-            {category === 'event' && eventDatesReady && eventEndDatesReady && eventDate && (
-              <label className="field">
-                <span className="modal-label">Last day (optional)</span>
-                <input
-                  className="step-input"
-                  type="date"
-                  value={eventEndDate}
-                  min={eventDate}
-                  onChange={(e) => setEventEndDate(e.target.value)}
-                  disabled={saving}
-                />
-              </label>
+              <EventTimesEditor
+                runs={eventRuns}
+                onChange={setEventRuns}
+                disabled={saving}
+                fromCaption={runsFromCaption}
+              />
             )}
 
             {/* Vibe/Feeling */}
