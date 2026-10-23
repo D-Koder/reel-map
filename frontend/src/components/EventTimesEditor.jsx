@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { dayShort, dayString, datesText, timesText } from '../lib/eventRuns';
+import { contactItems, contactLine, dayShort, dayString, datesText, timesText } from '../lib/eventRuns';
 
 const WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -100,6 +100,63 @@ function RunPanel({ run, today, disabled, onChange, onRemove, onDone }) {
   );
 }
 
+// Who to ask about the event: one labelled box for each email and each phone number. The saved value is one
+// line ("a@b.com / +61 3 9860 0500"). A box can sit empty or half typed, so the boxes are kept here and
+// only reset when the line changes from outside (the AI reading a post).
+function ContactFields({ contact, onContact, disabled }) {
+  const [items, setItems] = useState(() => contactItems(contact));
+  // The line this editor last gave its parent, so only a different line from outside resets the boxes.
+  const sent = useRef(String(contact || ''));
+  useEffect(() => {
+    if (String(contact || '') !== sent.current) {
+      sent.current = String(contact || '');
+      setItems(contactItems(contact));
+    }
+  }, [contact]);
+  const change = (next) => {
+    setItems(next);
+    sent.current = contactLine(next).slice(0, 120);
+    onContact(sent.current);
+  };
+  const count = (kind, index) => items.slice(0, index + 1).filter((item) => item.kind === kind).length;
+  const total = (kind) => items.filter((item) => item.kind === kind).length;
+  const title = (item, index) => {
+    const name = item.kind === 'email' ? 'Email' : 'Phone';
+    return total(item.kind) > 1 ? `${name} ${count(item.kind, index)}` : name;
+  };
+
+  return (
+    <div className="evt-contacts">
+      <span className="evt-time-label">Enquiries (optional)</span>
+      {items.map((item, i) => (
+        <div className="evt-contact-row" key={i}>
+          <label className="evt-time">
+            <span>{title(item, i)}</span>
+            <input
+              type={item.kind === 'email' ? 'email' : 'tel'}
+              inputMode={item.kind === 'email' ? 'email' : 'tel'}
+              autoComplete="off"
+              value={item.value}
+              maxLength={80}
+              placeholder={item.kind === 'email' ? 'name@example.com' : '+61 3 9000 0000'}
+              disabled={disabled}
+              onChange={(e) => change(items.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+            />
+          </label>
+          <button type="button" className="evt-x" onClick={() => change(items.filter((_, j) => j !== i))} disabled={disabled}
+            aria-label={`Remove ${title(item, i).toLowerCase()}`}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      ))}
+      <div className="evt-add-row">
+        <button type="button" className="evt-link" onClick={() => setItems([...items, { kind: 'email', value: '' }])} disabled={disabled}>+ Add email</button>
+        <button type="button" className="evt-link" onClick={() => setItems([...items, { kind: 'phone', value: '' }])} disabled={disabled}>+ Add phone</button>
+      </div>
+    </div>
+  );
+}
+
 // "When is it on?" for an event. runs: [{ start, end, open, close }]; onChange gets the new list.
 // price / onPrice: an optional text box for what it costs, as written. contact / onContact: who to ask, an
 // email, a phone number or both.
@@ -154,13 +211,7 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
             onChange={(e) => onPrice(e.target.value)} />
         </label>
       )}
-      {onContact && (
-        <label className="evt-time">
-          <span>Enquiries (optional)</span>
-          <input type="text" value={contact} maxLength={120} placeholder="Email or phone" disabled={disabled}
-            onChange={(e) => onContact(e.target.value)} />
-        </label>
-      )}
+      {onContact && <ContactFields contact={contact} onContact={onContact} disabled={disabled} />}
     </div>
   );
 }

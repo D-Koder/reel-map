@@ -5211,3 +5211,8 @@ button.profile-open {
 .evt-contact { color: var(--text); text-decoration: none; margin-top: 0; }
 .evt-contact b { color: var(--accent-text); overflow-wrap: anywhere; text-align: right; }
 .evt-contact + .evt-contact { margin-top: 8px; }
+.evt-contacts { display: grid; gap: 8px; }
+.evt-time-label { font-size: 13px; color: var(--text-muted); }
+.evt-contact-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; align-items: end; }
+.evt-contact-row .evt-x { height: 44px; }
+.evt-add-row { display: flex; gap: 16px; flex-wrap: wrap; }

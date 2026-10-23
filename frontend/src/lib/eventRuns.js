@@ -133,13 +133,24 @@ export function eventSummary(name, runsIn, price = '', now = new Date()) {
     : `${name} has finished. Check before you go.`;
 }
 
-// Tap-to-email and tap-to-call links from an enquiries line ("a@b.com / +61 3 9860 0500"): [{ label, href }].
-export function contactLinks(text) {
+// The emails and phone numbers in an enquiries line ("a@b.com / +61 3 9860 0500"), each on its own:
+// [{ kind: 'email' | 'phone', value }]. Emails first, as they are saved.
+export function contactItems(text) {
   const line = String(text || '');
   const emails = line.match(/[^\s,;/()<>]+@[^\s,;/()<>]+\.[^\s,;/()<>]*[A-Za-z]/g) || [];
   const phones = line.replace(/[^\s,;/()<>]+@[^\s,;/()<>]+/g, ' ').match(/\+?\d[\d\s().-]{6,}\d/g) || [];
   return [
-    ...emails.map((email) => ({ label: email, href: `mailto:${email}`, kind: 'email' })),
-    ...phones.map((phone) => ({ label: phone.trim(), href: `tel:${phone.trim().replace(/[^\d+]/g, '')}`, kind: 'phone' })),
+    ...emails.map((value) => ({ kind: 'email', value })),
+    ...phones.map((value) => ({ kind: 'phone', value: value.trim() })),
   ];
+}
+
+// The line saved for a list of contacts: each filled-in value, one after another.
+export const contactLine = (items) => items.map((item) => item.value.trim()).filter(Boolean).join(' / ');
+
+// Tap-to-email and tap-to-call links from an enquiries line: [{ label, href, kind }].
+export function contactLinks(text) {
+  return contactItems(text).map(({ kind, value }) => (kind === 'email'
+    ? { kind, label: value, href: `mailto:${value}` }
+    : { kind, label: value, href: `tel:${value.replace(/[^\d+]/g, '')}` }));
 }
