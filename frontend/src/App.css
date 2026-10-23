@@ -1556,13 +1556,19 @@ select.step-input {
   font-size: 20px;
   cursor: pointer;
   opacity: 0.45;
-  transition: all 0.15s;
+  /* No fade: iOS Safari can leave the old button looking selected after a tap while it fades. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .segment.selected {
   background: var(--card);
   opacity: 1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* The vibe picker: the chosen one also gets an outline, so it is clear only one is picked. */
+.segmented.wide .segment.selected {
+  box-shadow: inset 0 0 0 2px var(--accent), 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .edit-actions {
