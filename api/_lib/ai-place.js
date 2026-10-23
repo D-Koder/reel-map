@@ -99,8 +99,16 @@ Rules:
 - For a temporary venue, give the days it is on as "start_date" and
   "end_date" (YYYY-MM-DD), worked out from <post_date>, the day the post
   went up: "today" is the post date, "tomorrow" the day after, "this
-  weekend" the Saturday and Sunday on or after the post date, "until
-  Sunday" ends on the next Sunday, "17–18 Oct" takes the post date's year.
+  weekend" the Saturday and Sunday on or after the post date, "next
+  weekend" the one after that, "until Sunday" ends on the next Sunday,
+  "17–18 Oct" takes the post date's year. Weeks run Monday to Sunday: "this
+  week" is the post date to that week's Sunday, "next week" is the
+  following Monday to Sunday, "this fortnight" or "next two weeks" is the
+  post date for 14 days. "This month" is the post date to the month's last
+  day, "next month" and "all of November" are the whole month. "For N
+  days" or "N weeks" counts from the day the caption starts it, else from
+  the post date. "This year", "this summer", "soon" and "coming months"
+  are too vague: leave the dates "".
   Quote the words that say when in "date_evidence". Leave a date "" when
   the post doesn't say it clearly ("soon", "coming weeks"), and leave all
   three "" when the venue is not temporary.
