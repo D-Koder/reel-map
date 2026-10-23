@@ -443,7 +443,18 @@ async function enrich(req, res, getBrowser) {
   const reelUrl = await expandTikTokUrl(typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '');
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const { cleanUrl, slide, cacheKey } = reelLookupKey(reelUrl, req.body?.slide);
-  const read = await readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser);
+  // How long each step took, for the Add place log and Vercel's logs. A step's work is passed as a function
+  // so steps that run together are each timed from their own start.
+  const timings = [];
+  const timed = async (label, work) => {
+    const began = Date.now();
+    try {
+      return await work();
+    } finally {
+      timings.push(`${label} ${((Date.now() - began) / 1000).toFixed(1)}s`);
+    }
+  };
+  const read = await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
@@ -477,10 +488,15 @@ async function enrich(req, res, getBrowser) {
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
     // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.
-    const [withExtras, firstAnswer] = await Promise.all([readPageExtras(reel, cleanUrl, getBrowser), askAi(reel)]);
+    // The page's post date only matters for a pop-up's "tomorrow" or "until Sunday", so it alone doesn't
+    // ask again unless the first answer was a pop-up (the date is on nearly every page).
+    const [withExtras, firstAnswer] = await Promise.all([
+      timed('page read', () => readPageExtras(reel, cleanUrl, getBrowser)),
+      timed('AI', () => askAi(reel)),
+    ]);
     const gotExtras = withExtras !== reel && (withExtras.locationTag || withExtras.collaborators?.length ||
-      withExtras.tagged?.length || withExtras.date !== reel.date);
-    const ai = gotExtras ? await askAi(withExtras) : firstAnswer;
+      withExtras.tagged?.length || (firstAnswer?.temporary && withExtras.date !== reel.date));
+    const ai = gotExtras ? await timed('AI again', () => askAi(withExtras)) : firstAnswer;
     reel = withExtras;
     steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
@@ -564,6 +580,8 @@ async function enrich(req, res, getBrowser) {
     : null);
   const withGuess = (body) => {
     const popup = popupInfo();
+    steps.timings = timings.join(' | ');
+    console.log(`[enrich-reel] ${steps.timings}`);
     return {
       ...(guess ? { ...body, placeName: body.placeName || guess.name, location: body.location || guess.location } : body),
       steps, ...(popup ? { popup } : {}),
@@ -587,7 +605,7 @@ async function enrich(req, res, getBrowser) {
       location: reel.location,
       caption: reel.caption,
     }, getBrowser);
-    let searchResponse = await search();
+    let searchResponse = await timed('search', search);
     // Searched by the AI's local name (乍浦路桥) and Google found nothing: the AI may have it wrong, so
     // the name as the post wrote it is searched instead.
     const foundNothing = searchResponse.statusCode >= 400 || !searchResponse.body?.success || !searchResponse.body.candidates?.length;
@@ -664,7 +682,7 @@ async function enrich(req, res, getBrowser) {
   }
 
   const detailsRead = selectedCandidate
-    ? await readDetails(selectedCandidate, atPickup ? pickupQuery : query, reel, getBrowser)
+    ? await timed('details', () => readDetails(selectedCandidate, atPickup ? pickupQuery : query, reel, getBrowser))
     : { details: null, detailsError: null };
   const { detailsError } = detailsRead;
   let { details } = detailsRead;
@@ -697,6 +715,8 @@ async function enrich(req, res, getBrowser) {
       : atPickup ? 'no (pinned at the pickup spot)'
       : selectedCandidate && !reel.placeName ? 'no (nothing named the place, so the pick is a guess)'
       : 'no (not picked by the app by itself, so the next person sees the options)';
+  steps.timings = timings.join(' | ');
+  console.log(`[enrich-reel] ${steps.timings}`);
 
   return res.status(200).json({
     ...reel,
