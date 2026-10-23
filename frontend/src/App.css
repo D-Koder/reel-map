@@ -4656,6 +4656,30 @@ button.profile-open {
   .listed-place .listed-progress::after { animation: none; width: 100%; opacity: 0.5; }
 }
 
+/* Reel lookup progress: a label for the step, and a bar that fills as the steps go by. */
+.lookup-progress {
+  margin-bottom: 16px;
+}
+
+.lookup-progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.lookup-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.lookup-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
 .listed-place.is-on {
   border-color: var(--ink);
 }

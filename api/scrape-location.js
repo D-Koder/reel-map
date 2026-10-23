@@ -105,6 +105,7 @@ module.exports = requireUser(async function handler(req, res) {
 
     const firstResultSelector = 'a[aria-label][href*="/maps/place/"]';
     if (action === 'search') {
+      // Stops as soon as a result shows; the cap only matters when Maps shows nothing.
       await page.waitForFunction((selector) => document.querySelector(selector) ||
         (location.pathname.includes('/maps/place/') && document.querySelector('h1')),
         { timeout: 25000 }, firstResultSelector).catch(() => {});
