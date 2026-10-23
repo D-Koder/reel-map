@@ -113,7 +113,8 @@ Rules:
   first stretch in start_date, end_date, open_time and close_time, and each
   later one in "more_dates" as {"start_date", "end_date", "open_time",
   "close_time"} with its own hours ("" for the same hours as the first).
-  Days with the same hours can stay in one stretch. Leave more_dates []
+  Days with the same hours can stay in one stretch. Stretches must not
+  overlap: give each day once, in the stretch with its hours. Leave more_dates []
   otherwise.
 - For a temporary venue, give what it costs to get in as "price", as the
   caption writes it ("Free", "$25", "$15–$40", "Kids free"), and quote those
@@ -466,6 +467,30 @@ function localScript(name, local) {
 const DAY_MS = 86400000;
 const dayNumber = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}T00:00:00Z`) / DAY_MS : NaN);
 
+// Runs that overlap, made into runs that don't: each day goes to the shortest run that includes it, so
+// "24–25 Oct 12–8pm" plus "Sun 25 Oct 12–6pm" becomes 24 Oct 12–8pm and 25 Oct 12–6pm. Neighbouring days
+// from the same run join back into one stretch.
+function splitOverlaps(runs) {
+  const spans = runs.map((run) => dayNumber(run.end) - dayNumber(run.start) + 1);
+  if (spans.some((span) => !(span >= 1 && span <= 366))) return runs;
+  const owner = new Map();
+  runs.forEach((run, index) => {
+    for (let day = dayNumber(run.start); day <= dayNumber(run.end); day += 1) {
+      const current = owner.get(day);
+      if (current === undefined || spans[index] <= spans[current]) owner.set(day, index);
+    }
+  });
+  const out = [];
+  for (const day of [...owner.keys()].sort((a, b) => a - b)) {
+    const index = owner.get(day);
+    const last = out[out.length - 1];
+    const iso = new Date(day * DAY_MS).toISOString().slice(0, 10);
+    if (last && last.index === index && dayNumber(last.end) === day - 1) last.end = iso;
+    else out.push({ index, start: iso, end: iso, open: runs[index].open, close: runs[index].close });
+  }
+  return out.map(({ index, ...run }) => run);
+}
+
 // A temporary venue's days, kept only when they make sense: real dates, the words that say when
 // are really in the caption, the end isn't before the start, and both are within about six months
 // of the post. With only an end date ("finishes today", "until Sunday"), it started by the post date.
@@ -501,9 +526,9 @@ function checkDates(answer, post) {
     const own = hasHours && time.test(more.open_time || '');
     stretches.push([from, to, own ? more.open_time : open, own ? (time.test(more.close_time || '') ? more.close_time : '') : close]);
   }
-  const runs = stretches
+  const runs = splitOverlaps(stretches
     .sort((a, b) => a[0] - b[0])
-    .map(([from, to, from_open, to_close]) => ({ start: iso(from), end: iso(to), open: from_open, close: to_close }));
+    .map(([from, to, from_open, to_close]) => ({ start: iso(from), end: iso(to), open: from_open, close: to_close })));
   const finish = runs.reduce((max, run) => (run.end > max ? run.end : max), runs[0].end);
   return { startDate: runs[0].start, endDate: finish, dateEvidence: evidence, runs };
 }
