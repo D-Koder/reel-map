@@ -108,9 +108,12 @@ Rules:
   and "close_time" in 24 hour HH:MM ("11:00", "22:00"), and quote the words
   that say so in "time_evidence" ("11am–10pm"). Never guess hours: leave all
   three "" when the post doesn't give them. When the same event runs on
-  separate stretches of days (13–15 Nov, then 20–22 Nov), put the first
-  stretch in start_date and end_date and each later one in "more_dates" as
-  {"start_date", "end_date"}; they share the same hours. Leave more_dates []
+  separate stretches of days (13–15 Nov, then 20–22 Nov), or has different
+  hours on different days ("12pm–8pm Saturday, 12pm–6pm Sunday"), put the
+  first stretch in start_date, end_date, open_time and close_time, and each
+  later one in "more_dates" as {"start_date", "end_date", "open_time",
+  "close_time"} with its own hours ("" for the same hours as the first).
+  Days with the same hours can stay in one stretch. Leave more_dates []
   otherwise.
 - For a temporary venue, give what it costs to get in as "price", as the
   caption writes it ("Free", "$25", "$15–$40", "Kids free"), and quote those
@@ -410,8 +413,8 @@ const SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { start_date: { type: 'string' }, end_date: { type: 'string' } },
-        required: ['start_date', 'end_date'],
+        properties: { start_date: { type: 'string' }, end_date: { type: 'string' }, open_time: { type: 'string' }, close_time: { type: 'string' } },
+        required: ['start_date', 'end_date', 'open_time', 'close_time'],
         additionalProperties: false,
       },
     },
@@ -489,15 +492,18 @@ function checkDates(answer, post) {
   const open = hasHours ? answer.open_time : '';
   const close = hasHours && time.test(answer.close_time || '') ? answer.close_time : '';
 
-  const stretches = [[start, last]];
+  const stretches = [[start, last, open, close]];
   for (const more of Array.isArray(answer.more_dates) ? answer.more_dates : []) {
     const from = dayNumber(more?.start_date);
     const to = dayNumber(more?.end_date);
-    if (near(from) && near(to) && to >= from) stretches.push([from, to]);
+    if (!near(from) || !near(to) || to < from) continue;
+    // A later stretch with its own hours uses them; otherwise it keeps the first stretch's.
+    const own = hasHours && time.test(more.open_time || '');
+    stretches.push([from, to, own ? more.open_time : open, own ? (time.test(more.close_time || '') ? more.close_time : '') : close]);
   }
   const runs = stretches
     .sort((a, b) => a[0] - b[0])
-    .map(([from, to]) => ({ start: iso(from), end: iso(to), open, close }));
+    .map(([from, to, from_open, to_close]) => ({ start: iso(from), end: iso(to), open: from_open, close: to_close }));
   const finish = runs.reduce((max, run) => (run.end > max ? run.end : max), runs[0].end);
   return { startDate: runs[0].start, endDate: finish, dateEvidence: evidence, runs };
 }
