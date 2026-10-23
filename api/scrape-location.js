@@ -1,6 +1,7 @@
 const { requireUser } = require('./_lib/auth');
 const { openPage, closePage, closeBrowser, browserFor } = require('./_lib/browser');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
+const placesApi = require('./_lib/places-api');
 
 // How long a place's saved details are reused. Kept long while there are few users; opening hours and
 // phone numbers can change, so lower it as the app grows.
@@ -60,6 +61,32 @@ module.exports = requireUser(async function handler(req, res) {
     const cached = await readCache('place_lookups', selectedPlaceUrl, PLACE_CACHE_DAYS);
     if (cached?.data) return res.status(200).json(cached.data);
   }
+  // With an API key, searches and place details come from the Places API: no Chrome, and a fraction of
+  // the time. If the API fails, or the link isn't one it made, the scraper below does the job as before.
+  // Its answers aren't saved in place_lookups: Google's terms limit how long Places data may be kept.
+  const placeId = action === 'details' ? placesApi.placeIdFromUrl(selectedPlaceUrl) : '';
+  if (placesApi.enabled() && (action === 'search' || placeId)) {
+    try {
+      if (action === 'search') {
+        const candidates = await placesApi.searchPlaces(query, language);
+        if (!candidates.length) {
+          return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
+        }
+        return res.status(200).json({ success: true, query, source: 'places-api', candidates });
+      }
+      const result = await placesApi.placeDetails(placeId);
+      if (result.name) {
+        if (!result.address) result.address = req.body?.placeAddress || location;
+        // Keep the name the post and the results list use (裕兴记) rather than Google's English one.
+        const cjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+        if (cjk.test(placeName) && !cjk.test(result.name)) result.name = placeName;
+        return res.status(200).json({ success: true, query, source: 'places-api', ...result });
+      }
+    } catch (error) {
+      console.warn(`[scrape-location] Places API failed, scraping instead: ${error.message}`);
+    }
+  }
+
   let browser;
   let owned = false;
   let page;
