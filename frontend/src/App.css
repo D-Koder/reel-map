@@ -5208,3 +5208,6 @@ button.profile-open {
 .evt-price span { color: var(--text-muted); }
 .evt-price { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; }
 .evt-price span { color: var(--text-muted); }
+.evt-contact { color: var(--text); text-decoration: none; margin-top: 0; }
+.evt-contact b { color: var(--accent-text); overflow-wrap: anywhere; text-align: right; }
+.evt-contact + .evt-contact { margin-top: 8px; }

@@ -132,3 +132,14 @@ export function eventSummary(name, runsIn, price = '', now = new Date()) {
     ? `${name} is next on ${dayShort(next)}, ${timesText(runOn(runs, next)).replace(/^All day$/, 'all day')}.${cost} Does that work for you?`
     : `${name} has finished. Check before you go.`;
 }
+
+// Tap-to-email and tap-to-call links from an enquiries line ("a@b.com / +61 3 9860 0500"): [{ label, href }].
+export function contactLinks(text) {
+  const line = String(text || '');
+  const emails = line.match(/[^\s,;/()<>]+@[^\s,;/()<>]+\.[^\s,;/()<>]*[A-Za-z]/g) || [];
+  const phones = line.replace(/[^\s,;/()<>]+@[^\s,;/()<>]+/g, ' ').match(/\+?\d[\d\s().-]{6,}\d/g) || [];
+  return [
+    ...emails.map((email) => ({ label: email, href: `mailto:${email}`, kind: 'email' })),
+    ...phones.map((phone) => ({ label: phone.trim(), href: `tel:${phone.trim().replace(/[^\d+]/g, '')}`, kind: 'phone' })),
+  ];
+}

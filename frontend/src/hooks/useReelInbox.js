@@ -102,6 +102,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         eventEndDate: popup?.endDate || null,
         eventRuns: popup?.runs?.length ? popup.runs : undefined,
         eventPrice: popup?.price || '',
+        eventContact: popup?.contact || '',
       });
       if (!created) {
         update(item.id, { status: 'failed', collectionId, name, reelData: data });

@@ -67,7 +67,7 @@ function applyAi(reel, ai) {
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
   // name would find the brand's permanent shops instead.
   const popup = ai.temporary
-    ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence, runs: ai.runs || [], price: ai.price || '' }
+    ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence, runs: ai.runs || [], price: ai.price || '', contact: ai.contact || '' }
     : null;
   return {
     // Cafe, food, event or other. A pop-up is always an event.
