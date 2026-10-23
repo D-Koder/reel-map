@@ -470,12 +470,18 @@ async function enrich(req, res, getBrowser) {
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {
-    reel = await readPageExtras(reel, cleanUrl, getBrowser);
-    const ai = await aiPlace({
-      caption: reel.caption, locationTag: reel.locationTag, creator: reel.creator,
-      collaborators: reel.collaborators, tagged: reel.tagged, slide, userCountry: country,
-      postDay: reel.date ? dayIn(timeZone, reel.date) : '',
+    const askAi = (post) => aiPlace({
+      caption: post.caption, locationTag: post.locationTag, creator: post.creator,
+      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country,
+      postDay: post.date ? dayIn(timeZone, post.date) : '',
     });
+    // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
+    // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.
+    const [withExtras, firstAnswer] = await Promise.all([readPageExtras(reel, cleanUrl, getBrowser), askAi(reel)]);
+    const gotExtras = withExtras !== reel && (withExtras.locationTag || withExtras.collaborators?.length ||
+      withExtras.tagged?.length || withExtras.date !== reel.date);
+    const ai = gotExtras ? await askAi(withExtras) : firstAnswer;
+    reel = withExtras;
     steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
         : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`
