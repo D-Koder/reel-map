@@ -69,7 +69,10 @@ module.exports = requireUser(async function handler(req, res) {
     try {
       console.log(`[scrape-location] Places API ${action}: ${query}`);
       if (action === 'search') {
-        const candidates = await placesApi.searchPlaces(query, language);
+        const bias = Number.isFinite(req.body?.biasLng) && Number.isFinite(req.body?.biasLat)
+          ? { lng: req.body.biasLng, lat: req.body.biasLat }
+          : await placesApi.biasFor(location);
+        const candidates = await placesApi.searchPlaces(query, language, bias);
         if (!candidates.length) {
           return res.status(404).json({ error: `No Google Maps results found for "${query}"`, query, mapsUrl });
         }

@@ -5,6 +5,7 @@
 
 const BASE = 'https://places.googleapis.com/v1';
 const TIMEOUT_MS = 8000;
+const BIAS_RADIUS_METRES = 20000;
 
 const SEARCH_FIELDS = [
   'places.id', 'places.displayName', 'places.formattedAddress', 'places.primaryTypeDisplayName',
@@ -53,10 +54,13 @@ async function call(path, { method = 'GET', body, fields, language, base = BASE 
 }
 
 // Up to 5 matches for a search, as the scraper's candidates: { name, url, address, category, rating, summary }.
-async function searchPlaces(query, language) {
-  const data = await call('/places:searchText', {
-    method: 'POST', body: { textQuery: query, pageSize: 5 }, fields: SEARCH_FIELDS, language,
-  });
+// bias ({ lng, lat }) ranks places near that spot higher. It's a hint, so places further away still show.
+async function searchPlaces(query, language, bias) {
+  const body = { textQuery: query, pageSize: 5 };
+  if (bias && Number.isFinite(bias.lng) && Number.isFinite(bias.lat)) {
+    body.locationBias = { circle: { center: { latitude: bias.lat, longitude: bias.lng }, radius: BIAS_RADIUS_METRES } };
+  }
+  const data = await call('/places:searchText', { method: 'POST', body, fields: SEARCH_FIELDS, language });
   return (data.places || []).slice(0, 5).map((place) => ({
     name: place.displayName?.text || '',
     url: placeUrl(place.id),
@@ -158,7 +162,21 @@ async function geocodeAddress(address) {
   return { lng: longitude, lat: latitude, address: result.formattedAddress || address };
 }
 
+// Where to look first for a search: the spot of the address or area in `location`, or null. Only text with
+// a comma or a digit counts (a street address or "suburb, city"); a bare name would geocode to anything.
+// Remembered while the server instance lives, so a reel's second search costs nothing.
+const biasCache = new Map();
+async function biasFor(location) {
+  const text = String(location || '').trim();
+  if (!text || !/[,\d]/.test(text)) return null;
+  if (!biasCache.has(text)) {
+    if (biasCache.size > 500) biasCache.clear();
+    biasCache.set(text, geocodeAddress(text).catch(() => null));
+  }
+  return biasCache.get(text);
+}
+
 module.exports = {
-  enabled, searchPlaces, placeDetails, placeIdFromUrl,
+  biasFor, enabled, searchPlaces, placeDetails, placeIdFromUrl,
   autocomplete, retrievePlace, nearby, reverseGeocode, geocodeAddress,
 };
