@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
+import { Bell, Film, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
 import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
@@ -106,6 +106,9 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const [finishingInboxId, setFinishingInboxId] = useState(null);
   // Changes when Finish opens a reel, so an add sheet already open (tucked into its chip) starts over on it.
   const [addSheetKey, setAddSheetKey] = useState(0);
+  // Set while the add sheet is tucked away: { loading }. Shown as a panel under the header.
+  const [addTuck, setAddTuck] = useState(null);
+  const [addRestore, setAddRestore] = useState(0);
   // The place just marked as done, for the celebration.
   const [celebrating, setCelebrating] = useState(null);
 
@@ -438,6 +441,24 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         </div>
       </header>
 
+      {addTuck && (
+        <div className="reel-inbox lookup-panel">
+          <div className={`inbox-card ${addTuck.loading ? 'saving' : 'ready'}`} role="status">
+            <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
+            <div className="inbox-info">
+              <div className="inbox-name">Add a place</div>
+              <div className="inbox-message">
+                {addTuck.loading && <span className="spinner" aria-hidden="true" />}
+                {addTuck.loading ? 'Finding the place…' : 'Found it. Tap Review to check.'}
+              </div>
+            </div>
+            <button type="button" className="inbox-action" onClick={() => setAddRestore((n) => n + 1)}>
+              {addTuck.loading ? 'Open' : 'Review'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {!online && (
         <div className="offline-banner" role="status">
           <WifiOff className="ico" aria-hidden="true" /> You're offline. Showing your saved places — changes need a connection.
@@ -645,6 +666,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
       {adding && (
         <AddPlaceSheet
           key={addSheetKey}
+          onTuckChange={setAddTuck}
+          restoreSignal={addRestore}
           initialPlace={addDraft}
           initialCollectionId={editableIds.has(addCollectionId) ? addCollectionId : null}
           initialReelUrl={sharedReelUrl}

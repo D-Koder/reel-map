@@ -1205,32 +1205,12 @@ button.collection-empty {
   display: none;
 }
 
-.lookup-chip {
-  position: fixed;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
-  transform: translateX(-50%);
-  z-index: 240;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100vw - 32px);
-  padding: 10px 16px;
-  border: 1px solid var(--border, #ddd6c8);
-  border-radius: 999px;
-  background: var(--card, #fff);
-  color: var(--text, #1a1a1a);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
+.lookup-panel {
+  margin: 8px 16px 0;
 }
 
-.lookup-chip.ready {
-  background: var(--accent, #d4552f);
-  border-color: var(--accent, #d4552f);
-  color: #fff;
+.inbox-card.ready {
+  border-color: var(--accent);
 }
 
 .modal {

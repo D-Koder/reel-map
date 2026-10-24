@@ -89,7 +89,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null, onTuckChange = null, restoreSignal = 0 }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -106,6 +106,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [lookupDone, setLookupDone] = useState(false);
   // The sheet tucked away into a small chip while the lookup runs, so the app can be used meanwhile.
   const [minimized, setMinimized] = useState(false);
+  // The app shows a panel at the top while the sheet is tucked away; tapping it brings the sheet back.
+  useEffect(() => { onTuckChange?.(minimized ? { loading } : null); }, [minimized, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onTuckChange?.(null), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (restoreSignal) setMinimized(false); }, [restoreSignal]);
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
@@ -819,12 +823,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   return (
     <>
-    {minimized && (
-      <button type="button" className={`lookup-chip${loading ? '' : ' ready'}`} onClick={() => setMinimized(false)}
-        aria-label={loading ? 'Finding the place. Tap to open' : 'Place found. Tap to review'}>
-        {loading ? <><span className="spinner" aria-hidden="true" />Finding the place…</> : 'Ready · tap to review'}
-      </button>
-    )}
     <div className={`modal-overlay${minimized ? ' is-minimized' : ''}`} onClick={onClose}>
       <div
         ref={sheetRef}
