@@ -67,16 +67,17 @@ function applyAi(reel, ai) {
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
   // name would find the brand's permanent shops instead.
   const popup = ai.temporary
-    ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence, runs: ai.runs || [], price: ai.price || '', contact: ai.contact || '' }
+    ? { name, startDate: ai.startDate, endDate: ai.endDate, dateEvidence: ai.dateEvidence, runs: ai.runs || [], price: ai.price || '', contact: ai.contact || '', locationNote: ai.locationNote || '' }
     : null;
   return {
     // Cafe, food, event or other. A pop-up is always an event.
     // otherName: the name in the other Chinese script (人和館 → 人和馆), also matched against Google's names.
     // localName: the name as written locally (Zhapu Road Bridge → 乍浦路桥), searched with and matched against.
     reel: { ...reel, placeName: name, otherName: fromHandle ? '' : pick.otherName || '',
-      localName: fromHandle ? '' : pick.localName || '', location: pick.address || where,
+      localName: fromHandle ? '' : pick.localName || '', location: popup?.locationNote ? '' : pick.address || where,
       placeSource: pick.source, category: ai.temporary ? 'event' : pick.category, ...choices },
-    venue: popup ? pick.address || where : [(!fromHandle && pick.localName) || name, pick.address || where].filter(Boolean).join(', '),
+    // A secret location ("sent by DM") is left empty: a brand in the caption isn't where it is.
+    venue: popup ? (popup.locationNote ? '' : pick.address || where) : [(!fromHandle && pick.localName) || name, pick.address || where].filter(Boolean).join(', '),
     area: ai.postArea || pick.area,
     lowConfidence: ai.confidence === 'low',
     popup,
@@ -540,7 +541,7 @@ async function enrich(req, res, getBrowser) {
   let area = read.fromCache ? reel.area || '' : '';
   if (!read.fromCache && !handleHit) {
     area = aiFound?.area || reel.locationTag;
-    if (!area) {
+    if (!area && !aiFound?.popup?.locationNote) {
       reel = await readPageExtras(reel, cleanUrl, getBrowser);
       area = reel.locationTag || '';
     }
@@ -555,7 +556,7 @@ async function enrich(req, res, getBrowser) {
   const flipped = orderOnly ? '' : flipCaption(reel.caption);
   // The area goes right after the venue, or in front of a caption that doesn't say where.
   const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  let query = handleHit?.query ||
+  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query ||
     (venue ? withArea(venue, area) : captionQuery) ||
     withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.

@@ -292,6 +292,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         : popup.startDate === popup.endDate ? `on ${popup.endDate}` : `on ${popup.startDate} to ${popup.endDate}`;
       addLog(`Pop-up: ${popup.name}, ${days}. Saved as an event, pinned on its street.`, 'success');
       if (popup.ended) addLog(`⚠️ This pop-up ended on ${popup.endDate}. You can still save it.`, 'error');
+      // A secret location: no address is guessed, and the note goes in custom info.
+      if (popup.locationNote) {
+        setCustomInfo((typed) => typed || popup.locationNote);
+        addLog(`Location isn't public: ${popup.locationNote}. Add the address once you know it.`, 'info');
+      }
     }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
     addLog(`Likes: ${data.likes || 0}`, 'success');
