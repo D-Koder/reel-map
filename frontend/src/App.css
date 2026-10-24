@@ -5207,18 +5207,27 @@ button.profile-open {
 .evt-status { font-size: 14px; font-weight: 700; padding: 10px 12px; border-radius: 12px; background: var(--surface-muted); color: var(--text-muted); }
 .evt-status.is-open { background: var(--success-bg); color: var(--success-text); }
 .evt-status.is-soon { background: var(--warn-bg); color: var(--warn-text); }
-.evt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.evt-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
-.evt-list .evt-sum-dates { color: var(--text); }
-.evt-price { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; }
-.evt-price span { color: var(--text-muted); }
-.evt-price { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; }
-.evt-price span { color: var(--text-muted); }
-.evt-contact { color: var(--text); text-decoration: none; margin-top: 0; }
-.evt-contact b { color: var(--accent-text); overflow-wrap: anywhere; text-align: right; }
-.evt-contact + .evt-contact { margin-top: 8px; }
 .evt-contacts { display: grid; gap: 8px; }
 .evt-time-label { font-size: 13px; color: var(--text-muted); }
 .evt-contact-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; align-items: end; }
 .evt-contact-row .evt-x { height: 44px; }
 .evt-add-row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* An event's place page: one schedule card, a price chip, and enquiry chips */
+.evt-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.evt-section-head .modal-label { margin: 0; }
+.evt-chip { font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: var(--surface-muted); color: var(--text); white-space: nowrap; }
+.evt-chip.is-free { background: var(--success-bg); color: var(--success-text); }
+.evt-card { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.evt-card li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 14px; }
+.evt-card li + li { border-top: 1px solid var(--border); }
+.evt-card li.is-active { background: var(--accent-softer); }
+.evt-card-dates { font-weight: 700; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.evt-card-times { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
+.evt-badge { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+.evt-badge.is-open { background: var(--success-bg); color: var(--success-text); }
+.evt-badge.is-soon { background: var(--warn-bg); color: var(--warn-text); }
+.evt-card + .evt-status { margin-top: 8px; }
+.evt-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.evt-link-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; }
+.evt-link-chip span { overflow-wrap: anywhere; }

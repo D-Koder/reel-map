@@ -154,3 +154,13 @@ export function contactLinks(text) {
     ? { kind, label: value, href: `mailto:${value}` }
     : { kind, label: value, href: `tel:${value.replace(/[^\d+]/g, '')}` }));
 }
+
+// The run to point at on the place page: the one on now or today, or the next one. null when over.
+export function activeRun(runsIn, now = new Date()) {
+  const runs = cleanRuns(runsIn);
+  const status = eventStatus(runs, now);
+  if (!status || status.kind === 'over') return null;
+  const today = dayString(now);
+  if (status.kind === 'open' || status.kind === 'soon') return runOn(runs, today) ?? runOn(runs, addDays(today, -1));
+  return runOn(runs, nextDay(runs, runOn(runs, today) ? addDays(today, 1) : today));
+}

@@ -12,7 +12,8 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { openStatus, suburbOf } from '../lib/hours';
-import { contactLinks, datesText, eventStatus, eventSummary, runsOf, timesText } from '../lib/eventRuns';
+import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
+import EventSchedule from './EventSchedule';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -444,32 +445,7 @@ export default function PinModal({
           </div>
         )}
 
-        {hasRuns && (
-          <div className="modal-section">
-            <div className="modal-label">When it's on</div>
-            <ul className="evt-list">
-              {runs.map((run) => (
-                <li key={run.start}>
-                  <span className="evt-sum-dates">{datesText(run)}</span>
-                  <span className="evt-sum-times">{timesText(run)}</span>
-                </li>
-              ))}
-            </ul>
-            {eventNow && <div className={`evt-status is-${eventNow.kind}`}>{eventNow.text}</div>}
-            {place.event_price && <div className="evt-price"><span>Price</span><b>{place.event_price}</b></div>}
-          </div>
-        )}
-
-        {place?.category === 'event' && contactLinks(place.event_contact).length > 0 && (
-          <div className="modal-section">
-            <div className="modal-label">Enquiries</div>
-            {contactLinks(place.event_contact).map((link) => (
-              <a key={link.href} className="evt-price evt-contact" href={link.href}>
-                <span>{link.kind === 'email' ? 'Email' : 'Call'}</span><b>{link.label}</b>
-              </a>
-            ))}
-          </div>
-        )}
+        {place?.category === 'event' && <EventSchedule place={place} />}
 
         {!hasRuns && hours.length > 0 && (
           <div className="modal-section">
