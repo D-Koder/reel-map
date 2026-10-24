@@ -104,6 +104,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [loading, setLoading] = useState(false);
   // True once the lookup has answered; the progress bar fills, then the form opens.
   const [lookupDone, setLookupDone] = useState(false);
+  // The sheet tucked away into a small chip while the lookup runs, so the app can be used meanwhile.
+  const [minimized, setMinimized] = useState(false);
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
@@ -816,7 +818,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <>
+    {minimized && (
+      <button type="button" className={`lookup-chip${loading ? '' : ' ready'}`} onClick={() => setMinimized(false)}
+        aria-label={loading ? 'Finding the place. Tap to open' : 'Place found. Tap to review'}>
+        {loading ? <><span className="spinner" aria-hidden="true" />Finding the place…</> : 'Ready · tap to review'}
+      </button>
+    )}
+    <div className={`modal-overlay${minimized ? ' is-minimized' : ''}`} onClick={onClose}>
       <div
         ref={sheetRef}
         className="modal edit-sheet"
@@ -952,14 +961,20 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               >
                 Manual
               </button>
-              <button
-                type="button"
-                className="step-btn primary full-width"
-                onClick={handleConfirmReel}
-                disabled={loading || !reelUrlInput.trim()}
-              >
-                {loading ? <><span className="spinner" aria-hidden="true" />Loading…</> : 'Confirm'}
-              </button>
+              {loading ? (
+                <button type="button" className="step-btn primary full-width" onClick={() => setMinimized(true)}>
+                  Keep browsing
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="step-btn primary full-width"
+                  onClick={handleConfirmReel}
+                  disabled={!reelUrlInput.trim()}
+                >
+                  Confirm
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1511,5 +1526,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         )}
       </div>
     </div>
+    </>
   );
 }
