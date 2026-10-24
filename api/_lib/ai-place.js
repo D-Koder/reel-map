@@ -536,7 +536,15 @@ function checkDates(answer, post) {
   const evidence = String(answer.date_evidence || '');
   if (!evidence || !flat(post.caption).includes(flat(evidence))) return none;
   const posted = dayNumber(post.postDay || '');
-  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) || (day >= posted - 7 && day <= posted + 366));
+  // A date is kept when it is within a year of the post, or when the caption writes out its year ("14–18
+  // June 2028"): that date is clear however far away it is (up to five years, so a stray number isn't read as one).
+  const postYear = Number.isFinite(posted) ? new Date(posted * DAY_MS).getUTCFullYear() : NaN;
+  const yearSaid = (day) => {
+    const year = new Date(day * DAY_MS).getUTCFullYear();
+    return new RegExp(`\\b${year}\\b`).test(post.caption || '') && year >= postYear - 1 && year <= postYear + 5;
+  };
+  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) ||
+    (day >= posted - 7 && day <= posted + 366) || yearSaid(day));
   let start = inPostYear(answer.start_date, post);
   const end = inPostYear(answer.end_date, post);
   if (!near(end) && !near(start)) return none;
