@@ -78,6 +78,11 @@ Rules:
   "kickbakery_fitzroy" → "Kick Bakery Fitzroy"). Keep a suburb, city or
   country at the end, and never drop, add, change or correct letters.
   When the venue is not named by a handle, "handle" is "".
+  When the caption also writes the name in words (a 📍 line, a label,
+  a sentence), use that wording as the name and still give the handle:
+  "📍 Hansik, Melbourne CBD @hansik_dang" → name "Hansik", handle
+  "hansik_dang". Only spell the name from the handle when the caption
+  never writes it in words.
 - Never invent an address, suburb or city that the post does not state.
   Leave a field empty rather than guess. A city or suburb named in a
   hashtag counts as stated (#brisbanefood → Brisbane, #syd → Sydney).
@@ -641,10 +646,14 @@ async function aiPlace(post) {
     // Australia"), so doubled letters count once on both sides.
     const single = (letters) => letters.replace(/(.)\1+/gu, '$1');
     const spellsExactly = (name, handle) => spellings(name).some((key) => key === squash(handle) || single(key) === single(squash(handle)));
+    // The caption and location tag with every @handle taken out: a name found here is written in words
+    // ("📍 Hansik, Melbourne CBD @hansik_dang"), so it needn't spell its handle.
+    const writtenSquashed = squash(`${post.caption || ''}\n${post.locationTag || ''}`.replace(/@[\w.]+/g, ' '));
+    const writtenInWords = (name) => spellings(name).some((key) => key.length >= 3 && writtenSquashed.includes(key));
     const checked = answer.places.map((place) => {
       const handle = String(place.handle || '').trim().replace(/^@/, '');
       if (!handle || !seenSquashed.includes(squash(handle))) return { ...place, handle: '' };
-      if (spellsExactly(place.name, handle)) return { ...place, handle };
+      if (spellsExactly(place.name, handle) || writtenInWords(place.name)) return { ...place, handle };
       console.warn('AI name not spelled by its handle, using the handle:', place.name, '←', handle);
       return { ...place, name: handle, handle };
     }).map(({ other_script_name: other, local_name: local, ...place }) => ({
