@@ -1168,7 +1168,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   setLocationSearchDone(false);
                   // A business picked with no name typed yet names the place too.
                   if (!name.trim() && picked.name && !picked.address.startsWith(picked.name)) setName(picked.name);
-                  addLog(`Picked ${picked.name || picked.address} from Mapbox search.`, 'success');
+                  addLog(`Picked ${picked.name || picked.address}.`, 'success');
+                  // A business from Google: read its hours, phone and website too, as the binoculars would.
+                  if (picked.placeId && picked.isBusiness) {
+                    selectLocationCandidate({
+                      url: `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(picked.placeId)}`,
+                      name: picked.name, address: picked.address, searchQuery: picked.name,
+                    }, true);
+                  }
                 }}
                 placeholder="Search a place or street address"
                 maxLength={100}

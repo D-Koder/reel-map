@@ -49,7 +49,12 @@ export async function retrievePlace(id, sessionToken, signal) {
   if (!id.startsWith(GOOGLE_ID)) return mapbox.retrievePlace(id, sessionToken, signal);
   const { place } = await google({ action: 'retrieve', id: id.slice(GOOGLE_ID.length), sessionToken }, signal);
   if (!Number.isFinite(place.lng) || !Number.isFinite(place.lat)) throw new Error('No coordinates for this place');
-  return { lng: place.lng, lat: place.lat, name: place.name, address: place.address, category: categoryOf(place.types) };
+  // placeId and isBusiness: a picked business can have its details (hours, phone) read, a street address can't.
+  const types = place.types || [];
+  return {
+    lng: place.lng, lat: place.lat, name: place.name, address: place.address, category: categoryOf(place.types),
+    placeId: id.slice(GOOGLE_ID.length), isBusiness: types.includes('establishment') || types.includes('point_of_interest'),
+  };
 }
 
 // Places around a spot, nearest first, as MapScreen lists them. fallback runs Mapbox's search there.
