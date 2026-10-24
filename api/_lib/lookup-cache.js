@@ -1,5 +1,5 @@
 // Shared lookup cache in Supabase (tables reel_lookups and place_lookups, see
-// supabase/migrations/20261014090000_lookup_cache.sql). Only the server can read or write it,
+// supabase/migrations/20261024000000_baseline.sql). Only the server can read or write it,
 // using SUPABASE_SERVICE_ROLE_KEY. Without that key every call is a no-op and lookups run as before.
 // Cache failures never fail a lookup: they are logged and treated as a miss.
 

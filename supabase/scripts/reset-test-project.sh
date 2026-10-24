@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rebuilds the TEST Supabase project from scratch:
 #   1. wipes the public and private schemas
-#   2. re-applies every migration in supabase/migrations, in order
+#   2. re-applies the baseline in supabase/migrations
 #   3. recreates the two test accounts
 #
 # Usage (set the values first, never commit them):
