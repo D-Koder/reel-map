@@ -1200,19 +1200,6 @@ button.collection-empty {
   }
 }
 
-/* The add sheet tucked away while a reel is looked up. It stays mounted so the lookup carries on. */
-.modal-overlay.is-minimized {
-  display: none;
-}
-
-.lookup-panel {
-  margin: 8px 16px 0;
-}
-
-.inbox-card.ready {
-  border-color: var(--accent);
-}
-
 .modal {
   background: var(--card);
   width: 100%;

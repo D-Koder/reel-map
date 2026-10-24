@@ -89,7 +89,7 @@ function normaliseEntryUrl(value) {
   }
 }
 
-export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null, onTuckChange = null, restoreSignal = 0 }) {
+export default function AddPlaceSheet({ collections, places = [], eventDatesReady = false, onAdd, onAddAll, onCreateCollection, onClose, initialPlace = null, initialCollectionId = null, initialReelUrl = null, initialReelData = null, onBackground = null }) {
   // A place opened from a long-press on the map has its own pin, so it doesn't use the saved draft.
   // A link shared into the app starts a new add, so it doesn't use the saved draft either.
   const draftable = !initialPlace && !initialReelUrl;
@@ -105,11 +105,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // True once the lookup has answered; the progress bar fills, then the form opens.
   const [lookupDone, setLookupDone] = useState(false);
   // The sheet tucked away into a small chip while the lookup runs, so the app can be used meanwhile.
-  const [minimized, setMinimized] = useState(false);
-  // The app shows a panel at the top while the sheet is tucked away; tapping it brings the sheet back.
-  useEffect(() => { onTuckChange?.(minimized ? { loading, url: (reelUrl || reelUrlInput).trim() } : null); }, [minimized, loading]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => onTuckChange?.(null), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (restoreSignal) setMinimized(false); }, [restoreSignal]);
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
@@ -823,7 +818,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   return (
     <>
-    <div className={`modal-overlay${minimized ? ' is-minimized' : ''}`} onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div
         ref={sheetRef}
         className="modal edit-sheet"
@@ -960,7 +955,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 Manual
               </button>
               {loading ? (
-                <button type="button" className="step-btn primary full-width" onClick={() => setMinimized(true)}>
+                <button type="button" className="step-btn primary full-width" onClick={() => { onBackground?.(reelUrlInput.trim()); onClose(); }}>
                   Keep browsing
                 </button>
               ) : (
