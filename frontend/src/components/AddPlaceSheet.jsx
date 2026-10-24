@@ -1169,6 +1169,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   // A business picked with no name typed yet names the place too.
                   if (!name.trim() && picked.name && !picked.address.startsWith(picked.name)) setName(picked.name);
                   addLog(`Picked ${picked.name || picked.address}.`, 'success');
+                  if (picked.fromGoogle) addLog(picked.details ? `Google sent ${picked.details.hours?.length || 0} hours rows.` : 'Google sent no place details.', 'info');
                   // A business from Google came with its hours, phone and website: use them, as the binoculars would.
                   if (picked.details) {
                     selectLocationCandidate({
