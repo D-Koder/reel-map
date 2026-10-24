@@ -285,14 +285,14 @@ export function useAppData(userId, showToast) {
     );
     channel.subscribe();
     // Phones can drop the live connection in the background and miss changes without telling us,
-    // so after a long time away it reloads once anyway.
+    // so after half a minute away it reloads once anyway.
     let hiddenAt = 0;
     const onVisible = () => {
       if (document.visibilityState === 'hidden') {
         hiddenAt = Date.now();
         return;
       }
-      const longAway = hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000;
+      const longAway = hiddenAt && Date.now() - hiddenAt > 30 * 1000;
       if (!missedChange.current && !longAway) return;
       missedChange.current = false;
       scheduleRefresh();

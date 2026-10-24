@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Bell, CalendarCheck, CircleCheck, Lock, LogOut, MapPin, MessageCircle, Trash2, UserPlus } from 'lucide-react';
 
@@ -21,9 +21,13 @@ function formatTime(iso) {
     : date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
-export function useNotifications(userId) {
+// onNew: called when a notification arrives live. A notification usually means something changed on the
+// server (a shared reel saved to TBD), so the app uses it to reload what it shows.
+export function useNotifications(userId, onNew) {
   const [rows, setRows] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const onNewRef = useRef(onNew);
+  onNewRef.current = onNew;
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -45,7 +49,10 @@ export function useNotifications(userId) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        (payload) => setRows((prev) => [payload.new, ...prev].slice(0, 50))
+        (payload) => {
+          setRows((prev) => [payload.new, ...prev].slice(0, 50));
+          onNewRef.current?.(payload.new);
+        }
       )
       .subscribe();
 
