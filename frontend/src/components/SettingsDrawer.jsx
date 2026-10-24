@@ -62,8 +62,10 @@ async function copyText(text, label, showToast) {
 
 // The shared "Save to Reel Map" Shortcut (an iCloud link, safe to share: it holds no key).
 // VITE_SHORTCUT_URL overrides it. The Shortcut's name must match SHORTCUT_NAME.
+// Staging has its own copy of the Shortcut (it posts to staging's address), so it sets VITE_SHORTCUT_NAME
+// (e.g. "Save to Reel Map STG") and VITE_SHORTCUT_URL, and Connect runs that one, not the live one.
 const SHORTCUT_URL = import.meta.env.VITE_SHORTCUT_URL || 'https://www.icloud.com/shortcuts/38f9699d999e4bdda8e07867d95cabcb';
-const SHORTCUT_NAME = 'Save to Reel Map';
+const SHORTCUT_NAME = import.meta.env.VITE_SHORTCUT_NAME || 'Save to Reel Map';
 
 // Runs the Shortcut with "reelmap-key:<key>". The Shortcut saves the key on the phone,
 // so it is never pasted by hand. Running it again (after a new key) replaces the saved one.
