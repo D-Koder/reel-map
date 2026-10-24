@@ -13,10 +13,10 @@ alter publication supabase_realtime add table
   public.place_order;
 
 -- 2. Leftover functions that no longer work (they use columns that were removed). The app only calls the
---    two-argument delete_place; create_sample_data is not used.
+--    two-argument delete_place. (create_sample_data is also broken, and App.jsx still has a button for it,
+--    but new accounts always start with collections so it can't run; remove both together later.)
 drop function if exists public.delete_place(uuid);
 drop function if exists public.restore_place(uuid);
-drop function if exists public.create_sample_data();
 
 -- 3. Duplicate indexes (each repeats another index on the same columns).
 drop index if exists public.idx_bookings_booked_by;
