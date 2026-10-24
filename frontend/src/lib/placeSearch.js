@@ -44,16 +44,20 @@ export function searchSuggestions(text, signal, origin, sessionToken) {
   );
 }
 
-// Same as mapboxSearch's: { lng, lat, name, address, category } for a picked suggestion.
-export async function retrievePlace(id, sessionToken, signal) {
+// A Google suggestion for a business (not a street address): its hours and phone can be read.
+const isBusiness = (types = []) => types.includes('establishment') || types.includes('point_of_interest');
+
+// Same as mapboxSearch's: { lng, lat, name, address, category } for a picked suggestion. Pass the
+// suggestion's types to also get a business's hours, phone and website in the same request, as `details`.
+export async function retrievePlace(id, sessionToken, signal, suggestionTypes) {
   if (!id.startsWith(GOOGLE_ID)) return mapbox.retrievePlace(id, sessionToken, signal);
-  const { place } = await google({ action: 'retrieve', id: id.slice(GOOGLE_ID.length), sessionToken }, signal);
+  const { place } = await google({
+    action: 'retrieve', id: id.slice(GOOGLE_ID.length), sessionToken, details: isBusiness(suggestionTypes),
+  }, signal);
   if (!Number.isFinite(place.lng) || !Number.isFinite(place.lat)) throw new Error('No coordinates for this place');
-  // placeId and isBusiness: a picked business can have its details (hours, phone) read, a street address can't.
-  const types = place.types || [];
   return {
     lng: place.lng, lat: place.lat, name: place.name, address: place.address, category: categoryOf(place.types),
-    placeId: id.slice(GOOGLE_ID.length), isBusiness: types.includes('establishment') || types.includes('point_of_interest'),
+    details: place.details,
   };
 }
 

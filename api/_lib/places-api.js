@@ -79,9 +79,8 @@ function hoursRows(lines) {
   }).filter(Boolean);
 }
 
-// One place's details, as the scraper's details result. Menu and booking links aren't in the API.
-async function placeDetails(placeId) {
-  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: DETAIL_FIELDS, language: 'en' });
+// A Places API place as the scraper's details result. Menu and booking links aren't in the API.
+function detailsOf(place, placeId) {
   return {
     name: place.displayName?.text || '',
     subtitle: place.primaryTypeDisplayName?.text || '',
@@ -98,6 +97,10 @@ async function placeDetails(placeId) {
   };
 }
 
+async function placeDetails(placeId) {
+  return detailsOf(await call(`/places/${encodeURIComponent(placeId)}`, { fields: DETAIL_FIELDS, language: 'en' }), placeId);
+}
+
 // Suggestions as you type, ranked around [lng, lat] if given: [{ id, name, address }].
 // The session token groups the typing and the pick that follows (retrievePlace) into one billed search.
 async function autocomplete(text, { lng, lat, sessionToken } = {}) {
@@ -110,16 +113,19 @@ async function autocomplete(text, { lng, lat, sessionToken } = {}) {
     id: prediction.placeId,
     name: prediction.structuredFormat?.mainText?.text || prediction.text?.text || '',
     address: prediction.structuredFormat?.secondaryText?.text || prediction.text?.text || '',
+    types: prediction.types || [],
   })).filter((suggestion) => suggestion.id && suggestion.name);
 }
 
-// The picked suggestion's spot and name: { lng, lat, name, address, types }.
-async function retrievePlace(placeId, sessionToken) {
+// The picked suggestion's spot and name: { lng, lat, name, address, types }. With withDetails (a business),
+// the same request also reads its hours, phone and website, as `details` (see placeDetails).
+async function retrievePlace(placeId, sessionToken, withDetails = false) {
   const path = `/places/${encodeURIComponent(placeId)}${sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : ''}`;
   const place = await call(path, {
-    fields: 'id,displayName,formattedAddress,location,types,primaryType', language: 'en',
+    fields: withDetails ? `${DETAIL_FIELDS},types` : 'id,displayName,formattedAddress,location,types,primaryType', language: 'en',
   });
   return {
+    ...(withDetails ? { details: detailsOf(place, placeId) } : {}),
     lng: place.location?.longitude, lat: place.location?.latitude,
     name: place.displayName?.text || '', address: place.formattedAddress || '',
     types: place.types || [],

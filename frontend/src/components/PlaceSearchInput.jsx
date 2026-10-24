@@ -85,7 +85,7 @@ export default function PlaceSearchInput({ value, onChange, onPick, near = null,
     setResults([]);
     setStatus('retrieving');
     try {
-      const place = await retrievePlace(result.id, sessionToken, AbortSignal.timeout(10000));
+      const place = await retrievePlace(result.id, sessionToken, AbortSignal.timeout(10000), result.types);
       const picked = {
         ...place,
         name: place.name || result.name,

@@ -6,7 +6,7 @@ const number = (value) => (Number.isFinite(Number(value)) && value !== null && v
 
 // The app's small Google lookups, so the API key stays on the server:
 //   { action: 'autocomplete', text, lng, lat, sessionToken } -> { suggestions }
-//   { action: 'retrieve', id, sessionToken }                 -> { place }
+//   { action: 'retrieve', id, sessionToken, details? }       -> { place } (details: true adds place.details)
 //   { action: 'nearby', lng, lat }                           -> { places }
 //   { action: 'reverse', lng, lat }                          -> { address }
 //   { action: 'geocode', address }                           -> { result }
@@ -30,7 +30,7 @@ module.exports = requireUser(async function handler(req, res) {
     if (action === 'retrieve') {
       const id = text(req.body?.id, 200);
       if (!id) return res.status(400).json({ error: 'Name the place to look up' });
-      return res.status(200).json({ place: await placesApi.retrievePlace(id, text(req.body?.sessionToken, 100)) });
+      return res.status(200).json({ place: await placesApi.retrievePlace(id, text(req.body?.sessionToken, 100), req.body?.details === true) });
     }
     if (action === 'nearby' || action === 'reverse') {
       if (lng === null || lat === null) return res.status(400).json({ error: 'Give a longitude and latitude' });
