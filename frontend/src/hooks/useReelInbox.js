@@ -74,6 +74,8 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.error || `Reel lookup returned HTTP ${response.status}`);
+      // Cancelled (✕) while it ran: nothing is saved.
+      if (!latest.current.items.some((i) => i.id === item.id)) return;
 
       const details = data.maps?.details;
       if (!details?.name) {

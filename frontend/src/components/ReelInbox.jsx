@@ -44,8 +44,9 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
                 Retry
               </button>
             )}
-            {!busy && (
-              <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label="Remove this reel">
+            {/* A lookup running here can be cancelled. One the server is saving (from the Shortcut) can't. */}
+            {(!busy || !item.remote) && (
+              <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label={busy ? 'Cancel this import' : 'Remove this reel'}>
                 <X aria-hidden="true" />
               </button>
             )}

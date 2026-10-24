@@ -104,7 +104,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [loading, setLoading] = useState(false);
   // True once the lookup has answered; the progress bar fills, then the form opens.
   const [lookupDone, setLookupDone] = useState(false);
-  // The sheet tucked away into a small chip while the lookup runs, so the app can be used meanwhile.
   const [apiLogs, setApiLogs] = useState([]);
 
   // Step 2: Place Details
@@ -183,6 +182,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // Save the form as it changes, so a draft survives the sheet closing by accident.
   useEffect(() => {
     if (!draftable) return;
+    // Nothing typed or found yet (a Manual form left untouched): no draft, so the next open starts fresh.
+    // The collection, category and feeling are always set, so they don't count.
+    const touched = reelUrlInput.trim() || reelUrl || scrapedData || mapsData || name.trim() || location.trim()
+      || customInfo.trim() || entryUrl.trim() || eventRuns.length || eventPrice.trim() || eventContact.trim()
+      || locationCandidates.length;
+    if (!touched) {
+      clearDraft();
+      return;
+    }
     writeDraft({
       step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
       locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns, eventPrice, eventContact,
