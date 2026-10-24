@@ -101,7 +101,10 @@ Rules:
   went up: "today" is the post date, "tomorrow" the day after, "this
   weekend" the Saturday and Sunday on or after the post date, "next
   weekend" the one after that, "until Sunday" ends on the next Sunday,
-  "17–18 Oct" takes the post date's year. Weeks run Monday to Sunday: "this
+  "17–18 Oct" takes the post date's year. A day written without a year is
+  in the post date's year, unless that day had already passed by the post
+  date (then it is the next one coming) or the caption names another year
+  ("2027", "next year"). Weeks run Monday to Sunday: "this
   week" is the post date to that week's Sunday, "next week" is the
   following Monday to Sunday, "this fortnight" or "next two weeks" is the
   post date for 14 days. "This month" is the post date to the month's last
@@ -508,8 +511,23 @@ function splitOverlaps(runs) {
   return out.map(({ index, ...run }) => run);
 }
 
+// A day written without a year is in the year the post went up. The AI only gets the next year when the
+// caption says so ("2027", "next year"), or when that day had already passed by the post date, so the
+// event must be the next one coming ("May 15th" in an October post).
+function inPostYear(dayText, post) {
+  const day = dayNumber(dayText);
+  const posted = dayNumber(post.postDay || '');
+  if (!Number.isFinite(day) || !Number.isFinite(posted)) return day;
+  const date = new Date(day * DAY_MS);
+  const postYear = new Date(posted * DAY_MS).getUTCFullYear();
+  if (date.getUTCFullYear() <= postYear) return day;
+  if (new RegExp(`\\b${date.getUTCFullYear()}\\b|next year`, 'i').test(post.caption || '')) return day;
+  const sameYear = Date.UTC(postYear, date.getUTCMonth(), date.getUTCDate()) / DAY_MS;
+  return sameYear >= posted - 7 ? sameYear : day;
+}
+
 // A temporary venue's days, kept only when they make sense: real dates, the words that say when
-// are really in the caption, the end isn't before the start, and both are within about six months
+// are really in the caption, the end isn't before the start, and both are within about a year
 // of the post. With only an end date ("finishes today", "until Sunday"), it started by the post date.
 // runs: every stretch of days with the hours, when the post gives them (quoted from the caption), else
 // open and close are ''. startDate and endDate are the first and last day overall.
@@ -518,9 +536,9 @@ function checkDates(answer, post) {
   const evidence = String(answer.date_evidence || '');
   if (!evidence || !flat(post.caption).includes(flat(evidence))) return none;
   const posted = dayNumber(post.postDay || '');
-  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) || (day >= posted - 7 && day <= posted + 183));
-  let start = dayNumber(answer.start_date);
-  const end = dayNumber(answer.end_date);
+  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) || (day >= posted - 7 && day <= posted + 366));
+  let start = inPostYear(answer.start_date, post);
+  const end = inPostYear(answer.end_date, post);
   if (!near(end) && !near(start)) return none;
   if (!near(start)) start = Number.isFinite(posted) && near(end) && posted <= end ? posted : end;
   const last = near(end) ? end : start;
@@ -536,8 +554,8 @@ function checkDates(answer, post) {
 
   const stretches = [[start, last, open, close]];
   for (const more of Array.isArray(answer.more_dates) ? answer.more_dates : []) {
-    const from = dayNumber(more?.start_date);
-    const to = dayNumber(more?.end_date);
+    const from = inPostYear(more?.start_date, post);
+    const to = inPostYear(more?.end_date, post);
     if (!near(from) || !near(to) || to < from) continue;
     // A later stretch with its own hours uses them; otherwise it keeps the first stretch's.
     const own = hasHours && time.test(more.open_time || '');
