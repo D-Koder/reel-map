@@ -229,6 +229,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
 
   // Opens the add sheet for a shared reel the background lookup couldn't finish.
   const finishInboxItem = (item) => {
+    // A lookup tucked into the top panel carries on in the background (saved to TBD, or waiting for Finish).
+    if (addTuck?.url && addTuck.url !== item.url) inbox.enqueue(addTuck.url);
     setSharedReelUrl(item.url);
     setSharedReelData(item.reelData ?? null);
     setFinishingInboxId(item.id);

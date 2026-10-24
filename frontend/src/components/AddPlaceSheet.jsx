@@ -107,7 +107,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   // The sheet tucked away into a small chip while the lookup runs, so the app can be used meanwhile.
   const [minimized, setMinimized] = useState(false);
   // The app shows a panel at the top while the sheet is tucked away; tapping it brings the sheet back.
-  useEffect(() => { onTuckChange?.(minimized ? { loading } : null); }, [minimized, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onTuckChange?.(minimized ? { loading, url: (reelUrl || reelUrlInput).trim() } : null); }, [minimized, loading]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => onTuckChange?.(null), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (restoreSignal) setMinimized(false); }, [restoreSignal]);
   const [apiLogs, setApiLogs] = useState([]);
