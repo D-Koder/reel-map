@@ -104,6 +104,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const [sharedReelData, setSharedReelData] = useState(null);
   // The inbox reel the add sheet is finishing, removed from the inbox once it is added.
   const [finishingInboxId, setFinishingInboxId] = useState(null);
+  // Changes when Finish opens a reel, so an add sheet already open (tucked into its chip) starts over on it.
+  const [addSheetKey, setAddSheetKey] = useState(0);
   // The place just marked as done, for the celebration.
   const [celebrating, setCelebrating] = useState(null);
 
@@ -229,6 +231,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     setFinishingInboxId(item.id);
     setAddDraft(null);
     setAddCollectionId(item.collectionId);
+    setAddSheetKey((key) => key + 1);
     setAdding(true);
   };
 
@@ -641,6 +644,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
 
       {adding && (
         <AddPlaceSheet
+          key={addSheetKey}
           initialPlace={addDraft}
           initialCollectionId={editableIds.has(addCollectionId) ? addCollectionId : null}
           initialReelUrl={sharedReelUrl}
