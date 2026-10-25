@@ -85,7 +85,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification } = useNotifications(userId, () => data.refresh());
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, linkPlace: linkNotificationPlace } = useNotifications(userId, () => data.refresh());
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
   const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
@@ -104,6 +104,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const [sharedReelData, setSharedReelData] = useState(null);
   // The inbox reel the add sheet is finishing, removed from the inbox once it is added.
   const [finishingInboxId, setFinishingInboxId] = useState(null);
+  // The place name the server's lookup found for that reel: it is what its "Pick the place" notification quotes.
+  const finishingReelName = useRef('');
   // The place just marked as done, for the celebration.
   const [celebrating, setCelebrating] = useState(null);
 
@@ -227,6 +229,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     setSharedReelUrl(item.url);
     setSharedReelData(item.reelData ?? null);
     setFinishingInboxId(item.id);
+    finishingReelName.current = item.reelData?.placeName || '';
     setAddDraft(null);
     setAddCollectionId(item.collectionId);
     setAdding(true);
@@ -656,6 +659,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
             if (created) {
               rememberCollection(userId, fields.collectionId);
               showToast(`Added "${fields.name}"`);
+              if (finishingInboxId) linkNotificationPlace(created.id, finishingReelName.current);
               if (keepOpen) return created;
               if (finishingInboxId) inbox.remove(finishingInboxId);
               setFinishingInboxId(null);

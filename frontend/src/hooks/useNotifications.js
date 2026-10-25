@@ -28,6 +28,8 @@ export function useNotifications(userId, onNew) {
   const [loaded, setLoaded] = useState(false);
   const onNewRef = useRef(onNew);
   onNewRef.current = onNew;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -78,6 +80,21 @@ export function useNotifications(userId, onNew) {
     await supabase.from('notifications').delete().eq('id', id);
   }, []);
 
+  // A "Pick the place" notification is made before its place exists, so it has no place id. Once the place
+  // is saved, this gives the earliest one that is still unlinked the new place's id: the one quoting the
+  // same name as the reel's lookup if there is one, else just the earliest. Tapping it then opens the place.
+  const linkPlace = useCallback(async (placeId, reelName) => {
+    const waiting = rowsRef.current
+      .filter((n) => n.type === 'reel_needs_place' && !n.place_id)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const name = String(reelName ?? '').trim().toLocaleLowerCase();
+    const quoted = (n) => String(/"(.*)"/.exec(n.message)?.[1] ?? '').trim().toLocaleLowerCase();
+    const target = (name && waiting.find((n) => quoted(n) === name)) || waiting[0];
+    if (!target || !placeId) return;
+    setRows((prev) => prev.map((n) => (n.id === target.id ? { ...n, place_id: placeId } : n)));
+    await supabase.from('notifications').update({ place_id: placeId }).eq('id', target.id);
+  }, []);
+
   const items = rows.map((n) => ({
     id: n.id,
     type: n.type,
@@ -96,5 +113,6 @@ export function useNotifications(userId, onNew) {
     markAllRead,
     clearAll,
     remove,
+    linkPlace,
   };
 }
