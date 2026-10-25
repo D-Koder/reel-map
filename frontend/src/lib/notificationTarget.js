@@ -1,5 +1,4 @@
-// Where tapping a notification should take you: { place } (a saved entry), { collection }, { home }
-// (the reel inbox at the top of Home), or null.
+// Where tapping a notification should take you: { place } (a saved entry), { collection }, or null.
 // Uses place_id / collection_id when the notification row has them. Otherwise it finds the place
 // and collection named in the message, e.g. 'Sam added "Pho Bar" to Date night'.
 
@@ -18,8 +17,13 @@ function longestNamed(message, items, nameOf) {
 
 export function notificationTarget(notification, places, collections) {
   if (!notification) return null;
-  // A reel shared from the Shortcut that needs its place picked: its Finish card is on Home.
-  if (notification.type === 'reel_needs_place') return { home: true };
+  // A reel shared from the Shortcut that needs its place picked: once a place with that name has been saved it
+  // opens that place. Until then there is nothing to open.
+  if (notification.type === 'reel_needs_place') {
+    const name = norm(/"(.*)"/.exec(notification.message ?? '')?.[1]).trim();
+    const place = name ? places.find((p) => norm(p.name).trim() === name) : null;
+    return place ? { place } : null;
+  }
   // A removed place can't be opened; at most its collection can.
   const placeMayExist = notification.type !== 'place_removed';
   // The exact place when the row carries its id: the copy in the notification's collection if it is still

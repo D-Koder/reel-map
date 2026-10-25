@@ -43,7 +43,6 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
                       onClick={() => onOpen(notif)}
                     >
                       {body}
-                      <span className="notification-go" aria-hidden="true">›</span>
                     </button>
                   ) : (
                     <div className={`notification-item notification-${notif.type}`}>{body}</div>
