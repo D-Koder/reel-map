@@ -305,6 +305,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       if (popup.locationNote) {
         setCustomInfo((typed) => typed || popup.locationNote);
         addLog(`Location isn't public: ${popup.locationNote}. Add the address once you know it.`, 'info');
+      } else if (popup.howToBook) {
+        // How to register or book (no email or phone): the note goes in custom info too.
+        setCustomInfo((typed) => typed || popup.howToBook);
+        addLog(`How to book: ${popup.howToBook}`, 'info');
       }
     }
     addLog(`Location: ${data.location || 'Not found'}`, 'success');
