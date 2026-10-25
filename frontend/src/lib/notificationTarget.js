@@ -22,7 +22,14 @@ export function notificationTarget(notification, places, collections) {
   if (notification.type === 'reel_needs_place') return { home: true };
   // A removed place can't be opened; at most its collection can.
   const placeMayExist = notification.type !== 'place_removed';
-  // A reel saved from the Shortcut opens the place it saved, found by name in its collection.
+  // The exact place when the row carries its id: the copy in the notification's collection if it is still
+  // there, else any other copy, so a moved, renamed or shared place still opens.
+  if (notification.placeId && placeMayExist) {
+    const entries = places.filter((p) => p.id === notification.placeId);
+    const place = entries.find((p) => p.collection_id === notification.collectionId) ?? entries[0];
+    if (place) return { place };
+  }
+  // Older rows have no id, so a reel saved from the Shortcut opens the place it saved, found by name in its collection.
   if (notification.type === 'reel_saved' && notification.collectionId) {
     const place = longestNamed(norm(notification.message),
       places.filter((p) => p.collection_id === notification.collectionId), (p) => p.name);
@@ -30,12 +37,6 @@ export function notificationTarget(notification, places, collections) {
     // Moved to another collection since: it's still the same place, so find it by name anywhere.
     const moved = longestNamed(norm(notification.message), places, (p) => p.name);
     if (moved) return { place: moved };
-  }
-
-  if (notification.placeId && placeMayExist) {
-    const entries = places.filter((p) => p.id === notification.placeId);
-    const place = entries.find((p) => p.collection_id === notification.collectionId) ?? entries[0];
-    if (place) return { place };
   }
   if (notification.collectionId) {
     const collection = collections.find((c) => c.id === notification.collectionId);
