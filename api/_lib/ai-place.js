@@ -89,6 +89,13 @@ Rules:
   For the area, give the most specific city or suburb the post states,
   even when it is only in a hashtag. Use a country only when no city or
   suburb is stated at all.
+  The area (never the address) may also come from clues in the post:
+  a timezone (AEDT → Sydney or Melbourne, AEST on the same post as AEDT →
+  Brisbane, since Queensland has no daylight saving), a chain's branch
+  named after a suburb or shopping centre (Event Cinemas Macquarie →
+  Macquarie Park, Sydney; Event Cinemas Chermside → Chermside, Brisbane),
+  or a currency. Use a clue only when it points to one place; otherwise
+  leave the area empty.
 - For every place, quote the exact text from the post that names it in
   "evidence". If you cannot quote it, do not return the place.
 - The creator and collaborators are who posted. They are the venue only

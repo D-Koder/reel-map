@@ -60,8 +60,8 @@ function applyAi(reel, ai) {
   const name = fromHandle ? handleToPlace(pick.name).name : pick.name;
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
-    ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, category, evidence }) => ({
-      name: listed, ...(otherName ? { otherName } : {}), ...(localName ? { localName } : {}), address, category, line: evidence,
+    ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, area: listedArea, category, evidence }) => ({
+      name: listed, ...(otherName ? { otherName } : {}), ...(localName ? { localName } : {}), ...(listedArea ? { area: listedArea } : {}), address, category, line: evidence,
     })) }
     : {};
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its

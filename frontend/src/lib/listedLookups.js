@@ -82,7 +82,7 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}, fresh
   const first = !fresh && item.name === reelData?.placeName && sameSpot && reelData?.maps?.candidates?.length ? reelData.maps : null;
   const lookup = (async () => {
     const data = first || await requestListedPlace({
-      reelUrl, name: item.name, address: item.address || '', area: reelData?.area || '', ...(fresh ? { fresh } : {}),
+      reelUrl, name: item.name, address: item.address || '', area: item.area || reelData?.area || '', ...(fresh ? { fresh } : {}),
     });
     const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
     const hints = listedHints(item);

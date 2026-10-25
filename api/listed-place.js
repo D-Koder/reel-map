@@ -27,7 +27,7 @@ module.exports = requireUser(async function handler(req, res) {
   const address = listed ? listed.address || '' : text(req.body?.address);
   // With no area anywhere, the person's country: Google answers a bare "Event Cinemas Macquarie" with
   // places near the server (Macquarie Capital in New York).
-  const area = (listed ? entry.place.area || text(req.body?.area) : text(req.body?.area)) || requestCountry(req);
+  const area = (listed ? listed.area || entry.place.area || text(req.body?.area) : text(req.body?.area)) || requestCountry(req);
   // A place written in English but local in another script (Zhapu Road Bridge) is searched by its local
   // name (乍浦路桥), which Google Maps finds; the English one often lands on something else (the road).
   let query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
