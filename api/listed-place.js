@@ -3,6 +3,7 @@ const scrapeLocation = require('./scrape-location');
 const { reelLookupKey } = require('./_lib/reel-url');
 const { readCache, writeCache } = require('./_lib/lookup-cache');
 const { squash } = require('./_lib/names');
+const { requestCountry } = require('./_lib/country');
 
 // Same as in enrich-reel.js.
 const REEL_CACHE_DAYS = 100;
@@ -24,7 +25,9 @@ module.exports = requireUser(async function handler(req, res) {
   const entry = cacheKey ? (await readCache('reel_lookups', cacheKey, REEL_CACHE_DAYS))?.data : null;
   const listed = entry?.place?.choices?.find((choice) => choice.name === name);
   const address = listed ? listed.address || '' : text(req.body?.address);
-  const area = listed ? entry.place.area || '' : text(req.body?.area);
+  // With no area anywhere, the person's country: Google answers a bare "Event Cinemas Macquarie" with
+  // places near the server (Macquarie Capital in New York).
+  const area = (listed ? entry.place.area || text(req.body?.area) : text(req.body?.area)) || requestCountry(req);
   // A place written in English but local in another script (Zhapu Road Bridge) is searched by its local
   // name (乍浦路桥), which Google Maps finds; the English one often lands on something else (the road).
   let query = [listed?.localName || name, address, area].filter(Boolean).join(', ');
