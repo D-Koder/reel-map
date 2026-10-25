@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Bell, X } from 'lucide-react';
 
 // `canOpen(notif)` says whether a notification leads somewhere; tapping it calls `onOpen(notif)`.
-// `onRemove(id)` deletes one notification (its ✕ sits beside it, since the item itself can be a button).
+// `onRemove(id)` deletes one notification: its ✕ sits inside the card (the item itself can be a button), or swipe it left.
 export default function NotificationPanel({ open, onClose, notifications, onClear, onRemove, canOpen = () => false, onOpen }) {
   const panelRef = useRef(null);
   useSwipeRight(panelRef, onClose);
@@ -49,12 +49,12 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
                     <div className={`notification-item notification-${notif.type}`}>{body}</div>
                   );
                   return (
-                    <div key={notif.id} className="notification-row">
+                    <SwipeRow key={notif.id} onRemove={() => onRemove(notif.id)}>
                       {item}
                       <button type="button" className="notification-remove" onClick={() => onRemove(notif.id)} aria-label="Remove this notification">
                         <X aria-hidden="true" />
                       </button>
-                    </div>
+                    </SwipeRow>
                   );
                 })}
               </div>
@@ -69,6 +69,66 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
       </div>
     </>
   );
+}
+
+// One notification: swipe it left to delete it (swiping right is left to the panel, which closes). It follows
+// the finger; let go past a third of its width, or with a quick flick, and it slides out and is removed.
+function SwipeRow({ onRemove, children }) {
+  const rowRef = useRef(null);
+  const removeRef = useRef(onRemove);
+  removeRef.current = onRemove;
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return undefined;
+    let start = null;
+    let sideways = null;
+    let dx = 0;
+    const onStart = (event) => {
+      if (event.touches.length !== 1) return;
+      start = { x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now() };
+      sideways = null;
+      dx = 0;
+    };
+    const onMove = (event) => {
+      if (!start) return;
+      const x = event.touches[0].clientX - start.x;
+      const y = event.touches[0].clientY - start.y;
+      if (sideways === null) {
+        if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
+        sideways = x < 0 && Math.abs(x) > Math.abs(y);
+        if (!sideways) { start = null; return; }
+        row.style.transition = 'none';
+      }
+      event.preventDefault();
+      dx = Math.min(0, x);
+      row.style.transform = `translateX(${dx}px)`;
+    };
+    const onEnd = () => {
+      if (!start) return;
+      const flick = dx < -40 && Date.now() - start.at < 250;
+      start = null;
+      if (!sideways) return;
+      row.style.transition = '';
+      if (dx < -row.offsetWidth / 3 || flick) {
+        row.style.transform = 'translateX(-110%)';
+        row.style.opacity = '0';
+        setTimeout(() => removeRef.current(), 180);
+      } else {
+        row.style.transform = '';
+      }
+    };
+    row.addEventListener('touchstart', onStart, { passive: true });
+    row.addEventListener('touchmove', onMove, { passive: false });
+    row.addEventListener('touchend', onEnd);
+    row.addEventListener('touchcancel', onEnd);
+    return () => {
+      row.removeEventListener('touchstart', onStart);
+      row.removeEventListener('touchmove', onMove);
+      row.removeEventListener('touchend', onEnd);
+      row.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
+  return <div ref={rowRef} className="notification-row">{children}</div>;
 }
 
 // The panel slides in from the right, so swiping it back to the right closes it. It follows the finger;

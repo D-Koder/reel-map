@@ -1,5 +1,5 @@
 import { Mail, Phone } from 'lucide-react';
-import { activeRun, contactLinks, datesText, eventStatus, runsOf, timesText } from '../lib/eventRuns';
+import { activeRun, contactLinks, datesText, eventStatus, runsOf, timeKnown, timesText } from '../lib/eventRuns';
 
 const BADGES = { open: 'On now', soon: 'Today', later: 'Next' };
 
@@ -35,6 +35,9 @@ export default function EventSchedule({ place }) {
                 );
               })}
             </ul>
+          )}
+          {runs.some((run) => !timeKnown(run)) && (
+            <div className="evt-warn-note">⚠️ The post gives no time. Check before you go.</div>
           )}
           {/* The next-day case is shown by the "Next" mark, so only say more when it adds something. */}
           {status && status.kind !== 'later' && (

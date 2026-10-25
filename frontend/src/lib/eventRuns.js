@@ -1,5 +1,6 @@
 // When an event is on: a list of runs, each a first and last day ("2026-11-13") and optional open and close
-// times ("11:00", 24 hour). A run with no times is on all day. An event can have several runs, e.g. two
+// times ("11:00", 24 hour). A run with allDay: true is on all day; one with no times and no allDay has no time
+// given, and is flagged so it gets checked. An event can have several runs, e.g. two
 // weekends. Saved on collection_places.event_runs (see 20261023090000_event_runs.sql), with event_date and
 // event_end_date kept as the first and last day overall, so anything that only knows those still works.
 
@@ -27,10 +28,13 @@ export function cleanRuns(raw) {
       const end = DAY.test(String(run.end || '')) && run.end >= start ? run.end : start;
       const open = TIME.test(run.open || '') ? run.open : '';
       const close = open && TIME.test(run.close || '') ? run.close : '';
-      return { start, end, open, close };
+      return { start, end, open, close, ...(!open && run.allDay === true ? { allDay: true } : {}) };
     })
     .sort((a, b) => a.start.localeCompare(b.start));
 }
+
+// A run says when it is on: it has an open time, or was marked all day.
+export const timeKnown = (run) => minutes(run?.open) !== null || run?.allDay === true;
 
 // The runs for a place: the saved ones, else one all-day run from its event days, else none.
 export function runsOf(place) {
@@ -69,10 +73,10 @@ export function datesText(run) {
   return a.getMonth() === b.getMonth() ? `${a.getDate()}–${dayMonth(run.end)}` : `${dayMonth(run.start)} – ${dayMonth(run.end)}`;
 }
 
-// "11am–10pm", "From 6pm", or "All day" when it has no times. Past midnight adds "+1".
+// "11am–10pm", "From 6pm", "All day", or "Time not given". Past midnight adds "+1".
 export function timesText(run) {
   const open = minutes(run.open);
-  if (open === null) return 'All day';
+  if (open === null) return run.allDay === true ? 'All day' : 'Time not given';
   const close = minutes(run.close);
   if (close === null) return `From ${clock(run.open)}`;
   return `${clock(run.open)}–${clock(run.close)}${close <= open ? ' +1' : ''}`;
@@ -109,7 +113,7 @@ export function eventStatus(runsIn, now = new Date()) {
   if (now_) {
     const open = minutes(now_.open);
     const close = minutes(now_.close);
-    if (open === null) return { kind: 'open', text: 'On today · all day' };
+    if (open === null) return { kind: 'open', text: now_.allDay === true ? 'On today · all day' : 'On today · time not given' };
     if (minute < open) return { kind: 'soon', text: `Opens at ${clock(now_.open)} today` };
     if (close === null) return { kind: 'open', text: `On now · from ${clock(now_.open)}` };
     if (close <= open) return { kind: 'open', text: `Open now · closes ${clock(now_.close)} tomorrow` };
@@ -126,10 +130,10 @@ export function eventSummary(name, runsIn, price = '', now = new Date()) {
   const today = dayString(now);
   const cost = price ? ` ${/^free\b/i.test(price) ? 'Free entry.' : `Price: ${price}.`}` : '';
   const on = runOn(runs, today);
-  if (on) return `${name} is on today, ${timesText(on) === 'All day' ? 'all day' : timesText(on)}.${cost} Does that work for you?`;
+  if (on) return `${name} is on today, ${timesText(on).replace(/^All day$/, 'all day').replace(/^Time not given$/, 'time not given')}.${cost} Does that work for you?`;
   const next = nextDay(runs, today);
   return next
-    ? `${name} is next on ${dayShort(next)}, ${timesText(runOn(runs, next)).replace(/^All day$/, 'all day')}.${cost} Does that work for you?`
+    ? `${name} is next on ${dayShort(next)}, ${timesText(runOn(runs, next)).replace(/^All day$/, 'all day').replace(/^Time not given$/, 'time not given')}.${cost} Does that work for you?`
     : `${name} has finished. Check before you go.`;
 }
 

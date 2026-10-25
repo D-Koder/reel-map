@@ -27,6 +27,9 @@ export function notificationTarget(notification, places, collections) {
     const place = longestNamed(norm(notification.message),
       places.filter((p) => p.collection_id === notification.collectionId), (p) => p.name);
     if (place) return { place };
+    // Moved to another collection since: it's still the same place, so find it by name anywhere.
+    const moved = longestNamed(norm(notification.message), places, (p) => p.name);
+    if (moved) return { place: moved };
   }
 
   if (notification.placeId && placeMayExist) {

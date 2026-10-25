@@ -262,7 +262,19 @@ export default function HomeScreen({
     onDeletePlaces?.(pins, skipped);
     stopSelecting();
   };
-  const tickAll = (pins) => setPicked(new Map(pins.filter(canPick).map((p) => [p.id, p])));
+  // A "Tick all" chip is lit while every pickable place it covers is ticked. Tapping it then unticks them.
+  const allTicked = (pins) => {
+    const pickable = pins.filter(canPick);
+    return pickable.length > 0 && pickable.every((p) => picked.has(p.id));
+  };
+  const tickAll = (pins) => {
+    if (allTicked(pins)) {
+      const covered = new Set(pins.map((p) => p.id));
+      setPicked((now) => new Map([...now].filter(([id]) => !covered.has(id))));
+    } else {
+      setPicked(new Map(pins.filter(canPick).map((p) => [p.id, p])));
+    }
+  };
   // newCollection: name and emoji of a collection made just now, which isn't in the list yet.
   const moveTo = async (targetId, newCollection) => {
     setMoving(true);
@@ -391,11 +403,13 @@ export default function HomeScreen({
                         <div className="select-quick" role="group" aria-label="Tick all">
                           <span className="select-quick-label">Tick all:</span>
                           {quickTicks.length > 1 && quickTicks.map((cat) => (
-                            <button key={cat.id} type="button" className="select-chip" onClick={() => tickAll(pins.filter((p) => p.category === cat.id))}>
+                            <button key={cat.id} type="button" className={`select-chip ${allTicked(pins.filter((p) => p.category === cat.id)) ? 'is-on' : ''}`}
+                              aria-pressed={allTicked(pins.filter((p) => p.category === cat.id))}
+                              onClick={() => tickAll(pins.filter((p) => p.category === cat.id))}>
                               {cat.icon} {cat.label}
                             </button>
                           ))}
-                          <button type="button" className="select-chip" onClick={() => tickAll(pins)}>Everything</button>
+                          <button type="button" className={`select-chip ${allTicked(pins) ? 'is-on' : ''}`} aria-pressed={allTicked(pins)} onClick={() => tickAll(pins)}>Everything</button>
                         </div>
                       )}
                       <button

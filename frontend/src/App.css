@@ -3364,16 +3364,18 @@ svg.nav-icon {
 .notification-link:active { transform: scale(0.99); }
 .notification-go { margin-left: auto; align-self: center; font-size: 20px; color: var(--text-muted); }
 
-/* Each notification with its own ✕ beside it. */
-.notification-row { display: flex; align-items: center; gap: 4px; }
-.notification-row > .notification-item { flex: 1; min-width: 0; }
+/* Each notification is full width, with its ✕ inside the card, and swipes left to delete. */
+.notification-row { position: relative; touch-action: pan-y; transition: transform 0.18s ease, opacity 0.18s ease; }
+.notification-row > .notification-item { box-sizing: border-box; width: 100%; padding-right: 44px; }
 .notification-remove {
-  flex: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--tap);
-  height: var(--tap);
+  width: 36px;
+  height: 36px;
   border: none;
   background: none;
   color: var(--text-muted);
@@ -4831,6 +4833,11 @@ button.profile-open {
   cursor: pointer;
 }
 
+.select-chip.is-on {
+  background: var(--butter);
+  color: #1a1a18;
+}
+
 .select-toggle {
   flex-shrink: 0;
   min-height: 36px;
@@ -5171,8 +5178,12 @@ button.profile-open {
 .evt-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .evt-tag { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-text); }
 .evt-sumrow { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
-.evt-sum { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; min-height: 48px; }
+.evt-sum { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; min-height: 48px; }
 .evt-sum-dates { font-weight: 700; }
+.evt-warn { flex-basis: 100%; justify-self: start; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-text); width: fit-content; }
+.evt-warn-note { margin-top: 8px; font-size: 13px; font-weight: 700; padding: 8px 12px; border-radius: 12px; background: var(--warn-bg); color: var(--warn-text); }
+.evt-allday { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font-weight: 700; cursor: pointer; }
+.evt-allday input { width: 20px; height: 20px; accent-color: var(--accent); }
 .evt-sum-times { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
 .evt-x { border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text-muted); cursor: pointer; display: grid; place-items: center; }
 .evt-link { justify-self: start; background: none; border: 0; padding: 8px 2px; font: inherit; font-weight: 700; color: var(--accent-text); cursor: pointer; }

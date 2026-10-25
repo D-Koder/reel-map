@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { contactItems, contactLine, dayShort, dayString, datesText, timesText } from '../lib/eventRuns';
+import { contactItems, contactLine, dayShort, dayString, datesText, timeKnown, timesText } from '../lib/eventRuns';
 
 const WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -27,6 +27,7 @@ function RunPanel({ run, today, disabled, onChange, onRemove, onDone }) {
     setView(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
   };
   const overnight = run.open && run.close && run.close <= run.open;
+  const allDay = run.allDay === true && !run.open;
   const hint = !run.start ? 'Tap the first day.'
     : picking ? 'Now tap the last day. Tap the same day again for a one day event.'
     : `${daysBetween(run.start, run.end)} ${daysBetween(run.start, run.end) === 1 ? 'day' : 'days'}. Tap a day to start over.`;
@@ -83,14 +84,19 @@ function RunPanel({ run, today, disabled, onChange, onRemove, onDone }) {
       <div className="evt-times">
         <label className="evt-time">
           <span>Opens</span>
-          <input type="time" value={run.open} disabled={disabled} onChange={(e) => onChange({ ...run, open: e.target.value })} />
+          <input type="time" value={run.open} disabled={disabled || allDay} onChange={(e) => onChange({ ...run, open: e.target.value, allDay: false })} />
         </label>
         <label className="evt-time">
           <span>Closes</span>
-          <input type="time" value={run.close} disabled={disabled} onChange={(e) => onChange({ ...run, close: e.target.value })} />
+          <input type="time" value={run.close} disabled={disabled || allDay} onChange={(e) => onChange({ ...run, close: e.target.value })} />
         </label>
       </div>
-      <p className="evt-hint">Leave the times blank and it counts as all day.{overnight ? ' Closes after midnight, so it finishes the next morning.' : ''}</p>
+      <label className="evt-allday">
+        <input type="checkbox" checked={allDay} disabled={disabled}
+          onChange={(e) => onChange(e.target.checked ? { ...run, open: '', close: '', allDay: true } : { ...run, allDay: false })} />
+        <span>All day</span>
+      </label>
+      <p className="evt-hint">Pick the times, or tick All day. With neither, it's flagged so you check before you go.{overnight ? ' Closes after midnight, so it finishes the next morning.' : ''}</p>
 
       <div className="evt-actions">
         <button type="button" className="evt-link" onClick={onRemove} disabled={disabled}>Remove these dates</button>
@@ -174,7 +180,7 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
   const add = () => {
     const last = runs[runs.length - 1];
     // The next run reuses the last one's times, since most events keep the same hours.
-    onChange([...runs, { start: '', end: '', open: last?.open ?? '', close: last?.close ?? '' }]);
+    onChange([...runs, { start: '', end: '', open: last?.open ?? '', close: last?.close ?? '', ...(last?.allDay ? { allDay: true } : {}) }]);
     setOpenIndex(runs.length);
   };
 
@@ -193,6 +199,7 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
             aria-label={`Edit ${datesText({ ...run, end: run.end || run.start })}`}>
             <span className="evt-sum-dates">{run.start ? datesText({ ...run, end: run.end || run.start }) : 'No dates yet'}</span>
             <span className="evt-sum-times">{timesText(run)}</span>
+            {run.start && !timeKnown(run) && <span className="evt-warn">⚠️ Check the time</span>}
           </button>
           <button type="button" className="evt-x" onClick={() => remove(i)} disabled={disabled} aria-label="Remove these dates">
             <X size={16} aria-hidden="true" />
