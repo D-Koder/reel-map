@@ -89,7 +89,8 @@ Rules:
   For the area, give the most specific city or suburb the post states,
   even when it is only in a hashtag. Use a country only when no city or
   suburb is stated at all.
-  The area (never the address) may also come from clues in the post:
+  Only when the post states no area for a place, the area (never the
+  address) may come from clues in the post:
   a timezone (AEDT → Sydney or Melbourne, AEST on the same post as AEDT →
   Brisbane, since Queensland has no daylight saving), a chain's branch
   named after a suburb or shopping centre (Event Cinemas Macquarie →
