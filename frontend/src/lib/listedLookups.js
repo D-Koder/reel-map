@@ -85,7 +85,8 @@ export function lookupListedPlace(reelUrl, item, reelData, log = () => {}, fresh
       reelUrl, name: item.name, address: item.address || '', area: item.area || reelData?.area || '', ...(fresh ? { fresh } : {}),
     });
     const candidates = (data.candidates || []).map((candidate) => ({ ...candidate, searchQuery: data.query }));
-    const hints = listedHints(item);
+    // A show held at a venue is listed by the show's name, with the venue in its address line.
+    const hints = [...listedHints(item), item.address].filter(Boolean);
     const best = candidates.length === 1 ? soleMatch(candidates[0], hints)
       : bestPlaceMatch(candidates, hints, [], item.address);
     log(`${item.name}: ${best ? `matched ${best.name}` : `${candidates.length} Google Maps result${candidates.length === 1 ? '' : 's'}, none clear`}${
