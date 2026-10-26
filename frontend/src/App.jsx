@@ -180,7 +180,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     online,
     showToast,
     onSaved: (placeId, name, collectionName) =>
-      showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
+      showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Open', onClick: () => setOpenPinId(placeId) }, 5000),
   });
 
   // Reels saved by the iPhone Shortcut while the app was closed join the inbox.
