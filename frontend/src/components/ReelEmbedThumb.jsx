@@ -64,7 +64,7 @@ function RedNoteCover({ reelUrl, className = '' }) {
     <span className={`${className} reel-embed-thumb is-rednote is-loaded`}>
       {cover && !failed
         ? <img src={cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setFailed(true)} />
-        : <span className="rednote-tile">{title && <b>{title}</b>}<small>RedNote</small></span>}
+        : <span className="rednote-tile"><i>RedNote</i>{title && <b>{title}</b>}<small>View note ↗</small></span>}
     </span>
   );
 }
