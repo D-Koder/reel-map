@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { coverFor, savedCover } from '../lib/reelCover';
-import { photoFor, placeIdFromMapsUrl } from '../lib/placePhoto';
+import { forgetPhoto, photoFor, placeIdFromMapsUrl } from '../lib/placePhoto';
 import { isRedNoteUrl } from '../lib/shareText';
 
 // Each platform's official embed: the size it is laid out at (then scaled down to the box's width)
@@ -77,7 +77,7 @@ function RedNoteCover({ reelUrl, mapsUrl = '', className = '' }) {
         ? <img src={cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setFailed(true)} />
         : (
           <>
-            {photo && <img src={photo.url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setPhoto(null)} />}
+            {photo && <img src={photo.url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => { forgetPhoto(placeId); setPhoto(null); }} />}
             <span className="rednote-tile">
               <i>RedNote</i>{title && <b>{title}</b>}<small>View note ↗</small>
               {photo?.attribution && <em>Photo: {photo.attribution}</em>}
