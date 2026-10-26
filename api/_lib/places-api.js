@@ -103,9 +103,15 @@ function detailsOf(place, placeId) {
 async function placePhoto(placeId) {
   const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'photos.name,photos.authorAttributions' });
   const photo = place.photos?.[0];
-  if (!photo?.name || !photo.name.startsWith('places/')) return null;
+  if (!photo?.name || !photo.name.startsWith('places/')) {
+    console.warn('Place photo: no usable photo in', JSON.stringify(place).slice(0, 300));
+    return null;
+  }
   const media = await call(`/${photo.name}/media?maxWidthPx=480&skipHttpRedirect=true`);
-  if (!/^https:\/\//.test(media.photoUri || '')) return null;
+  if (!/^https:\/\//.test(media.photoUri || '')) {
+    console.warn('Place photo: no photoUri in', JSON.stringify(media).replace(/key=[^&"]+/g, 'key=…').slice(0, 300));
+    return null;
+  }
   return { url: media.photoUri, attribution: photo.authorAttributions?.[0]?.displayName || '' };
 }
 
