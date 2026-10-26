@@ -1,4 +1,4 @@
-import { Mail, Phone } from 'lucide-react';
+import { Mail, Phone, TriangleAlert } from 'lucide-react';
 import { activeRun, contactLinks, datesText, eventStatus, runsOf, timeKnown, timesText } from '../lib/eventRuns';
 
 const BADGES = { open: 'On now', soon: 'Today', later: 'Next' };
@@ -37,10 +37,10 @@ export default function EventSchedule({ place }) {
             </ul>
           )}
           {!runs.length && (
-            <div className="evt-warn-note">⚠️ No date set for this event. Check the post, then add the dates.</div>
+            <div className="evt-warn-note"><TriangleAlert className="ico" aria-hidden="true" /> No date set for this event. Check the post, then add the dates.</div>
           )}
           {runs.some((run) => !timeKnown(run)) && (
-            <div className="evt-warn-note">⚠️ The post gives no time. Check before you go.</div>
+            <div className="evt-warn-note"><TriangleAlert className="ico" aria-hidden="true" /> The post gives no time. Check before you go.</div>
           )}
           {/* The next-day case is shown by the "Next" mark, so only say more when it adds something. */}
           {status && status.kind !== 'later' && (
