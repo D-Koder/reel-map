@@ -7,8 +7,9 @@ import { categories, formatDateTime } from '../lib/constants';
 import { dayShort, dayString, nextDay, runOn, runsOf, timesText } from '../lib/eventRuns';
 import { readJSON, writeJSON } from '../lib/storage';
 
-// Set after the first reorder, so the hint stops showing on this device.
+// How many reorders have been done on this device; the hint stops after a couple. An older `true` means learned.
 const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
+const REORDERS_TO_LEARN = 2;
 // Collections closed on Home (ids), so Home opens the way it was left on this device.
 const COLLAPSED_KEY = 'reelmap:collapsed-collections';
 
@@ -199,12 +200,14 @@ export default function HomeScreen({
   banner = null,
 }) {
   // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
+  const [reorders, setReorders] = useState(() => readJSON(REORDER_LEARNED_KEY, 0));
+  const reorderLearned = reorders === true || reorders >= REORDERS_TO_LEARN;
   const markReorderLearned = () => {
     if (reorderLearned) return;
-    writeJSON(REORDER_LEARNED_KEY, true);
-    setReorderLearned(true);
+    const next = (Number(reorders) || 0) + 1;
+    writeJSON(REORDER_LEARNED_KEY, next);
+    setReorders(next);
   };
-  const [reorderLearned, setReorderLearned] = useState(() => readJSON(REORDER_LEARNED_KEY, false));
   const [collapsed, setCollapsed] = useState(() => new Set(readJSON(COLLAPSED_KEY, [])));
   const saveCollapsed = (next) => {
     setCollapsed(next);

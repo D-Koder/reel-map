@@ -3625,7 +3625,7 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 
 /* Room for the date tab under the photo. */
 .place-thumb-link:has(.date-tab) {
-  margin-bottom: 18px;
+  margin-bottom: 28px;
 }
 
 .date-tab-line {
@@ -3635,7 +3635,9 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 .date-tab {
   position: absolute;
   left: 50%;
-  bottom: -17px;
+  /* Hangs below the photo, overlapping its edge by 6px, so it doesn't cover a cover card's text. */
+  top: 100%;
+  margin-top: -6px;
   transform: translateX(-50%);
   /* The day over the time, so the tab is no wider than the photo. */
   width: max-content;
