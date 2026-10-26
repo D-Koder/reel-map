@@ -5362,3 +5362,173 @@ button.profile-open {
 .calendar-help summary { cursor: pointer; }
 .calendar-help p { margin: 6px 0 0; }
 .calendar-error { margin: 0 0 10px; font-size: 14px; color: var(--danger, #b3261e); }
+
+/* PLAN STEPS (pick a time, book it, calendar) */
+.step-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.step-progress span {
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.step-progress span::before {
+  content: '';
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.step-progress span.on,
+.step-progress span.done {
+  color: var(--text);
+}
+
+.step-progress span.on::before,
+.step-progress span.done::before {
+  background: var(--accent);
+}
+
+.step-link {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.slot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.slot-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.slot-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.picked-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.picked-time small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.picked-time strong {
+  font-size: 16px;
+}
+
+.picked-time .step-link {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.book-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.book-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.book-empty {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.book-empty b {
+  color: var(--text);
+}
+
+.step-note {
+  margin-top: 8px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.step-saved {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.step-saved .step-title,
+.step-saved .step-description {
+  margin-bottom: 0;
+}
+
+.step-saved-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.step-saved-mark .ico {
+  width: 26px;
+  height: 26px;
+}

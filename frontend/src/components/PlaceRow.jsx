@@ -111,10 +111,10 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
           {reelEmbed(pin.reel_url)
             ? <ReelEmbedThumb reelUrl={pin.reel_url} mapsUrl={pin.maps_url} className="pin-thumbnail" />
             : <PlaceThumb place={pin} className="pin-thumbnail" />}
-          {/* The booked date hangs off the photo on a solid tab, so it never blends into the picture. */}
+          {/* The planned date hangs off the photo on a solid tab, so it never blends into the picture. */}
           {pin.booking && !isDone && (
             <span className="date-tab">
-              <span className="sr-only">Booked for </span>
+              <span className="sr-only">Planned for </span>
               {formatChipDate(pin.booking.planned_at)}
             </span>
           )}

@@ -56,7 +56,7 @@ export function pickUpNext(places, userId, now = new Date()) {
 }
 
 const TAGS = {
-  booked: { Icon: CalendarCheck, label: 'Booked' },
+  booked: { Icon: CalendarCheck, label: 'Planned' },
   event: { Icon: PartyPopper, label: 'Coming up' },
   keen: { Icon: Flame, label: "You're keen" },
   maybe: { Icon: Sparkles, label: 'Still deciding' },
@@ -77,7 +77,7 @@ function UpNext({ places, collections, userId, onOpenPin }) {
     ? formatDateTime(place.booking.planned_at)
     : kind === 'event'
       ? formatEventDay(pick.date)
-      : 'Not booked yet';
+      : 'No plan yet';
 
   return (
     <button type="button" className="ticket" onClick={() => onOpenPin(`${place.collection_id}:${place.id}`)}>
