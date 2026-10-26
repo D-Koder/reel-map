@@ -89,6 +89,9 @@ Rules:
   For the area, give the most specific city or suburb the post states,
   even when it is only in a hashtag. Use a country only when no city or
   suburb is stated at all.
+  A caption may be cut off ("…"), as when a RedNote share gives only its
+  first words. Read what is there; a Chinese city name stated in it
+  (墨尔本 → Melbourne, 悉尼 → Sydney) is a stated area.
   Only when the post states no area for a place, the area (never the
   address) may come from clues in the post:
   a timezone (AEDT → Sydney or Melbourne, AEST on the same post as AEDT →

@@ -297,7 +297,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     }
     if (!['url', 'text', 'title'].some((key) => params.has(key))) return;
     const shared = [params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' ');
-    const link = shared.match(/https?:\/\/\S+/)?.[0] ?? null;
+    // takeShare keeps a RedNote caption's start for its link.
+    const link = takeShare(shared).match(/https?:\/\/\S+/)?.[0] ?? null;
     window.history.replaceState({}, document.title, window.location.pathname);
     if (link) setPendingShareUrl(link);
   }, []);

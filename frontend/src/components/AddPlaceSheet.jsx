@@ -14,6 +14,7 @@ import { apiFetch } from '../lib/api';
 import EventTimesEditor from './EventTimesEditor';
 import { cleanRuns } from '../lib/eventRuns';
 import { lookupReel, savedReel } from '../lib/reelCache';
+import { isRedNoteUrl, takeShare } from '../lib/shareText';
 import { findArea } from '../lib/mapboxSearch';
 import { CAN_SEARCH, findAddress } from '../lib/placeSearch';
 
@@ -40,6 +41,7 @@ const sameName = (a, b) => {
 const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
+    if (isRedNoteUrl(url)) return true;
     if (urlObj.hostname.includes('instagram.com')) return urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/');
     if (['vm.tiktok.com', 'vt.tiktok.com'].includes(urlObj.hostname)) return true;
     if (['tiktok.com', 'www.tiktok.com'].includes(urlObj.hostname) && /^\/t\/[^/]+\/?$/.test(urlObj.pathname)) return true;
@@ -658,7 +660,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     try {
       const text = (await navigator.clipboard.readText()).trim();
       if (!text) return;
-      setReelUrlInput(text);
+      setReelUrlInput(takeShare(text));
       setUrlError('');
     } catch {
       reelInputRef.current?.focus();
@@ -676,12 +678,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setUrlError('');
 
     if (!trimmedUrl) {
-      setUrlError('Please paste an Instagram or TikTok link');
+      setUrlError('Please paste an Instagram, TikTok or RedNote link');
       return;
     }
 
     if (!isValidReelUrl(trimmedUrl)) {
-      setUrlError('Invalid link. Use an instagram.com/reel/ or /p/ link, or a tiktok.com/@user/video/ link');
+      setUrlError('Invalid link. Use an instagram.com/reel/ or /p/ link, a tiktok.com/@user/video/ link, or a RedNote share link');
       return;
     }
 
@@ -924,14 +926,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 <input
                   ref={reelInputRef}
                   className="step-input"
-                  type="url"
+                  type="text"
                   inputMode="url"
                   value={reelUrlInput}
                   onChange={(e) => {
-                    setReelUrlInput(e.target.value);
+                    setReelUrlInput(takeShare(e.target.value));
                     setUrlError('');
                   }}
-                  placeholder="Instagram reel or TikTok video link…"
+                  placeholder="Instagram, TikTok or RedNote link…"
                   disabled={loading}
                   autoFocus
                 />

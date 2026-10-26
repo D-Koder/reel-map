@@ -1,7 +1,7 @@
 const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { expandTikTokUrl, reelLookupKey } = require('./_lib/reel-url');
+const { expandTikTokUrl, isRedNoteUrl, reelLookupKey } = require('./_lib/reel-url');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
@@ -238,6 +238,18 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   return { reel, venue: '', candidates: null, fromCache: false };
 }
 
+// A RedNote post can't be opened without logging in. What its share text gave (the start of the caption
+// before the link) is the caption: cut off ("…"), but it usually names the area and the dish or venue.
+function readSharedNote(reelUrl, sharedText) {
+  const caption = String(typeof sharedText === 'string' ? sharedText : '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 1000);
+  if (!caption) return { status: 200, body: { error: 'RedNote shared no caption' } };
+  const reel = {
+    success: true, reelUrl, caption, creator: null, likes: null, comments: null, placeName: '', location: '',
+    date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'share',
+  };
+  return { reel, venue: '', candidates: null, fromCache: false };
+}
+
 // Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
 async function readDetails(candidate, query, reel, getBrowser) {
   const detailsResponse = await invoke(scrapeLocation.run, {
@@ -455,7 +467,9 @@ async function enrich(req, res, getBrowser) {
       timings.push(`${label} ${((Date.now() - began) / 1000).toFixed(1)}s`);
     }
   };
-  const read = await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
+  const read = isRedNoteUrl(reelUrl)
+    ? readSharedNote(reelUrl, req.body?.sharedText)
+    : await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
@@ -478,7 +492,7 @@ async function enrich(req, res, getBrowser) {
   let aiOrderOnly = false;
   // What the lookup did, for the Add place log: what the AI found and what Google Maps was asked.
   const steps = {
-    source: read.fromCache ? 'saved lookup' : 'Instagram',
+    source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : 'Instagram',
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {
