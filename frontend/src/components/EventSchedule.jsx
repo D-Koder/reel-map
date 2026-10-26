@@ -10,11 +10,11 @@ export default function EventSchedule({ place }) {
   const active = runs.length ? activeRun(runs) : null;
   const links = contactLinks(place.event_contact);
   const price = String(place.event_price || '').trim();
-  if (!runs.length && !links.length && !price) return null;
 
   return (
     <>
-      {(runs.length > 0 || price) && (
+      {/* An event with no dates still shows this section, so the missing date is never silent. */}
+      {(
         <div className="modal-section">
           <div className="evt-section-head">
             <div className="modal-label">When it's on</div>
@@ -35,6 +35,9 @@ export default function EventSchedule({ place }) {
                 );
               })}
             </ul>
+          )}
+          {!runs.length && (
+            <div className="evt-warn-note">⚠️ No date set for this event. Check the post, then add the dates.</div>
           )}
           {runs.some((run) => !timeKnown(run)) && (
             <div className="evt-warn-note">⚠️ The post gives no time. Check before you go.</div>
