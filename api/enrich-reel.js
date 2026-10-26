@@ -531,7 +531,10 @@ async function enrich(req, res, getBrowser) {
       withExtras.tagged?.length || (firstAnswer?.temporary && withExtras.date !== reel.date));
     const ai = gotExtras ? await timed('AI again', () => askAi(withExtras)) : firstAnswer;
     reel = withExtras;
-    steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
+    // What the AI was given, for the Add place log: a missing date or a cut-off caption is otherwise invisible.
+    steps.postDate = reel.date ? dayIn(timeZone, reel.date) : '';
+    steps.caption = reel.caption;
+    steps.ai =`called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
         : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`
       : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})${

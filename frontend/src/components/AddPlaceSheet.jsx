@@ -274,6 +274,10 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       addLog(`Read from: ${steps.source}`, 'info');
       if (steps.redNote) addLog(`RedNote: ${steps.redNote}`, 'info');
       if (data.tagged?.length) addLog(`Tagged accounts: ${data.tagged.map((handle) => `@${handle}`).join(', ')}`, 'info');
+      if (steps.caption !== undefined) {
+        addLog(`Post date: ${steps.postDate || 'not found'}`, 'info');
+        addLog(`Caption (${steps.caption.length} characters): ${steps.caption}`, 'info');
+      }
       addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
       if (steps.category) addLog(`Category: ${steps.category}`, 'info');
       if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
