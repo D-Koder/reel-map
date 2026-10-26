@@ -47,17 +47,23 @@ export default function ReelEmbedThumb(props) {
 function RedNoteCover({ reelUrl, className = '' }) {
   const [cover, setCover] = useState(() => savedCover(reelUrl));
   const [failed, setFailed] = useState(false);
+  // Why there is no picture, written on the tile while the covers are tried out.
+  const [why, setWhy] = useState('');
   useEffect(() => {
     let current = true;
     setFailed(false);
-    coverFor(reelUrl).then((link) => current && setCover(link));
+    coverFor(reelUrl).then(({ coverUrl, reason }) => {
+      if (!current) return;
+      setCover(coverUrl);
+      setWhy(reason);
+    });
     return () => { current = false; };
   }, [reelUrl]);
   return (
     <span className={`${className} reel-embed-thumb is-rednote is-loaded`}>
       {cover && !failed
         ? <img src={cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setFailed(true)} />
-        : <span className="rednote-tile">RedNote</span>}
+        : <span className="rednote-tile">RedNote<small>{failed ? 'image refused' : why || 'looking…'}</small></span>}
     </span>
   );
 }

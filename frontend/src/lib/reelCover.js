@@ -11,22 +11,22 @@ export function savedCover(reelUrl) {
   return readJSON(KEY, {})[reelUrl] ?? '';
 }
 
-// Resolves to the cover link, or '' when there is none or the lookup failed (nothing is kept then).
+// Resolves to { coverUrl, reason }: the cover link, or '' with why there is none (nothing is kept then).
 export function coverFor(reelUrl) {
   const saved = savedCover(reelUrl);
-  if (saved) return Promise.resolve(saved);
+  if (saved) return Promise.resolve({ coverUrl: saved, reason: '' });
   const known = running.get(reelUrl);
   if (known) return known;
   const lookup = apiFetch('/api/reel-cover', { body: JSON.stringify({ reelUrl }) })
     .then(async (response) => {
-      const { coverUrl = '' } = await response.json().catch(() => ({}));
+      const { coverUrl = '', reason = '' } = await response.json().catch(() => ({}));
       if (response.ok && coverUrl) {
         const covers = readJSON(KEY, {});
         writeJSON(KEY, Object.fromEntries(Object.entries({ ...covers, [reelUrl]: coverUrl }).slice(-KEPT)));
       }
-      return response.ok ? coverUrl : '';
+      return response.ok ? { coverUrl, reason } : { coverUrl: '', reason: `HTTP ${response.status}` };
     })
-    .catch(() => '')
+    .catch((error) => ({ coverUrl: '', reason: `request failed: ${error.message}` }))
     .finally(() => running.delete(reelUrl));
   running.set(reelUrl, lookup);
   return lookup;
