@@ -5542,13 +5542,18 @@ button.profile-open {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
+  margin: 4px 0 12px;
   font-size: 13px;
   color: var(--text-muted);
 }
 
 .tp-length span {
   margin-right: auto;
+}
+
+.tp-length small {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .tp-length button {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PLAN_LENGTHS, pickerDays } from '../lib/freeSlot';
+import { MIN_PLAN_MINUTES, PLAN_LENGTHS, pickerDays } from '../lib/freeSlot';
 
 const dayName = (date) => date.toLocaleDateString(undefined, { weekday: 'short' });
 const timeText = (date) => date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -9,29 +9,25 @@ const longDay = (date) => `${dayName(date)} ${date.getDate()} ${date.toLocaleDat
 
 // Picks a day and a time inside the place's opening hours. With a calendar connected, times you're busy are
 // hatched, and times the place would close before the plan ends are faded. Both can still be picked, with a
-// warning that says why. Times show once a day is chosen.
+// warning that says why. Times show once a day is chosen. A plan is just a start time; once a time is picked,
+// a length (`minutes`, null for none) can be added, which only changes what counts as busy or too late.
 // `busy` is [{ start, end }] Dates; `connected` says whether it came from a calendar.
 export default function TimePicker({ hours, busy, connected, minutes, onMinutes, onPick }) {
-  const days = useMemo(() => pickerDays(hours, busy), [hours, busy, minutes]); // eslint-disable-line react-hooks/exhaustive-deps
+  const days = useMemo(() => pickerDays(hours, busy, new Date(), minutes || MIN_PLAN_MINUTES), [hours, busy, minutes]);
   const [dayIndex, setDayIndex] = useState(null);
-  const [picked, setPicked] = useState(null);
+  const [pickedAt, setPickedAt] = useState(null);
 
-  // A new plan length changes which times are free, so the pick starts over.
-  useEffect(() => setPicked(null), [minutes, dayIndex]);
+  // Another day starts the pick over.
+  useEffect(() => setPickedAt(null), [dayIndex]);
 
   const day = dayIndex == null ? null : days[dayIndex];
+  // The picked time as the current length sees it, so adding a length updates the warnings.
+  const picked = pickedAt == null || !day ? null : day.windows.flatMap((window) => window.slots).find((slot) => slot.start.getTime() === pickedAt);
   const clash = picked?.clash || [];
-  const end = picked && new Date(picked.start.getTime() + minutes * 60000);
+  const end = picked && minutes ? new Date(picked.start.getTime() + minutes * 60000) : null;
 
   return (
     <div className="time-picker">
-      <div className="tp-length" role="group" aria-label="How long">
-        <span>Plan for</span>
-        {PLAN_LENGTHS.map((m) => (
-          <button key={m} type="button" aria-pressed={m === minutes} onClick={() => onMinutes(m)}>{lengthText(m)}</button>
-        ))}
-      </div>
-
       <div className="tp-days" role="group" aria-label="Day">
         {days.map((item, i) => (
           <button
@@ -64,8 +60,8 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
                   key={slot.start.getTime()}
                   type="button"
                   className={`tp-slot ${slot.state}`}
-                  aria-pressed={picked?.start.getTime() === slot.start.getTime()}
-                  onClick={() => setPicked(slot)}
+                  aria-pressed={pickedAt === slot.start.getTime()}
+                  onClick={() => setPickedAt(slot.start.getTime())}
                 >
                   {timeText(slot.start)}
                 </button>
@@ -81,10 +77,16 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
 
       {picked && (
         <>
+          <div className="tp-length" role="group" aria-label="How long (optional)">
+            <span>How long? <small>Optional</small></span>
+            {PLAN_LENGTHS.map((m) => (
+              <button key={m} type="button" aria-pressed={m === minutes} onClick={() => onMinutes(m === minutes ? null : m)}>{lengthText(m)}</button>
+            ))}
+          </div>
           {picked.state === 'late' && (
             <div className="tp-warn" role="alert">
               <b>It closes too soon</b>
-              Closes at {timeText(picked.closes)}, before your plan ends. You can still pick this time.
+              Closes at {timeText(picked.closes)}{minutes ? ', before your plan ends' : ''}. You can still pick this time.
             </div>
           )}
           {clash.length > 0 && (
@@ -94,7 +96,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
             </div>
           )}
           <button type="button" className="step-btn primary full-width" onClick={() => onPick(picked.start)}>
-            Pick {longDay(picked.start)} · {rangeText(picked.start, end)}{clash.length || picked.state === 'late' ? ' anyway' : ''}
+            Pick {longDay(picked.start)} · {end ? rangeText(picked.start, end) : timeText(picked.start)}{clash.length || picked.state === 'late' ? ' anyway' : ''}
           </button>
         </>
       )}

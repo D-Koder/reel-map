@@ -14,7 +14,7 @@ import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { groupedHours, openStatus, suburbOf } from '../lib/hours';
 import { busyFor, savedConnection } from '../lib/calendarLink';
 import { NeedsGoogleTap } from '../lib/googleCalendar';
-import { DEFAULT_PLAN_MINUTES, slotChip, slotLabel, suggestSlots } from '../lib/freeSlot';
+import { DEFAULT_PLAN_MINUTES, MIN_PLAN_MINUTES, slotChip, slotLabel, suggestSlots } from '../lib/freeSlot';
 import TimePicker from './TimePicker';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
@@ -201,8 +201,8 @@ export default function PinModal({
   // and it's open. `busy` is what the calendar says they're doing.
   const [connection, setConnection] = useState(() => savedConnection(userId));
   const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', busy: [] });
-  // How long the plan lasts, 30 minutes to an hour: it decides which times are free and the calendar event's length.
-  const [planMinutes, setPlanMinutes] = useState(DEFAULT_PLAN_MINUTES);
+  // An optional length for the plan, 30 minutes to an hour (null for none): it decides which times count as free.
+  const [planMinutes, setPlanMinutes] = useState(null);
   // Step 1: which free time is picked, and whether the person is choosing their own time instead.
   const [pickedSlot, setPickedSlot] = useState(0);
   const [ownTime, setOwnTime] = useState(false);
@@ -252,7 +252,7 @@ export default function PinModal({
       location: place.address,
       description: place.reel_url,
       start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
-      minutes: planMinutes,
+      minutes: planMinutes || DEFAULT_PLAN_MINUTES,
     });
     showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
@@ -290,7 +290,7 @@ export default function PinModal({
   ].filter(Boolean);
   // Step 1 text. No calendar, no suggested time: the hours are all there is to show.
   const slots = useMemo(
-    () => (freeTime.state === 'ready' ? suggestSlots(hours, freeTime.busy, new Date(), 4, planMinutes) : []),
+    () => (freeTime.state === 'ready' ? suggestSlots(hours, freeTime.busy, new Date(), 4, planMinutes || MIN_PLAN_MINUTES) : []),
     [freeTime, planMinutes, place.hours], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const hoursSummary = hasRuns

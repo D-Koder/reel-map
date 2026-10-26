@@ -1,8 +1,10 @@
 import { openWindows } from './hours';
 
 const STEP_MINUTES = 30;
-// A plan lasts 30 minutes to an hour: a coffee or a bite, not a whole evening. The person picks one.
+// A plan is a start time. A length of 30 minutes to an hour can be added; without one a time only has to be free
+// and open for the shortest, and a calendar event lasts the longest.
 export const PLAN_LENGTHS = [30, 45, 60];
+export const MIN_PLAN_MINUTES = 30;
 export const DEFAULT_PLAN_MINUTES = 60;
 const DAYS_AHEAD = 14;
 // Visits are suggested between 5 and 8 PM on weekdays and 10 AM and 8 PM at weekends, when the place is open then.
