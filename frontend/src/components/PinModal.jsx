@@ -12,7 +12,8 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { openStatus, suburbOf } from '../lib/hours';
-import { fetchBusy, savedCalendarLink } from '../lib/calendarLink';
+import { busyFor, savedConnection } from '../lib/calendarLink';
+import { NeedsGoogleTap } from '../lib/googleCalendar';
 import { formatSlot, suggestSlot } from '../lib/freeSlot';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
@@ -195,9 +196,10 @@ export default function PinModal({
   }, [place.id, place.address, place.lat, place.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   // Check Hours compares the place's hours with the person's calendar: 'none' (not connected), 'checking',
-  // 'failed', or 'ready' with the first time they're free and it's open (slot null when there isn't one).
-  const [calendarLink, setCalendarLink] = useState(() => savedCalendarLink(userId));
-  const [freeTime, setFreeTime] = useState({ state: calendarLink ? 'checking' : 'none', slot: null });
+  // 'tap' (Google is connected but needs a tap this visit), 'failed', or 'ready' with the first time they're free
+  // and it's open (slot null when there isn't one).
+  const [connection, setConnection] = useState(() => savedConnection(userId));
+  const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', slot: null });
   const [now, setNow] = useState(() => Date.now());
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
@@ -259,18 +261,18 @@ export default function PinModal({
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
   useEffect(() => {
-    if (!calendarLink || !hours.length) {
+    if (!connection.kind || !hours.length) {
       setFreeTime({ state: 'none', slot: null });
       return undefined;
     }
     const controller = new AbortController();
     setFreeTime({ state: 'checking', slot: null });
     const from = new Date();
-    fetchBusy(calendarLink, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
+    busyFor(connection, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
       .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', slot: suggestSlot(hours, busy) }))
-      .catch(() => !controller.signal.aborted && setFreeTime({ state: 'failed', slot: null }));
+      .catch((error) => !controller.signal.aborted && setFreeTime({ state: error instanceof NeedsGoogleTap ? 'tap' : 'failed', slot: null }));
     return () => controller.abort();
-  }, [calendarLink, place.id, place.hours]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [connection, place.id, place.hours]); // eslint-disable-line react-hooks/exhaustive-deps
   // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
   // An event is on at its own times, not the venue's hours (a park is "open 24 hours").
   const runs = place?.category === 'event' ? runsOf(place) : [];
@@ -294,6 +296,8 @@ export default function PinModal({
     ? "We don't have opening hours for this place yet — check before you go."
     : freeTime.state === 'checking'
     ? 'Checking your calendar…'
+    : freeTime.state === 'tap'
+    ? 'Tap below to check your Google Calendar for a free time.'
     : freeTime.state === 'failed'
     ? "Couldn't read your calendar. Check the link or reconnect it. The opening hours are above."
     : freeTime.state === 'ready'
@@ -510,7 +514,7 @@ export default function PinModal({
                 {stepHead(1)}
                 <div className="step-title"><Clock className="ico" aria-hidden="true" /> {hasRuns ? 'Check times' : 'Check Hours'}</div>
                 <div className="step-description">{hoursSummary}</div>
-                {!hasRuns && hours.length > 0 && <CalendarConnect userId={userId} link={calendarLink} onChange={setCalendarLink} />}
+                {!hasRuns && hours.length > 0 && <CalendarConnect userId={userId} connection={connection} needsTap={freeTime.state === 'tap'} onChange={setConnection} />}
                 <div className="step-buttons">
                   <button
                     className="step-btn primary"
