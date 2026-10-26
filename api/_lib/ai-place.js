@@ -694,8 +694,14 @@ async function aiPlace(post) {
     }).map(({ other_script_name: other, local_name: local, ...place }) => ({
       ...place, otherName: otherScript(place.name, other), localName: localScript(place.name, local),
     }));
-    const places = checked.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
-      spells(place.name, seenSquashed));
+    // The quote may differ from the page's text in emoji and punctuation only (RedNote's page text has its
+    // own tokens for emoji, so "📍 Kumo Brewhouse" can be there without the pin), so letters and numbers alone are compared too.
+    const quoted = (evidence) => seen.includes(flat(evidence)) || (squash(evidence).length >= 4 && seenSquashed.includes(squash(evidence)));
+    const places = checked.filter((place) => {
+      const kept = place.name.trim() && place.evidence && quoted(place.evidence) && spells(place.name, seenSquashed);
+      if (!kept) console.warn('AI place dropped:', JSON.stringify({ name: place.name, evidence: place.evidence }));
+      return kept;
+    });
     console.log('AI places:', JSON.stringify(places.map(({ name, otherName, localName, handle, evidence }) => ({ name, otherName, localName, handle, evidence }))),
       'confidence:', answer.confidence);
     // The slide's place, found again after any made-up places were dropped.
