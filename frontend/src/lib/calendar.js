@@ -1,8 +1,8 @@
-// Builds a 2-hour calendar event (.ics) for a booked place and opens it.
+// Builds a calendar event (.ics) of `minutes` (2 hours when not given) for a planned place and opens it.
 // Works with Apple Calendar, Google Calendar and most other calendar apps.
-export function addToCalendar({ title, location, description, start }) {
+export function addToCalendar({ title, location, description, start, minutes = 120 }) {
   const startDate = new Date(start);
-  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+  const endDate = new Date(startDate.getTime() + minutes * 60 * 1000);
 
   const formatUtc = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   const escape = (text) => String(text)

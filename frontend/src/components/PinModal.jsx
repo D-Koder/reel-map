@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -14,7 +14,8 @@ import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { groupedHours, openStatus, suburbOf } from '../lib/hours';
 import { busyFor, savedConnection } from '../lib/calendarLink';
 import { NeedsGoogleTap } from '../lib/googleCalendar';
-import { slotChip, slotLabel, suggestSlots } from '../lib/freeSlot';
+import { DEFAULT_PLAN_MINUTES, slotChip, slotLabel, suggestSlots } from '../lib/freeSlot';
+import TimePicker from './TimePicker';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
 import CalendarConnect from './CalendarConnect';
@@ -197,9 +198,11 @@ export default function PinModal({
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   // Step 1 compares the place's hours with the person's calendar: 'none' (not connected), 'checking',
   // 'tap' (Google is connected but needs a tap this visit), 'failed', or 'ready' with up to 4 times they're free
-  // and it's open (slots is empty when there isn't one).
+  // and it's open. `busy` is what the calendar says they're doing.
   const [connection, setConnection] = useState(() => savedConnection(userId));
-  const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', slots: [] });
+  const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', busy: [] });
+  // How long the plan lasts, 30 minutes to an hour: it decides which times are free and the calendar event's length.
+  const [planMinutes, setPlanMinutes] = useState(DEFAULT_PLAN_MINUTES);
   // Step 1: which free time is picked, and whether the person is choosing their own time instead.
   const [pickedSlot, setPickedSlot] = useState(0);
   const [ownTime, setOwnTime] = useState(false);
@@ -249,6 +252,7 @@ export default function PinModal({
       location: place.address,
       description: place.reel_url,
       start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
+      minutes: planMinutes,
     });
     showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
@@ -257,16 +261,16 @@ export default function PinModal({
   const hours = Array.isArray(place?.hours) ? place.hours : [];
   useEffect(() => {
     if (!connection.kind || !hours.length) {
-      setFreeTime({ state: 'none', slots: [] });
+      setFreeTime({ state: 'none', busy: [] });
       return undefined;
     }
     const controller = new AbortController();
-    setFreeTime({ state: 'checking', slots: [] });
+    setFreeTime({ state: 'checking', busy: [] });
     setPickedSlot(0);
     const from = new Date();
     busyFor(connection, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
-      .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', slots: suggestSlots(hours, busy) }))
-      .catch((error) => !controller.signal.aborted && setFreeTime({ state: error instanceof NeedsGoogleTap ? 'tap' : 'failed', slots: [] }));
+      .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', busy }))
+      .catch((error) => !controller.signal.aborted && setFreeTime({ state: error instanceof NeedsGoogleTap ? 'tap' : 'failed', busy: [] }));
     return () => controller.abort();
   }, [connection, place.id, place.hours]); // eslint-disable-line react-hooks/exhaustive-deps
   // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
@@ -285,7 +289,10 @@ export default function PinModal({
     place?.url && { label: 'Open link', href: place.url, Icon: Link },
   ].filter(Boolean);
   // Step 1 text. No calendar, no suggested time: the hours are all there is to show.
-  const slots = freeTime.state === 'ready' ? freeTime.slots : [];
+  const slots = useMemo(
+    () => (freeTime.state === 'ready' ? suggestSlots(hours, freeTime.busy, new Date(), 4, planMinutes) : []),
+    [freeTime, planMinutes, place.hours], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const hoursSummary = hasRuns
     ? eventSummary(place.name, runs, place.event_price)
     : freeTime.state === 'checking'
@@ -530,19 +537,32 @@ export default function PinModal({
                   <>
                     <div className="step-title">Choose a time</div>
                     {!hours.length && <div className="step-description">{hoursSummary}</div>}
-                    <input
-                      type="datetime-local"
-                      className="step-input"
-                      value={reservationDate}
-                      onChange={(e) => setReservationDate(e.target.value)}
-                    />
-                    <button
-                      className="step-btn primary full-width"
-                      disabled={!reservationDate}
-                      onClick={() => { setTimeChosen(true); completeStep(1); }}
-                    >
-                      Pick this time
-                    </button>
+                    {hours.length > 0 ? (
+                      <TimePicker
+                        hours={hours}
+                        busy={freeTime.busy}
+                        connected={freeTime.state === 'ready'}
+                        minutes={planMinutes}
+                        onMinutes={setPlanMinutes}
+                        onPick={(start) => { setReservationDate(toLocalInputValue(start)); setTimeChosen(true); completeStep(1); }}
+                      />
+                    ) : (
+                      <>
+                        <input
+                          type="datetime-local"
+                          className="step-input"
+                          value={reservationDate}
+                          onChange={(e) => setReservationDate(e.target.value)}
+                        />
+                        <button
+                          className="step-btn primary full-width"
+                          disabled={!reservationDate}
+                          onClick={() => { setTimeChosen(true); completeStep(1); }}
+                        >
+                          Pick this time
+                        </button>
+                      </>
+                    )}
                     {hours.length > 0 && <button type="button" className="step-link" onClick={() => setOwnTime(false)}>Back</button>}
                   </>
                 ) : (

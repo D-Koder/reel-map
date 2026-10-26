@@ -5532,3 +5532,187 @@ button.profile-open {
   width: 26px;
   height: 26px;
 }
+
+/* Time picker (step 1, "Choose another time") */
+.time-picker {
+  margin-bottom: 8px;
+}
+
+.tp-length {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tp-length span {
+  margin-right: auto;
+}
+
+.tp-length button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tp-length button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.tp-days {
+  display: flex;
+  gap: 6px;
+  margin: 0 -2px 12px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tp-day {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 52px;
+  padding: 8px 0 6px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tp-day small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tp-day b {
+  font-size: 17px;
+}
+
+.tp-day i {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.tp-day.free i {
+  background: var(--success);
+}
+
+.tp-day.busy i {
+  background: var(--butter);
+}
+
+.tp-day.closed,
+.tp-day.past {
+  opacity: 0.45;
+}
+
+.tp-day[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+.tp-window {
+  margin-bottom: 12px;
+}
+
+.tp-window-head {
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tp-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.tp-slot {
+  min-height: 44px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tp-slot.busy {
+  background: repeating-linear-gradient(135deg, var(--card) 0 5px, var(--surface-muted) 5px 10px);
+  color: var(--text-muted);
+}
+
+.tp-slot.late {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tp-slot[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.tp-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tp-key .tp-slot {
+  display: inline-block;
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  border-width: 1px;
+  cursor: default;
+}
+
+.tp-empty {
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tp-warn {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  font-size: 13px;
+}
+
+.tp-warn b {
+  display: block;
+  margin-bottom: 2px;
+}
