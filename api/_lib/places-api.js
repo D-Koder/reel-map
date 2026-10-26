@@ -101,14 +101,9 @@ function detailsOf(place, placeId) {
 // key in it), shown by the app straight from Google: nothing is downloaded or kept here. Two billed calls: the
 // photo's name, then its address.
 async function placePhoto(placeId) {
-  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'id,displayName,photos' });
+  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'photos' });
   const photo = place.photos?.[0];
-  if (!photo?.name || !photo.name.startsWith('places/')) {
-    const found = await call('/places:searchText', { method: 'POST', body: { textQuery: place.displayName?.text || placeId, pageSize: 1 }, fields: 'places.id,places.photos' }).catch((error) => ({ error: error.message }));
-    console.warn('Place photo: search reply', JSON.stringify(found.places?.[0]?.photos?.[0] || found.error || found).slice(0, 200));
-    console.warn('Place photo: no usable photo in', JSON.stringify(place).slice(0, 300));
-    return null;
-  }
+  if (!photo?.name || !photo.name.startsWith('places/')) return null;
   const media = await call(`/${photo.name}/media?maxWidthPx=480&skipHttpRedirect=true`);
   if (!/^https:\/\//.test(media.photoUri || '')) {
     console.warn('Place photo: no photoUri in', JSON.stringify(media).replace(/key=[^&"]+/g, 'key=…').slice(0, 300));
