@@ -526,7 +526,7 @@ async function enrich(req, res, getBrowser) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
       collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
-      postDay: post.date ? dayIn(timeZone, post.date) : '',
+      postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
     // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.

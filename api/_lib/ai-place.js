@@ -128,7 +128,13 @@ Rules:
   days" or "N weeks" counts from the day the caption starts it, else from
   the post date. "This year", "this summer", "soon" and "coming months"
   are too vague: leave the dates "".
-  When there is no <post_date>, leave the dates "": the year can't be known.
+  When there is no <post_date>, a day written without its weekday stays "",
+  and so does any "today", "tonight" or "this weekend". A day written with
+  its weekday ("Sat 24 Oct", "10月24日（週六）") can still be worked out: its
+  year is the one, within a year of <today>, in which that day falls on that
+  weekday. <today> is the day the person saved the post, used only for that:
+  it is never the post date, and never the answer for a day the caption
+  doesn't give.
   Quote the words that say when in "date_evidence". Leave a date "" when
   the post doesn't say it clearly ("soon", "coming weeks"), and leave all
   three "" when the venue is not temporary.
@@ -487,11 +493,12 @@ let client = null;
 const getClient = () => (client ??= new Anthropic({ timeout: TIMEOUT_MS, maxRetries: 1 }));
 
 // Tags are only added when there's something in them, so an empty field is never misread.
-function postText({ caption, locationTag, creator, collaborators, tagged, slide, userCountry, userLanguage, postDay }) {
+function postText({ caption, locationTag, creator, collaborators, tagged, slide, userCountry, userLanguage, postDay, today }) {
   const field = (tag, value) => (value ? `<${tag}>${value}</${tag}>\n` : '');
   const weekday = postDay ? new Date(`${postDay}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', timeZone: 'UTC' }) : '';
   return '<post>\n' +
     field('post_date', postDay && `${weekday} ${postDay}`) +
+    field('today', !postDay && today) +
     field('user_language', userLanguage) +
     field('location_tag', locationTag) +
     field('creator', creator) +
@@ -580,15 +587,20 @@ function checkDates(answer, post) {
   const evidence = String(answer.date_evidence || '');
   if (!evidence || !inCaption(post.caption, evidence)) return none;
   const posted = dayNumber(post.postDay || '');
+  // With no post date, the day the person saved the post stands in for it, only to keep a date within a
+  // year of now (the AI works the year out from a written weekday).
+  const today = dayNumber(post.today || '');
   // A date is kept when it is within a year of the post, or when the caption writes out its year ("14–18
   // June 2028"): that date is clear however far away it is (up to five years, so a stray number isn't read as one).
-  const postYear = Number.isFinite(posted) ? new Date(posted * DAY_MS).getUTCFullYear() : NaN;
+  const reference = Number.isFinite(posted) ? posted : today;
+  const postYear = Number.isFinite(reference) ? new Date(reference * DAY_MS).getUTCFullYear() : NaN;
   const yearSaid = (day) => {
     const year = new Date(day * DAY_MS).getUTCFullYear();
     return new RegExp(`\\b${year}\\b`).test(post.caption || '') && year >= postYear - 1 && year <= postYear + 5;
   };
-  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) ||
-    (day >= posted - 7 && day <= posted + 366) || yearSaid(day));
+  const near = (day) => Number.isFinite(day) && (!Number.isFinite(reference) ||
+    (Number.isFinite(posted) ? day >= posted - 7 && day <= posted + 366 : day >= today - 120 && day <= today + 366) ||
+    yearSaid(day));
   let start = inPostYear(answer.start_date, post);
   const end = inPostYear(answer.end_date, post);
   if (!near(end) && !near(start)) return none;
