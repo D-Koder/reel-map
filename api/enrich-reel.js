@@ -6,7 +6,7 @@ const { fetchRedNote } = require('./_lib/rednote-fetch');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
-const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
+const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { aiPlace } = require('./_lib/ai-place');
 const { squash, letters } = require('./_lib/names');
@@ -248,7 +248,15 @@ async function readRedNote(reelUrl, sharedText, getBrowser) {
   const quick = await fetchRedNote(reelUrl);
   if (quick.reel) {
     tried.push(`plain request: ${quick.complete ? 'full note' : 'meta description only (may be cut short)'}`);
-    return { reel: quick.reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+    if (quick.complete) return { reel: quick.reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+    // Only the meta description: the caption may be cut short and the post date is missing, so the browser
+    // is tried for the full note. Its answer is kept when it has the date or more of the caption.
+    const full = await invoke(scrapeReel, { reelUrl }, getBrowser);
+    const better = full.statusCode < 400 && full.body?.success && full.body.caption &&
+      (full.body.date || full.body.caption.length > quick.reel.caption.length);
+    tried.push(better ? 'browser: read the full note' : `browser: nothing more (${full.body?.error || `HTTP ${full.statusCode}`})`);
+    const reel = better ? { ...full.body, reelUrl, thumbnailUrl: full.body.thumbnailUrl || quick.reel.thumbnailUrl } : quick.reel;
+    return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
   }
   tried.push(`plain request: ${quick.reason}`);
   const page = await invoke(scrapeReel, { reelUrl }, getBrowser);
@@ -503,6 +511,7 @@ async function enrich(req, res, getBrowser) {
   let { reel, venue } = read;
   const country = requestCountry(req);
   const timeZone = requestTimeZone(req);
+  const language = requestLanguage(req);
   // The AI reads every post that has a caption (with its location tag and collab posters from the
   // page, which it weighs too): the venue, the area, whether it's a pop-up and the kind of place.
   let aiFound = null;
@@ -516,8 +525,8 @@ async function enrich(req, res, getBrowser) {
   if (!read.fromCache && reel.caption) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
-      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country,
-      postDay: post.date ? dayIn(timeZone, post.date) : '',
+      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
+      postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
     // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.

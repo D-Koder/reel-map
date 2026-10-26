@@ -7,7 +7,7 @@
 // push says so (migration 20261019140000_background_shared_reels.sql).
 
 const { internalHeaders } = require('./_lib/auth');
-const { requestCountry } = require('./_lib/country');
+const { requestCountry, requestLanguage } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -79,7 +79,7 @@ function lookInBackground(req, key, sharedText) {
         headers: { 'Content-Type': 'application/json', ...internalHeaders() },
         // This request comes from Vercel itself, so the person's country is passed on from theirs.
         // from: 'inbox' keeps a lookup_debug row when no place is matched, like a reel shared in the app.
-        body: JSON.stringify({ reelUrl, slide, background: true, from: 'inbox', country: requestCountry(req) }),
+        body: JSON.stringify({ reelUrl, slide, background: true, from: 'inbox', country: requestCountry(req), language: requestLanguage(req) }),
         // Leaves time to save the result within this function's 120 seconds.
         signal: AbortSignal.timeout(105000),
       });
