@@ -60,9 +60,9 @@ export const slotLabel = (date) => `${dayText(date)} · ${hourText(date)}`;
 export const slotChip = (date) => `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${date.getDate()} · ${hourText(date)}`;
 
 
-// The next `count` days for the time picker: [{ date, status, windows: [{ start, end, slots: [{ start, state, clash }] }] }].
+// The next `count` days for the time picker: [{ date, status, windows: [{ start, end, slots: [{ start, state, clash, closes }] }] }].
 // A slot's state is 'free', 'busy' (overlaps `busy`: still pickable, with a warning), or 'late' (the place closes
-// before the plan would end). `status` is 'free' (a free time exists), 'busy' (open, but every time clashes or is
+// before the plan would end; `closes` is when). Both can still be picked, with a warning. `status` is 'free' (a free time exists), 'busy' (open, but every time clashes or is
 // too late), 'closed', or 'past'. Times before the earliest start are left out. Hours that can't be read for a day
 // give no windows and 'closed'.
 export function pickerDays(hours, busy, now = new Date(), minutes = DEFAULT_PLAN_MINUTES, count = DAYS_AHEAD) {
@@ -81,7 +81,7 @@ export function pickerDays(hours, busy, now = new Date(), minutes = DEFAULT_PLAN
         const at = new Date(start);
         const late = start + length > window.end.getTime();
         const clash = late ? [] : clashes(busy, start, minutes);
-        slots.push({ start: at, state: late ? 'late' : clash.length ? 'busy' : 'free', clash });
+        slots.push({ start: at, state: late ? 'late' : clash.length ? 'busy' : 'free', clash, closes: late ? window.end : null });
       }
       return { start: window.start, end: window.end, slots };
     }).filter((window) => window.slots.length);

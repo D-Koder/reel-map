@@ -5666,7 +5666,6 @@ button.profile-open {
 
 .tp-slot.late {
   opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .tp-slot[aria-pressed='true'] {

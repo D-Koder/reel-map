@@ -8,18 +8,18 @@ const lengthText = (minutes) => (minutes === 60 ? '1 hour' : `${minutes} min`);
 const longDay = (date) => `${dayName(date)} ${date.getDate()} ${date.toLocaleDateString(undefined, { month: 'short' })}`;
 
 // Picks a day and a time inside the place's opening hours. With a calendar connected, times you're busy are
-// hatched and still pickable (the warning says why); times the place would close before the plan ends are faded.
+// hatched, and times the place would close before the plan ends are faded. Both can still be picked, with a
+// warning that says why. Times show once a day is chosen.
 // `busy` is [{ start, end }] Dates; `connected` says whether it came from a calendar.
 export default function TimePicker({ hours, busy, connected, minutes, onMinutes, onPick }) {
   const days = useMemo(() => pickerDays(hours, busy), [hours, busy, minutes]); // eslint-disable-line react-hooks/exhaustive-deps
-  const firstFree = days.findIndex((day) => day.status === 'free');
-  const [dayIndex, setDayIndex] = useState(Math.max(firstFree, 0));
+  const [dayIndex, setDayIndex] = useState(null);
   const [picked, setPicked] = useState(null);
 
   // A new plan length changes which times are free, so the pick starts over.
   useEffect(() => setPicked(null), [minutes, dayIndex]);
 
-  const day = days[dayIndex];
+  const day = dayIndex == null ? null : days[dayIndex];
   const clash = picked?.clash || [];
   const end = picked && new Date(picked.start.getTime() + minutes * 60000);
 
@@ -50,7 +50,9 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
         ))}
       </div>
 
-      {day.windows.length === 0 ? (
+      {!day ? (
+        <div className="tp-empty">Pick a day to see times.</div>
+      ) : day.windows.length === 0 ? (
         <div className="tp-empty">{day.status === 'past' ? 'No more times today.' : `Closed on ${day.date.toLocaleDateString(undefined, { weekday: 'long' })}s.`}</div>
       ) : (
         day.windows.map((window) => (
@@ -63,7 +65,6 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
                   type="button"
                   className={`tp-slot ${slot.state}`}
                   aria-pressed={picked?.start.getTime() === slot.start.getTime()}
-                  disabled={slot.state === 'late'}
                   onClick={() => setPicked(slot)}
                 >
                   {timeText(slot.start)}
@@ -74,12 +75,18 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
         ))
       )}
 
-      {connected && day.windows.length > 0 && (
+      {connected && day?.windows.length > 0 && (
         <div className="tp-key"><span className="tp-slot free" /> Free <span className="tp-slot busy" /> You're busy <span className="tp-slot late" /> Closes too soon</div>
       )}
 
       {picked && (
         <>
+          {picked.state === 'late' && (
+            <div className="tp-warn" role="alert">
+              <b>It closes too soon</b>
+              Closes at {timeText(picked.closes)}, before your plan ends. You can still pick this time.
+            </div>
+          )}
           {clash.length > 0 && (
             <div className="tp-warn" role="alert">
               <b>You're busy then</b>
@@ -87,7 +94,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
             </div>
           )}
           <button type="button" className="step-btn primary full-width" onClick={() => onPick(picked.start)}>
-            Pick {longDay(picked.start)} · {rangeText(picked.start, end)}{clash.length ? ' anyway' : ''}
+            Pick {longDay(picked.start)} · {rangeText(picked.start, end)}{clash.length || picked.state === 'late' ? ' anyway' : ''}
           </button>
         </>
       )}
