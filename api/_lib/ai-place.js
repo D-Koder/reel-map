@@ -499,6 +499,11 @@ const flat = (text) => String(text || '').replace(/\s+/g, ' ').trim().toLocaleLo
 const squash = (text) => String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase()
   .replace(/[^\p{L}\p{N}]+/gu, '');
 
+// True when a quote is really in the caption. It may differ from the caption in spacing and punctuation
+// only (the AI turns "（週六）" into "(週六)" or adds a space), so letters and numbers alone are compared too.
+const inCaption = (caption, quote) => flat(caption).includes(flat(quote)) ||
+  (squash(quote).length >= 2 && squash(caption).includes(squash(quote)));
+
 // The other-script spelling, when it is the same name: as many characters, every changed one Chinese.
 function otherScript(name, other) {
   const from = [...String(name || '').trim()];
@@ -566,7 +571,7 @@ function inPostYear(dayText, post) {
 function checkDates(answer, post) {
   const none = { startDate: '', endDate: '', dateEvidence: '', runs: [] };
   const evidence = String(answer.date_evidence || '');
-  if (!evidence || !flat(post.caption).includes(flat(evidence))) return none;
+  if (!evidence || !inCaption(post.caption, evidence)) return none;
   const posted = dayNumber(post.postDay || '');
   // A date is kept when it is within a year of the post, or when the caption writes out its year ("14–18
   // June 2028"): that date is clear however far away it is (up to five years, so a stray number isn't read as one).
@@ -588,7 +593,7 @@ function checkDates(answer, post) {
   // Hours count only when they are real times and the words for them are in the caption.
   const time = /^([01]\d|2[0-3]):[0-5]\d$/;
   const timeEvidence = String(answer.time_evidence || '');
-  const hasHours = time.test(answer.open_time || '') && timeEvidence && flat(post.caption).includes(flat(timeEvidence));
+  const hasHours = time.test(answer.open_time || '') && timeEvidence && inCaption(post.caption, timeEvidence);
   const open = hasHours ? answer.open_time : '';
   const close = hasHours && time.test(answer.close_time || '') ? answer.close_time : '';
 
@@ -603,7 +608,7 @@ function checkDates(answer, post) {
   }
   // "All day" counts only when the caption says so in words; days with no times are left unknown, not all day.
   const allDayEvidence = String(answer.all_day_evidence || '');
-  const allDay = answer.all_day === true && allDayEvidence && flat(post.caption).includes(flat(allDayEvidence));
+  const allDay = answer.all_day === true && allDayEvidence && inCaption(post.caption, allDayEvidence);
   const runs = splitOverlaps(stretches
     .sort((a, b) => a[0] - b[0])
     .map(([from, to, from_open, to_close]) => ({ start: iso(from), end: iso(to), open: from_open, close: to_close })))
@@ -631,9 +636,9 @@ function checkExtras(answer, post) {
   const bookEvidence = String(answer.how_to_book_evidence || '');
   const howToBook = String(answer.how_to_book || '').trim().slice(0, 100);
   return {
-    howToBook: howToBook && bookEvidence && flat(caption).includes(flat(bookEvidence)) ? howToBook : '',
-    locationNote: locationNote && locationEvidence && flat(caption).includes(flat(locationEvidence)) ? locationNote : '',
-    price: price && priceEvidence && flat(caption).includes(flat(priceEvidence)) ? price : '',
+    howToBook: howToBook && bookEvidence && inCaption(caption, bookEvidence) ? howToBook : '',
+    locationNote: locationNote && locationEvidence && inCaption(caption, locationEvidence) ? locationNote : '',
+    price: price && priceEvidence && inCaption(caption, priceEvidence) ? price : '',
     contact: [...new Set([...emails, ...phones])].join(' / ').slice(0, 120),
   };
 }
