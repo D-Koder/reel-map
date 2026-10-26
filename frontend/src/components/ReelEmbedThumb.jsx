@@ -1,4 +1,6 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { coverFor, savedCover } from '../lib/reelCover';
+import { isRedNoteUrl } from '../lib/shareText';
 
 // Each platform's official embed: the size it is laid out at (then scaled down to the box's width)
 // and how much of the bottom is cut off (0: the whole embed shows, untouched).
@@ -19,6 +21,8 @@ export function reelEmbed(reelUrl) {
   } catch {
     return null;
   }
+  // RedNote has no embed: its cover picture is shown instead (RedNoteCover).
+  if (isRedNoteUrl(reelUrl)) return { platform: 'rednote', width: 0, height: 0, footer: 0, src: '' };
   const instagram = url.pathname.match(/^\/(?:[^/]+\/)?(reel|reels|p)\/([^/]+)/);
   if (/(^|\.)instagram\.com$/.test(url.hostname) && instagram) {
     const kind = instagram[1] === 'p' ? 'p' : 'reel';
@@ -32,10 +36,35 @@ export function reelEmbed(reelUrl) {
   return null;
 }
 
-// A reel's official embed (Instagram or TikTok), scaled down to the box's width (set in CSS); the
-// box's height follows. Nothing is drawn over it. Taps go to the button around it, which opens the
-// reel, because the scaled-down player is too small to use.
-export default function ReelEmbedThumb({ reelUrl, className = '' }) {
+// A reel's thumbnail: its platform's own embed (Instagram, TikTok), or RedNote's cover picture. Taps go to the
+// button around it, which opens the reel.
+export default function ReelEmbedThumb(props) {
+  return isRedNoteUrl(props.reelUrl) ? <RedNoteCover {...props} /> : <EmbedFrame {...props} />;
+}
+
+// A RedNote note's cover picture, loaded straight from RedNote's server (no referrer sent, so its image
+// host doesn't turn it away). Until it arrives, or when it can't be shown, a plain RedNote-red tile.
+function RedNoteCover({ reelUrl, className = '' }) {
+  const [cover, setCover] = useState(() => savedCover(reelUrl));
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let current = true;
+    setFailed(false);
+    coverFor(reelUrl).then((link) => current && setCover(link));
+    return () => { current = false; };
+  }, [reelUrl]);
+  return (
+    <span className={`${className} reel-embed-thumb is-rednote is-loaded`}>
+      {cover && !failed
+        ? <img src={cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setFailed(true)} />
+        : <span className="rednote-tile">RedNote</span>}
+    </span>
+  );
+}
+
+// The official embed, scaled down to the box's width (set in CSS); the box's height follows. Nothing is
+// drawn over it: the scaled-down player is too small to use.
+function EmbedFrame({ reelUrl, className = '' }) {
   const boxRef = useRef(null);
   const [scale, setScale] = useState(0);
   // The box shows a light placeholder until the player has loaded, then the player fades in.

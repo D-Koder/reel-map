@@ -5241,3 +5241,29 @@ button.profile-open {
 .evt-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .evt-link-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; }
 .evt-link-chip span { overflow-wrap: anywhere; }
+
+/* RedNote has no embed: its cover picture, or a RedNote-red tile when there is none (ReelEmbedThumb). */
+.reel-embed-thumb.is-rednote,
+.reel-embed-thumb.is-rednote.is-loaded {
+  background: #ff2442;
+  animation: none;
+}
+
+.reel-embed-thumb.is-rednote img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reel-embed-thumb .rednote-tile {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
