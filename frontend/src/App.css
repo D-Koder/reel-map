@@ -5337,3 +5337,18 @@ button.profile-open {
 .pin-thumbnail.reel-embed-thumb .rednote-tile small {
   display: none;
 }
+
+/* The place's Google photo behind the RedNote card, under a red tint so the white title stays readable. */
+.reel-embed-thumb.is-rednote.has-photo .rednote-tile {
+  background: linear-gradient(160deg, rgba(255, 36, 66, 0.72) 0%, rgba(150, 8, 32, 0.9) 100%);
+}
+
+.reel-embed-thumb .rednote-tile em {
+  font-size: 8px;
+  font-style: normal;
+  opacity: 0.8;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile em {
+  display: none;
+}

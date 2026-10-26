@@ -1,6 +1,8 @@
 // A RedNote note read with one plain request, no browser: the short link redirects to the note's page,
 // whose HTML carries the note's own data (window.__INITIAL_STATE__) and meta tags. Much lighter than
 // Chrome, and less likely to be stopped by a bot check. Returns { reel } or { reason }.
+const { isRedNoteUrl } = require('./reel-url');
+
 const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 const metaContent = (html, key) => {
@@ -37,6 +39,8 @@ async function fetchRedNote(reelUrl) {
   }
   const html = await response.text().catch(() => '');
   const landed = new URL(response.url).hostname;
+  // A redirect that left RedNote (an open redirect on one of its pages) is not read or passed on.
+  if (!isRedNoteUrl(response.url)) return { reason: `redirected away from RedNote to ${landed}` };
   if (!response.ok) return { reason: `HTTP ${response.status} from ${landed}` };
   const note = noteFromState(html);
   const title = note?.title || metaContent(html, 'og:title').replace(/\s*-\s*小红书$/, '');

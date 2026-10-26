@@ -351,7 +351,7 @@ export default function PinModal({
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
             {reelEmbed(place.reel_url)
-              ? <ReelEmbedThumb reelUrl={place.reel_url} className="reel-thumbnail-small" />
+              ? <ReelEmbedThumb reelUrl={place.reel_url} mapsUrl={place.maps_url} className="reel-thumbnail-small" />
               : <PlaceThumb place={place} className="reel-thumbnail-small" />}
           </button>
           <div className="reel-info-small">

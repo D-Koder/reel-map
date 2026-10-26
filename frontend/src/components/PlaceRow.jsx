@@ -109,7 +109,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
         >
           {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
           {reelEmbed(pin.reel_url)
-            ? <ReelEmbedThumb reelUrl={pin.reel_url} className="pin-thumbnail" />
+            ? <ReelEmbedThumb reelUrl={pin.reel_url} mapsUrl={pin.maps_url} className="pin-thumbnail" />
             : <PlaceThumb place={pin} className="pin-thumbnail" />}
           {/* The booked date hangs off the photo on a solid tab, so it never blends into the picture. */}
           {pin.booking && !isDone && (
