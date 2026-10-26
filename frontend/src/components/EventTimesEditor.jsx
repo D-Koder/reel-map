@@ -206,6 +206,9 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
           </button>
         </div>
       )))}
+      {!runs.some((run) => run.start) && openIndex < 0 && (
+        <div className="evt-warn-note" role="alert">⚠️ No date set. Add the dates, or check the post for them before you save.</div>
+      )}
       {openIndex < 0 && (
         <button type="button" className="evt-link" onClick={add} disabled={disabled}>
           {runs.length ? '+ Add more dates' : '+ Add dates'}
