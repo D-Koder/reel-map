@@ -263,7 +263,6 @@ export default function PinModal({
     }
     const controller = new AbortController();
     setFreeTime({ state: 'checking', busy: [] });
-    setPickedSlot(0);
     const from = new Date();
     busyFor(connection, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
       .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', busy }))
