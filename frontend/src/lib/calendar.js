@@ -28,12 +28,19 @@ export function addToCalendar({ title, location, description, start, minutes = 1
   ].filter(Boolean);
 
   const ics = lines.join('\r\n');
+  const sharedFile = typeof File === 'function' ? new File([ics], 'reel-map-event.ics', { type: 'text/calendar' }) : null;
   // iPhone and iPad: opening the event as a data link shows "Add to Calendar". A download there
   // only saves the file to Files, so the event never reaches the calendar.
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (isIos) {
-    window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+    const openAsLink = () => { window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`; };
+    // The share sheet lists Calendar for an .ics file and works where opening a data link does nothing.
+    if (sharedFile && navigator.canShare?.({ files: [sharedFile] })) {
+      navigator.share({ files: [sharedFile], title }).catch((error) => { if (error?.name !== 'AbortError') openAsLink(); });
+    } else {
+      openAsLink();
+    }
     return;
   }
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
@@ -46,4 +53,18 @@ export function addToCalendar({ title, location, description, start, minutes = 1
   link.remove();
   // Revoking straight away can cancel the download before the browser reads the file.
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// A link that opens Google Calendar with the event filled in (its app on a phone, the site elsewhere).
+export function googleCalendarUrl({ title, location, description, start, minutes = 120 }) {
+  const startDate = new Date(start);
+  const stamp = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: `${stamp(startDate)}/${stamp(new Date(startDate.getTime() + minutes * 60 * 1000))}`,
+  });
+  if (location) params.set('location', location);
+  if (description) params.set('details', description);
+  return `https://calendar.google.com/calendar/render?${params}`;
 }

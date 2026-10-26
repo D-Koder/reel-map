@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
-import { addToCalendar } from '../lib/calendar';
+import { addToCalendar, googleCalendarUrl } from '../lib/calendar';
 import { apiFetch } from '../lib/api';
 import { shareBooking, sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
@@ -243,14 +243,15 @@ export default function PinModal({
   };
 
   // Step 3: opens the planned date as a calendar event.
+  const calendarEvent = () => ({
+    title: calendarTitle.trim() || place.name,
+    location: place.address,
+    description: place.reel_url,
+    start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
+    minutes: planMinutes || DEFAULT_PLAN_MINUTES,
+  });
   const saveToCalendar = () => {
-    addToCalendar({
-      title: calendarTitle.trim() || place.name,
-      location: place.address,
-      description: place.reel_url,
-      start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
-      minutes: planMinutes || DEFAULT_PLAN_MINUTES,
-    });
+    addToCalendar(calendarEvent());
     showToast(`Added "${calendarTitle}" to calendar`);
     completeStep(3);
   };
@@ -535,6 +536,7 @@ export default function PinModal({
                         connected={freeTime.state === 'ready'}
                         minutes={planMinutes}
                         onMinutes={setPlanMinutes}
+                        value={timeChosen && reservationDate ? new Date(reservationDate) : null}
                         onPick={(start) => { setReservationDate(toLocalInputValue(start)); setTimeChosen(true); completeStep(1); }}
                       />
                     ) : (
@@ -629,8 +631,17 @@ export default function PinModal({
                   onChange={(e) => setCalendarTitle(e.target.value)}
                   aria-label="Calendar event title"
                 />
-                <button className="step-btn primary full-width" onClick={saveToCalendar}>
-                  <CalendarPlus className="ico" aria-hidden="true" /> Add to my calendar
+                <a
+                  className="step-btn primary book-link full-width"
+                  href={googleCalendarUrl(calendarEvent())}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => completeStep(3)}
+                >
+                  <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
+                </a>
+                <button className="step-btn secondary full-width" onClick={saveToCalendar}>
+                  <CalendarDays className="ico" aria-hidden="true" /> Add to Apple or other calendar
                 </button>
                 <button type="button" className="step-link" onClick={() => completeStep(3)}>Done</button>
               </div>

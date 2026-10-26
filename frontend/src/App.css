@@ -3625,17 +3625,24 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 
 /* Room for the date tab under the photo. */
 .place-thumb-link:has(.date-tab) {
-  margin-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.date-tab-line {
+  display: block;
 }
 
 .date-tab {
   position: absolute;
   left: 50%;
-  bottom: -11px;
+  bottom: -17px;
   transform: translateX(-50%);
-  white-space: nowrap;
+  /* The day over the time, so the tab is no wider than the photo. */
+  width: max-content;
+  max-width: calc(100% + 6px);
+  text-align: center;
   padding: 1px 6px;
-  border-radius: var(--radius-pill);
+  border-radius: 10px;
   background: var(--mint);
   color: #0b2a1c;
   border: 1.5px solid var(--ink);
@@ -5448,7 +5455,7 @@ button.profile-open {
   margin-bottom: 12px;
 }
 
-.book-link {
+.step-btn.book-link {
   display: flex;
   align-items: center;
   justify-content: center;

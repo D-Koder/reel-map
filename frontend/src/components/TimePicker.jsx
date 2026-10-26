@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MIN_PLAN_MINUTES, PLAN_LENGTHS, pickerDays } from '../lib/freeSlot';
 
 const dayName = (date) => date.toLocaleDateString(undefined, { weekday: 'short' });
@@ -11,14 +11,15 @@ const longDay = (date) => `${dayName(date)} ${date.getDate()} ${date.toLocaleDat
 // hatched, and times the place would close before the plan ends are faded. Both can still be picked, with a
 // warning that says why. Times show once a day is chosen. A plan is just a start time; once a time is picked,
 // a length (`minutes`, null for none) can be added, which only changes what counts as busy or too late.
-// `busy` is [{ start, end }] Dates; `connected` says whether it came from a calendar.
-export default function TimePicker({ hours, busy, connected, minutes, onMinutes, onPick }) {
+// `busy` is [{ start, end }] Dates; `connected` says whether it came from a calendar. `value` is a time already
+// picked (coming back with Back), which starts the picker on that day with that time chosen.
+export default function TimePicker({ hours, busy, connected, minutes, onMinutes, value, onPick }) {
   const days = useMemo(() => pickerDays(hours, busy, new Date(), minutes || MIN_PLAN_MINUTES), [hours, busy, minutes]);
-  const [dayIndex, setDayIndex] = useState(null);
-  const [pickedAt, setPickedAt] = useState(null);
-
-  // Another day starts the pick over.
-  useEffect(() => setPickedAt(null), [dayIndex]);
+  const [selected, setSelected] = useState(() => {
+    const index = value ? days.findIndex((item) => item.date.toDateString() === value.toDateString()) : -1;
+    return index < 0 ? { dayIndex: null, pickedAt: null } : { dayIndex: index, pickedAt: value.getTime() };
+  });
+  const { dayIndex, pickedAt } = selected;
 
   const day = dayIndex == null ? null : days[dayIndex];
   // The picked time as the current length sees it, so adding a length updates the warnings.
@@ -36,7 +37,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
             className={`tp-day ${item.status}`}
             aria-pressed={i === dayIndex}
             disabled={item.status === 'past'}
-            onClick={() => setDayIndex(i)}
+            onClick={() => setSelected({ dayIndex: i, pickedAt: null })}
           >
             <small>{dayName(item.date)}</small>
             <b>{item.date.getDate()}</b>
@@ -61,7 +62,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
                   type="button"
                   className={`tp-slot ${slot.state}`}
                   aria-pressed={pickedAt === slot.start.getTime()}
-                  onClick={() => setPickedAt(slot.start.getTime())}
+                  onClick={() => setSelected({ dayIndex, pickedAt: slot.start.getTime() })}
                 >
                   {timeText(slot.start)}
                 </button>

@@ -115,7 +115,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
           {pin.booking && !isDone && (
             <span className="date-tab">
               <span className="sr-only">Planned for </span>
-              {formatChipDate(pin.booking.planned_at)}
+              {formatChipDate(pin.booking.planned_at).split(/ (?=[^ ]+$)/).map((part) => <span key={part} className="date-tab-line">{part}</span>)}
             </span>
           )}
         </button>
