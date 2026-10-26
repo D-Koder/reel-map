@@ -5411,32 +5411,6 @@ button.profile-open {
   cursor: pointer;
 }
 
-.slot-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.slot-chip {
-  min-height: 44px;
-  padding: 0 14px;
-  border: 2px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.slot-chip[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
-}
-
 .picked-time {
   display: flex;
   align-items: center;

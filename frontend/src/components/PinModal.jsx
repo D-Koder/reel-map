@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -14,7 +14,7 @@ import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { groupedHours, openStatus, suburbOf } from '../lib/hours';
 import { busyFor, savedConnection } from '../lib/calendarLink';
 import { NeedsGoogleTap } from '../lib/googleCalendar';
-import { DEFAULT_PLAN_MINUTES, MIN_PLAN_MINUTES, slotChip, slotLabel, suggestSlots } from '../lib/freeSlot';
+import { DEFAULT_PLAN_MINUTES } from '../lib/freeSlot';
 import TimePicker from './TimePicker';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
@@ -197,15 +197,12 @@ export default function PinModal({
   }, [place.id, place.address, place.lat, place.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
   // Step 1 compares the place's hours with the person's calendar: 'none' (not connected), 'checking',
-  // 'tap' (Google is connected but needs a tap this visit), 'failed', or 'ready' with up to 4 times they're free
-  // and it's open. `busy` is what the calendar says they're doing.
+  // 'tap' (Google is connected but needs a tap this visit), 'failed', or 'ready'. `busy` is what the calendar
+  // says they're doing, which the time picker hatches.
   const [connection, setConnection] = useState(() => savedConnection(userId));
   const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', busy: [] });
   // An optional length for the plan, 30 minutes to an hour (null for none): it decides which times count as free.
   const [planMinutes, setPlanMinutes] = useState(null);
-  // Step 1: which free time is picked, and whether the person is choosing their own time instead.
-  const [pickedSlot, setPickedSlot] = useState(0);
-  const [ownTime, setOwnTime] = useState(false);
   // The time set in step 1 (an event takes its time in step 2 instead).
   const [timeChosen, setTimeChosen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -288,11 +285,7 @@ export default function PinModal({
     place?.booking_url && { label: 'Reserve a table', href: place.booking_url, Icon: Ticket },
     place?.url && { label: 'Open link', href: place.url, Icon: Link },
   ].filter(Boolean);
-  // Step 1 text. No calendar, no suggested time: the hours are all there is to show.
-  const slots = useMemo(
-    () => (freeTime.state === 'ready' ? suggestSlots(hours, freeTime.busy, new Date(), 4, planMinutes || MIN_PLAN_MINUTES) : []),
-    [freeTime, planMinutes, place.hours], // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  // Step 1 text. Without a calendar every open time can be picked; with one, busy times are hatched.
   const hoursSummary = hasRuns
     ? eventSummary(place.name, runs, place.event_price)
     : freeTime.state === 'checking'
@@ -302,11 +295,10 @@ export default function PinModal({
     : freeTime.state === 'failed'
     ? "Couldn't read your calendar. Check the link or reconnect it."
     : freeTime.state === 'ready'
-    ? (slots.length ? "Times you're free, when it's open." : `You have no free time in the next 2 weeks when ${place.name} is open.`)
+    ? "Hatched times are when you're busy. You can still pick them."
     : !hours.length
     ? "We don't have opening hours for this place yet, so check before you go."
-    : "Connect your calendar and we'll show times you're free.";
-  const chosenSlot = !ownTime ? slots[pickedSlot] : null;
+    : "Connect your calendar to see when you're busy.";
   // The booking help in step 2: only what this place has.
   const bookingActions = [
     place?.booking_url && { label: bookingLabel(place.booking_url), href: place.booking_url, Icon: Ticket, primary: true },
@@ -533,10 +525,10 @@ export default function PinModal({
                       <button className="step-btn secondary" onClick={onClose}>Not now</button>
                     </div>
                   </>
-                ) : ownTime || !hours.length ? (
+                ) : (
                   <>
-                    <div className="step-title">Choose a time</div>
-                    {!hours.length && <div className="step-description">{hoursSummary}</div>}
+                    <div className="step-title">Pick a time</div>
+                    <div className="step-description">{hoursSummary}</div>
                     {hours.length > 0 ? (
                       <TimePicker
                         hours={hours}
@@ -563,46 +555,7 @@ export default function PinModal({
                         </button>
                       </>
                     )}
-                    {hours.length > 0 && <button type="button" className="step-link" onClick={() => setOwnTime(false)}>Back</button>}
-                  </>
-                ) : (
-                  <>
-                    <div className="step-title">Pick a time</div>
-                    <div className="step-description">{hoursSummary}</div>
-                    {slots.length > 0 && (
-                      <div className="slot-chips" role="group" aria-label="Free times">
-                        {slots.map((slot, i) => (
-                          <button
-                            key={slot.start.getTime()}
-                            type="button"
-                            className="slot-chip"
-                            aria-pressed={i === pickedSlot}
-                            onClick={() => setPickedSlot(i)}
-                          >
-                            {slotChip(slot.start)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {chosenSlot && (
-                      <button
-                        className="step-btn primary full-width"
-                        onClick={() => {
-                          setReservationDate(toLocalInputValue(chosenSlot.start));
-                          setTimeChosen(true);
-                          completeStep(1);
-                        }}
-                      >
-                        Pick {slotLabel(chosenSlot.start)}
-                      </button>
-                    )}
-                    {!connection.kind && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
-                    {freeTime.state !== 'checking' && (
-                      <button type="button" className="step-link" onClick={() => setOwnTime(true)}>
-                        {slots.length ? 'Choose another time' : "I'll choose a time myself"}
-                      </button>
-                    )}
-                    {connection.kind && <CalendarConnect userId={userId} connection={connection} needsTap={freeTime.state === 'tap'} onChange={setConnection} />}
+                    {hours.length > 0 && <CalendarConnect userId={userId} connection={connection} needsTap={freeTime.state === 'tap'} onChange={setConnection} />}
                   </>
                 )}
               </div>
