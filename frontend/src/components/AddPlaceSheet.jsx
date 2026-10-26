@@ -604,21 +604,37 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
+  // The last verify: the name and address searched, its results, and whether its match filled the form. The
+  // binoculars pressed again with the same text reuse these instead of paying for the same Google searches.
+  // Only kept while the sheet is open.
+  const lastVerifyRef = useRef(null);
+
   const verifyLocation = async () => {
     const address = location.trim();
     const placeName = name.trim();
     if (!address) return;
+    const key = `${placeName}\n${address}`;
+    const last = lastVerifyRef.current?.key === key ? lastVerifyRef.current : null;
+    if (last?.applied && mapsData) {
+      addLog('Already verified on Google Maps.', 'info');
+      return;
+    }
     setVerifyingLocation(true);
     setVerifyCandidate(null);
     setVerifyResults(null);
     try {
       // Name + address first. If Google finds nothing, retry with the address alone.
-      let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
-      if (!candidates.length) candidates = await searchCandidates(address);
+      let candidates = last?.candidates;
+      if (!candidates) {
+        candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
+        if (!candidates.length) candidates = await searchCandidates(address);
+        lastVerifyRef.current = { key, candidates, applied: false };
+      }
       // One result, or one whose name matches the name or the address's first part: use it straight away.
       const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1), address);
       if (best) {
         await selectLocationCandidate({ ...best, searchQuery: address }, true, placeName && !namedLike(best, [placeName]) ? placeName : '');
+        if (lastVerifyRef.current?.key === key) lastVerifyRef.current.applied = true;
         return;
       }
       setVerifyResults(relatedPlaces(candidates, [placeName]));
@@ -1009,7 +1025,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     aria-label="Open reel"
                     onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
                   >
-                    <ReelEmbedThumb reelUrl={reelUrl} className="pin-thumbnail" />
+                    <ReelEmbedThumb reelUrl={reelUrl} mapsUrl={mapsData?.mapsUrl} className="pin-thumbnail" />
                   </button>
                 ) : (
                   <button

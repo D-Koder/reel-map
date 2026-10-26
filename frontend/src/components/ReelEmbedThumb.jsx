@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { coverFor, savedCover } from '../lib/reelCover';
+import { forgetPhoto, photoFor, placeIdFromMapsUrl } from '../lib/placePhoto';
 import { isRedNoteUrl } from '../lib/shareText';
 
 // Each platform's official embed: the size it is laid out at (then scaled down to the box's width)
@@ -39,31 +40,50 @@ export function reelEmbed(reelUrl) {
 // A reel's thumbnail: its platform's own embed (Instagram, TikTok), or RedNote's cover picture. Taps go to the
 // button around it, which opens the reel.
 export default function ReelEmbedThumb(props) {
+  // mapsUrl: the place's saved Google Maps link, so a RedNote card can show the place's Google photo behind it.
   return isRedNoteUrl(props.reelUrl) ? <RedNoteCover {...props} /> : <EmbedFrame {...props} />;
 }
 
-// A RedNote note's cover picture, loaded straight from RedNote's server (no referrer sent, so its image
-// host doesn't turn it away). Until it arrives, or when it can't be shown, a plain RedNote-red tile.
-function RedNoteCover({ reelUrl, className = '' }) {
-  const [cover, setCover] = useState(() => savedCover(reelUrl));
+// A RedNote note's cover picture, loaded straight from RedNote's server (no referrer sent). When it can't be
+// shown (RedNote's image host may refuse it, and that is respected: it isn't fetched any other way), a RedNote-red
+// card with the note's title.
+function RedNoteCover({ reelUrl, mapsUrl = '', className = '' }) {
+  const [saved] = useState(() => savedCover(reelUrl));
+  const [cover, setCover] = useState(saved?.coverUrl || '');
+  const [title, setTitle] = useState(saved?.title || '');
   const [failed, setFailed] = useState(false);
-  // Why there is no picture, written on the tile while the covers are tried out.
-  const [why, setWhy] = useState('');
+  // The place's own Google photo behind the card, when it has a Google place id and a photo.
+  const [photo, setPhoto] = useState(null);
+  const placeId = placeIdFromMapsUrl(mapsUrl);
+  useEffect(() => {
+    let current = true;
+    setPhoto(null);
+    photoFor(placeId).then((found) => current && setPhoto(found));
+    return () => { current = false; };
+  }, [placeId]);
   useEffect(() => {
     let current = true;
     setFailed(false);
-    coverFor(reelUrl).then(({ coverUrl, reason }) => {
+    coverFor(reelUrl).then((found) => {
       if (!current) return;
-      setCover(coverUrl);
-      setWhy(reason);
+      setCover(found.coverUrl);
+      setTitle(found.title);
     });
     return () => { current = false; };
   }, [reelUrl]);
   return (
-    <span className={`${className} reel-embed-thumb is-rednote is-loaded`}>
+    <span className={`${className} reel-embed-thumb is-rednote is-loaded${photo && !(cover && !failed) ? ' has-photo' : ''}`}>
       {cover && !failed
         ? <img src={cover} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setFailed(true)} />
-        : <span className="rednote-tile">RedNote<small>{failed ? 'image refused' : why || 'looking…'}</small></span>}
+        : (
+          <>
+            {photo && <img src={photo.url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => { forgetPhoto(placeId); setPhoto(null); }} />}
+            <span className="rednote-tile">
+              <i>RedNote</i>{title && <b>{title}</b>}<small>View note ↗</small>
+              {photo?.attribution && <em>Photo: {photo.attribution}</em>}
+            </span>
+          </>
+        )}
     </span>
   );
 }
