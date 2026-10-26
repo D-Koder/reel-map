@@ -101,7 +101,7 @@ function detailsOf(place, placeId) {
 // key in it), shown by the app straight from Google: nothing is downloaded or kept here. Two billed calls: the
 // photo's name, then its address.
 async function placePhoto(placeId) {
-  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'photos.name,photos.authorAttributions' });
+  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'photos' });
   const photo = place.photos?.[0];
   if (!photo?.name || !photo.name.startsWith('places/')) {
     console.warn('Place photo: no usable photo in', JSON.stringify(place).slice(0, 300));
