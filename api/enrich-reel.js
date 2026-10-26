@@ -2,6 +2,7 @@ const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
 const { expandTikTokUrl, isRedNoteUrl, reelLookupKey } = require('./_lib/reel-url');
+const { fetchRedNote } = require('./_lib/rednote-fetch');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
@@ -242,18 +243,28 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
 // a server, so then what its share text gave (the start of the caption before the link) is the caption:
 // cut off ("…"), but it usually names the area and the dish or venue.
 async function readRedNote(reelUrl, sharedText, getBrowser) {
+  // What each try gave, for the Add place log: why a page wasn't read is otherwise invisible.
+  const tried = [];
+  const quick = await fetchRedNote(reelUrl);
+  if (quick.reel) {
+    tried.push(`plain request: ${quick.complete ? 'full note' : 'meta description only (may be cut short)'}`);
+    return { reel: quick.reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+  }
+  tried.push(`plain request: ${quick.reason}`);
   const page = await invoke(scrapeReel, { reelUrl }, getBrowser);
   if (page.statusCode < 400 && page.body?.success && page.body.caption) {
-    return { reel: { ...page.body, reelUrl }, venue: '', candidates: null, fromCache: false };
+    tried.push('browser: read the page');
+    return { reel: { ...page.body, reelUrl }, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
   }
-  console.warn('RedNote page not read; using the share text:', page.body?.error);
+  tried.push(`browser: ${page.body?.error || `HTTP ${page.statusCode}`}`);
+  console.warn('RedNote page not read; using the share text:', tried.join(' | '));
   const caption = String(typeof sharedText === 'string' ? sharedText : '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 1000);
   if (!caption) return { status: 200, body: { error: 'RedNote shared no caption' } };
   const reel = {
     success: true, reelUrl, caption, creator: null, likes: null, comments: null, placeName: '', location: '',
     date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'share',
   };
-  return { reel, venue: '', candidates: null, fromCache: false };
+  return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
 }
 
 // Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
@@ -499,6 +510,7 @@ async function enrich(req, res, getBrowser) {
   // What the lookup did, for the Add place log: what the AI found and what Google Maps was asked.
   const steps = {
     source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : read.reel.source === 'rednote' ? 'RedNote page' : 'Instagram',
+    ...(read.tried ? { redNote: read.tried } : {}),
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {

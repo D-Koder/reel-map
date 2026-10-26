@@ -272,6 +272,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const steps = data.steps;
     if (steps) {
       addLog(`Read from: ${steps.source}`, 'info');
+      if (steps.redNote) addLog(`RedNote: ${steps.redNote}`, 'info');
       if (data.tagged?.length) addLog(`Tagged accounts: ${data.tagged.map((handle) => `@${handle}`).join(', ')}`, 'info');
       addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
       if (steps.category) addLog(`Category: ${steps.category}`, 'info');
