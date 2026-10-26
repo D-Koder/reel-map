@@ -238,9 +238,15 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   return { reel, venue: '', candidates: null, fromCache: false };
 }
 
-// A RedNote post can't be opened without logging in. What its share text gave (the start of the caption
-// before the link) is the caption: cut off ("…"), but it usually names the area and the dish or venue.
-function readSharedNote(reelUrl, sharedText) {
+// A RedNote post: the page is tried first, for the full caption. It often shows a login wall or a check to
+// a server, so then what its share text gave (the start of the caption before the link) is the caption:
+// cut off ("…"), but it usually names the area and the dish or venue.
+async function readRedNote(reelUrl, sharedText, getBrowser) {
+  const page = await invoke(scrapeReel, { reelUrl }, getBrowser);
+  if (page.statusCode < 400 && page.body?.success && page.body.caption) {
+    return { reel: { ...page.body, reelUrl }, venue: '', candidates: null, fromCache: false };
+  }
+  console.warn('RedNote page not read; using the share text:', page.body?.error);
   const caption = String(typeof sharedText === 'string' ? sharedText : '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 1000);
   if (!caption) return { status: 200, body: { error: 'RedNote shared no caption' } };
   const reel = {
@@ -468,7 +474,7 @@ async function enrich(req, res, getBrowser) {
     }
   };
   const read = isRedNoteUrl(reelUrl)
-    ? readSharedNote(reelUrl, req.body?.sharedText)
+    ? await timed('read RedNote', () => readRedNote(reelUrl, req.body?.sharedText, getBrowser))
     : await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
@@ -492,7 +498,7 @@ async function enrich(req, res, getBrowser) {
   let aiOrderOnly = false;
   // What the lookup did, for the Add place log: what the AI found and what Google Maps was asked.
   const steps = {
-    source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : 'Instagram',
+    source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : read.reel.source === 'rednote' ? 'RedNote page' : 'Instagram',
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {
