@@ -104,6 +104,8 @@ async function placePhoto(placeId) {
   const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'id,displayName,photos' });
   const photo = place.photos?.[0];
   if (!photo?.name || !photo.name.startsWith('places/')) {
+    const all = await call(`/places/${encodeURIComponent(placeId)}`, { fields: '*' }).catch((error) => ({ error: error.message }));
+    console.warn('Place photo: full reply has', Object.keys(all).join(','), 'photos:', JSON.stringify(all.photos || all.error || null).slice(0, 200));
     console.warn('Place photo: no usable photo in', JSON.stringify(place).slice(0, 300));
     return null;
   }
