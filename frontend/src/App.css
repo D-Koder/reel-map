@@ -5352,3 +5352,13 @@ button.profile-open {
 .pin-thumbnail.reel-embed-thumb .rednote-tile em {
   display: none;
 }
+
+/* Check Hours: connect a calendar to get a suggested time */
+.calendar-connect { margin: 0 0 12px; }
+.calendar-connect .step-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.calendar-connected { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-muted); }
+.calendar-link-btn { margin-left: 10px; padding: 4px 0; border: none; background: none; font-size: 14px; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+.calendar-help { margin: 0 0 10px; font-size: 14px; color: var(--text-muted); line-height: 1.45; }
+.calendar-help summary { cursor: pointer; }
+.calendar-help p { margin: 6px 0 0; }
+.calendar-error { margin: 0 0 10px; font-size: 14px; color: var(--danger, #b3261e); }

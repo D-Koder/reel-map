@@ -12,8 +12,11 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { openStatus, suburbOf } from '../lib/hours';
+import { fetchBusy, savedCalendarLink } from '../lib/calendarLink';
+import { formatSlot, suggestSlot } from '../lib/freeSlot';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
+import CalendarConnect from './CalendarConnect';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -191,6 +194,10 @@ export default function PinModal({
     return () => controller.abort();
   }, [place.id, place.address, place.lat, place.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
+  // Check Hours compares the place's hours with the person's calendar: 'none' (not connected), 'checking',
+  // 'failed', or 'ready' with the first time they're free and it's open (slot null when there isn't one).
+  const [calendarLink, setCalendarLink] = useState(() => savedCalendarLink(userId));
+  const [freeTime, setFreeTime] = useState({ state: calendarLink ? 'checking' : 'none', slot: null });
   const [now, setNow] = useState(() => Date.now());
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
@@ -251,6 +258,19 @@ export default function PinModal({
   };
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
+  useEffect(() => {
+    if (!calendarLink || !hours.length) {
+      setFreeTime({ state: 'none', slot: null });
+      return undefined;
+    }
+    const controller = new AbortController();
+    setFreeTime({ state: 'checking', slot: null });
+    const from = new Date();
+    fetchBusy(calendarLink, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
+      .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', slot: suggestSlot(hours, busy) }))
+      .catch(() => !controller.signal.aborted && setFreeTime({ state: 'failed', slot: null }));
+    return () => controller.abort();
+  }, [calendarLink, place.id, place.hours]); // eslint-disable-line react-hooks/exhaustive-deps
   // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
   // An event is on at its own times, not the venue's hours (a park is "open 24 hours").
   const runs = place?.category === 'event' ? runsOf(place) : [];
@@ -267,11 +287,21 @@ export default function PinModal({
     place?.url && { label: 'Open link', href: place.url, Icon: Link },
   ].filter(Boolean);
   const satHours = hours.find((h) => /sat/i.test(h.days));
+  // No calendar, no suggested time: the hours are all there is to show.
   const hoursSummary = hasRuns
     ? eventSummary(place.name, runs, place.event_price)
-    : hours.length
-    ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
-    : "We don't have opening hours for this place yet — check before you go.";
+    : !hours.length
+    ? "We don't have opening hours for this place yet — check before you go."
+    : freeTime.state === 'checking'
+    ? 'Checking your calendar…'
+    : freeTime.state === 'failed'
+    ? "Couldn't read your calendar. Check the link or reconnect it. The opening hours are above."
+    : freeTime.state === 'ready'
+    ? (freeTime.slot
+      ? `You're free ${formatSlot(freeTime.slot)}, and ${place.name} is open then. Does that work for you?`
+      : `You have no free time in the next 2 weeks when ${place.name} is open.`)
+    : `Check the opening hours above. Connect your calendar and we'll suggest a time you're free.`;
+  const suggestion = freeTime.state === 'ready' ? freeTime.slot : null;
 
   const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
@@ -480,8 +510,15 @@ export default function PinModal({
                 {stepHead(1)}
                 <div className="step-title"><Clock className="ico" aria-hidden="true" /> {hasRuns ? 'Check times' : 'Check Hours'}</div>
                 <div className="step-description">{hoursSummary}</div>
+                {!hasRuns && hours.length > 0 && <CalendarConnect userId={userId} link={calendarLink} onChange={setCalendarLink} />}
                 <div className="step-buttons">
-                  <button className="step-btn primary" onClick={() => completeStep(1)}>
+                  <button
+                    className="step-btn primary"
+                    onClick={() => {
+                      if (suggestion) setReservationDate(toLocalInputValue(suggestion.start));
+                      completeStep(1);
+                    }}
+                  >
                     Yes, proceed
                   </button>
                   <button className="step-btn secondary" onClick={onClose}>

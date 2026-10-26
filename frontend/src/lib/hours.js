@@ -85,3 +85,13 @@ export function suburbOf(address) {
   // A part that starts with a number is a street, not a suburb.
   return suburb && !/^\d/.test(suburb) ? suburb : null;
 }
+
+// The open times on one calendar day as [{ start, end }] Dates, or null when the hours can't be read for that day.
+// A closing time after midnight ends on the next day. "Closed" gives [].
+export function openWindows(hours, date) {
+  if (!Array.isArray(hours) || !hours.length) return null;
+  const ranges = hoursFor(hours, date.getDay());
+  if (ranges === null) return null;
+  const at = (minutes) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, minutes);
+  return ranges.map((range) => ({ start: at(range.start), end: at(range.end) }));
+}
