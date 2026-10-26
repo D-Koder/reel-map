@@ -5259,12 +5259,28 @@ button.profile-open {
 
 .reel-embed-thumb .rednote-tile small {
   display: block;
-  margin-top: 4px;
-  padding: 0 6px;
-  font-size: 9px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: center;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.reel-embed-thumb .rednote-tile b {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile b {
+  -webkit-line-clamp: 4;
+  font-size: 8px;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile small {
+  font-size: 8px;
 }
 
 .reel-embed-thumb .rednote-tile {
@@ -5274,6 +5290,8 @@ button.profile-open {
   align-items: center;
   flex-direction: column;
   justify-content: center;
+  padding: 8px;
+  text-align: center;
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
