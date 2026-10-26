@@ -12,6 +12,7 @@ module.exports = requireUser(async function handler(req, res) {
   if (!/^[A-Za-z0-9_-]{10,200}$/.test(placeId)) return res.status(400).json({ error: 'Not a Google place id' });
   try {
     const photo = await placesApi.placePhoto(placeId);
+    if (!photo) console.warn('Place photo: Google has no photo for', placeId);
     return res.status(200).json({ photoUrl: photo?.url || '', attribution: photo?.attribution || '' });
   } catch (error) {
     console.warn('Place photo failed:', error.message);
