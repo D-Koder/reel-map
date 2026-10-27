@@ -512,11 +512,14 @@ export default function PinModal({
             {booking?.planned_at ? `Planned for ${formatDateTime(booking.planned_at)}. ` : ''}You're a viewer here, so the owner or an editor plans and marks it done.
           </div>
         ) : isDone && !replanning ? (
-          canEdit && (
-            <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
-              <CalendarPlus className="ico" aria-hidden="true" /> Plan again
-            </button>
-          )
+          <>
+            <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Been there · {formatDate(booking.done_at)} · marked by {nameOf(booking.marked_by)}</div>
+            {canEdit && (
+              <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
+                <CalendarPlus className="ico" aria-hidden="true" /> Plan again
+              </button>
+            )}
+          </>
         ) : wasBooked && !replanning ? (
           <button className="step-btn primary full-width" disabled={doneLocked} onClick={markDone}>
             {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
