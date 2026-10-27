@@ -559,8 +559,6 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         onUpdateCollection={data.updateCollection}
         onSetPrivacy={data.setCollectionPrivate}
         onUpdateProfile={data.updateProfile}
-        onRemoveCollectionMember={data.removeCollectionMember}
-        onDeleteCollection={deleteCollection}
         showToast={showToast}
         onShare={setShareModal}
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
@@ -719,6 +717,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           collection={collections.find((c) => c.id === shareModal.id) ?? shareModal}
           userId={userId}
           onSetRole={(memberId, role) => data.setMemberRole(shareModal.id, memberId, role)}
+          onRemoveMember={(member) => data.removeCollectionMember(shareModal.id, member.id)}
+          onDelete={() => deleteCollection(shareModal.id)}
           places={places.filter((p) => p.collection_id === shareModal.id)}
           onClose={() => setShareModal(null)}
           showToast={showToast}

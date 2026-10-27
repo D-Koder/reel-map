@@ -14,7 +14,7 @@ async function copy(text, label, showToast) {
   }
 }
 
-export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onClose, showToast }) {
+export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onRemoveMember, onDelete, onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
@@ -45,6 +45,16 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
     return () => { cancelled = true; };
   }, [collection.id, getInvite]);
 
+  const removeMember = async (member) => {
+    if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) await onRemoveMember?.(member);
+  };
+
+  const deleteCollection = () => {
+    if (!window.confirm(`Delete "${collection.name}" and remove it for all members?`)) return;
+    onDelete?.();
+    onClose();
+  };
+
   const exportAs = (format) => {
     if (!places.length) {
       showToast('Nothing to export yet');
@@ -58,7 +68,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       <div ref={sheetRef} className="modal edit-sheet share-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" {...sheetDrag} />
         <div className="modal-header">
-          <div className="modal-title">Share "{collection.name}"</div>
+          <div className="modal-title">{isOwner ? 'Share & manage' : 'Share'} "{collection.name}"</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
             <X aria-hidden="true" />
           </button>
@@ -128,7 +138,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                   {member.role === 'owner' ? (
                     <span className="share-member-role"><Crown className="ico" aria-hidden="true" /> Owner</span>
                   ) : isOwner ? (
-                    // The owner picks what each member can do.
+                    // The owner picks what each member can do, or removes them.
+                    <>
                     <span className="role-switch" role="group" aria-label={`${member.display_name}'s role`}>
                       {['viewer', 'editor'].map((role) => (
                         <button
@@ -143,6 +154,10 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                         </button>
                       ))}
                     </span>
+                    <button type="button" className="role-switch-remove" aria-label={`Remove ${member.display_name}`} onClick={() => removeMember(member)}>
+                      <X aria-hidden="true" />
+                    </button>
+                    </>
                   ) : (
                     <span className="share-member-role">
                       {member.role === 'editor'
@@ -154,6 +169,14 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               ))}
             </div>
           </div>
+
+          {isOwner && (
+            <div className="share-section">
+              {collection.isInbox
+                ? <p className="toggle-hint">This is where shared reels land, so it can't be deleted.</p>
+                : <button type="button" className="step-btn danger full-width" onClick={deleteCollection}>Delete collection</button>}
+            </div>
+          )}
         </div>
       </div>
     </div>

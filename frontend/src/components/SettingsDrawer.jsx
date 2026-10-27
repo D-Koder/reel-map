@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -194,9 +194,8 @@ function ShortcutSetup({ showToast }) {
 }
 
 // isInbox: my TBD collection, where shared reels land. It can be renamed but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare }) {
   const [editing, setEditing] = useState(false);
-  const [managing, setManaging] = useState(false);
   const [draft, setDraft] = useState(collection.name);
   const owner = collection.members.find((m) => m.role === 'owner');
 
@@ -256,14 +255,11 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
       </div>
       {isOwner && (
         <div className="collection-icons">
-          <button className="collection-icon" onClick={() => setManaging((open) => !open)} title="Manage collection" aria-label="Manage collection" aria-expanded={managing}>
-            <Settings aria-hidden="true" />
-          </button>
           <button
             className="collection-icon"
             onClick={() => onShare(collection)}
-            title="Share collection"
-            aria-label="Share"
+            title="Share and manage"
+            aria-label="Share and manage"
           >
             <Share2 aria-hidden="true" />
           </button>
@@ -275,21 +271,6 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           >
             {collection.isPrivate ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
           </button>
-        </div>
-      )}
-      {isOwner && managing && (
-        <div className="collection-manage-panel">
-          <div className="collection-manage-heading">Members</div>
-          {collection.members.map((member) => (
-            <div className="collection-member-row" key={member.id}>
-              <span>{member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}</span>
-              <span className="collection-member-label">{member.display_name}{member.role === 'owner' ? ' · Owner' : ''}</span>
-              {member.role !== 'owner' && <button type="button" className="collection-icon" aria-label={`Remove ${member.display_name}`} onClick={() => onRemoveMember(collection, member)}>−</button>}
-            </div>
-          ))}
-          {isInbox
-            ? <p className="toggle-hint">This is where shared reels land, so it can't be deleted.</p>
-            : <button type="button" className="step-btn danger full-width" onClick={() => onDelete(collection)}>Delete collection</button>}
         </div>
       )}
     </div>
@@ -645,8 +626,6 @@ export default function SettingsDrawer({
   onUpdateCollection,
   onSetPrivacy,
   onUpdateProfile,
-  onRemoveCollectionMember,
-  onDeleteCollection,
   showToast,
   onShare,
   onOpenDeleteModal,
@@ -686,19 +665,6 @@ export default function SettingsDrawer({
     if (result.ok) {
       const removedNote = makePrivate && result.removed ? ` · removed ${result.removed}` : '';
       showToast(makePrivate ? `Now private${removedNote}` : 'Now shared');
-    }
-  };
-
-  const removeMember = async (collection, member) => {
-    if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) {
-      await onRemoveCollectionMember(collection.id, member.id);
-    }
-  };
-
-  const deleteCollection = async (collection) => {
-    if (collection.id === inboxId) return;
-    if (window.confirm(`Delete "${collection.name}" and remove it for all members?`)) {
-      await onDeleteCollection(collection.id);
     }
   };
 
@@ -748,8 +714,6 @@ export default function SettingsDrawer({
                 onRename={rename}
                 onTogglePrivacy={togglePrivacy}
                 onShare={onShare}
-                onRemoveMember={removeMember}
-                onDelete={deleteCollection}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>

@@ -4716,6 +4716,26 @@ button.profile-open {
   cursor: pointer;
 }
 
+.role-switch-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.role-switch-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
 .role-switch-option.is-on {
   background: var(--ink);
   color: var(--surface);
