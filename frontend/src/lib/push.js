@@ -41,6 +41,8 @@ export async function enableFridayPick(userId) {
     await subscription.unsubscribe();
     throw new Error(error.message);
   }
+  // Allowing notifications on a device turns the account's switch back on (ignored until the database has it).
+  await supabase.from('profiles').update({ notifications_enabled: true }).eq('id', userId);
   return true;
 }
 

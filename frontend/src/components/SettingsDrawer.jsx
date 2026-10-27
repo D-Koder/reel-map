@@ -8,27 +8,58 @@ import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 
-// On/off switch for push notifications: reminders, votes, new places and the weekly Friday pick. The browser
-// asks per device, so each device turns it on once; the server keeps one row per device and pushes to all of them.
+// On/off switch for push notifications: reminders, votes, new places and the weekly Friday pick. It is a setting on
+// the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
+// needs its own one-time browser permission, which turning the switch on asks for when this device has none yet.
+// Until the database has the column, the switch falls back to this device only.
 function NotificationsToggle({ userId }) {
   const [supported] = useState(() => isPushSupported());
-  const [enabled, setEnabled] = useState(false);
+  // The account setting: null while loading, 'missing' when the database has no such column yet.
+  const [account, setAccount] = useState(null);
+  const [deviceOn, setDeviceOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
+    supabase.from('profiles').select('notifications_enabled').eq('id', userId).maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (!cancelled) setAccount(readError ? 'missing' : data?.notifications_enabled !== false);
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
     if (!supported) return;
-    getPushSubscription().then((sub) => setEnabled(Boolean(sub))).catch(() => {});
+    getPushSubscription().then((sub) => setDeviceOn(Boolean(sub))).catch(() => {});
   }, [supported]);
+
+  const accountWide = account !== null && account !== 'missing';
+  const checked = accountWide ? account : deviceOn;
 
   const toggle = async (event) => {
     const wantOn = event.target.checked;
     setBusy(true);
     setError('');
     try {
-      if (wantOn) await enableFridayPick(userId);
-      else await disableFridayPick();
-      setEnabled(wantOn);
+      if (accountWide) {
+        const { error: saveError } = await supabase.from('profiles').update({ notifications_enabled: wantOn }).eq('id', userId);
+        if (saveError) throw new Error(saveError.message);
+        setAccount(wantOn);
+        // Turning it on from a device that hasn't allowed notifications yet asks for that too.
+        if (wantOn && supported && !deviceOn) {
+          try {
+            await enableFridayPick(userId);
+            setDeviceOn(true);
+          } catch (err) {
+            setError(`${err.message} Your other devices will still get notifications.`);
+          }
+        }
+      } else {
+        if (wantOn) await enableFridayPick(userId);
+        else await disableFridayPick();
+        setDeviceOn(wantOn);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -36,17 +67,21 @@ function NotificationsToggle({ userId }) {
     }
   };
 
-  if (!supported) {
+  if (!supported && !accountWide) {
     return <div className="toggle-hint">Notifications need the app installed to your home screen.</div>;
   }
 
   return (
     <div className="cascade-delete-toggle">
       <label>
-        <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
+        <input type="checkbox" checked={checked} disabled={busy || account === null} onChange={toggle} />
         <Bell className="ico" aria-hidden="true" /> Notifications
       </label>
-      <div className="toggle-hint">Reminders, votes, new places and Friday picks. Turn this on in each device you use.</div>
+      <div className="toggle-hint">
+        Reminders, votes, new places and Friday picks.
+        {accountWide ? ' This switch covers all your devices.' : ' Turn this on in each device you use.'}
+      </div>
+      {!supported && <div className="toggle-hint">This device can only show notifications once the app is on your home screen.</div>}
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );
