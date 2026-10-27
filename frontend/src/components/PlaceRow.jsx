@@ -39,7 +39,7 @@ function VoteLine({ members, reactions, userId }) {
   if (votes.length === members.length && keen === members.length) {
     nudge = <b className="all-keen">{members.length === 2 ? 'Both keen' : `All ${members.length} keen`}</b>;
   } else {
-    count = votes.length ? `${keen}/${votes.length} keen` : 'No votes';
+    count = votes.length ? `${keen}/${members.length} keen` : 'No votes';
     if (!myVote) nudge = <b className="vote-nudge">Your vote?</b>;
     else if (waiting > 0) nudge = <span className="vote-waiting">{waiting} to go</span>;
   }
@@ -74,6 +74,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
+  const showDateTab = Boolean(pin.booking) && !isDone && !selectable;
   // Shared collections show each person's vote, so you can see who's keen at a glance.
   const shared = members.length > 1;
   const myFeeling = feelings.find((f) => f.id === pin.reactions[userId]);
@@ -89,7 +90,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${showDateTab ? 'has-date-tab' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
       {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
@@ -111,13 +112,6 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
           {reelEmbed(pin.reel_url)
             ? <ReelEmbedThumb reelUrl={pin.reel_url} mapsUrl={pin.maps_url} className="pin-thumbnail" />
             : <PlaceThumb place={pin} className="pin-thumbnail" />}
-          {/* The planned date hangs off the photo on a solid tab, so it never blends into the picture. */}
-          {pin.booking && !isDone && (
-            <span className="date-tab">
-              <span className="sr-only">Planned for </span>
-              {formatChipDate(pin.booking.planned_at).split(/ (?=[^ ]+$)/).map((part) => <span key={part} className="date-tab-line">{part}</span>)}
-            </span>
-          )}
         </button>
         <div className="pin-info">
           <div className="pin-name">{pin.emoji && <span aria-hidden="true">{pin.emoji} </span>}{pin.name}</div>
@@ -139,6 +133,13 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-rating">{myFeeling ? `${myFeeling.emoji} ${myFeeling.label}` : 'Tap to vote'}</div>
           )}
         </div>
+      {/* The planned time sits in the top right corner. Hidden while selecting, where the tick sits in this corner. */}
+      {showDateTab && (
+        <span className="date-tab">
+          <span className="sr-only">Planned for </span>
+          {formatChipDate(pin.booking.planned_at)}
+        </span>
+      )}
       {/* Saved twice in this collection. Hidden while selecting, where the tick sits in this corner. */}
       {duplicate && !selectable && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
       {selectable && (

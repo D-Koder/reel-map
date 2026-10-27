@@ -3623,36 +3623,26 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   position: relative;
 }
 
-/* Room for the date tab under the photo. */
-.place-thumb-link:has(.date-tab) {
-  margin-bottom: 28px;
-}
-
-.date-tab-line {
-  display: block;
-}
-
+/* The planned time, in the card's top right corner so it never covers the photo. */
 .date-tab {
   position: absolute;
-  left: 50%;
-  /* Hangs below the photo, overlapping its edge by 6px, so it doesn't cover a cover card's text. */
-  top: 100%;
-  margin-top: -6px;
-  transform: translateX(-50%);
-  /* The day over the time, so the tab is no wider than the photo. */
-  width: max-content;
-  max-width: calc(100% + 6px);
-  text-align: center;
-  padding: 1px 6px;
-  border-radius: 10px;
+  top: 10px;
+  right: 12px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
   background: var(--mint);
   color: #0b2a1c;
   border: 1.5px solid var(--ink);
-  /* A ring in the card's colour keeps the tab off busy photos. */
-  box-shadow: 0 0 0 2px var(--card);
-  font: 500 10px/1.4 var(--font-mono);
+  font: 500 11px/1.5 var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* A duplicate tag moves down so both fit in the corner. */
+.pin-item.has-date-tab .duplicate-pill {
+  top: 38px;
 }
 
 .vote-line {
