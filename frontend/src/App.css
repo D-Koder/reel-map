@@ -3624,10 +3624,17 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 }
 
 /* The planned time, in the card's top right corner so it never covers the photo. */
-.date-tab {
+.pin-tags {
   position: absolute;
-  top: 10px;
+  top: -10px;
   right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.date-tab {
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--mint);
@@ -3638,16 +3645,6 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   letter-spacing: 0.03em;
   white-space: nowrap;
   pointer-events: none;
-}
-
-/* A duplicate tag moves down so both fit in the corner. */
-/* A long name stops short of the date chip with "…" instead of running under it. */
-.pin-item.has-date-tab .pin-name {
-  padding-right: 76px;
-}
-
-.pin-item.has-date-tab .duplicate-pill {
-  top: 38px;
 }
 
 .vote-line {
@@ -5144,10 +5141,7 @@ button.profile-open {
 /* ---------- DUPLICATE PILL ---------- */
 /* Saved more than once in the same collection (same spot or same reel). */
 .duplicate-pill {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--ink);
   background: var(--butter);

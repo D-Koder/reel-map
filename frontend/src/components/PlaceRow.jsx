@@ -90,7 +90,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''} ${showDateTab ? 'has-date-tab' : ''}`}
+      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
       {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
@@ -133,15 +133,19 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-rating">{myFeeling ? `${myFeeling.emoji} ${myFeeling.label}` : 'Tap to vote'}</div>
           )}
         </div>
-      {/* The planned time sits in the top right corner. Hidden while selecting, where the tick sits in this corner. */}
-      {showDateTab && (
-        <span className="date-tab">
-          <span className="sr-only">Planned for </span>
-          {formatChipDate(pin.booking.planned_at)}
-        </span>
+      {/* The planned time and the duplicate tag hang off the card's top edge, side by side, so neither covers the name.
+          Hidden while selecting, where the tick sits in this corner. */}
+      {!selectable && (showDateTab || duplicate) && (
+        <div className="pin-tags">
+          {duplicate && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
+          {showDateTab && (
+            <span className="date-tab">
+              <span className="sr-only">Planned for </span>
+              {formatChipDate(pin.booking.planned_at)}
+            </span>
+          )}
+        </div>
       )}
-      {/* Saved twice in this collection. Hidden while selecting, where the tick sits in this corner. */}
-      {duplicate && !selectable && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
       {selectable && (
         <span className="select-tick" aria-hidden="true">{selected && <Check />}</span>
       )}
