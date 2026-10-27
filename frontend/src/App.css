@@ -5059,15 +5059,16 @@ button.profile-open {
   flex-wrap: wrap;
 }
 
-/* Emoji picker: a button showing the choice, and a short list of emoji under it that closes on a pick. */
-.emoji-picker { display: contents; }
+/* Emoji picker: a button showing the choice, and a small popover under it that closes on a pick. */
+.emoji-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
 
 .emoji-trigger {
   display: block;
   width: 56px;
-  flex: 0 0 56px;
   min-height: 48px;
-  margin-bottom: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--card);
@@ -5075,37 +5076,48 @@ button.profile-open {
   cursor: pointer;
 }
 
+.emoji-trigger[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .emoji-trigger.is-placeholder { opacity: 0.45; }
 .emoji-trigger:disabled { opacity: 0.4; cursor: default; }
 
 .emoji-panel {
-  flex: 1 1 100%;
-  order: 2;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  width: 288px;
+  max-width: calc(100vw - 48px);
   display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 6px;
   padding: 10px;
   background: var(--card);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--ink);
   border-radius: var(--radius-md);
+  box-shadow: 4px 4px 0 var(--ink);
 }
 
-.emoji-group-title {
-  margin-bottom: 4px;
-  font: 500 11px var(--font-mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+/* The little arrow pointing up at the button. */
+.emoji-panel::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 20px;
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  border-left: 1.5px solid var(--ink);
+  border-top: 1.5px solid var(--ink);
+  transform: rotate(45deg);
 }
 
 .emoji-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   gap: 4px;
 }
 
 .emoji-cell {
-  min-height: var(--tap);
+  aspect-ratio: 1;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
