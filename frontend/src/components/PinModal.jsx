@@ -182,6 +182,13 @@ export default function PinModal({
   // Decided once, when the sheet opens: an already-booked place skips the checklist entirely,
   // while one booked mid-flow keeps going to the calendar step.
   const [wasBooked] = useState(Boolean(booking));
+  // A place that's been visited goes back to being a normal place; "Plan again" starts a new plan.
+  const isDone = Boolean(booking?.done_at);
+  const [replanning, setReplanning] = useState(false);
+  const markDone = () => {
+    setReplanning(false);
+    onMarkDone();
+  };
   const steps = [1, 2, 3];
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -353,7 +360,7 @@ export default function PinModal({
               <button
                 className="modal-close"
                 // A booked place asks first, to warn about the booking. Otherwise delete straight away: the toast has Undo.
-                onClick={() => (booking ? setConfirmingDelete(true) : onDelete())}
+                onClick={() => (booking && !isDone ? setConfirmingDelete(true) : onDelete())}
                 aria-label="Delete place"
                 title="Delete"
               >
@@ -395,7 +402,8 @@ export default function PinModal({
           <div className="reel-info-small">
             <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
-            {booking && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Planned by {nameOf(booking.booked_by)}</div>}
+            {booking && !isDone && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Planned by {nameOf(booking.booked_by)}</div>}
+            {isDone && <div className="reel-booked"><CircleCheck className="ico" aria-hidden="true" /> Been there · {formatDate(booking.done_at)}</div>}
             {status && (
               <div className={`reel-open ${status.open ? 'is-open' : 'is-closed'}`}>
                 <span className="reel-open-dot" aria-hidden="true" /> {status.text}
@@ -436,7 +444,7 @@ export default function PinModal({
           showToast={showToast}
         />
 
-        {booking && (
+        {booking && !isDone && (
           <div className="modal-section">
             <div className="modal-label"><CalendarDays className="ico" aria-hidden="true" /> Planned Date</div>
             <button
@@ -505,10 +513,17 @@ export default function PinModal({
           <div className="place-collection-note">
             {booking?.planned_at ? `Planned for ${formatDateTime(booking.planned_at)}. ` : ''}You're a viewer here, so the owner or an editor plans and marks it done.
           </div>
-        ) : booking?.done_at ? (
-          <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Done — marked by {nameOf(booking.marked_by)}</div>
-        ) : wasBooked ? (
-          <button className="step-btn primary full-width" disabled={doneLocked} onClick={onMarkDone}>
+        ) : isDone && !replanning ? (
+          <>
+            <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Been there · marked by {nameOf(booking.marked_by)}</div>
+            {canEdit && (
+              <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
+                <CalendarPlus className="ico" aria-hidden="true" /> Plan again
+              </button>
+            )}
+          </>
+        ) : wasBooked && !replanning ? (
+          <button className="step-btn primary full-width" disabled={doneLocked} onClick={markDone}>
             {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
           </button>
         ) : (
@@ -655,7 +670,7 @@ export default function PinModal({
                   Everything is planned. You can mark this as "Done" once you've visited!
                 </div>
                 <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> All steps completed</div>
-                <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={onMarkDone}>
+                <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={markDone}>
                   {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Available in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
                 </button>
               </div>
@@ -669,11 +684,11 @@ export default function PinModal({
           title={`Delete "${place.name}"?`}
           message="It will be removed from this collection and the map for everyone in it."
           warning={
-            booking
+            booking && !isDone
               ? `You have a plan here for ${formatDateTime(booking.planned_at)}. Deleting the place won't cancel a booking you made with the venue, so cancel that separately.`
               : null
           }
-          confirmLabel={booking ? 'Delete anyway' : 'Delete'}
+          confirmLabel={booking && !isDone ? 'Delete anyway' : 'Delete'}
           onConfirm={() => {
             setConfirmingDelete(false);
             onDelete();
