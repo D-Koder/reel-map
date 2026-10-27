@@ -8,8 +8,9 @@ import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 
-// On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
-function FridayPickToggle({ userId }) {
+// On/off switch for push notifications: reminders, votes, new places and the weekly Friday pick. The browser
+// asks per device, so each device turns it on once; the server keeps one row per device and pushes to all of them.
+function NotificationsToggle({ userId }) {
   const [supported] = useState(() => isPushSupported());
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,15 +37,16 @@ function FridayPickToggle({ userId }) {
   };
 
   if (!supported) {
-    return <div className="toggle-hint">Friday pick notifications need the app installed to your home screen.</div>;
+    return <div className="toggle-hint">Notifications need the app installed to your home screen.</div>;
   }
 
   return (
     <div className="cascade-delete-toggle">
       <label>
         <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
-        <Bell className="ico" aria-hidden="true" /> Notifications on this device
+        <Bell className="ico" aria-hidden="true" /> Notifications
       </label>
+      <div className="toggle-hint">Reminders, votes, new places and Friday picks. Turn this on in each device you use.</div>
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );
@@ -636,7 +638,7 @@ export default function SettingsDrawer({
 
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
-          {userId && <FridayPickToggle userId={userId} />}
+          {userId && <NotificationsToggle userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}

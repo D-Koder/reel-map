@@ -20,6 +20,8 @@ const TITLES: Record<string, string> = {
   collection_joined: '👋 Joined a collection',
   collection_left: '🚪 Left a collection',
   collection_private: '🔒 Collection made private',
+  booking_reminder: '⏰ Coming up',
+  role_changed: '✏️ Your role changed',
 };
 
 type Subscription = { id: string; endpoint: string; p256dh: string; auth: string };
