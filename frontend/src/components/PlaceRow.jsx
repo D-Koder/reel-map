@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Check, GripVertical, MapPin } from 'lucide-react';
+import { Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
@@ -70,10 +70,13 @@ function VoteLine({ members, reactions, userId }) {
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
 // Four short lines beside the photo: name, place, info (cut with "…"), votes.
 // selectable: Select mode. The whole card ticks on and off, and the reel can't be tapped.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false, duplicate = false }) {
+// showDone: the "Today" board, which shows what happened today, so a place marked done is greyed out with "Done".
+// Everywhere else a visited place looks like any other, ready to be planned again.
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false, duplicate = false, showDone = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
+  const showDoneLook = isDone && showDone;
   const showDateTab = Boolean(pin.booking) && !isDone && !selectable;
   // Shared collections show each person's vote, so you can see who's keen at a glance.
   const shared = members.length > 1;
@@ -90,7 +93,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+      className={`pin-item ${vibe.consensus} ${showDoneLook ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
       {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
@@ -122,7 +125,9 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             </div>
           )}
           {pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
-          {shared ? (
+          {showDoneLook ? (
+            <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>
+          ) : shared ? (
             <>
               <span className="sr-only">{`${vibe.label}. ${voteSummary}`}</span>
               <VoteLine members={people} reactions={pin.reactions} userId={userId} />
@@ -133,15 +138,9 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
         </div>
       {/* The planned time and the duplicate tag hang off the card's top edge, side by side, so neither covers the name.
           Hidden while selecting, where the tick sits in this corner. */}
-      {!selectable && (showDateTab || isDone || duplicate) && (
+      {!selectable && (showDateTab || duplicate) && (
         <div className="pin-tags">
           {duplicate && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
-          {isDone && (
-            <span className="been-tag">
-              <span className="sr-only">Been there: </span>
-              Been · {new Date(pin.booking.done_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
-            </span>
-          )}
           {showDateTab && (
             <span className="date-tab">
               <span className="sr-only">Planned for </span>

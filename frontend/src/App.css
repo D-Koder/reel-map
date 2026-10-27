@@ -368,6 +368,11 @@ button.collection-empty {
   border-color: var(--vibe-both-border);
 }
 
+/* Greyed out on the Today board: a place marked done today. */
+.pin-item.done > * {
+  opacity: 0.55;
+}
+
 /* ---------- DRAGGABLE ROWS ---------- */
 .drag-handle {
   flex-shrink: 0;
@@ -3185,6 +3190,18 @@ select.step-input {
   height: 14px;
 }
 
+.pin-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success-text);
+}
+
+.pin-done svg {
+  width: 16px;
+  height: 16px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -3616,18 +3633,6 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   align-items: center;
   gap: 6px;
   pointer-events: none;
-}
-
-.been-tag {
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-muted);
-  color: var(--text-muted);
-  border: 1.5px solid var(--border);
-  font: 500 11px/1.5 var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
 }
 
 .date-tab {

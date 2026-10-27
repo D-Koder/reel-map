@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Bell, CalendarCheck, CircleCheck, Lock, LogOut, MapPin, MessageCircle, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CalendarCheck, CircleCheck, Clock, Lock, LogOut, MapPin, MessageCircle, Pencil, Trash2, UserPlus } from 'lucide-react';
 
 const ICONS = {
   place_added: MapPin,
@@ -12,6 +12,7 @@ const ICONS = {
   collection_left: LogOut,
   collection_private: Lock,
   role_changed: Pencil,
+  booking_reminder: Clock,
 };
 
 function formatTime(iso) {

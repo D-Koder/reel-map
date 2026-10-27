@@ -167,6 +167,7 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
                     pin={pin}
                     members={membersOf[pin.collection_id] ?? []}
                     userId={userId}
+                    showDone
                     onClick={open}
                     onKeyDown={(e) => { if (e.key === 'Enter') open(); }}
                   />
