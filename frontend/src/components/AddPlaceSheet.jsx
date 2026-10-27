@@ -170,7 +170,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
   const sheetRef = useRef(null);
-  const sheetDrag = useSheetDrag(sheetRef, onClose);
+  // Dismissing the sheet while a reel is being read (swipe down, tap outside, Escape) is the same as
+  // "Keep browsing": the lookup carries on in the background instead of being lost.
+  const dismiss = () => {
+    if (loading && onBackground) onBackground(reelUrlInput.trim());
+    onClose();
+  };
+  const sheetDrag = useSheetDrag(sheetRef, dismiss);
   // The warning button sends this lookup's details and a comment to the debug table.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
@@ -200,11 +206,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
     locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns, eventPrice, eventContact]);
 
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    const onKey = (e) => e.key === 'Escape' && dismissRef.current();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   // link: an optional URL shown as a tappable link after the message.
   const addLog = (message, type = 'info', link = '') => {
@@ -853,7 +861,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   return (
     <>
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={dismiss}>
       <div
         ref={sheetRef}
         className="modal edit-sheet"

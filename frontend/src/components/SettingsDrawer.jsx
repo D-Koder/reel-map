@@ -253,16 +253,16 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           <ChevronDown aria-hidden="true" />
         </button>
       </div>
-      {isOwner && (
-        <div className="collection-icons">
-          <button
-            className="collection-icon"
-            onClick={() => onShare(collection)}
-            title="Share and manage"
-            aria-label="Share and manage"
-          >
-            <Share2 aria-hidden="true" />
-          </button>
+      <div className="collection-icons">
+        <button
+          className="collection-icon"
+          onClick={() => onShare(collection)}
+          title={isOwner ? 'Share and manage' : 'Share'}
+          aria-label={isOwner ? 'Share and manage' : 'Share'}
+        >
+          <Share2 aria-hidden="true" />
+        </button>
+        {isOwner && (
           <button
             className="collection-icon"
             onClick={() => onTogglePrivacy(collection)}
@@ -271,8 +271,8 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           >
             {collection.isPrivate ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
