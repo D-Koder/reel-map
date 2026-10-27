@@ -5047,10 +5047,73 @@ button.profile-open {
   flex-wrap: wrap;
 }
 
-.move-new-emoji {
+/* Emoji picker: a button showing the choice, and a short list of emoji under it that closes on a pick. */
+.emoji-picker { display: contents; }
+
+.emoji-trigger {
+  display: block;
   width: 56px;
   flex: 0 0 56px;
-  text-align: center;
+  min-height: 48px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.emoji-trigger.is-placeholder { opacity: 0.45; }
+.emoji-trigger:disabled { opacity: 0.4; cursor: default; }
+
+.emoji-panel {
+  flex: 1 1 100%;
+  order: 2;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.emoji-group-title {
+  margin-bottom: 4px;
+  font: 500 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+}
+
+.emoji-cell {
+  min-height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.emoji-cell:hover { background: var(--surface-muted); }
+.emoji-cell[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+
+.emoji-none {
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
 .move-new-name {
@@ -5059,6 +5122,7 @@ button.profile-open {
 }
 
 .move-new-go {
+  order: 3;
   flex: 1 1 100%;
 }
 

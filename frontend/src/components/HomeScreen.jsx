@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Trash2, Users } from 'lucide-react';
+import EmojiPicker from './EmojiPicker';
 import PlaceList from './PlaceList';
 import { PlaceCard } from './PlaceRow';
 import MapBanner from './MapBanner';
@@ -477,14 +478,7 @@ export default function HomeScreen({
                   </button>
                 ) : (
                   <form className="move-new-form" onSubmit={createAndMove}>
-                    <input
-                      className="step-input move-new-emoji"
-                      value={newEmoji}
-                      onChange={(e) => setNewEmoji(e.target.value)}
-                      placeholder="📌"
-                      maxLength={16}
-                      aria-label="Emoji (optional)"
-                    />
+                    <EmojiPicker value={newEmoji} onChange={setNewEmoji} placeholder="📌" label="Collection emoji" />
                     <input
                       className="step-input move-new-name"
                       value={newName}
