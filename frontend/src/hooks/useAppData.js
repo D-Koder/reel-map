@@ -598,7 +598,7 @@ export function useAppData(userId, showToast) {
     createCollection: (name, emoji = '📌') => run(supabase.rpc('create_collection', { p_name: name, p_emoji: emoji })),
     updateCollection: (id, patch) => run(supabase.from('collections').update(patch).eq('id', id)),
 
-    // Making a collection private removes its other members (the owner confirms first).
+    // Locking a collection stops new people joining; nobody is removed.
     setCollectionPrivate: async (collectionId, makePrivate, confirm) => {
       const { data, error } = await supabase.rpc('set_collection_private', {
         p_collection_id: collectionId,

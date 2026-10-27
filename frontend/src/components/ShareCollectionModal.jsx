@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Pencil, Users, X } from 'lucide-react';
+import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
@@ -35,6 +35,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
 
   // Everyone in the collection can share it, so the code shows straight away; it's made (or reused) when Share opens.
   useEffect(() => {
+    if (collection.isPrivate) return undefined;
     let cancelled = false;
     setLoading(true);
     getInvite(collection.id).then((result) => {
@@ -43,7 +44,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [collection.id, getInvite]);
+  }, [collection.id, collection.isPrivate, getInvite]);
 
   const removeMember = async (member) => {
     if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) await onRemoveMember?.(member);
@@ -76,8 +77,12 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
 
         <div className="share-body">
           <div className="invite-card">
-            <div className="invite-card-label">Invite code</div>
-            {loading ? (
+            <div className="invite-card-label">{collection.isPrivate ? 'Locked' : 'Invite code'}</div>
+            {collection.isPrivate ? (
+              <div className="invite-card-hint">
+                <Lock className="ico" aria-hidden="true" /> No new people can join until it's unlocked.{isOwner ? ' Unlock it in Settings.' : ' Ask the owner to unlock it.'} Everyone already in keeps access.
+              </div>
+            ) : loading ? (
               <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
             ) : invite ? (
               <>
@@ -100,7 +105,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                 Try again
               </button>
             )}
-            <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>
+            {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
 
           <div className="share-section">

@@ -266,8 +266,8 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           <button
             className="collection-icon"
             onClick={() => onTogglePrivacy(collection)}
-            title={collection.isPrivate ? 'Private — tap to share' : 'Shared — tap to make private'}
-            aria-label={collection.isPrivate ? 'Make shared' : 'Make private'}
+            title={collection.isPrivate ? 'Locked: no new people can join. Tap to unlock' : 'Unlocked: tap to stop new people joining'}
+            aria-label={collection.isPrivate ? 'Unlock collection' : 'Lock collection'}
           >
             {collection.isPrivate ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
           </button>
@@ -649,23 +649,11 @@ export default function SettingsDrawer({
     if (await onUpdateCollection(collection.id, { name })) showToast(`Renamed to "${name}"`);
   };
 
-  const togglePrivacy = async (collection) => {
-    const makePrivate = !collection.isPrivate;
-    const others = collection.members.filter((m) => m.role !== 'owner');
-    if (makePrivate && others.length > 0) {
-      const names = others.map((m) => m.display_name).join(', ');
-      const ok = window.confirm(
-        `Make "${collection.name}" private?\n\n` +
-        `This removes ${others.length} member(s): ${names}.\n` +
-        'They will be told they were removed. Open invite links will stop working.'
-      );
-      if (!ok) return;
-    }
-    const result = await onSetPrivacy(collection.id, makePrivate, makePrivate && others.length > 0);
-    if (result.ok) {
-      const removedNote = makePrivate && result.removed ? ` · removed ${result.removed}` : '';
-      showToast(makePrivate ? `Now private${removedNote}` : 'Now shared');
-    }
+  // Locked: nobody new can join until it's unlocked. Nobody is removed.
+  const toggleLock = async (collection) => {
+    const lock = !collection.isPrivate;
+    const result = await onSetPrivacy(collection.id, lock, false);
+    if (result.ok) showToast(lock ? 'Locked: nobody new can join' : 'Unlocked: people can join again');
   };
 
   const addCollection = async (e) => {
@@ -712,7 +700,7 @@ export default function SettingsDrawer({
                   onReorderCollections?.(ids);
                 }}
                 onRename={rename}
-                onTogglePrivacy={togglePrivacy}
+                onTogglePrivacy={toggleLock}
                 onShare={onShare}
               />
             ))}

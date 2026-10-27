@@ -379,7 +379,7 @@ export default function HomeScreen({
               >
                 <span className="collection-title">
                   {collection.emoji} {collection.name}
-                  {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
+                  {collection.isPrivate && <Lock className="ico" aria-label="Locked" />}
                   {!editable && <span className="viewer-tag"><Eye className="ico" aria-hidden="true" /> Viewer</span>}
                   {collection.isInbox && <span className="collection-subtext">Shared reels land here</span>}
                 </span>
