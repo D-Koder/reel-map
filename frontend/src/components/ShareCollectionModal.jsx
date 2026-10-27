@@ -4,6 +4,8 @@ import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
 import { exportCollection } from '../lib/collectionFile';
+import { canEditCollection } from '../lib/roles';
+import EmojiPicker from './EmojiPicker';
 
 async function copy(text, label, showToast) {
   try {
@@ -14,7 +16,7 @@ async function copy(text, label, showToast) {
   }
 }
 
-export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onRemoveMember, onDelete, onClose, showToast }) {
+export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onUpdate, onRemoveMember, onDelete, onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
@@ -23,6 +25,24 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
 
   const isOwner = collection.ownerId === userId || collection.members.some((m) => m.id === userId && m.role === 'owner');
   const [savingRole, setSavingRole] = useState(null); // member id
+  // Viewers can see and share a collection but not export it.
+  const canExport = canEditCollection(collection, userId);
+
+  // The owner's name and emoji for the collection.
+  const [nameDraft, setNameDraft] = useState(collection.name);
+  const [emojiDraft, setEmojiDraft] = useState(collection.emoji ?? '');
+  const [savingDetails, setSavingDetails] = useState(false);
+  const detailsChanged = nameDraft.trim() !== collection.name || emojiDraft !== (collection.emoji ?? '');
+
+  const saveDetails = async (e) => {
+    e.preventDefault();
+    const name = nameDraft.trim();
+    if (!name || !detailsChanged || savingDetails) return;
+    setSavingDetails(true);
+    const patch = { name, ...(emojiDraft !== (collection.emoji ?? '') ? { emoji: emojiDraft || '📌' } : {}) };
+    if (await onUpdate?.(patch)) showToast('Saved');
+    setSavingDetails(false);
+  };
 
   const setRole = async (member, role) => {
     if (member.role === role || savingRole) return;
@@ -76,6 +96,27 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
         </div>
 
         <div className="share-body">
+          {isOwner && (
+            <form className="share-section" onSubmit={saveDetails}>
+              <div className="share-section-title">Name and icon</div>
+              <div className="share-details">
+                <EmojiPicker value={emojiDraft} onChange={setEmojiDraft} placeholder="📌" label="Collection emoji" />
+                <input
+                  className="step-input"
+                  value={nameDraft}
+                  maxLength={60}
+                  aria-label="Collection name"
+                  onChange={(e) => setNameDraft(e.target.value)}
+                />
+              </div>
+              {detailsChanged && (
+                <button type="submit" className="step-btn primary full-width" disabled={!nameDraft.trim() || savingDetails}>
+                  {savingDetails ? 'Saving…' : 'Save'}
+                </button>
+              )}
+            </form>
+          )}
+
           <div className="invite-card">
             <div className="invite-card-label">{collection.isPrivate ? 'Locked' : 'Invite code'}</div>
             {collection.isPrivate ? (
@@ -108,6 +149,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
 
+          {canExport && (
           <div className="share-section">
             <div className="share-section-title">Export</div>
             <div className="share-list">
@@ -130,6 +172,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             </div>
             <p className="toggle-hint">Votes aren't included.</p>
           </div>
+          )}
 
           <div className="share-section">
             <div className="share-section-title"><Users className="ico" aria-hidden="true" /> Members</div>

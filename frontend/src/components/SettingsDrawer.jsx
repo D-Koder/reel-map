@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
@@ -193,57 +193,21 @@ function ShortcutSetup({ showToast }) {
   );
 }
 
-// isInbox: my TBD collection, where shared reels land. It can be renamed but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(collection.name);
+// isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare }) {
   const owner = collection.members.find((m) => m.role === 'owner');
-
-  const save = () => {
-    const name = draft.trim();
-    setEditing(false);
-    if (!name || name === collection.name) {
-      setDraft(collection.name);
-      return;
-    }
-    onRename(collection, name);
-  };
 
   return (
     <div className="collection-item">
-      <div
-        className={`collection-name ${isOwner ? '' : 'readonly'}`}
-        onClick={() => isOwner && !editing && setEditing(true)}
-        title={isOwner ? 'Tap to rename' : undefined}
-      >
-        {editing ? (
-          <input
-            autoFocus
-            value={draft}
-            maxLength={60}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={save}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') save();
-              if (e.key === 'Escape') {
-                setDraft(collection.name);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <>
-            <span className="collection-name-text">
-              {collection.emoji} {collection.name}
-            </span>
-            <span className="collection-meta">
-              {isInbox
-                ? 'Shared reels land here'
-                : <>{isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}</>}
-            </span>
-          </>
-        )}
+      <div className="collection-name readonly">
+        <span className="collection-name-text">
+          {collection.emoji} {collection.name}
+        </span>
+        <span className="collection-meta">
+          {isInbox
+            ? 'Shared reels land here'
+            : <>{isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}</>}
+        </span>
       </div>
       <div className="collection-move" role="group" aria-label={`Move ${collection.name}`}>
         <button type="button" className="collection-icon" onClick={() => onMove(-1)} disabled={!canMoveUp} aria-label={`Move ${collection.name} up`}>
@@ -257,10 +221,10 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
         <button
           className="collection-icon"
           onClick={() => onShare(collection)}
-          title={isOwner ? 'Share and manage' : 'Share'}
-          aria-label={isOwner ? 'Share and manage' : 'Share'}
+          title={isOwner ? 'Edit, share and manage' : 'Share'}
+          aria-label={isOwner ? 'Edit, share and manage' : 'Share'}
         >
-          <Share2 aria-hidden="true" />
+          {isOwner ? <Settings aria-hidden="true" /> : <Share2 aria-hidden="true" />}
         </button>
         {isOwner && (
           <button
@@ -623,7 +587,6 @@ export default function SettingsDrawer({
   profile,
   collections,
   onCreateCollection,
-  onUpdateCollection,
   onSetPrivacy,
   onUpdateProfile,
   showToast,
@@ -644,10 +607,6 @@ export default function SettingsDrawer({
   React.useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ''));
   }, []);
-
-  const rename = async (collection, name) => {
-    if (await onUpdateCollection(collection.id, { name })) showToast(`Renamed to "${name}"`);
-  };
 
   // Locked: nobody new can join until it's unlocked. Nobody is removed.
   const toggleLock = async (collection) => {
@@ -699,7 +658,6 @@ export default function SettingsDrawer({
                   [ids[index], ids[index + step]] = [ids[index + step], ids[index]];
                   onReorderCollections?.(ids);
                 }}
-                onRename={rename}
                 onTogglePrivacy={toggleLock}
                 onShare={onShare}
               />

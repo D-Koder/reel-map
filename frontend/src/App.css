@@ -5776,3 +5776,16 @@ button.profile-open {
   display: block;
   margin-bottom: 2px;
 }
+
+/* Name and emoji in the Share & manage sheet. */
+.share-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.share-details .step-input {
+  flex: 1;
+  min-width: 0;
+}
