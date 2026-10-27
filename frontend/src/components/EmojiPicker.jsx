@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { EMOJI_GROUPS } from '../lib/emojiChoices';
 
 // An emoji chosen with one tap from a small popover under the button, not typed with the phone's emoji keyboard.
@@ -7,10 +7,44 @@ export default function EmojiPicker({ value, onChange, placeholder, label, noneL
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef(null);
+  const panelRef = useRef(null);
+  // Where the popover sits so it stays on screen: shifted sideways by dx, or above the button when there is no room below.
+  const [place, setPlace] = useState({ dx: 0, above: false });
   const choose = (emoji) => {
     onChange(emoji);
     setOpen(false);
   };
+
+  // Measured as it opens (and when the screen changes size): slide it back from a screen edge, and flip it above
+  // the button when it would run off the bottom.
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const MARGIN = 8;
+    const GAP = 10;
+    const measure = () => {
+      const panel = panelRef.current;
+      const root = rootRef.current;
+      if (!panel || !root) return;
+      const box = root.getBoundingClientRect();
+      const width = panel.offsetWidth;
+      const height = panel.offsetHeight;
+      const screenWidth = document.documentElement.clientWidth;
+      const screenHeight = window.visualViewport?.height ?? window.innerHeight;
+      let dx = 0;
+      if (box.left + width > screenWidth - MARGIN) dx = screenWidth - MARGIN - width - box.left;
+      if (box.left + dx < MARGIN) dx = MARGIN - box.left;
+      const below = screenHeight - box.bottom - GAP - MARGIN;
+      const above = box.top - GAP - MARGIN;
+      setPlace({ dx: Math.round(dx), above: height > below && above > below });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+    };
+  }, [open]);
 
   // A tap outside the popover closes it.
   useEffect(() => {
@@ -46,7 +80,14 @@ export default function EmojiPicker({ value, onChange, placeholder, label, noneL
         {value || placeholder}
       </button>
       {open && (
-        <div id={panelId} className="emoji-panel" role="group" aria-label={label}>
+        <div
+          id={panelId}
+          ref={panelRef}
+          className={`emoji-panel ${place.above ? 'is-above' : ''}`}
+          role="group"
+          aria-label={label}
+          style={{ left: place.dx, '--arrow-left': `${Math.max(12, 20 - place.dx)}px` }}
+        >
           <div className="emoji-grid">
             {EMOJI_GROUPS.flatMap((group) => group.emoji).map((emoji) => (
               <button key={emoji} type="button" className="emoji-cell" aria-pressed={value === emoji} onClick={() => choose(emoji)}>

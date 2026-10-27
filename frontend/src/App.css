@@ -5101,13 +5101,28 @@ button.profile-open {
   content: "";
   position: absolute;
   top: -8px;
-  left: 20px;
+  left: var(--arrow-left, 20px);
   width: 14px;
   height: 14px;
   background: var(--card);
   border-left: 1.5px solid var(--ink);
   border-top: 1.5px solid var(--ink);
   transform: rotate(45deg);
+}
+
+/* No room below the button: the popover opens above it and the arrow points down. */
+.emoji-panel.is-above {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+.emoji-panel.is-above::before {
+  top: auto;
+  bottom: -8px;
+  border-left: 0;
+  border-top: 0;
+  border-right: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
 }
 
 .emoji-grid {
