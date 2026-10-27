@@ -3641,6 +3641,11 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
 }
 
 /* A duplicate tag moves down so both fit in the corner. */
+/* A long name stops short of the date chip with "…" instead of running under it. */
+.pin-item.has-date-tab .pin-name {
+  padding-right: 76px;
+}
+
 .pin-item.has-date-tab .duplicate-pill {
   top: 38px;
 }
