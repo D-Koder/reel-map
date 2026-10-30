@@ -12,8 +12,8 @@ import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { groupedHours, openStatus, suburbOf } from '../lib/hours';
-import { busyFor, savedConnection } from '../lib/calendarLink';
-import { NeedsGoogleTap } from '../lib/googleCalendar';
+import { busyFor, savedConnection, savedGoogleCalendar } from '../lib/calendarLink';
+import { addGoogleEvent, googleCalendarEnabled, NeedsGoogleTap } from '../lib/googleCalendar';
 import { DEFAULT_PLAN_MINUTES } from '../lib/freeSlot';
 import TimePicker from './TimePicker';
 import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
@@ -257,11 +257,22 @@ export default function PinModal({
     start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
     minutes: planMinutes || DEFAULT_PLAN_MINUTES,
   });
-  const saveToCalendar = () => {
-    addToCalendar(calendarEvent());
-    showToast(`Added "${calendarTitle}" to calendar`);
-    completeStep(3);
+  // Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
+  const putInCalendar = (event, done) => {
+    if (!googleCalendarEnabled || !savedGoogleCalendar(userId)) {
+      addToCalendar(event);
+      showToast(`Added "${event.title}" to calendar`);
+      done?.();
+      return;
+    }
+    addGoogleEvent(event)
+      .then(() => {
+        showToast(`Added "${event.title}" to Google Calendar`);
+        done?.();
+      })
+      .catch((failure) => showToast(failure.message));
   };
+  const saveToCalendar = () => putInCalendar(calendarEvent(), () => completeStep(3));
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
   useEffect(() => {
@@ -448,7 +459,7 @@ export default function PinModal({
             <button
               type="button"
               className="planned-date"
-              onClick={() => addToCalendar({
+              onClick={() => putInCalendar({
                 title: place.name,
                 location: place.address,
                 description: place.reel_url,

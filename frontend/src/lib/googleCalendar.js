@@ -4,6 +4,8 @@
 // hour Google gives it. Needs VITE_GOOGLE_CLIENT_ID (a Google Cloud "Web application" OAuth client id).
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const SCOPE = 'https://www.googleapis.com/auth/calendar.freebusy';
+// Adding events only to the app's own, separate from the free/busy permission above.
+const EVENT_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
 
 export const googleCalendarEnabled = Boolean(CLIENT_ID);
 
@@ -11,6 +13,7 @@ export const googleCalendarEnabled = Boolean(CLIENT_ID);
 export class NeedsGoogleTap extends Error {}
 
 let token = null;
+let eventToken = null;
 export const haveGoogleToken = () => Boolean(token && token.expires > Date.now() + 60000);
 
 let loading = null;
@@ -31,8 +34,8 @@ export function preloadGoogle() {
   loading.catch(() => {});
 }
 
-// Opens Google's sign-in and permission window. Call it straight from a tap.
-export function connectGoogleCalendar() {
+// Asks Google for an access token for one permission. The window opens right away, so call it straight from a tap.
+function requestToken(scope, notGranted) {
   return new Promise((resolve, reject) => {
     if (!loaded()) {
       preloadGoogle();
@@ -41,15 +44,14 @@ export function connectGoogleCalendar() {
     }
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
-      scope: SCOPE,
+      scope,
       callback: (response) => {
         if (response.error || !response.access_token) {
           reject(new Error('Google did not connect. Try again.'));
-        } else if (!window.google.accounts.oauth2.hasGrantedAllScopes(response, SCOPE)) {
-          reject(new Error('Allow "See your availability" so we can find a free time.'));
+        } else if (!window.google.accounts.oauth2.hasGrantedAllScopes(response, scope)) {
+          reject(new Error(notGranted));
         } else {
-          token = { value: response.access_token, expires: Date.now() + Number(response.expires_in || 3600) * 1000 };
-          resolve();
+          resolve({ value: response.access_token, expires: Date.now() + Number(response.expires_in || 3600) * 1000 });
         }
       },
       error_callback: (error) => reject(new Error(error?.type === 'popup_closed'
@@ -60,10 +62,45 @@ export function connectGoogleCalendar() {
   });
 }
 
-// Takes back the permission given to this app and forgets the token.
+// Opens Google's sign-in and permission window. Call it straight from a tap.
+export async function connectGoogleCalendar() {
+  token = await requestToken(SCOPE, 'Allow "See your availability" so we can find a free time.');
+}
+
+// Takes back the permission given to this app and forgets the tokens.
 export function disconnectGoogleCalendar() {
-  if (token && loaded()) window.google.accounts.oauth2.revoke(token.value, () => {});
+  if (loaded()) {
+    if (token) window.google.accounts.oauth2.revoke(token.value, () => {});
+    if (eventToken) window.google.accounts.oauth2.revoke(eventToken.value, () => {});
+  }
   token = null;
+  eventToken = null;
+}
+
+// Puts an event on the person's main Google Calendar. Only events this app adds: it can't read or change
+// anything else (the "calendar.app.created" permission). If the person hasn't allowed that yet, Google asks
+// now, so call it straight from a tap.
+export async function addGoogleEvent({ title, location, description, start, minutes = 120 }) {
+  if (!eventToken || eventToken.expires <= Date.now() + 60000) {
+    eventToken = await requestToken(EVENT_SCOPE, 'Allow adding events so we can put this in your calendar.');
+  }
+  const startDate = new Date(start);
+  const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${eventToken.value}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      summary: title,
+      location,
+      description,
+      start: { dateTime: startDate.toISOString() },
+      end: { dateTime: new Date(startDate.getTime() + minutes * 60 * 1000).toISOString() },
+    }),
+  });
+  if (response.status === 401 || response.status === 403) {
+    eventToken = null;
+    throw new Error('Google did not connect. Try again.');
+  }
+  if (!response.ok) throw new Error('Could not add it to your Google Calendar.');
 }
 
 // The busy times between two Dates as [{ start, end }] Dates, from the main calendar.
