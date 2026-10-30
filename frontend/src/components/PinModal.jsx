@@ -257,22 +257,24 @@ export default function PinModal({
     start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
     minutes: planMinutes || DEFAULT_PLAN_MINUTES,
   });
-  // Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
-  const putInCalendar = (event, done) => {
+  // Apple or any other calendar: always the .ics file, even when Google is connected.
+  const saveToCalendar = () => {
+    const event = calendarEvent();
+    addToCalendar(event);
+    showToast(`Added "${event.title}" to calendar`);
+    completeStep(3);
+  };
+  // The planned date's button: Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
+  const putInCalendar = (event) => {
     if (!googleCalendarEnabled || !savedGoogleCalendar(userId)) {
       addToCalendar(event);
       showToast(`Added "${event.title}" to calendar`);
-      done?.();
       return;
     }
     addGoogleEvent(event)
-      .then(() => {
-        showToast(`Added "${event.title}" to Google Calendar`);
-        done?.();
-      })
+      .then(() => showToast(`Added "${event.title}" to Google Calendar`))
       .catch((failure) => showToast(failure.message));
   };
-  const saveToCalendar = () => putInCalendar(calendarEvent(), () => completeStep(3));
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
   useEffect(() => {
