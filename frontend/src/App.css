@@ -1363,6 +1363,11 @@ button.collection-empty {
   margin-bottom: 4px;
 }
 
+.reel-event-date {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
 /* Open now, suburb and one-tap links next to the reel (PinModal). */
 .reel-open {
   display: inline-flex;

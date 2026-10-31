@@ -20,6 +20,9 @@ export default function EventSchedule({ place }) {
             <div className="modal-label">When it's on</div>
             {price && <span className={`evt-chip${/^free\b/i.test(price) ? ' is-free' : ''}`}>{price}</span>}
           </div>
+          {status && status.kind === 'over' && (
+            <div className="evt-warn-note" role="alert"><TriangleAlert className="ico" aria-hidden="true" /> This event has finished. Check before you go.</div>
+          )}
           {runs.length > 0 && (
             <ul className="evt-card">
               {runs.map((run) => {
@@ -42,8 +45,8 @@ export default function EventSchedule({ place }) {
           {runs.some((run) => !timeKnown(run)) && (
             <div className="evt-warn-note"><TriangleAlert className="ico" aria-hidden="true" /> The post gives no time. Check before you go.</div>
           )}
-          {/* The next-day case is shown by the "Next" mark, so only say more when it adds something. */}
-          {status && status.kind !== 'later' && (
+          {/* The next-day case is shown by the "Next" mark, and a finished event by the warning above. */}
+          {status && status.kind !== 'later' && status.kind !== 'over' && (
             <div className={`evt-status is-${status.kind}`}>{status.text}</div>
           )}
         </div>

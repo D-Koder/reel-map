@@ -16,7 +16,7 @@ import { busyFor, savedConnection, savedGoogleCalendar } from '../lib/calendarLi
 import { addGoogleEvent, googleCalendarEnabled, NeedsGoogleTap } from '../lib/googleCalendar';
 import { DEFAULT_PLAN_MINUTES } from '../lib/freeSlot';
 import TimePicker from './TimePicker';
-import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
+import { datesText, eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
 import CalendarConnect from './CalendarConnect';
 
@@ -422,6 +422,11 @@ export default function PinModal({
           <div className="reel-info-small">
             <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
+            {hasRuns && (
+              <div className="reel-event-date">
+                {runs.map(datesText).join(', ')} {new Date(`${runs[0].start}T12:00:00`).getFullYear()}
+              </div>
+            )}
             {booking && !isDone && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Planned by {nameOf(booking.booked_by)}</div>}            {status && (
               <div className={`reel-open ${status.open ? 'is-open' : 'is-closed'}`}>
                 <span className="reel-open-dot" aria-hidden="true" /> {status.text}
