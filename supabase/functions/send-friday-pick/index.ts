@@ -73,11 +73,16 @@ Deno.serve(async (req) => {
     .select('id, user_id, endpoint, p256dh, auth');
   if (error) return json({ error: error.message }, 500);
 
+  // People who switched notifications off in Settings. (A missing column leaves this empty.)
+  const { data: off } = await supabase.from('profiles').select('id').eq('notifications_enabled', false);
+  const switchedOff = new Set((off ?? []).map((row: { id: string }) => row.id));
+
   let sent = 0;
   let removed = 0;
   const pickByUser = new Map<string, { id: string; name: string } | null>();
 
   for (const sub of (subscriptions ?? []) as Subscription[]) {
+    if (switchedOff.has(sub.user_id)) continue;
     if (!pickByUser.has(sub.user_id)) pickByUser.set(sub.user_id, await pickPlaceFor(sub.user_id));
     const pick = pickByUser.get(sub.user_id);
     if (!pick) continue;

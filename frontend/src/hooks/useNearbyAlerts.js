@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
+import { dayString, runOn, runsOf } from '../lib/eventRuns';
 
 // How close counts as "near", in metres.
 export const NEAR_METRES = 200;
@@ -14,12 +15,17 @@ export function distanceMetres([lng1, lat1], [lng2, lat2]) {
   return 2 * 6371000 * Math.asin(Math.sqrt(a));
 }
 
+// An event only counts as nearby on a day it's on: not before it starts, or after it has ended.
+const eventOnToday = (place, today) => place.category !== 'event' || Boolean(runOn(runsOf(place), today));
+
 // Keen places within NEAR_METRES of `here` that haven't been booked or done, nearest first.
 // Each place counts once even when it's in several collections.
 export function keenPlacesNear(places, userId, here) {
   const seen = new Set();
+  const today = dayString();
   return places
     .filter((p) => p.reactions?.[userId] === 'keen' && !p.booking?.done_at && Number.isFinite(p.lat) && Number.isFinite(p.lng))
+    .filter((p) => eventOnToday(p, today))
     .map((p) => ({ place: p, metres: distanceMetres(here, [p.lng, p.lat]) }))
     .filter(({ metres }) => metres <= NEAR_METRES)
     .sort((a, b) => a.metres - b.metres)

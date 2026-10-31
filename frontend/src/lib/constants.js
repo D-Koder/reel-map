@@ -43,7 +43,7 @@ export function formatDateTime(date) {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
   });
 }

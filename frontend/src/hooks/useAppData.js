@@ -579,8 +579,14 @@ export function useAppData(userId, showToast) {
       run(supabase.rpc('delete_place', { p_collection_id: collectionId, p_place_id: placeId })),
 
     // Bookings belong to the place's entry in one collection.
-    book: (place, plannedAt) =>
-      run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at: new Date(plannedAt).toISOString() })),
+    // A place that's been visited keeps its booking row as the "been" record, so planning it again reuses that row.
+    book: (place, plannedAt) => {
+      const planned_at = new Date(plannedAt).toISOString();
+      if (place.booking) {
+        return run(supabase.from('bookings').update({ planned_at, done_at: null, marked_by: null }).eq('collection_id', place.collection_id).eq('place_id', place.id));
+      }
+      return run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at }));
+    },
 
     markDone: (place) => {
       if (!place.booking) {
@@ -598,7 +604,7 @@ export function useAppData(userId, showToast) {
     createCollection: (name, emoji = '📌') => run(supabase.rpc('create_collection', { p_name: name, p_emoji: emoji })),
     updateCollection: (id, patch) => run(supabase.from('collections').update(patch).eq('id', id)),
 
-    // Making a collection private removes its other members (the owner confirms first).
+    // Locking a collection stops new people joining; nobody is removed.
     setCollectionPrivate: async (collectionId, makePrivate, confirm) => {
       const { data, error } = await supabase.rpc('set_collection_private', {
         p_collection_id: collectionId,

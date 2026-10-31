@@ -1,11 +1,12 @@
 const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { expandTikTokUrl, reelLookupKey } = require('./_lib/reel-url');
+const { expandTikTokUrl, isRedNoteUrl, reelLookupKey } = require('./_lib/reel-url');
+const { fetchRedNote } = require('./_lib/rednote-fetch');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
-const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
+const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { aiPlace } = require('./_lib/ai-place');
 const { squash, letters } = require('./_lib/names');
@@ -238,6 +239,42 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   return { reel, venue: '', candidates: null, fromCache: false };
 }
 
+// A RedNote post: the page is tried first, for the full caption. It often shows a login wall or a check to
+// a server, so then what its share text gave (the start of the caption before the link) is the caption:
+// cut off ("…"), but it usually names the area and the dish or venue.
+async function readRedNote(reelUrl, sharedText, getBrowser) {
+  // What each try gave, for the Add place log: why a page wasn't read is otherwise invisible.
+  const tried = [];
+  const quick = await fetchRedNote(reelUrl);
+  if (quick.reel) {
+    tried.push(`plain request: ${quick.complete ? 'full note' : 'meta description only (may be cut short)'}`);
+    if (quick.complete) return { reel: quick.reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+    // Only the meta description: the caption may be cut short and the post date is missing, so the browser
+    // is tried for the full note. Its answer is kept when it has the date or more of the caption.
+    const full = await invoke(scrapeReel, { reelUrl }, getBrowser);
+    const better = full.statusCode < 400 && full.body?.success && full.body.caption &&
+      (full.body.date || full.body.caption.length > quick.reel.caption.length);
+    tried.push(better ? 'browser: read the full note' : `browser: nothing more (${full.body?.error || `HTTP ${full.statusCode}`})`);
+    const reel = better ? { ...full.body, reelUrl, thumbnailUrl: full.body.thumbnailUrl || quick.reel.thumbnailUrl } : quick.reel;
+    return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+  }
+  tried.push(`plain request: ${quick.reason}`);
+  const page = await invoke(scrapeReel, { reelUrl }, getBrowser);
+  if (page.statusCode < 400 && page.body?.success && page.body.caption) {
+    tried.push('browser: read the page');
+    return { reel: { ...page.body, reelUrl }, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+  }
+  tried.push(`browser: ${page.body?.error || `HTTP ${page.statusCode}`}`);
+  console.warn('RedNote page not read; using the share text:', tried.join(' | '));
+  const caption = String(typeof sharedText === 'string' ? sharedText : '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 1000);
+  if (!caption) return { status: 200, body: { error: 'RedNote shared no caption' } };
+  const reel = {
+    success: true, reelUrl, caption, creator: null, likes: null, comments: null, placeName: '', location: '',
+    date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'share',
+  };
+  return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+}
+
 // Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
 async function readDetails(candidate, query, reel, getBrowser) {
   const detailsResponse = await invoke(scrapeLocation.run, {
@@ -455,7 +492,9 @@ async function enrich(req, res, getBrowser) {
       timings.push(`${label} ${((Date.now() - began) / 1000).toFixed(1)}s`);
     }
   };
-  const read = await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
+  const read = isRedNoteUrl(reelUrl)
+    ? await timed('read RedNote', () => readRedNote(reelUrl, req.body?.sharedText, getBrowser))
+    : await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
@@ -472,20 +511,22 @@ async function enrich(req, res, getBrowser) {
   let { reel, venue } = read;
   const country = requestCountry(req);
   const timeZone = requestTimeZone(req);
+  const language = requestLanguage(req);
   // The AI reads every post that has a caption (with its location tag and collab posters from the
   // page, which it weighs too): the venue, the area, whether it's a pop-up and the kind of place.
   let aiFound = null;
   let aiOrderOnly = false;
   // What the lookup did, for the Add place log: what the AI found and what Google Maps was asked.
   const steps = {
-    source: read.fromCache ? 'saved lookup' : 'Instagram',
+    source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : read.reel.source === 'rednote' ? 'RedNote page' : 'Instagram',
+    ...(read.tried ? { redNote: read.tried } : {}),
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
-      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country,
-      postDay: post.date ? dayIn(timeZone, post.date) : '',
+      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
+      postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
     // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.
@@ -499,7 +540,10 @@ async function enrich(req, res, getBrowser) {
       withExtras.tagged?.length || (firstAnswer?.temporary && withExtras.date !== reel.date));
     const ai = gotExtras ? await timed('AI again', () => askAi(withExtras)) : firstAnswer;
     reel = withExtras;
-    steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
+    // What the AI was given, for the Add place log: a missing date or a cut-off caption is otherwise invisible.
+    steps.postDate = reel.date ? dayIn(timeZone, reel.date) : '';
+    steps.caption = reel.caption;
+    steps.ai =`called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
         : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`
       : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})${

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CalendarCheck, ChevronDown, Eye, Flame, GripVertical, Lock, Map as MapIcon, MapPinPlus, PartyPopper, Plus, Sparkles, Sprout, Trash2, Users } from 'lucide-react';
+import EmojiPicker from './EmojiPicker';
 import PlaceList from './PlaceList';
 import { PlaceCard } from './PlaceRow';
 import MapBanner from './MapBanner';
@@ -7,8 +8,9 @@ import { categories, formatDateTime } from '../lib/constants';
 import { dayShort, dayString, nextDay, runOn, runsOf, timesText } from '../lib/eventRuns';
 import { readJSON, writeJSON } from '../lib/storage';
 
-// Set after the first reorder, so the hint stops showing on this device.
+// How many reorders have been done on this device; the hint stops after a couple. An older `true` means learned.
 const REORDER_LEARNED_KEY = 'reelmap:reorder-learned';
+const REORDERS_TO_LEARN = 2;
 // Collections closed on Home (ids), so Home opens the way it was left on this device.
 const COLLAPSED_KEY = 'reelmap:collapsed-collections';
 
@@ -56,7 +58,7 @@ export function pickUpNext(places, userId, now = new Date()) {
 }
 
 const TAGS = {
-  booked: { Icon: CalendarCheck, label: 'Booked' },
+  booked: { Icon: CalendarCheck, label: 'Planned' },
   event: { Icon: PartyPopper, label: 'Coming up' },
   keen: { Icon: Flame, label: "You're keen" },
   maybe: { Icon: Sparkles, label: 'Still deciding' },
@@ -77,7 +79,7 @@ function UpNext({ places, collections, userId, onOpenPin }) {
     ? formatDateTime(place.booking.planned_at)
     : kind === 'event'
       ? formatEventDay(pick.date)
-      : 'Not booked yet';
+      : 'No plan yet';
 
   return (
     <button type="button" className="ticket" onClick={() => onOpenPin(`${place.collection_id}:${place.id}`)}>
@@ -165,6 +167,7 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
                     pin={pin}
                     members={membersOf[pin.collection_id] ?? []}
                     userId={userId}
+                    showDone
                     onClick={open}
                     onKeyDown={(e) => { if (e.key === 'Enter') open(); }}
                   />
@@ -199,12 +202,14 @@ export default function HomeScreen({
   banner = null,
 }) {
   // Press and hold a card to pick it up. Moving before the hold ends scrolls the list instead.
+  const [reorders, setReorders] = useState(() => readJSON(REORDER_LEARNED_KEY, 0));
+  const reorderLearned = reorders === true || reorders >= REORDERS_TO_LEARN;
   const markReorderLearned = () => {
     if (reorderLearned) return;
-    writeJSON(REORDER_LEARNED_KEY, true);
-    setReorderLearned(true);
+    const next = (Number(reorders) || 0) + 1;
+    writeJSON(REORDER_LEARNED_KEY, next);
+    setReorders(next);
   };
-  const [reorderLearned, setReorderLearned] = useState(() => readJSON(REORDER_LEARNED_KEY, false));
   const [collapsed, setCollapsed] = useState(() => new Set(readJSON(COLLAPSED_KEY, [])));
   const saveCollapsed = (next) => {
     setCollapsed(next);
@@ -375,7 +380,7 @@ export default function HomeScreen({
               >
                 <span className="collection-title">
                   {collection.emoji} {collection.name}
-                  {collection.isPrivate && <Lock className="ico" aria-label="Private" />}
+                  {collection.isPrivate && <Lock className="ico" aria-label="Locked" />}
                   {!editable && <span className="viewer-tag"><Eye className="ico" aria-hidden="true" /> Viewer</span>}
                   {collection.isInbox && <span className="collection-subtext">Shared reels land here</span>}
                 </span>
@@ -474,14 +479,7 @@ export default function HomeScreen({
                   </button>
                 ) : (
                   <form className="move-new-form" onSubmit={createAndMove}>
-                    <input
-                      className="step-input move-new-emoji"
-                      value={newEmoji}
-                      onChange={(e) => setNewEmoji(e.target.value)}
-                      placeholder="📌"
-                      maxLength={16}
-                      aria-label="Emoji (optional)"
-                    />
+                    <EmojiPicker value={newEmoji} onChange={setNewEmoji} placeholder="📌" label="Collection emoji" />
                     <input
                       className="step-input move-new-name"
                       value={newName}

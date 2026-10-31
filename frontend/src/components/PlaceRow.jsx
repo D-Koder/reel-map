@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
+import { CalendarDays, Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
+import { eventDatesText, eventStatus, runsOf } from '../lib/eventRuns';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -39,7 +40,7 @@ function VoteLine({ members, reactions, userId }) {
   if (votes.length === members.length && keen === members.length) {
     nudge = <b className="all-keen">{members.length === 2 ? 'Both keen' : `All ${members.length} keen`}</b>;
   } else {
-    count = votes.length ? `${keen}/${votes.length} keen` : 'No votes';
+    count = votes.length ? `${keen}/${members.length} keen` : 'No votes';
     if (!myVote) nudge = <b className="vote-nudge">Your vote?</b>;
     else if (waiting > 0) nudge = <span className="vote-waiting">{waiting} to go</span>;
   }
@@ -70,14 +71,21 @@ function VoteLine({ members, reactions, userId }) {
 // The card itself. Used in the list, and as the floating copy while a card is being moved.
 // Four short lines beside the photo: name, place, info (cut with "…"), votes.
 // selectable: Select mode. The whole card ticks on and off, and the reel can't be tapped.
-export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false, duplicate = false }) {
+// showDone: the "Today" board, which shows what happened today, so a place marked done is greyed out with "Done".
+// Everywhere else a visited place looks like any other, ready to be planned again.
+export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProps = null, handleRef, floating = false, dimmed = false, selectable = false, selected = false, duplicate = false, showDone = false }) {
   const memberIds = [...new Set([...members.map((m) => m.id), userId].filter(Boolean))];
   const vibe = getVibe(memberIds, pin.reactions);
   const isDone = Boolean(pin.booking?.done_at);
+  const showDoneLook = isDone && showDone;
+  const showDateTab = Boolean(pin.booking) && !isDone && !selectable;
   // Shared collections show each person's vote, so you can see who's keen at a glance.
   const shared = members.length > 1;
   const myFeeling = feelings.find((f) => f.id === pin.reactions[userId]);
   const where = shortAddress(pin.address);
+  const eventDates = pin.category === 'event' ? eventDatesText(runsOf(pin)) : '';
+  // An event whose runs are all over: greyed out, with a Finished chip.
+  const eventOver = pin.category === 'event' && eventStatus(runsOf(pin))?.kind === 'over';
   const people = memberIds.map((id) => members.find((m) => m.id === id) ?? { id, display_name: 'You' });
   const voteSummary = members
     .map((m) => {
@@ -89,7 +97,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${isDone ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+      className={`pin-item ${vibe.consensus} ${showDoneLook ? 'done' : ''} ${eventOver ? 'ended' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
       {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
@@ -109,15 +117,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
         >
           {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
           {reelEmbed(pin.reel_url)
-            ? <ReelEmbedThumb reelUrl={pin.reel_url} className="pin-thumbnail" />
+            ? <ReelEmbedThumb reelUrl={pin.reel_url} mapsUrl={pin.maps_url} className="pin-thumbnail" />
             : <PlaceThumb place={pin} className="pin-thumbnail" />}
-          {/* The booked date hangs off the photo on a solid tab, so it never blends into the picture. */}
-          {pin.booking && !isDone && (
-            <span className="date-tab">
-              <span className="sr-only">Booked for </span>
-              {formatChipDate(pin.booking.planned_at)}
-            </span>
-          )}
         </button>
         <div className="pin-info">
           <div className="pin-name">{pin.emoji && <span aria-hidden="true">{pin.emoji} </span>}{pin.name}</div>
@@ -127,8 +128,14 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
               <span>{where}</span>
             </div>
           )}
+          {eventDates && (
+            <div className="pin-where pin-event-date">
+              <CalendarDays aria-hidden="true" />
+              <span>{eventDates}</span>
+            </div>
+          )}
           {pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
-          {isDone ? (
+          {showDoneLook ? (
             <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>
           ) : shared ? (
             <>
@@ -139,8 +146,20 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-rating">{myFeeling ? `${myFeeling.emoji} ${myFeeling.label}` : 'Tap to vote'}</div>
           )}
         </div>
-      {/* Saved twice in this collection. Hidden while selecting, where the tick sits in this corner. */}
-      {duplicate && !selectable && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
+      {/* The planned time and the duplicate tag hang off the card's top edge, side by side, so neither covers the name.
+          Hidden while selecting, where the tick sits in this corner. */}
+      {!selectable && (showDateTab || duplicate || eventOver) && (
+        <div className="pin-tags">
+          {eventOver && <span className="ended-pill" title="This event has finished">Finished</span>}
+          {duplicate && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
+          {showDateTab && (
+            <span className="date-tab">
+              <span className="sr-only">Planned for </span>
+              {formatChipDate(pin.booking.planned_at)}
+            </span>
+          )}
+        </div>
+      )}
       {selectable && (
         <span className="select-tick" aria-hidden="true">{selected && <Check />}</span>
       )}

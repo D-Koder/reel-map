@@ -1,8 +1,14 @@
+import { placeIdFromMapsUrl } from './placePhoto';
+
 // Two saved places are at the same spot when their coordinates match to about a metre.
 const SAME_SPOT_DEGREES = 0.00001;
 
-// Ids of places in one collection that are saved more than once there: the same reel twice, or two
-// places at the same spot. Events don't count, since one venue hosts different events on different nights.
+// Two places with the same name this close are the same venue saved twice, even when Google gave each a
+// slightly different pin (a few metres apart) or the reel was shared through two different links.
+const SAME_NAME_METRES = 150;
+
+// Ids of places in one collection that are saved more than once there: the same reel twice, two places
+// at the same spot, or the same name right next to each other. Events don't count, since one venue hosts different events on different nights.
 export function duplicateIds(pins) {
   const ids = new Set();
   const others = pins.filter((p) => p.category !== 'event');
@@ -12,7 +18,9 @@ export function duplicateIds(pins) {
       const sameReel = a.reel_url && a.reel_url === b.reel_url && squash(a.name) === squash(b.name);
       const sameSpot = Number.isFinite(a.lat) && Number.isFinite(a.lng) && Number.isFinite(b.lat) && Number.isFinite(b.lng) &&
         Math.abs(a.lat - b.lat) < SAME_SPOT_DEGREES && Math.abs(a.lng - b.lng) < SAME_SPOT_DEGREES;
-      if (sameReel || sameSpot) {
+      const sameNameNearby = Number.isFinite(a.lat) && Number.isFinite(a.lng) && Number.isFinite(b.lat) && Number.isFinite(b.lng) &&
+        squash(a.name) === squash(b.name) && metresBetween(a.lat, a.lng, b.lat, b.lng) < SAME_NAME_METRES;
+      if (sameReel || sameSpot || sameNameNearby) {
         ids.add(a.id);
         ids.add(b.id);
       }
@@ -49,6 +57,13 @@ const coordsLink = (place) => `https://www.google.com/maps/search/?api=1&query=$
 // The Google Maps link to open for a place: its own Google Maps page when it came from there,
 // otherwise a search for its name and address so Google shows the business.
 export function googleMapsLink(place) {
+  // A saved "…/maps/place/?q=place_id:ID" link opens the Google Maps app as a search for the text "place_id:ID",
+  // so the place is opened the documented way: a search for its name and address, with its id.
+  const placeId = placeIdFromMapsUrl(place.maps_url ?? '');
+  if (placeId) {
+    const text = [place.venue_name ?? place.name, place.address].filter(Boolean).join(', ');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}&query_place_id=${encodeURIComponent(placeId)}`;
+  }
   if (/^https:\/\/www\.google\.[a-z.]+\/maps\/place\//.test(place.maps_url ?? '')) return place.maps_url;
   if (!place.address) return hasCoords(place) ? coordsLink(place) : null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.venue_name ?? place.name}, ${place.address}`)}`;
@@ -58,7 +73,8 @@ export function googleMapsLink(place) {
 // so Google doesn't open the wrong spot.
 export async function checkedGoogleMapsLink(place, signal) {
   const link = googleMapsLink(place);
-  if (link === place.maps_url || !place.address || !hasCoords(place) || !MAPBOX_TOKEN) return link;
+  // A link with the place's own Google id is already exact.
+  if (link === place.maps_url || placeIdFromMapsUrl(place.maps_url ?? '') || !place.address || !hasCoords(place) || !MAPBOX_TOKEN) return link;
   try {
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(place.address)}.json`);
     url.searchParams.set('access_token', MAPBOX_TOKEN);

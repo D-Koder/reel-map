@@ -14,6 +14,7 @@ import { apiFetch } from '../lib/api';
 import EventTimesEditor from './EventTimesEditor';
 import { cleanRuns } from '../lib/eventRuns';
 import { lookupReel, savedReel } from '../lib/reelCache';
+import { isRedNoteUrl, takeShare } from '../lib/shareText';
 import { findArea } from '../lib/mapboxSearch';
 import { CAN_SEARCH, findAddress } from '../lib/placeSearch';
 
@@ -40,6 +41,7 @@ const sameName = (a, b) => {
 const isValidReelUrl = (url) => {
   try {
     const urlObj = new URL(url);
+    if (isRedNoteUrl(url)) return true;
     if (urlObj.hostname.includes('instagram.com')) return urlObj.pathname.includes('/reel/') || urlObj.pathname.includes('/p/');
     if (['vm.tiktok.com', 'vt.tiktok.com'].includes(urlObj.hostname)) return true;
     if (['tiktok.com', 'www.tiktok.com'].includes(urlObj.hostname) && /^\/t\/[^/]+\/?$/.test(urlObj.pathname)) return true;
@@ -168,7 +170,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [verifyCandidate, setVerifyCandidate] = useState(null);
   const [verifyingLocation, setVerifyingLocation] = useState(false);
   const sheetRef = useRef(null);
-  const sheetDrag = useSheetDrag(sheetRef, onClose);
+  // Dismissing the sheet while a reel is being read (swipe down, tap outside, Escape) is the same as
+  // "Keep browsing": the lookup carries on in the background instead of being lost.
+  const dismiss = () => {
+    if (loading && onBackground) onBackground(reelUrlInput.trim());
+    onClose();
+  };
+  const sheetDrag = useSheetDrag(sheetRef, dismiss);
   // The warning button sends this lookup's details and a comment to the debug table.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
@@ -198,11 +206,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   }, [draftable, step, reelUrlInput, reelUrl, scrapedData, mapsData, name, location, category, collectionId, feeling,
     locationCandidates, locationSearchDone, customInfo, entryUrl, eventRuns, eventPrice, eventContact]);
 
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    const onKey = (e) => e.key === 'Escape' && dismissRef.current();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   // link: an optional URL shown as a tappable link after the message.
   const addLog = (message, type = 'info', link = '') => {
@@ -270,7 +280,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const steps = data.steps;
     if (steps) {
       addLog(`Read from: ${steps.source}`, 'info');
+      if (steps.redNote) addLog(`RedNote: ${steps.redNote}`, 'info');
       if (data.tagged?.length) addLog(`Tagged accounts: ${data.tagged.map((handle) => `@${handle}`).join(', ')}`, 'info');
+      if (steps.caption !== undefined) {
+        addLog(`Post date: ${steps.postDate || 'not found'}`, 'info');
+        addLog(`Caption (${steps.caption.length} characters): ${steps.caption}`, 'info');
+      }
       addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
       if (steps.category) addLog(`Category: ${steps.category}`, 'info');
       if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
@@ -601,21 +616,37 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
+  // The last verify: the name and address searched, its results, and whether its match filled the form. The
+  // binoculars pressed again with the same text reuse these instead of paying for the same Google searches.
+  // Only kept while the sheet is open.
+  const lastVerifyRef = useRef(null);
+
   const verifyLocation = async () => {
     const address = location.trim();
     const placeName = name.trim();
     if (!address) return;
+    const key = `${placeName}\n${address}`;
+    const last = lastVerifyRef.current?.key === key ? lastVerifyRef.current : null;
+    if (last?.applied && mapsData) {
+      addLog('Already verified on Google Maps.', 'info');
+      return;
+    }
     setVerifyingLocation(true);
     setVerifyCandidate(null);
     setVerifyResults(null);
     try {
       // Name + address first. If Google finds nothing, retry with the address alone.
-      let candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
-      if (!candidates.length) candidates = await searchCandidates(address);
+      let candidates = last?.candidates;
+      if (!candidates) {
+        candidates = placeName ? await searchCandidates(`${placeName}, ${address}`) : [];
+        if (!candidates.length) candidates = await searchCandidates(address);
+        lastVerifyRef.current = { key, candidates, applied: false };
+      }
       // One result, or one whose name matches the name or the address's first part: use it straight away.
       const best = bestPlaceMatch(candidates, [placeName, address.split(',')[0]], address.split(',').slice(1), address);
       if (best) {
         await selectLocationCandidate({ ...best, searchQuery: address }, true, placeName && !namedLike(best, [placeName]) ? placeName : '');
+        if (lastVerifyRef.current?.key === key) lastVerifyRef.current.applied = true;
         return;
       }
       setVerifyResults(relatedPlaces(candidates, [placeName]));
@@ -658,7 +689,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     try {
       const text = (await navigator.clipboard.readText()).trim();
       if (!text) return;
-      setReelUrlInput(text);
+      setReelUrlInput(takeShare(text));
       setUrlError('');
     } catch {
       reelInputRef.current?.focus();
@@ -676,12 +707,12 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     setUrlError('');
 
     if (!trimmedUrl) {
-      setUrlError('Please paste an Instagram or TikTok link');
+      setUrlError('Please paste an Instagram, TikTok or RedNote link');
       return;
     }
 
     if (!isValidReelUrl(trimmedUrl)) {
-      setUrlError('Invalid link. Use an instagram.com/reel/ or /p/ link, or a tiktok.com/@user/video/ link');
+      setUrlError('Invalid link. Use an instagram.com/reel/ or /p/ link, a tiktok.com/@user/video/ link, or a RedNote share link');
       return;
     }
 
@@ -830,7 +861,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
   return (
     <>
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={dismiss}>
       <div
         ref={sheetRef}
         className="modal edit-sheet"
@@ -924,14 +955,14 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 <input
                   ref={reelInputRef}
                   className="step-input"
-                  type="url"
+                  type="text"
                   inputMode="url"
                   value={reelUrlInput}
                   onChange={(e) => {
-                    setReelUrlInput(e.target.value);
+                    setReelUrlInput(takeShare(e.target.value));
                     setUrlError('');
                   }}
-                  placeholder="Instagram reel or TikTok video link…"
+                  placeholder="Instagram, TikTok or RedNote link…"
                   disabled={loading}
                   autoFocus
                 />
@@ -1006,7 +1037,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     aria-label="Open reel"
                     onClick={() => window.open(reelUrl, '_blank', 'noopener,noreferrer')}
                   >
-                    <ReelEmbedThumb reelUrl={reelUrl} className="pin-thumbnail" />
+                    <ReelEmbedThumb reelUrl={reelUrl} mapsUrl={mapsData?.mapsUrl} className="pin-thumbnail" />
                   </button>
                 ) : (
                   <button

@@ -180,7 +180,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     online,
     showToast,
     onSaved: (placeId, name, collectionName) =>
-      showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Edit', onClick: () => setEditPinId(placeId) }, 5000),
+      showToast(`"${name}" saved to ${collectionName ?? 'your collection'}`, { label: 'Open', onClick: () => setOpenPinId(placeId) }, 5000),
   });
 
   // Reels saved by the iPhone Shortcut while the app was closed join the inbox.
@@ -297,7 +297,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     }
     if (!['url', 'text', 'title'].some((key) => params.has(key))) return;
     const shared = [params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' ');
-    const link = shared.match(/https?:\/\/\S+/)?.[0] ?? null;
+    // takeShare keeps a RedNote caption's start for its link.
+    const link = takeShare(shared).match(/https?:\/\/\S+/)?.[0] ?? null;
     window.history.replaceState({}, document.title, window.location.pathname);
     if (link) setPendingShareUrl(link);
   }, []);
@@ -555,11 +556,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         profile={data.profile}
         collections={collections}
         onCreateCollection={data.createCollection}
-        onUpdateCollection={data.updateCollection}
         onSetPrivacy={data.setCollectionPrivate}
         onUpdateProfile={data.updateProfile}
-        onRemoveCollectionMember={data.removeCollectionMember}
-        onDeleteCollection={deleteCollection}
         showToast={showToast}
         onShare={setShareModal}
         onOpenDeleteModal={() => setDeleteModalOpen(true)}
@@ -718,6 +716,9 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           collection={collections.find((c) => c.id === shareModal.id) ?? shareModal}
           userId={userId}
           onSetRole={(memberId, role) => data.setMemberRole(shareModal.id, memberId, role)}
+          onUpdate={(patch) => data.updateCollection(shareModal.id, patch)}
+          onRemoveMember={(member) => data.removeCollectionMember(shareModal.id, member.id)}
+          onDelete={() => deleteCollection(shareModal.id)}
           places={places.filter((p) => p.collection_id === shareModal.id)}
           onClose={() => setShareModal(null)}
           showToast={showToast}

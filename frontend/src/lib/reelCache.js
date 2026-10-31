@@ -1,5 +1,6 @@
 import { apiFetch } from './api';
 import { readJSON, writeJSON } from './storage';
+import { shareNote } from './shareText';
 
 // Finished reel lookups kept on this device: the 5 most recent, each for 7 days. A reel looked up before
 // opens straight away, even after the sheet or the app was closed.
@@ -32,7 +33,7 @@ export function savedReel(url) {
 export function lookupReel(url) {
   const known = running.get(url);
   if (known) return known;
-  const lookup = apiFetch('/api/enrich-reel', { body: JSON.stringify({ reelUrl: url }) })
+  const lookup = apiFetch('/api/enrich-reel', { body: JSON.stringify({ reelUrl: url, sharedText: shareNote(url) }) })
     .then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (response.ok && data?.success) saveReel(url, data);

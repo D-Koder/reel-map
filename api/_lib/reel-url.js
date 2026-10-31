@@ -58,4 +58,14 @@ async function expandTikTokUrl(value) {
   }
 }
 
-module.exports = { canonicalInstagramUrl, expandTikTokUrl, instagramSlide, reelLookupKey };
+// RedNote (Xiaohongshu) share links: xhslink.cn/o/abc and xiaohongshu.com/explore/<id>.
+function isRedNoteUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return url.protocol === 'https:' && ['xhslink.cn', 'www.xhslink.cn', 'xiaohongshu.com', 'www.xiaohongshu.com'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { isRedNoteUrl, canonicalInstagramUrl, expandTikTokUrl, instagramSlide, reelLookupKey };

@@ -2,18 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
-import { addToCalendar } from '../lib/calendar';
+import { addToCalendar, googleCalendarUrl } from '../lib/calendar';
 import { apiFetch } from '../lib/api';
 import { shareBooking, sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
+import EditBookingDialog from './EditBookingDialog';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
 import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
-import { openStatus, suburbOf } from '../lib/hours';
-import { eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
+import { groupedHours, openStatus, suburbOf } from '../lib/hours';
+import { busyFor, savedConnection, savedGoogleCalendar } from '../lib/calendarLink';
+import { addGoogleEvent, googleCalendarEnabled, NeedsGoogleTap } from '../lib/googleCalendar';
+import { DEFAULT_PLAN_MINUTES } from '../lib/freeSlot';
+import TimePicker from './TimePicker';
+import { eventDatesText, eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
+import CalendarConnect from './CalendarConnect';
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -147,10 +153,11 @@ export default function PinModal({
   const adderName = place.added_by === userId ? 'you' : members.find((m) => m.id === place.added_by)?.display_name ?? 'someone';
 
   // Every member can open the place sheet to copy it. Only whoever added it can change it (the sheet enforces that).
-  // Delete: the booker if booked, otherwise whoever added it.
+  // Delete: whoever made the plan if there is one, otherwise whoever added it.
   const canDelete = canEdit && (booking ? booking.booked_by === userId : place.added_by === userId);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editingBooking, setEditingBooking] = useState(false);
   // The warning button sends a debug comment about this place to the debug table.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
@@ -177,6 +184,13 @@ export default function PinModal({
   // Decided once, when the sheet opens: an already-booked place skips the checklist entirely,
   // while one booked mid-flow keeps going to the calendar step.
   const [wasBooked] = useState(Boolean(booking));
+  // A place that's been visited goes back to being a normal place; "Plan again" starts a new plan.
+  const isDone = Boolean(booking?.done_at);
+  const [replanning, setReplanning] = useState(false);
+  const markDone = () => {
+    setReplanning(false);
+    onMarkDone();
+  };
   const steps = [1, 2, 3];
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -191,6 +205,15 @@ export default function PinModal({
     return () => controller.abort();
   }, [place.id, place.address, place.lat, place.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const [calendarTitle, setCalendarTitle] = useState(`${place.name}`);
+  // Step 1 compares the place's hours with the person's calendar: 'none' (not connected), 'checking',
+  // 'tap' (Google is connected but needs a tap this visit), 'failed', or 'ready'. `busy` is what the calendar
+  // says they're doing, which the time picker hatches.
+  const [connection, setConnection] = useState(() => savedConnection(userId));
+  const [freeTime, setFreeTime] = useState({ state: connection.kind ? 'checking' : 'none', busy: [] });
+  // An optional length for the plan, 30 minutes to an hour (null for none): it decides which times count as free.
+  const [planMinutes, setPlanMinutes] = useState(null);
+  // The time set in step 1 (an event takes its time in step 2 instead).
+  const [timeChosen, setTimeChosen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
@@ -228,29 +251,54 @@ export default function PinModal({
     window.open(place.reel_url, '_blank', 'noopener');
   };
 
-  const openBooking = () => {
-    showToast(`Opening ${bookingLabel(place.booking_url)}...`);
-    window.open(place.booking_url, '_blank', 'noopener');
-  };
-
-  const callVenue = () => {
-    if (place?.phone) window.location.href = `tel:${place.phone.replace(/[^\d+]/g, '')}`;
-    else showToast('No phone number listed');
-  };
-
-  // Step 3: opens the booked date as a calendar event (this used to shadow addToCalendar and only show a toast).
+  // Step 3: opens the planned date as a calendar event.
+  const calendarEvent = () => ({
+    title: calendarTitle.trim() || place.name,
+    location: place.address,
+    description: place.reel_url,
+    start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
+    minutes: planMinutes || DEFAULT_PLAN_MINUTES,
+  });
+  const bookingEvent = () => ({
+    title: place.name,
+    location: place.address,
+    description: place.reel_url,
+    start: booking.planned_at,
+  });
+  // Apple or any other calendar: always the .ics file, even when Google is connected. Done moves on, not this.
   const saveToCalendar = () => {
-    addToCalendar({
-      title: calendarTitle.trim() || place.name,
-      location: place.address,
-      description: place.reel_url,
-      start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
-    });
-    showToast(`Added "${calendarTitle}" to calendar`);
-    completeStep(3);
+    const event = calendarEvent();
+    addToCalendar(event);
+    showToast(`Added "${event.title}" to calendar`);
+  };
+  // Google Calendar is connected in Check Hours: the planned date's button then adds straight to it.
+  const googleConnected = googleCalendarEnabled && savedGoogleCalendar(userId);
+  // The planned date's button: Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
+  const putInCalendar = (event) => {
+    if (!googleConnected) {
+      addToCalendar(event);
+      showToast(`Added "${event.title}" to calendar`);
+      return;
+    }
+    addGoogleEvent(event)
+      .then(() => showToast(`Added "${event.title}" to Google Calendar`))
+      .catch((failure) => showToast(failure.message));
   };
 
   const hours = Array.isArray(place?.hours) ? place.hours : [];
+  useEffect(() => {
+    if (!connection.kind || !hours.length) {
+      setFreeTime({ state: 'none', busy: [] });
+      return undefined;
+    }
+    const controller = new AbortController();
+    setFreeTime({ state: 'checking', busy: [] });
+    const from = new Date();
+    busyFor(connection, from, new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000), controller.signal)
+      .then((busy) => !controller.signal.aborted && setFreeTime({ state: 'ready', busy }))
+      .catch((error) => !controller.signal.aborted && setFreeTime({ state: error instanceof NeedsGoogleTap ? 'tap' : 'failed', busy: [] }));
+    return () => controller.abort();
+  }, [connection, place.id, place.hours]); // eslint-disable-line react-hooks/exhaustive-deps
   // Shown next to the reel: open now, suburb, and one-tap links. Each only when the place has it.
   // An event is on at its own times, not the venue's hours (a park is "open 24 hours").
   const runs = place?.category === 'event' ? runsOf(place) : [];
@@ -266,25 +314,44 @@ export default function PinModal({
     place?.booking_url && { label: 'Reserve a table', href: place.booking_url, Icon: Ticket },
     place?.url && { label: 'Open link', href: place.url, Icon: Link },
   ].filter(Boolean);
-  const satHours = hours.find((h) => /sat/i.test(h.days));
+  // Step 1 text. Without a calendar every open time can be picked; with one, busy times are hatched.
   const hoursSummary = hasRuns
     ? eventSummary(place.name, runs, place.event_price)
-    : hours.length
-    ? `${place.name} is open ${satHours ? `Saturday ${satHours.time}` : `${hours[0].days} ${hours[0].time}`}. Does that work for you?`
-    : "We don't have opening hours for this place yet — check before you go.";
+    : freeTime.state === 'checking'
+    ? 'Checking your calendar…'
+    : freeTime.state === 'tap'
+    ? 'Tap below to check your Google Calendar for times you\'re free.'
+    : freeTime.state === 'failed'
+    ? "Couldn't read your calendar. Check the link or reconnect it."
+    : freeTime.state === 'ready'
+    ? "Hatched times are when you're busy. You can still pick them."
+    : !hours.length
+    ? "We don't have opening hours for this place yet, so check before you go."
+    : "Connect your calendar to see when you're busy.";
+  // The booking help in step 2: only what this place has.
+  const bookingActions = [
+    place?.booking_url && { label: bookingLabel(place.booking_url), href: place.booking_url, Icon: Ticket, primary: true },
+    place?.website_url && { label: 'Website', href: place.website_url, Icon: Globe },
+    place?.phone && { label: `Call ${place.phone}`, href: `tel:${place.phone.replace(/[^\d+]/g, '')}`, Icon: Phone },
+  ].filter(Boolean);
+  const planDay = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + new Date(iso).getDate() + ' ' + new Date(iso).toLocaleDateString(undefined, { month: 'short' });
 
   const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
-  const stepLabel = (n) => `Step ${steps.indexOf(n) + 1} of ${steps.length}`;
-  // Going back only changes the step shown: a saved booking stays.
+  const stepNames = { 1: hasRuns ? 'Check times' : 'Pick a time', 2: 'Book', 3: 'Calendar' };
+  // Going back only changes the step shown: a saved plan stays.
   const prevStep = (n) => steps[steps.indexOf(n) - 1];
   const stepHead = (n) => (
-    <div className="step-head">
-      <div className="step-number">{stepLabel(n)}</div>
+    <>
+      <div className="step-progress" role="img" aria-label={`Step ${steps.indexOf(n) + 1} of ${steps.length}: ${stepNames[n]}`}>
+        {steps.map((s) => (
+          <span key={s} className={s < n ? 'done' : s === n ? 'on' : ''}>{stepNames[s]}</span>
+        ))}
+      </div>
       {prevStep(n) && (
         <button type="button" className="step-back" onClick={() => setStep(prevStep(n))}>← Back</button>
       )}
-    </div>
+    </>
   );
 
   return (
@@ -315,7 +382,7 @@ export default function PinModal({
               <button
                 className="modal-close"
                 // A booked place asks first, to warn about the booking. Otherwise delete straight away: the toast has Undo.
-                onClick={() => (booking ? setConfirmingDelete(true) : onDelete())}
+                onClick={() => (booking && !isDone ? setConfirmingDelete(true) : onDelete())}
                 aria-label="Delete place"
                 title="Delete"
               >
@@ -351,14 +418,14 @@ export default function PinModal({
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
             {reelEmbed(place.reel_url)
-              ? <ReelEmbedThumb reelUrl={place.reel_url} className="reel-thumbnail-small" />
+              ? <ReelEmbedThumb reelUrl={place.reel_url} mapsUrl={place.maps_url} className="reel-thumbnail-small" />
               : <PlaceThumb place={place} className="reel-thumbnail-small" />}
           </button>
           <div className="reel-info-small">
             <div className="reel-sender">Added by {adderName}</div>
             <div className="reel-date">{formatDate(place.created_at)}</div>
-            {booking && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Booked by {nameOf(booking.booked_by)}</div>}
-            {status && (
+            {hasRuns && <div className="reel-event-date">{eventDatesText(runs)}</div>}
+            {booking && !isDone && <div className="reel-booked"><CalendarCheck className="ico" aria-hidden="true" /> Planned by {nameOf(booking.booked_by)}</div>}            {status && (
               <div className={`reel-open ${status.open ? 'is-open' : 'is-closed'}`}>
                 <span className="reel-open-dot" aria-hidden="true" /> {status.text}
               </div>
@@ -398,26 +465,39 @@ export default function PinModal({
           showToast={showToast}
         />
 
-        {booking && (
+        {booking && !isDone && (
           <div className="modal-section">
             <div className="modal-label"><CalendarDays className="ico" aria-hidden="true" /> Planned Date</div>
             <button
               type="button"
               className="planned-date"
-              onClick={() => addToCalendar({
-                title: place.name,
-                location: place.address,
-                description: place.reel_url,
-                start: booking.planned_at,
-              })}
+              onClick={() => putInCalendar(bookingEvent())}
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
+            {/* Opens Google Calendar with the event filled in; works without connecting Google in Check Hours.
+                Hidden when Google is connected, since the date above already adds to it. */}
+            {!googleConnected && (
+              <a
+                className="step-btn secondary full-width"
+                href={googleCalendarUrl(bookingEvent())}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
+              </a>
+            )}
             {/* For the people in this collection: the link's card shows the date and time. */}
             <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share booking with the group
             </button>
-            <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
+            {canEdit && (
+              <button type="button" className="step-btn secondary full-width edit-booking-btn" onClick={() => setEditingBooking(true)}>
+                <Pencil className="ico" aria-hidden="true" /> Edit booking
+              </button>
+            )}
+            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
+            {!canEdit && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
           </div>
         )}
 
@@ -452,7 +532,7 @@ export default function PinModal({
             <div className="modal-label">Business Hours</div>
             <table className="hours-table">
               <tbody>
-                {hours.map((h) => (
+                {groupedHours(hours).map((h) => (
                   <tr key={h.days}>
                     <td>{h.days}</td>
                     <td>{h.time}</td>
@@ -465,12 +545,19 @@ export default function PinModal({
 
         {!canEdit && !booking?.done_at ? (
           <div className="place-collection-note">
-            {booking?.planned_at ? `Booked for ${formatDateTime(booking.planned_at)}. ` : ''}You're a viewer here, so the owner or an editor books and marks it done.
+            {booking?.planned_at ? `Planned for ${formatDateTime(booking.planned_at)}. ` : ''}You're a viewer here, so the owner or an editor plans and marks it done.
           </div>
-        ) : booking?.done_at ? (
-          <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Done — marked by {nameOf(booking.marked_by)}</div>
-        ) : wasBooked ? (
-          <button className="step-btn primary full-width" disabled={doneLocked} onClick={onMarkDone}>
+        ) : isDone && !replanning ? (
+          <>
+            <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Been there · {formatDate(booking.done_at)} · marked by {nameOf(booking.marked_by)}</div>
+            {canEdit && (
+              <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
+                <CalendarPlus className="ico" aria-hidden="true" /> Plan again
+              </button>
+            )}
+          </>
+        ) : wasBooked && !replanning ? (
+          <button className="step-btn primary full-width" disabled={doneLocked} onClick={markDone}>
             {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
           </button>
         ) : (
@@ -478,47 +565,100 @@ export default function PinModal({
             {step === 1 && (
               <div className="checklist-step">
                 {stepHead(1)}
-                <div className="step-title"><Clock className="ico" aria-hidden="true" /> {hasRuns ? 'Check times' : 'Check Hours'}</div>
-                <div className="step-description">{hoursSummary}</div>
-                <div className="step-buttons">
-                  <button className="step-btn primary" onClick={() => completeStep(1)}>
-                    Yes, proceed
-                  </button>
-                  <button className="step-btn secondary" onClick={onClose}>
-                    Not now
-                  </button>
-                </div>
+                {hasRuns ? (
+                  <>
+                    <div className="step-title"><Clock className="ico" aria-hidden="true" /> Check times</div>
+                    <div className="step-description">{hoursSummary}</div>
+                    <div className="step-buttons">
+                      <button className="step-btn primary" onClick={() => completeStep(1)}>Yes, proceed</button>
+                      <button className="step-btn secondary" onClick={onClose}>Not now</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="step-title">Pick a time</div>
+                    <div className="step-description">{hoursSummary}</div>
+                    {hours.length > 0 ? (
+                      <TimePicker
+                        hours={hours}
+                        busy={freeTime.busy}
+                        connected={freeTime.state === 'ready'}
+                        minutes={planMinutes}
+                        onMinutes={setPlanMinutes}
+                        value={timeChosen && reservationDate ? new Date(reservationDate) : null}
+                        onPick={(start) => { setReservationDate(toLocalInputValue(start)); setTimeChosen(true); completeStep(1); }}
+                      />
+                    ) : (
+                      <>
+                        <input
+                          type="datetime-local"
+                          className="step-input"
+                          value={reservationDate}
+                          onChange={(e) => setReservationDate(e.target.value)}
+                        />
+                        <button
+                          className="step-btn primary full-width"
+                          disabled={!reservationDate}
+                          onClick={() => { setTimeChosen(true); completeStep(1); }}
+                        >
+                          Pick this time
+                        </button>
+                      </>
+                    )}
+                    {hours.length > 0 && <CalendarConnect userId={userId} connection={connection} needsTap={freeTime.state === 'tap'} onChange={setConnection} />}
+                  </>
+                )}
               </div>
             )}
 
             {step === 2 && (
               <div className="checklist-step">
                 {stepHead(2)}
-                <div className="step-title"><Link className="ico" aria-hidden="true" /> Book Reservation</div>
-                <div className="step-description">Choose when you'd like to visit. We'll help you find a table.</div>
-                <input
-                  type="datetime-local"
-                  className="step-input"
-                  value={reservationDate}
-                  onChange={(e) => setReservationDate(e.target.value)}
-                />
-                <div className="step-buttons">
-                  {place?.booking_url && (
-                    <button className="step-btn primary" onClick={openBooking}>
-                      <Link className="ico" aria-hidden="true" /> {bookingLabel(place.booking_url)}
-                    </button>
-                  )}
-                  <button className="step-btn secondary" onClick={callVenue}>
-                    <Phone className="ico" aria-hidden="true" /> Call
-                  </button>
-                </div>
+                <div className="step-title">Book it</div>
+                {timeChosen ? (
+                  <div className="picked-time">
+                    <div><small>Your time</small><strong>{formatDateTime(new Date(reservationDate).toISOString())}</strong></div>
+                    <button type="button" className="step-link" onClick={() => setStep(1)}>Change</button>
+                  </div>
+                ) : (
+                  <input
+                    type="datetime-local"
+                    className="step-input"
+                    value={reservationDate}
+                    onChange={(e) => setReservationDate(e.target.value)}
+                  />
+                )}
+                {bookingActions.length > 0 ? (
+                  <>
+                    <div className="step-description">Book with the venue yourself. We don't book for you.</div>
+                    <div className="book-actions">
+                      {bookingActions.map(({ label, href, Icon, primary }) => (
+                        <a
+                          key={label}
+                          className={`step-btn ${primary ? 'primary' : 'secondary'} book-link`}
+                          href={href}
+                          target={href.startsWith('tel:') ? undefined : '_blank'}
+                          rel="noopener noreferrer"
+                        >
+                          <Icon className="ico" aria-hidden="true" /> {label}
+                        </a>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="book-empty">
+                    <b>No way to book saved for this place</b>
+                    No phone number, booking link or reservation link. You can still plan the time and carry on.
+                  </div>
+                )}
                 <button
-                  className="step-btn secondary full-width"
+                  className="step-btn primary full-width"
                   onClick={() => completeStep(2)}
                   disabled={saving || !reservationDate}
                 >
-                  {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save booking →'}
+                  {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Next →'}
                 </button>
+                <div className="step-note">Next saves the plan, so friends can see it.</div>
                 <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
               </div>
             )}
@@ -526,22 +666,32 @@ export default function PinModal({
             {step === 3 && (
               <div className="checklist-step">
                 {stepHead(3)}
-                <div className="step-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar</div>
-                <div className="step-description">Add this date to your calendar so you don't forget!</div>
+                <div className="step-saved">
+                  <span className="step-saved-mark"><CircleCheck className="ico" aria-hidden="true" /></span>
+                  <div className="step-title">Planned for {planDay(booking?.planned_at ?? new Date(reservationDate).toISOString())}</div>
+                  <div className="step-description">
+                    {formatDateTime(booking?.planned_at ?? new Date(reservationDate).toISOString())}. Saved for everyone in this collection.
+                  </div>
+                </div>
                 <input
                   type="text"
                   className="step-input"
                   value={calendarTitle}
                   onChange={(e) => setCalendarTitle(e.target.value)}
+                  aria-label="Calendar event title"
                 />
-                <div className="step-buttons">
-                  <button className="step-btn primary" onClick={saveToCalendar}>
-                    <CalendarPlus className="ico" aria-hidden="true" /> Add to Calendar
-                  </button>
-                  <button className="step-btn secondary" onClick={() => completeStep(3)}>
-                    Done
-                  </button>
-                </div>
+                <a
+                  className="step-btn primary book-link full-width"
+                  href={googleCalendarUrl(calendarEvent())}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
+                </a>
+                <button className="step-btn secondary full-width" onClick={saveToCalendar}>
+                  <CalendarDays className="ico" aria-hidden="true" /> Add to Apple or other calendar
+                </button>
+                <button type="button" className="step-link" onClick={() => completeStep(3)}>Done</button>
               </div>
             )}
 
@@ -553,7 +703,7 @@ export default function PinModal({
                   Everything is planned. You can mark this as "Done" once you've visited!
                 </div>
                 <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> All steps completed</div>
-                <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={onMarkDone}>
+                <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={markDone}>
                   {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Available in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
                 </button>
               </div>
@@ -562,16 +712,26 @@ export default function PinModal({
         )}
       </div>
 
+      {editingBooking && booking && !isDone && canEdit && (
+        <EditBookingDialog
+          place={place}
+          canUpload={canEdit}
+          onSave={(value) => onBook(value)}
+          onClose={() => setEditingBooking(false)}
+          showToast={showToast}
+        />
+      )}
+
       {confirmingDelete && (
         <ConfirmDialog
           title={`Delete "${place.name}"?`}
           message="It will be removed from this collection and the map for everyone in it."
           warning={
-            booking
-              ? `You have a booking here for ${formatDateTime(booking.planned_at)}. Deleting the place won't cancel it with the venue — cancel that separately.`
+            booking && !isDone
+              ? `You have a plan here for ${formatDateTime(booking.planned_at)}. Deleting the place won't cancel a booking you made with the venue, so cancel that separately.`
               : null
           }
-          confirmLabel={booking ? 'Delete anyway' : 'Delete'}
+          confirmLabel={booking && !isDone ? 'Delete anyway' : 'Delete'}
           onConfirm={() => {
             setConfirmingDelete(false);
             onDelete();

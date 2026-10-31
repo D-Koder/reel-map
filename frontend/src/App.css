@@ -368,7 +368,13 @@ button.collection-empty {
   border-color: var(--vibe-both-border);
 }
 
+/* Greyed out on the Today board: a place marked done today. */
 .pin-item.done > * {
+  opacity: 0.55;
+}
+
+/* Greyed out: an event that has finished. */
+.pin-item.ended > * {
   opacity: 0.55;
 }
 
@@ -1362,6 +1368,15 @@ button.collection-empty {
   margin-bottom: 4px;
 }
 
+.reel-event-date {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pin-event-date {
+  font-weight: 600;
+}
+
 /* Open now, suburb and one-tap links next to the reel (PinModal). */
 .reel-open {
   display: inline-flex;
@@ -1766,6 +1781,17 @@ select.step-input {
   padding: 20px 16px 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
   animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The edit booking panel: taller than a confirm, so the confirmations scroll inside it. */
+.edit-booking {
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.edit-booking-files {
+  margin-top: 16px;
 }
 
 .confirm-title {
@@ -3623,27 +3649,28 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   position: relative;
 }
 
-/* Room for the date tab under the photo. */
-.place-thumb-link:has(.date-tab) {
-  margin-bottom: 10px;
+/* The planned time, in the card's top right corner so it never covers the photo. */
+.pin-tags {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
 }
 
 .date-tab {
-  position: absolute;
-  left: 50%;
-  bottom: -11px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  padding: 1px 6px;
+  padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--mint);
   color: #0b2a1c;
   border: 1.5px solid var(--ink);
-  /* A ring in the card's colour keeps the tab off busy photos. */
-  box-shadow: 0 0 0 2px var(--card);
-  font: 500 10px/1.4 var(--font-mono);
+  font: 500 11px/1.5 var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .vote-line {
@@ -4712,6 +4739,26 @@ button.profile-open {
   cursor: pointer;
 }
 
+.role-switch-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.role-switch-remove svg {
+  width: 16px;
+  height: 16px;
+}
+
 .role-switch-option.is-on {
   background: var(--ink);
   color: var(--surface);
@@ -5038,10 +5085,100 @@ button.profile-open {
   flex-wrap: wrap;
 }
 
-.move-new-emoji {
+/* Emoji picker: a button showing the choice, and a small popover under it that closes on a pick. */
+.emoji-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.emoji-trigger {
+  display: block;
   width: 56px;
-  flex: 0 0 56px;
-  text-align: center;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.emoji-trigger[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.emoji-trigger.is-placeholder { opacity: 0.45; }
+.emoji-trigger:disabled { opacity: 0.4; cursor: default; }
+
+.emoji-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  width: 288px;
+  max-width: calc(100vw - 48px);
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+/* The little arrow pointing up at the button. */
+.emoji-panel::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: var(--arrow-left, 20px);
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  border-left: 1.5px solid var(--ink);
+  border-top: 1.5px solid var(--ink);
+  transform: rotate(45deg);
+}
+
+/* No room below the button: the popover opens above it and the arrow points down. */
+.emoji-panel.is-above {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+.emoji-panel.is-above::before {
+  top: auto;
+  bottom: -8px;
+  border-left: 0;
+  border-top: 0;
+  border-right: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.emoji-cell {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.emoji-cell:hover { background: var(--surface-muted); }
+.emoji-cell[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+
+.emoji-none {
+  min-height: var(--tap);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
 .move-new-name {
@@ -5050,19 +5187,30 @@ button.profile-open {
 }
 
 .move-new-go {
+  order: 3;
   flex: 1 1 100%;
 }
 
 /* ---------- DUPLICATE PILL ---------- */
 /* Saved more than once in the same collection (same spot or same reel). */
 .duplicate-pill {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--ink);
   background: var(--butter);
+  color: #1a1a18;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+/* An event that has finished. Same shape as the duplicate chip, in grey. */
+.ended-pill {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink);
+  background: #d9d9d4;
   color: #1a1a18;
   font-size: 11px;
   font-weight: 800;
@@ -5241,3 +5389,469 @@ button.profile-open {
 .evt-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .evt-link-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; }
 .evt-link-chip span { overflow-wrap: anywhere; }
+
+/* RedNote has no embed: its cover picture, or a RedNote-red card with the note's title when there is none
+   (ReelEmbedThumb). The card is ours: a red gradient, a RedNote badge, the title, and a "View note" line. */
+.reel-embed-thumb.is-rednote,
+.reel-embed-thumb.is-rednote.is-loaded {
+  background: linear-gradient(160deg, #ff5468 0%, #ff2442 55%, #cf1a37 100%);
+  animation: none;
+}
+
+.reel-embed-thumb.is-rednote img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reel-embed-thumb .rednote-tile {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 11px;
+  text-align: left;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+/* A soft light in the corner, so the red isn't flat. */
+.reel-embed-thumb .rednote-tile::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -40%;
+  width: 90%;
+  height: 60%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  filter: blur(14px);
+  pointer-events: none;
+}
+
+.reel-embed-thumb .rednote-tile > * {
+  position: relative;
+}
+
+.reel-embed-thumb .rednote-tile i {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.reel-embed-thumb .rednote-tile b {
+  display: -webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-shadow: 0 1px 2px rgba(120, 0, 20, 0.25);
+}
+
+.reel-embed-thumb .rednote-tile small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* The small list thumbnail: just the badge and the title. */
+.pin-thumbnail.reel-embed-thumb .rednote-tile {
+  gap: 4px;
+  padding: 7px 6px;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile i {
+  padding: 2px 5px;
+  font-size: 7px;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile b {
+  -webkit-line-clamp: 5;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile small {
+  display: none;
+}
+
+/* The place's Google photo behind the RedNote card, under a red tint so the white title stays readable. */
+.reel-embed-thumb.is-rednote.has-photo .rednote-tile {
+  background: linear-gradient(160deg, rgba(255, 36, 66, 0.72) 0%, rgba(150, 8, 32, 0.9) 100%);
+}
+
+.reel-embed-thumb .rednote-tile em {
+  font-size: 8px;
+  font-style: normal;
+  opacity: 0.8;
+}
+
+.pin-thumbnail.reel-embed-thumb .rednote-tile em {
+  display: none;
+}
+
+/* Check Hours: connect a calendar to get a suggested time */
+.calendar-connect { margin: 0 0 12px; }
+.calendar-connect .step-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.calendar-connected { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-muted); }
+.calendar-link-btn { margin-left: 10px; padding: 4px 0; border: none; background: none; font-size: 14px; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+.calendar-help { margin: 0 0 10px; font-size: 14px; color: var(--text-muted); line-height: 1.45; }
+.calendar-help summary { cursor: pointer; }
+.calendar-help p { margin: 6px 0 0; }
+.calendar-error { margin: 0 0 10px; font-size: 14px; color: var(--danger, #b3261e); }
+
+/* PLAN STEPS (pick a time, book it, calendar) */
+.step-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.step-progress span {
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.step-progress span::before {
+  content: '';
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.step-progress span.on,
+.step-progress span.done {
+  color: var(--text);
+}
+
+.step-progress span.on::before,
+.step-progress span.done::before {
+  background: var(--accent);
+}
+
+.step-link {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.picked-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.picked-time small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.picked-time strong {
+  font-size: 16px;
+}
+
+.picked-time .step-link {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+}
+
+.book-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.step-btn.book-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.book-empty {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.book-empty b {
+  color: var(--text);
+}
+
+.step-note {
+  margin-top: 8px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.step-saved {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.step-saved .step-title,
+.step-saved .step-description {
+  margin-bottom: 0;
+}
+
+.step-saved-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.step-saved-mark .ico {
+  width: 26px;
+  height: 26px;
+}
+
+/* Time picker (step 1, "Choose another time") */
+.time-picker {
+  margin-bottom: 8px;
+}
+
+.tp-length {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tp-length span {
+  margin-right: auto;
+}
+
+.tp-length small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tp-length button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tp-length button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.tp-days {
+  display: flex;
+  gap: 6px;
+  margin: 0 -2px 12px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tp-day {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 52px;
+  padding: 8px 0 6px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tp-day small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tp-day b {
+  font-size: 17px;
+}
+
+.tp-day i {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.tp-day.free i {
+  background: var(--success);
+}
+
+.tp-day.busy i {
+  background: var(--butter);
+}
+
+.tp-day.closed,
+.tp-day.past {
+  opacity: 0.45;
+}
+
+.tp-day[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+.tp-window {
+  margin-bottom: 12px;
+}
+
+.tp-window-head {
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tp-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.tp-slot {
+  min-height: 44px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tp-slot.busy {
+  background: repeating-linear-gradient(135deg, var(--card) 0 5px, var(--surface-muted) 5px 10px);
+  color: var(--text-muted);
+}
+
+.tp-slot.late {
+  opacity: 0.4;
+}
+
+.tp-slot[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.tp-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tp-key .tp-slot {
+  display: inline-block;
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  border-width: 1px;
+  cursor: default;
+}
+
+.tp-empty {
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tp-warn {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  font-size: 13px;
+}
+
+.tp-warn b {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Name and emoji in the Share & manage sheet. */
+.share-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.share-details .step-input {
+  flex: 1;
+  min-width: 0;
+}

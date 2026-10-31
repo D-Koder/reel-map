@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Pencil, Users, X } from 'lucide-react';
+import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
 import { exportCollection } from '../lib/collectionFile';
+import { canEditCollection } from '../lib/roles';
+import EmojiPicker from './EmojiPicker';
 
 async function copy(text, label, showToast) {
   try {
@@ -14,7 +16,7 @@ async function copy(text, label, showToast) {
   }
 }
 
-export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onClose, showToast }) {
+export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onUpdate, onRemoveMember, onDelete, onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
@@ -23,6 +25,24 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
 
   const isOwner = collection.ownerId === userId || collection.members.some((m) => m.id === userId && m.role === 'owner');
   const [savingRole, setSavingRole] = useState(null); // member id
+  // Viewers can see and share a collection but not export it.
+  const canExport = canEditCollection(collection, userId);
+
+  // The owner's name and emoji for the collection.
+  const [nameDraft, setNameDraft] = useState(collection.name);
+  const [emojiDraft, setEmojiDraft] = useState(collection.emoji ?? '');
+  const [savingDetails, setSavingDetails] = useState(false);
+  const detailsChanged = nameDraft.trim() !== collection.name || emojiDraft !== (collection.emoji ?? '');
+
+  const saveDetails = async (e) => {
+    e.preventDefault();
+    const name = nameDraft.trim();
+    if (!name || !detailsChanged || savingDetails) return;
+    setSavingDetails(true);
+    const patch = { name, ...(emojiDraft !== (collection.emoji ?? '') ? { emoji: emojiDraft || '📌' } : {}) };
+    if (await onUpdate?.(patch)) showToast('Saved');
+    setSavingDetails(false);
+  };
 
   const setRole = async (member, role) => {
     if (member.role === role || savingRole) return;
@@ -35,6 +55,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
 
   // Everyone in the collection can share it, so the code shows straight away; it's made (or reused) when Share opens.
   useEffect(() => {
+    if (collection.isPrivate) return undefined;
     let cancelled = false;
     setLoading(true);
     getInvite(collection.id).then((result) => {
@@ -43,7 +64,17 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [collection.id, getInvite]);
+  }, [collection.id, collection.isPrivate, getInvite]);
+
+  const removeMember = async (member) => {
+    if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) await onRemoveMember?.(member);
+  };
+
+  const deleteCollection = () => {
+    if (!window.confirm(`Delete "${collection.name}" and remove it for all members?`)) return;
+    onDelete?.();
+    onClose();
+  };
 
   const exportAs = (format) => {
     if (!places.length) {
@@ -58,16 +89,41 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       <div ref={sheetRef} className="modal edit-sheet share-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" {...sheetDrag} />
         <div className="modal-header">
-          <div className="modal-title">Share "{collection.name}"</div>
+          <div className="modal-title">{isOwner ? 'Share & manage' : 'Share'} "{collection.name}"</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
             <X aria-hidden="true" />
           </button>
         </div>
 
         <div className="share-body">
+          {isOwner && (
+            <form className="share-section" onSubmit={saveDetails}>
+              <div className="share-section-title">Name and icon</div>
+              <div className="share-details">
+                <EmojiPicker value={emojiDraft} onChange={setEmojiDraft} placeholder="📌" label="Collection emoji" />
+                <input
+                  className="step-input"
+                  value={nameDraft}
+                  maxLength={60}
+                  aria-label="Collection name"
+                  onChange={(e) => setNameDraft(e.target.value)}
+                />
+              </div>
+              {detailsChanged && (
+                <button type="submit" className="step-btn primary full-width" disabled={!nameDraft.trim() || savingDetails}>
+                  {savingDetails ? 'Saving…' : 'Save'}
+                </button>
+              )}
+            </form>
+          )}
+
           <div className="invite-card">
-            <div className="invite-card-label">Invite code</div>
-            {loading ? (
+            <div className="invite-card-label">{collection.isPrivate ? 'Locked' : 'Invite code'}</div>
+            {collection.isPrivate ? (
+              <div className="invite-card-hint">
+                <Lock className="ico" aria-hidden="true" /> No new people can join until it's unlocked.{isOwner ? ' Unlock it in Settings.' : ' Ask the owner to unlock it.'} Everyone already in keeps access.
+              </div>
+            ) : loading ? (
               <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
             ) : invite ? (
               <>
@@ -90,9 +146,10 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                 Try again
               </button>
             )}
-            <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>
+            {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
 
+          {canExport && (
           <div className="share-section">
             <div className="share-section-title">Export</div>
             <div className="share-list">
@@ -115,6 +172,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             </div>
             <p className="toggle-hint">Votes aren't included.</p>
           </div>
+          )}
 
           <div className="share-section">
             <div className="share-section-title"><Users className="ico" aria-hidden="true" /> Members</div>
@@ -128,7 +186,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                   {member.role === 'owner' ? (
                     <span className="share-member-role"><Crown className="ico" aria-hidden="true" /> Owner</span>
                   ) : isOwner ? (
-                    // The owner picks what each member can do.
+                    // The owner picks what each member can do, or removes them.
+                    <>
                     <span className="role-switch" role="group" aria-label={`${member.display_name}'s role`}>
                       {['viewer', 'editor'].map((role) => (
                         <button
@@ -143,6 +202,10 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                         </button>
                       ))}
                     </span>
+                    <button type="button" className="role-switch-remove" aria-label={`Remove ${member.display_name}`} onClick={() => removeMember(member)}>
+                      <X aria-hidden="true" />
+                    </button>
+                    </>
                   ) : (
                     <span className="share-member-role">
                       {member.role === 'editor'
@@ -154,6 +217,14 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               ))}
             </div>
           </div>
+
+          {isOwner && (
+            <div className="share-section">
+              {collection.isInbox
+                ? <p className="toggle-hint">This is where shared reels land, so it can't be deleted.</p>
+                : <button type="button" className="step-btn danger full-width" onClick={deleteCollection}>Delete collection</button>}
+            </div>
+          )}
         </div>
       </div>
     </div>
