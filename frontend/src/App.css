@@ -1783,6 +1783,17 @@ select.step-input {
   animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* The edit booking panel: taller than a confirm, so the confirmations scroll inside it. */
+.edit-booking {
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.edit-booking-files {
+  margin-top: 16px;
+}
+
 .confirm-title {
   font-size: 17px;
   font-weight: 700;

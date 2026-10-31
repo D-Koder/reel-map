@@ -6,6 +6,7 @@ import { addToCalendar, googleCalendarUrl } from '../lib/calendar';
 import { apiFetch } from '../lib/api';
 import { shareBooking, sharePlace } from '../lib/share';
 import BookingFiles from './BookingFiles';
+import EditBookingDialog from './EditBookingDialog';
 import ConfirmDialog from './ConfirmDialog';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -156,6 +157,7 @@ export default function PinModal({
   const canDelete = canEdit && (booking ? booking.booked_by === userId : place.added_by === userId);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editingBooking, setEditingBooking] = useState(false);
   // The warning button sends a debug comment about this place to the debug table.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
@@ -489,7 +491,13 @@ export default function PinModal({
             <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share booking with the group
             </button>
-            <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
+            {canEdit && (
+              <button type="button" className="step-btn secondary full-width edit-booking-btn" onClick={() => setEditingBooking(true)}>
+                <Pencil className="ico" aria-hidden="true" /> Edit booking
+              </button>
+            )}
+            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
+            {!canEdit && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
           </div>
         )}
 
@@ -703,6 +711,16 @@ export default function PinModal({
           </>
         )}
       </div>
+
+      {editingBooking && booking && !isDone && canEdit && (
+        <EditBookingDialog
+          place={place}
+          canUpload={canEdit}
+          onSave={(value) => onBook(value)}
+          onClose={() => setEditingBooking(false)}
+          showToast={showToast}
+        />
+      )}
 
       {confirmingDelete && (
         <ConfirmDialog
