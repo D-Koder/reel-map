@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
+import { CalendarDays, Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
+import { eventDatesText, runsOf } from '../lib/eventRuns';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -82,6 +83,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   const shared = members.length > 1;
   const myFeeling = feelings.find((f) => f.id === pin.reactions[userId]);
   const where = shortAddress(pin.address);
+  const eventDates = pin.category === 'event' ? eventDatesText(runsOf(pin)) : '';
   const people = memberIds.map((id) => members.find((m) => m.id === id) ?? { id, display_name: 'You' });
   const voteSummary = members
     .map((m) => {
@@ -122,6 +124,12 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             <div className="pin-where">
               <MapPin aria-hidden="true" />
               <span>{where}</span>
+            </div>
+          )}
+          {eventDates && (
+            <div className="pin-where pin-event-date">
+              <CalendarDays aria-hidden="true" />
+              <span>{eventDates}</span>
             </div>
           )}
           {pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}

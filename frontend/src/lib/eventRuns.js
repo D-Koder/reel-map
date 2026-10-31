@@ -73,6 +73,12 @@ export function datesText(run) {
   return a.getMonth() === b.getMonth() ? `${a.getDate()}–${dayMonth(run.end)}` : `${dayMonth(run.start)} – ${dayMonth(run.end)}`;
 }
 
+// Every run's dates with the year, e.g. "13–15 Nov, 30 Nov – 2 Dec 2026". Empty when there are no runs.
+export function eventDatesText(runs) {
+  if (!runs.length) return '';
+  return `${runs.map(datesText).join(', ')} ${noon(runs[0].start).getFullYear()}`;
+}
+
 // "11am–10pm", "From 6pm", "All day", or "Time not given". Past midnight adds "+1".
 export function timesText(run) {
   const open = minutes(run.open);

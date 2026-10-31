@@ -1368,6 +1368,10 @@ button.collection-empty {
   margin-bottom: 4px;
 }
 
+.pin-event-date {
+  font-weight: 600;
+}
+
 /* Open now, suburb and one-tap links next to the reel (PinModal). */
 .reel-open {
   display: inline-flex;
