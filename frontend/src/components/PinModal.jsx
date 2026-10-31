@@ -257,12 +257,17 @@ export default function PinModal({
     start: booking?.planned_at ?? new Date(reservationDate).toISOString(),
     minutes: planMinutes || DEFAULT_PLAN_MINUTES,
   });
-  // Apple or any other calendar: always the .ics file, even when Google is connected.
+  const bookingEvent = () => ({
+    title: place.name,
+    location: place.address,
+    description: place.reel_url,
+    start: booking.planned_at,
+  });
+  // Apple or any other calendar: always the .ics file, even when Google is connected. Done moves on, not this.
   const saveToCalendar = () => {
     const event = calendarEvent();
     addToCalendar(event);
     showToast(`Added "${event.title}" to calendar`);
-    completeStep(3);
   };
   // The planned date's button: Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
   const putInCalendar = (event) => {
@@ -461,15 +466,19 @@ export default function PinModal({
             <button
               type="button"
               className="planned-date"
-              onClick={() => putInCalendar({
-                title: place.name,
-                location: place.address,
-                description: place.reel_url,
-                start: booking.planned_at,
-              })}
+              onClick={() => putInCalendar(bookingEvent())}
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
+            {/* Opens Google Calendar with the event filled in; works without connecting Google in Check Hours. */}
+            <a
+              className="step-btn secondary full-width"
+              href={googleCalendarUrl(bookingEvent())}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
+            </a>
             {/* For the people in this collection: the link's card shows the date and time. */}
             <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share booking with the group
@@ -662,7 +671,6 @@ export default function PinModal({
                   href={googleCalendarUrl(calendarEvent())}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => completeStep(3)}
                 >
                   <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
                 </a>
