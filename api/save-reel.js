@@ -101,7 +101,17 @@ function reply(res, status, message) {
   return res.status(status).send(message);
 }
 
+// Every failure answers with a message the Shortcut can show, never a bare server error page.
 module.exports = async function handler(req, res) {
+  try {
+    return await save(req, res);
+  } catch (error) {
+    console.error('Save reel failed:', error);
+    return reply(res, 500, '⚠️ Something went wrong. Try again.');
+  }
+};
+
+async function save(req, res) {
   if (req.method !== 'POST') return reply(res, 405, 'Use POST');
   if (!SUPABASE_URL || !SUPABASE_KEY) return reply(res, 500, '⚠️ Waylit Maps is missing its Supabase settings');
 
@@ -120,14 +130,19 @@ module.exports = async function handler(req, res) {
       ? await rpc('mark_shortcut_connected', { p_key: key })
       : await rpc('save_shared_reel', { p_key: key, p_url: url });
   } catch {
-    return reply(res, 502, '⚠️ Could not reach Waylit Maps. Try again.');
+    return reply(res, 502, connecting ? '⚠️ Could not reach Waylit Maps to connect. Try again.' : '⚠️ Could not reach Waylit Maps. Try again.');
   }
 
   const result = await response.json().catch(() => null);
   if (response.ok) {
     if (connecting) return reply(res, 200, '✅ Waylit Maps connected');
     if (result === 'duplicate') return reply(res, 200, '👍 Already saved to Waylit Maps');
-    lookInBackground(req, key, url);
+    // The lookup runs after the save, so a problem starting it must not turn a saved reel into a failure.
+    try {
+      lookInBackground(req, key, url);
+    } catch (error) {
+      console.warn('Background reel lookup could not start:', error.message);
+    }
     return reply(res, 200, '✅ Saved to Waylit Maps');
   }
 
@@ -137,6 +152,6 @@ module.exports = async function handler(req, res) {
     22023: [400, '⚠️ No link found in what was shared'],
     54000: [429, '⏳ Too many reels this hour. Try again later.'],
   };
-  const [status, message] = messages[result?.code] ?? [502, '⚠️ Could not save. Try again.'];
+  const [status, message] = messages[result?.code] ?? [502, connecting ? '⚠️ Could not connect. Try again.' : '⚠️ Could not save. Try again.'];
   return reply(res, status, message);
-};
+}
