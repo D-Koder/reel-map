@@ -269,9 +269,11 @@ export default function PinModal({
     addToCalendar(event);
     showToast(`Added "${event.title}" to calendar`);
   };
+  // Google Calendar is connected in Check Hours: the planned date's button then adds straight to it.
+  const googleConnected = googleCalendarEnabled && savedGoogleCalendar(userId);
   // The planned date's button: Google Calendar when it's connected in Check Hours (one tap, no file); otherwise the .ics file.
   const putInCalendar = (event) => {
-    if (!googleCalendarEnabled || !savedGoogleCalendar(userId)) {
+    if (!googleConnected) {
       addToCalendar(event);
       showToast(`Added "${event.title}" to calendar`);
       return;
@@ -470,15 +472,18 @@ export default function PinModal({
             >
               {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
             </button>
-            {/* Opens Google Calendar with the event filled in; works without connecting Google in Check Hours. */}
-            <a
-              className="step-btn secondary full-width"
-              href={googleCalendarUrl(bookingEvent())}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
-            </a>
+            {/* Opens Google Calendar with the event filled in; works without connecting Google in Check Hours.
+                Hidden when Google is connected, since the date above already adds to it. */}
+            {!googleConnected && (
+              <a
+                className="step-btn secondary full-width"
+                href={googleCalendarUrl(bookingEvent())}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
+              </a>
+            )}
             {/* For the people in this collection: the link's card shows the date and time. */}
             <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
               <Share2 className="ico" aria-hidden="true" /> Share booking with the group
