@@ -3,7 +3,7 @@ import { CalendarDays, Check, CircleCheck, GripVertical, MapPin } from 'lucide-r
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
-import { eventDatesText, runsOf } from '../lib/eventRuns';
+import { eventDatesText, eventStatus, runsOf } from '../lib/eventRuns';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -84,6 +84,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   const myFeeling = feelings.find((f) => f.id === pin.reactions[userId]);
   const where = shortAddress(pin.address);
   const eventDates = pin.category === 'event' ? eventDatesText(runsOf(pin)) : '';
+  // An event whose runs are all over: greyed out, with a Finished chip.
+  const eventOver = pin.category === 'event' && eventStatus(runsOf(pin))?.kind === 'over';
   const people = memberIds.map((id) => members.find((m) => m.id === id) ?? { id, display_name: 'You' });
   const voteSummary = members
     .map((m) => {
@@ -95,7 +97,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
-      className={`pin-item ${vibe.consensus} ${showDoneLook ? 'done' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
+      className={`pin-item ${vibe.consensus} ${showDoneLook ? 'done' : ''} ${eventOver ? 'ended' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}
       {...(selectable ? { role: 'checkbox', 'aria-checked': selected, 'aria-label': pin.name, tabIndex: 0 } : {})}
@@ -146,8 +148,9 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
         </div>
       {/* The planned time and the duplicate tag hang off the card's top edge, side by side, so neither covers the name.
           Hidden while selecting, where the tick sits in this corner. */}
-      {!selectable && (showDateTab || duplicate) && (
+      {!selectable && (showDateTab || duplicate || eventOver) && (
         <div className="pin-tags">
+          {eventOver && <span className="ended-pill" title="This event has finished">Finished</span>}
           {duplicate && <span className="duplicate-pill" title="Saved more than once in this collection">Duplicate</span>}
           {showDateTab && (
             <span className="date-tab">

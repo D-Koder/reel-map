@@ -373,6 +373,11 @@ button.collection-empty {
   opacity: 0.55;
 }
 
+/* Greyed out: an event that has finished. */
+.pin-item.ended > * {
+  opacity: 0.55;
+}
+
 /* ---------- DRAGGABLE ROWS ---------- */
 .drag-handle {
   flex-shrink: 0;
@@ -5182,6 +5187,19 @@ button.profile-open {
   border-radius: var(--radius-pill);
   border: 1px solid var(--ink);
   background: var(--butter);
+  color: #1a1a18;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+/* An event that has finished. Same shape as the duplicate chip, in grey. */
+.ended-pill {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink);
+  background: #d9d9d4;
   color: #1a1a18;
   font-size: 11px;
   font-weight: 800;
