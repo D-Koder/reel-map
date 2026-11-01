@@ -45,6 +45,18 @@ function withArea(text, area) {
   return `${value} ${area}`;
 }
 
+// A street address written in a caption, with the suburb it ends in: { address, suburb }, or null.
+// It needs a number and a street word, so a price or a time isn't taken for an address.
+const STREET_WORD = 'Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Lane|Ln|Parade|Pde|Boulevard|Blvd|Highway|Hwy|Court|Ct|Place|Pl|Way|Terrace|Tce|Crescent|Cres|Close|Cl';
+const STREET_ADDRESS = new RegExp(`\\b\\d{1,5}[A-Za-z]?\\s+[\\p{L}'-]{2,30}(?:\\s[\\p{L}'-]{2,30})?\\s(?:${STREET_WORD})\\b\\.?(?:,[ \\t]*[\\p{L}'-]{2,30}(?:[ \\t]+[\\p{L}'-]{2,30})?)*`, 'u');
+function captionAddress(caption) {
+  const match = String(caption || '').match(STREET_ADDRESS);
+  if (!match) return null;
+  const address = match[0].replace(/\s+/g, ' ').trim();
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  return { address, suburb: parts.length > 1 ? parts[parts.length - 1] : '' };
+}
+
 // What the AI found, as the reel fields the rest of the lookup uses. A list post shared without a
 // slide offers every place to pick from.
 // The AI gives a handle's business name in words; a name still written as a handle is split at its dots.
@@ -575,19 +587,23 @@ async function enrich(req, res, getBrowser) {
   // Where the post is: the area the AI read from the caption, else the post's location tag, else the
   // person's own country. It's added to the search, so Google doesn't answer a vague search with
   // places near the server (in the US). The page is only opened for the tag when nothing else says where.
+  // The street address the caption gives is the next best source for where the post is, after the AI's area.
+  const captionAddr = read.fromCache ? null : captionAddress(reel.caption);
   let area = read.fromCache ? reel.area || '' : '';
   if (!read.fromCache && !handleHit) {
-    area = aiFound?.area || reel.locationTag;
+    area = aiFound?.area || captionAddr?.suburb || reel.locationTag;
     if (!area && !aiFound?.popup?.locationNote) {
       reel = await readPageExtras(reel, cleanUrl, getBrowser);
       area = reel.locationTag || '';
     }
     area ||= country;
   }
-  // Only the AI's venue is searched, with the area. No caption, location or creator fallback: if the AI
-  // names no venue, nothing is searched and the person picks the place themselves.
+  // The AI's venue is searched with the area. With no venue, the street address from the caption is searched
+  // instead, since an address is a place of its own. Otherwise nothing is searched and the person picks the place.
   const orderOnly = aiOrderOnly || Boolean(reel.orderOnly);
-  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query || (venue ? withArea(venue, area) : '');
+  const addressQuery = !venue && !handleHit && captionAddr ? captionAddr.address : '';
+  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query || (venue ? withArea(venue, area) : addressQuery ? withArea(addressQuery, area) : '');
+  if (!venue && query && addressQuery) steps.address = `no venue, so searched the caption's address: ${addressQuery}`;
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {
