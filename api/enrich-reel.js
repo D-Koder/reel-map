@@ -30,13 +30,6 @@ async function invoke(handler, body, getBrowser) {
   return response;
 }
 
-// Swap the two word halves of a caption, so the end of the caption comes first.
-function flipCaption(caption) {
-  const words = String(caption || '').split(/\s+/).filter(Boolean);
-  const half = Math.ceil(words.length / 2);
-  return [...words.slice(half), ...words.slice(0, half)].join(' ');
-}
-
 // True when the text already names the area, so it isn't added twice.
 // Hashtags don't count: Google reads "#sydneyfood" as one word, not as Sydney.
 function saysWhere(text, area) {
@@ -591,18 +584,10 @@ async function enrich(req, res, getBrowser) {
     }
     area ||= country;
   }
-  const placeName = String(reel.placeName || '').replace(/^@/, '');
-  // The AI's venue is searched on its own with the area: the rest of the caption only adds noise.
-  // With no venue at all, the whole caption is the last resort: captions usually end with the venue,
-  // so the flipped caption leads with it. An order/pickup post (the AI says so) only searches the
-  // business's name: anything else would find a random place nearby.
+  // Only the AI's venue is searched, with the area. No caption, location or creator fallback: if the AI
+  // names no venue, nothing is searched and the person picks the place themselves.
   const orderOnly = aiOrderOnly || Boolean(reel.orderOnly);
-  const flipped = orderOnly ? '' : flipCaption(reel.caption);
-  // The area goes right after the venue, or in front of a caption that doesn't say where.
-  const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query ||
-    (venue ? withArea(venue, area) : captionQuery) ||
-    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
+  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query || (venue ? withArea(venue, area) : '');
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {
