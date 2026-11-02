@@ -9,6 +9,7 @@
 const { internalHeaders } = require('./_lib/auth');
 const { requestCountry, requestLanguage } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
+const { cleanName } = require('./_lib/place-name');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 // The server key: save_shared_reel and mark_shortcut_connected are only open to it (see migration
@@ -37,7 +38,7 @@ function placeToSave(data) {
   if (!details?.name) return null;
   const popup = data.popup;
   return {
-    name: popup?.name || details.name,
+    name: cleanName(popup?.name || details.name),
     address: details.address || data.location || '',
     category: popup ? 'event' : data.category || 'food',
     lat: details.latitude ?? null,
@@ -50,6 +51,8 @@ function placeToSave(data) {
     menuUrl: details.menuUrl || '',
     eventDate: popup?.startDate || '',
     eventEndDate: popup?.endDate || '',
+    // Each day's open and close times, as the post gives them (the same shape the app saves).
+    eventRuns: popup?.runs || [],
   };
 }
 

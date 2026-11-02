@@ -8,6 +8,7 @@ const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
+const { cleanName } = require('./_lib/place-name');
 const { aiPlace } = require('./_lib/ai-place');
 const { squash, letters } = require('./_lib/names');
 
@@ -63,7 +64,7 @@ function captionAddress(caption) {
 function applyAi(reel, ai) {
   const pick = ai.kind === 'list' ? ai.places[ai.slidePlace ?? 0] : ai.places[0];
   const fromHandle = ['creator', 'mention'].includes(pick.source) && /^@?[\w.]+$/.test(pick.name);
-  const name = fromHandle ? handleToPlace(pick.name).name : pick.name;
+  const name = cleanName(fromHandle ? handleToPlace(pick.name).name : pick.name);
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
     ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, area: listedArea, category, evidence }) => ({
