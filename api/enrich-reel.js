@@ -1,12 +1,14 @@
 const { requireUser } = require('./_lib/auth');
 const scrapeReel = require('./_lib/scrape-reel');
 const scrapeLocation = require('./scrape-location');
-const { expandTikTokUrl, reelLookupKey } = require('./_lib/reel-url');
+const { expandTikTokUrl, isRedNoteUrl, reelLookupKey } = require('./_lib/reel-url');
+const { fetchRedNote } = require('./_lib/rednote-fetch');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
-const { requestCountry, requestTimeZone, dayIn } = require('./_lib/country');
+const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
+const { cleanName } = require('./_lib/place-name');
 const { aiPlace } = require('./_lib/ai-place');
 const { squash, letters } = require('./_lib/names');
 
@@ -29,13 +31,6 @@ async function invoke(handler, body, getBrowser) {
   return response;
 }
 
-// Swap the two word halves of a caption, so the end of the caption comes first.
-function flipCaption(caption) {
-  const words = String(caption || '').split(/\s+/).filter(Boolean);
-  const half = Math.ceil(words.length / 2);
-  return [...words.slice(half), ...words.slice(0, half)].join(' ');
-}
-
 // True when the text already names the area, so it isn't added twice.
 // Hashtags don't count: Google reads "#sydneyfood" as one word, not as Sydney.
 function saysWhere(text, area) {
@@ -51,13 +46,25 @@ function withArea(text, area) {
   return `${value} ${area}`;
 }
 
+// A street address written in a caption, with the suburb it ends in: { address, suburb }, or null.
+// It needs a number and a street word, so a price or a time isn't taken for an address.
+const STREET_WORD = 'Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Lane|Ln|Parade|Pde|Boulevard|Blvd|Highway|Hwy|Court|Ct|Place|Pl|Way|Terrace|Tce|Crescent|Cres|Close|Cl';
+const STREET_ADDRESS = new RegExp(`\\b\\d{1,5}[A-Za-z]?\\s+[\\p{L}'-]{2,30}(?:\\s[\\p{L}'-]{2,30})?\\s(?:${STREET_WORD})\\b\\.?(?:,[ \\t]*[\\p{L}'-]{2,30}(?:[ \\t]+[\\p{L}'-]{2,30})?)*`, 'u');
+function captionAddress(caption) {
+  const match = String(caption || '').match(STREET_ADDRESS);
+  if (!match) return null;
+  const address = match[0].replace(/\s+/g, ' ').trim();
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  return { address, suburb: parts.length > 1 ? parts[parts.length - 1] : '' };
+}
+
 // What the AI found, as the reel fields the rest of the lookup uses. A list post shared without a
 // slide offers every place to pick from.
 // The AI gives a handle's business name in words; a name still written as a handle is split at its dots.
 function applyAi(reel, ai) {
   const pick = ai.kind === 'list' ? ai.places[ai.slidePlace ?? 0] : ai.places[0];
   const fromHandle = ['creator', 'mention'].includes(pick.source) && /^@?[\w.]+$/.test(pick.name);
-  const name = fromHandle ? handleToPlace(pick.name).name : pick.name;
+  const name = cleanName(fromHandle ? handleToPlace(pick.name).name : pick.name);
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
     ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, area: listedArea, category, evidence }) => ({
@@ -236,6 +243,42 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
   }
   // The AI reads the caption for the venue, so nothing is taken from it here.
   return { reel, venue: '', candidates: null, fromCache: false };
+}
+
+// A RedNote post: the page is tried first, for the full caption. It often shows a login wall or a check to
+// a server, so then what its share text gave (the start of the caption before the link) is the caption:
+// cut off ("…"), but it usually names the area and the dish or venue.
+async function readRedNote(reelUrl, sharedText, getBrowser) {
+  // What each try gave, for the Add place log: why a page wasn't read is otherwise invisible.
+  const tried = [];
+  const quick = await fetchRedNote(reelUrl);
+  if (quick.reel) {
+    tried.push(`plain request: ${quick.complete ? 'full note' : 'meta description only (may be cut short)'}`);
+    if (quick.complete) return { reel: quick.reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+    // Only the meta description: the caption may be cut short and the post date is missing, so the browser
+    // is tried for the full note. Its answer is kept when it has the date or more of the caption.
+    const full = await invoke(scrapeReel, { reelUrl }, getBrowser);
+    const better = full.statusCode < 400 && full.body?.success && full.body.caption &&
+      (full.body.date || full.body.caption.length > quick.reel.caption.length);
+    tried.push(better ? 'browser: read the full note' : `browser: nothing more (${full.body?.error || `HTTP ${full.statusCode}`})`);
+    const reel = better ? { ...full.body, reelUrl, thumbnailUrl: full.body.thumbnailUrl || quick.reel.thumbnailUrl } : quick.reel;
+    return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+  }
+  tried.push(`plain request: ${quick.reason}`);
+  const page = await invoke(scrapeReel, { reelUrl }, getBrowser);
+  if (page.statusCode < 400 && page.body?.success && page.body.caption) {
+    tried.push('browser: read the page');
+    return { reel: { ...page.body, reelUrl }, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
+  }
+  tried.push(`browser: ${page.body?.error || `HTTP ${page.statusCode}`}`);
+  console.warn('RedNote page not read; using the share text:', tried.join(' | '));
+  const caption = String(typeof sharedText === 'string' ? sharedText : '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 1000);
+  if (!caption) return { status: 200, body: { error: 'RedNote shared no caption' } };
+  const reel = {
+    success: true, reelUrl, caption, creator: null, likes: null, comments: null, placeName: '', location: '',
+    date: '', hashtags: [], videoUrl: '', thumbnailUrl: '', source: 'share',
+  };
+  return { reel, venue: '', candidates: null, fromCache: false, tried: tried.join(' | ') };
 }
 
 // Google Maps details for one result, shared by everyone who saves that place (the scraper keeps them).
@@ -455,7 +498,9 @@ async function enrich(req, res, getBrowser) {
       timings.push(`${label} ${((Date.now() - began) / 1000).toFixed(1)}s`);
     }
   };
-  const read = await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
+  const read = isRedNoteUrl(reelUrl)
+    ? await timed('read RedNote', () => readRedNote(reelUrl, req.body?.sharedText, getBrowser))
+    : await timed('read reel', () => readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser));
   // Not a reel link: say so. Otherwise, when the reel couldn't be read (oEmbed and Chrome both failed),
   // carry on without its details, so the person picks the place instead of seeing an error.
   if (!read.reel && read.status === 400) return res.status(400).json(read.body);
@@ -472,20 +517,22 @@ async function enrich(req, res, getBrowser) {
   let { reel, venue } = read;
   const country = requestCountry(req);
   const timeZone = requestTimeZone(req);
+  const language = requestLanguage(req);
   // The AI reads every post that has a caption (with its location tag and collab posters from the
   // page, which it weighs too): the venue, the area, whether it's a pop-up and the kind of place.
   let aiFound = null;
   let aiOrderOnly = false;
   // What the lookup did, for the Add place log: what the AI found and what Google Maps was asked.
   const steps = {
-    source: read.fromCache ? 'saved lookup' : 'Instagram',
+    source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : read.reel.source === 'rednote' ? 'RedNote page' : 'Instagram',
+    ...(read.tried ? { redNote: read.tried } : {}),
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
   };
   if (!read.fromCache && reel.caption) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
-      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country,
-      postDay: post.date ? dayIn(timeZone, post.date) : '',
+      collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
+      postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
     // the page shows (location tag, collab posters, tags), so when the page gave any, it is asked again with them.
@@ -499,7 +546,10 @@ async function enrich(req, res, getBrowser) {
       withExtras.tagged?.length || (firstAnswer?.temporary && withExtras.date !== reel.date));
     const ai = gotExtras ? await timed('AI again', () => askAi(withExtras)) : firstAnswer;
     reel = withExtras;
-    steps.ai = `called: ${!ai ? 'no answer' : ai.kind === 'order_only'
+    // What the AI was given, for the Add place log: a missing date or a cut-off caption is otherwise invisible.
+    steps.postDate = reel.date ? dayIn(timeZone, reel.date) : '';
+    steps.caption = reel.caption;
+    steps.ai =`called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
         : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`
       : ai.places.length ? `found ${ai.places.map((place) => `${place.name}${place.handle ? ` (from @${place.handle})` : ''} — quote: "${place.evidence}"`).join('; ')} (confidence: ${ai.confidence})${
@@ -538,27 +588,23 @@ async function enrich(req, res, getBrowser) {
   // Where the post is: the area the AI read from the caption, else the post's location tag, else the
   // person's own country. It's added to the search, so Google doesn't answer a vague search with
   // places near the server (in the US). The page is only opened for the tag when nothing else says where.
+  // The street address the caption gives is the next best source for where the post is, after the AI's area.
+  const captionAddr = read.fromCache ? null : captionAddress(reel.caption);
   let area = read.fromCache ? reel.area || '' : '';
   if (!read.fromCache && !handleHit) {
-    area = aiFound?.area || reel.locationTag;
+    area = aiFound?.area || captionAddr?.suburb || reel.locationTag;
     if (!area && !aiFound?.popup?.locationNote) {
       reel = await readPageExtras(reel, cleanUrl, getBrowser);
       area = reel.locationTag || '';
     }
     area ||= country;
   }
-  const placeName = String(reel.placeName || '').replace(/^@/, '');
-  // The AI's venue is searched on its own with the area: the rest of the caption only adds noise.
-  // With no venue at all, the whole caption is the last resort: captions usually end with the venue,
-  // so the flipped caption leads with it. An order/pickup post (the AI says so) only searches the
-  // business's name: anything else would find a random place nearby.
+  // The AI's venue is searched with the area. With no venue, the street address from the caption is searched
+  // instead, since an address is a place of its own. Otherwise nothing is searched and the person picks the place.
   const orderOnly = aiOrderOnly || Boolean(reel.orderOnly);
-  const flipped = orderOnly ? '' : flipCaption(reel.caption);
-  // The area goes right after the venue, or in front of a caption that doesn't say where.
-  const captionQuery = area && flipped && !saysWhere(flipped, area) ? `${area} ${flipped}` : flipped;
-  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query ||
-    (venue ? withArea(venue, area) : captionQuery) ||
-    withArea([reel.location, placeName].filter(Boolean).join(', '), area) || (orderOnly ? '' : reel.creator) || '';
+  const addressQuery = !venue && !handleHit && captionAddr ? captionAddr.address : '';
+  let query = aiFound?.popup?.locationNote ? '' : handleHit?.query || (venue ? withArea(venue, area) : addressQuery ? withArea(addressQuery, area) : '');
+  if (!venue && query && addressQuery) steps.address = `no venue, so searched the caption's address: ${addressQuery}`;
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
     place: {

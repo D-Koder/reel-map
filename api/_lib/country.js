@@ -15,6 +15,21 @@ function requestCountry(req) {
   }
 }
 
+// The person's language as an English name ("English", "Chinese"), for what the AI writes to them: the
+// app's own, else the first one their browser asks for (accept-language: "zh-CN,zh;q=0.9" → "Chinese").
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
+
+function requestLanguage(req) {
+  const given = typeof req.body?.language === 'string' ? req.body.language.trim() : '';
+  if (given) return given;
+  const tag = String(req.headers?.['accept-language'] || '').split(',')[0].split(';')[0].trim();
+  try {
+    return (tag && LANGUAGE_NAMES.of(tag.split('-')[0])) || 'English';
+  } catch {
+    return 'English';
+  }
+}
+
 // The person's time zone, from their connection (x-vercel-ip-timezone: "Australia/Melbourne"), so a
 // post's date and "today" are their days, not the server's. UTC when it's missing or unknown.
 function requestTimeZone(req) {
@@ -34,4 +49,4 @@ function dayIn(timeZone, moment = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
-module.exports = { requestCountry, requestTimeZone, dayIn };
+module.exports = { requestCountry, requestLanguage, requestTimeZone, dayIn };

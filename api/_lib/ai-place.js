@@ -89,6 +89,9 @@ Rules:
   For the area, give the most specific city or suburb the post states,
   even when it is only in a hashtag. Use a country only when no city or
   suburb is stated at all.
+  A caption may be cut off ("…"), as when a RedNote share gives only its
+  first words. Read what is there; a Chinese city name stated in it
+  (墨尔本 → Melbourne, 悉尼 → Sydney) is a stated area.
   Only when the post states no area for a place, the area (never the
   address) may come from clues in the post:
   a timezone (AEDT → Sydney or Melbourne, AEST on the same post as AEDT →
@@ -125,6 +128,13 @@ Rules:
   days" or "N weeks" counts from the day the caption starts it, else from
   the post date. "This year", "this summer", "soon" and "coming months"
   are too vague: leave the dates "".
+  When there is no <post_date>, a day written without its weekday stays "",
+  and so does any "today", "tonight" or "this weekend". A day written with
+  its weekday ("Sat 24 Oct", "10月24日（週六）") can still be worked out: its
+  year is the one, within a year of <today>, in which that day falls on that
+  weekday. <today> is the day the person saved the post, used only for that:
+  it is never the post date, and never the answer for a day the caption
+  doesn't give.
   Quote the words that say when in "date_evidence". Leave a date "" when
   the post doesn't say it clearly ("soon", "coming weeks"), and leave all
   three "" when the venue is not temporary.
@@ -145,8 +155,13 @@ Rules:
   true and quote those words in "all_day_evidence". Only when the caption
   really says so: dates alone, or no times, are NOT all day. Otherwise false
   and "".
+- Everything you write for the person to read ("price", "how_to_book",
+  "location_note") is in <user_language>, translated from the caption when it
+  is in another language (免費入場 becomes "Free entry" for English). Names,
+  email addresses, phone numbers and every "_evidence" quote stay exactly as
+  the caption writes them.
 - For a temporary venue, give what it costs to get in as "price", as the
-  caption writes it ("Free", "$25", "$15–$40", "Kids free"), and quote those
+  caption gives it ("Free", "$25", "$15–$40", "Kids free"), and quote those
   words in "price_evidence". Never work out or guess a price: leave both ""
   when the caption gives none. Prices of food or drinks sold there are not
   an entry price.
@@ -478,11 +493,13 @@ let client = null;
 const getClient = () => (client ??= new Anthropic({ timeout: TIMEOUT_MS, maxRetries: 1 }));
 
 // Tags are only added when there's something in them, so an empty field is never misread.
-function postText({ caption, locationTag, creator, collaborators, tagged, slide, userCountry, postDay }) {
+function postText({ caption, locationTag, creator, collaborators, tagged, slide, userCountry, userLanguage, postDay, today }) {
   const field = (tag, value) => (value ? `<${tag}>${value}</${tag}>\n` : '');
   const weekday = postDay ? new Date(`${postDay}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', timeZone: 'UTC' }) : '';
   return '<post>\n' +
     field('post_date', postDay && `${weekday} ${postDay}`) +
+    field('today', !postDay && today) +
+    field('user_language', userLanguage) +
     field('location_tag', locationTag) +
     field('creator', creator) +
     field('collaborators', (collaborators || []).join(', ')) +
@@ -495,6 +512,11 @@ function postText({ caption, locationTag, creator, collaborators, tagged, slide,
 const flat = (text) => String(text || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
 const squash = (text) => String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase()
   .replace(/[^\p{L}\p{N}]+/gu, '');
+
+// True when a quote is really in the caption. It may differ from the caption in spacing and punctuation
+// only (the AI turns "（週六）" into "(週六)" or adds a space), so letters and numbers alone are compared too.
+const inCaption = (caption, quote) => flat(caption).includes(flat(quote)) ||
+  (squash(quote).length >= 2 && squash(caption).includes(squash(quote)));
 
 // The other-script spelling, when it is the same name: as many characters, every changed one Chinese.
 function otherScript(name, other) {
@@ -563,17 +585,22 @@ function inPostYear(dayText, post) {
 function checkDates(answer, post) {
   const none = { startDate: '', endDate: '', dateEvidence: '', runs: [] };
   const evidence = String(answer.date_evidence || '');
-  if (!evidence || !flat(post.caption).includes(flat(evidence))) return none;
+  if (!evidence || !inCaption(post.caption, evidence)) return none;
   const posted = dayNumber(post.postDay || '');
+  // With no post date, the day the person saved the post stands in for it, only to keep a date within a
+  // year of now (the AI works the year out from a written weekday).
+  const today = dayNumber(post.today || '');
   // A date is kept when it is within a year of the post, or when the caption writes out its year ("14–18
   // June 2028"): that date is clear however far away it is (up to five years, so a stray number isn't read as one).
-  const postYear = Number.isFinite(posted) ? new Date(posted * DAY_MS).getUTCFullYear() : NaN;
+  const reference = Number.isFinite(posted) ? posted : today;
+  const postYear = Number.isFinite(reference) ? new Date(reference * DAY_MS).getUTCFullYear() : NaN;
   const yearSaid = (day) => {
     const year = new Date(day * DAY_MS).getUTCFullYear();
     return new RegExp(`\\b${year}\\b`).test(post.caption || '') && year >= postYear - 1 && year <= postYear + 5;
   };
-  const near = (day) => Number.isFinite(day) && (!Number.isFinite(posted) ||
-    (day >= posted - 7 && day <= posted + 366) || yearSaid(day));
+  const near = (day) => Number.isFinite(day) && (!Number.isFinite(reference) ||
+    (Number.isFinite(posted) ? day >= posted - 7 && day <= posted + 366 : day >= today - 120 && day <= today + 366) ||
+    yearSaid(day));
   let start = inPostYear(answer.start_date, post);
   const end = inPostYear(answer.end_date, post);
   if (!near(end) && !near(start)) return none;
@@ -585,7 +612,7 @@ function checkDates(answer, post) {
   // Hours count only when they are real times and the words for them are in the caption.
   const time = /^([01]\d|2[0-3]):[0-5]\d$/;
   const timeEvidence = String(answer.time_evidence || '');
-  const hasHours = time.test(answer.open_time || '') && timeEvidence && flat(post.caption).includes(flat(timeEvidence));
+  const hasHours = time.test(answer.open_time || '') && timeEvidence && inCaption(post.caption, timeEvidence);
   const open = hasHours ? answer.open_time : '';
   const close = hasHours && time.test(answer.close_time || '') ? answer.close_time : '';
 
@@ -600,7 +627,7 @@ function checkDates(answer, post) {
   }
   // "All day" counts only when the caption says so in words; days with no times are left unknown, not all day.
   const allDayEvidence = String(answer.all_day_evidence || '');
-  const allDay = answer.all_day === true && allDayEvidence && flat(post.caption).includes(flat(allDayEvidence));
+  const allDay = answer.all_day === true && allDayEvidence && inCaption(post.caption, allDayEvidence);
   const runs = splitOverlaps(stretches
     .sort((a, b) => a[0] - b[0])
     .map(([from, to, from_open, to_close]) => ({ start: iso(from), end: iso(to), open: from_open, close: to_close })))
@@ -628,9 +655,9 @@ function checkExtras(answer, post) {
   const bookEvidence = String(answer.how_to_book_evidence || '');
   const howToBook = String(answer.how_to_book || '').trim().slice(0, 100);
   return {
-    howToBook: howToBook && bookEvidence && flat(caption).includes(flat(bookEvidence)) ? howToBook : '',
-    locationNote: locationNote && locationEvidence && flat(caption).includes(flat(locationEvidence)) ? locationNote : '',
-    price: price && priceEvidence && flat(caption).includes(flat(priceEvidence)) ? price : '',
+    howToBook: howToBook && bookEvidence && inCaption(caption, bookEvidence) ? howToBook : '',
+    locationNote: locationNote && locationEvidence && inCaption(caption, locationEvidence) ? locationNote : '',
+    price: price && priceEvidence && inCaption(caption, priceEvidence) ? price : '',
     contact: [...new Set([...emails, ...phones])].join(' / ').slice(0, 120),
   };
 }
@@ -691,8 +718,14 @@ async function aiPlace(post) {
     }).map(({ other_script_name: other, local_name: local, ...place }) => ({
       ...place, otherName: otherScript(place.name, other), localName: localScript(place.name, local),
     }));
-    const places = checked.filter((place) => place.name.trim() && place.evidence && seen.includes(flat(place.evidence)) &&
-      spells(place.name, seenSquashed));
+    // The quote may differ from the page's text in emoji and punctuation only (RedNote's page text has its
+    // own tokens for emoji, so "📍 Kumo Brewhouse" can be there without the pin), so letters and numbers alone are compared too.
+    const quoted = (evidence) => seen.includes(flat(evidence)) || (squash(evidence).length >= 4 && seenSquashed.includes(squash(evidence)));
+    const places = checked.filter((place) => {
+      const kept = place.name.trim() && place.evidence && quoted(place.evidence) && spells(place.name, seenSquashed);
+      if (!kept) console.warn('AI place dropped:', JSON.stringify({ name: place.name, evidence: place.evidence }));
+      return kept;
+    });
     console.log('AI places:', JSON.stringify(places.map(({ name, otherName, localName, handle, evidence }) => ({ name, otherName, localName, handle, evidence }))),
       'confidence:', answer.confidence);
     // The slide's place, found again after any made-up places were dropped.

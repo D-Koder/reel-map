@@ -853,7 +853,7 @@ const openListedPlace = (place) => {
                     }}
                   >
                     <strong>{place.name}</strong>
-                    {collection && <span>📌 {collection}</span>}
+                    {collection && <span><MapPin className="ico" aria-hidden="true" /> {collection}</span>}
                     {place.custom_info && <span>{place.custom_info}</span>}
                   </button>
                 ))}

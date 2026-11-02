@@ -57,7 +57,7 @@ export default function FridayPickCard({ userId, placeCount, showToast }) {
     <div className="friday-card" role="region" aria-label="Friday pick">
       <div className="friday-card-text">
         <div className="friday-card-title"><Bell className="ico" aria-hidden="true" /> Want a date idea every Friday?</div>
-        <div className="friday-card-body">We'll pick one of your saved places that isn't booked yet.</div>
+        <div className="friday-card-body">We'll pick one of your saved places that has no plan yet.</div>
       </div>
       <div className="friday-card-actions">
         <button type="button" className="step-btn primary" onClick={turnOn} disabled={busy}>

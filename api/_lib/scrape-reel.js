@@ -1,5 +1,6 @@
 const { openPage, closePage, closeBrowser, browserFor } = require('./browser');
 const { fetchInstagramOembed } = require('./instagram-oembed');
+const { isRedNoteUrl } = require('./reel-url');
 
 // The video file and fonts are never read. Images are kept: the cover can come from an <img>.
 const SKIP = ['media', 'font'];
@@ -62,6 +63,42 @@ function readTikTokPage(inputUrl) {
   };
 }
 
+// Runs inside the page. A RedNote note's own data (window.__INITIAL_STATE__: title, text, poster, the
+// "ipLocation" province) is read first, the page's elements when that isn't there. A login wall or a
+// bot check has neither, so the caption comes back empty.
+function readRedNotePage(inputUrl) {
+  let note = null;
+  try {
+    const details = window.__INITIAL_STATE__?.note?.noteDetailMap ?? {};
+    const first = Object.values(details).find((entry) => entry?.note?.title || entry?.note?.desc);
+    note = first?.note ?? null;
+  } catch {
+    note = null;
+  }
+  const text = (selector) => document.querySelector(selector)?.innerText.trim() ?? '';
+  const title = note?.title || text('#detail-title') || document.querySelector('meta[property="og:title"]')?.content || '';
+  const desc = note?.desc || text('#detail-desc') || document.querySelector('meta[name="description"]')?.content || '';
+  const tags = (note?.tagList ?? []).map((tag) => (tag?.name ? `#${tag.name}` : '')).filter(Boolean);
+  const caption = [title, desc].filter((part, index, all) => part && all.indexOf(part) === index).join('\n').trim();
+  return {
+    success: true,
+    reelUrl: inputUrl,
+    caption,
+    creator: note?.user?.nickname || text('.author-wrapper .username') || null,
+    likes: null,
+    comments: null,
+    placeName: '',
+    location: '',
+    // The poster's province or city ("ipLocation"), shown on the post: a clue to the area, not a venue.
+    posterLocation: note?.ipLocation || '',
+    date: note?.time ? new Date(note.time).toISOString() : '',
+    hashtags: tags.length ? tags : [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]),
+    videoUrl: '',
+    thumbnailUrl: note?.imageList?.[0]?.urlDefault || document.querySelector('meta[property="og:image"]')?.content || '',
+    source: 'rednote',
+  };
+}
+
 // Instagram's oEmbed: the caption and creator in one plain request, no browser.
 // Returns null, so Chrome runs, when there's no caption to search with.
 async function readInstagramQuickly(reelUrl) {
@@ -113,10 +150,11 @@ module.exports = async function handler(req, res) {
 
   const reelUrl = typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '';
   const isTikTok = isTikTokUrl(reelUrl);
-  if (!isTikTok && !isInstagramUrl(reelUrl)) {
-    return res.status(400).json({ error: 'Enter a valid Instagram reel/post or TikTok video link' });
+  const isRedNote = isRedNoteUrl(reelUrl);
+  if (!isTikTok && !isRedNote && !isInstagramUrl(reelUrl)) {
+    return res.status(400).json({ error: 'Enter a valid Instagram reel/post, TikTok video or RedNote link' });
   }
-  const platform = isTikTok ? 'TikTok' : 'Instagram';
+  const platform = isTikTok ? 'TikTok' : isRedNote ? 'RedNote' : 'Instagram';
 
   // Instagram's oEmbed has the caption, creator and cover in about a second. Start Chrome only
   // when it has no caption to search with (blocked, private, or deleted Reels).
@@ -134,6 +172,14 @@ module.exports = async function handler(req, res) {
     ({ browser, owned } = await browserFor(req));
     page = await openPage(browser, SKIP);
     await page.goto(reelUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    if (isRedNote) {
+      // The short link redirects to the note's page, which fills in from script after it loads.
+      await page.waitForFunction(() => window.__INITIAL_STATE__?.note?.noteDetailMap || document.querySelector('#detail-desc'),
+        { timeout: 12000 }).catch(() => {});
+      const note = await page.evaluate(readRedNotePage, reelUrl);
+      if (!note.caption) throw new Error('RedNote showed no caption (a login wall or a check)');
+      return res.status(200).json(note);
+    }
     if (isTikTok) {
       await page.waitForSelector('[data-e2e="video-desc"]', { timeout: 15000 }).catch(() => {});
     } else {

@@ -85,3 +85,48 @@ export function suburbOf(address) {
   // A part that starts with a number is a street, not a suburb.
   return suburb && !/^\d/.test(suburb) ? suburb : null;
 }
+
+// The open times on one calendar day as [{ start, end }] Dates, or null when the hours can't be read for that day.
+// A closing time after midnight ends on the next day. "Closed" gives [].
+export function openWindows(hours, date) {
+  if (!Array.isArray(hours) || !hours.length) return null;
+  const ranges = hoursFor(hours, date.getDay());
+  if (ranges === null) return null;
+  const at = (minutes) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, minutes);
+  return ranges.map((range) => ({ start: at(range.start), end: at(range.end) }));
+}
+
+// The hours with matching days joined, for a short list: Tue – Thu, Fri – Sat, and Mon, Sun for the days that
+// are closed. [{ days: 'Tue – Thu', time: '11:30 AM–2:30 PM, 5:00–9:30 PM' }]. Closed days come last. Hours in
+// an order that can't be read (no day names) are returned as they are.
+export function groupedHours(hours) {
+  if (!Array.isArray(hours) || !hours.length) return [];
+  const index = (entry) => DAY_NAMES.findIndex((name) => {
+    const days = String(entry.days || '').toLowerCase();
+    return days === name || days.startsWith(name.slice(0, 3));
+  });
+  if (hours.some((entry) => index(entry) < 0)) return hours.map(({ days, time }) => ({ days, time }));
+  const groups = [];
+  hours.forEach((entry) => {
+    const time = String(entry.time || '');
+    const group = groups.find((item) => item.time === time) || groups[groups.push({ time, days: [] }) - 1];
+    group.days.push(index(entry));
+  });
+  const short = (day) => DAY_NAMES[day].slice(0, 1).toUpperCase() + DAY_NAMES[day].slice(1, 3);
+  const label = (days) => {
+    // Runs of days in week order (Mon first) become "Tue – Thu".
+    const order = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+    const runs = [];
+    order.forEach((day) => {
+      const last = runs[runs.length - 1];
+      if (last && (last[last.length - 1] + 1) % 7 === day && day !== 1) last.push(day);
+      else runs.push([day]);
+    });
+    return runs.map((run) => (run.length === 1 ? short(run[0]) : `${short(run[0])} – ${short(run[run.length - 1])}`)).join(', ');
+  };
+  const closed = (time) => /closed/i.test(time);
+  return groups
+    .map((group) => ({ days: label(group.days), time: group.time, first: Math.min(...group.days.map((d) => (d + 6) % 7)) }))
+    .sort((a, b) => (closed(a.time) - closed(b.time)) || (a.first - b.first))
+    .map(({ days, time }) => ({ days, time }));
+}

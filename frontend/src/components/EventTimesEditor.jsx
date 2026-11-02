@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react';
 import { contactItems, contactLine, dayShort, dayString, datesText, timeKnown, timesText } from '../lib/eventRuns';
 
 const WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -199,13 +199,16 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
             aria-label={`Edit ${datesText({ ...run, end: run.end || run.start })}`}>
             <span className="evt-sum-dates">{run.start ? datesText({ ...run, end: run.end || run.start }) : 'No dates yet'}</span>
             <span className="evt-sum-times">{timesText(run)}</span>
-            {run.start && !timeKnown(run) && <span className="evt-warn">⚠️ Check the time</span>}
+            {run.start && !timeKnown(run) && <span className="evt-warn"><TriangleAlert className="ico" aria-hidden="true" /> Check the time</span>}
           </button>
           <button type="button" className="evt-x" onClick={() => remove(i)} disabled={disabled} aria-label="Remove these dates">
             <X size={16} aria-hidden="true" />
           </button>
         </div>
       )))}
+      {!runs.some((run) => run.start) && openIndex < 0 && (
+        <div className="evt-warn-note" role="alert"><TriangleAlert className="ico" aria-hidden="true" /> No date set. Add the dates, or check the post for them before you save.</div>
+      )}
       {openIndex < 0 && (
         <button type="button" className="evt-link" onClick={add} disabled={disabled}>
           {runs.length ? '+ Add more dates' : '+ Add dates'}

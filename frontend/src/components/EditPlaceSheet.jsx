@@ -7,6 +7,7 @@ import DuplicateWarning from './DuplicateWarning';
 import CandidateAddress from './CandidateAddress';
 import PlaceSearchInput from './PlaceSearchInput';
 import EventTimesEditor from './EventTimesEditor';
+import EmojiPicker from './EmojiPicker';
 import { cleanRuns, runsOf } from '../lib/eventRuns';
 import { requestLocationApi } from '../lib/googlePlaces';
 
@@ -262,19 +263,19 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           )}
         </div>
 
-        <label className="field">
+        <div className="field">
           <span className="modal-label">Emoji (optional)</span>
-          <input
-            className="step-input"
+          <EmojiPicker
             value={emoji}
-            onChange={(e) => setEmoji(e.target.value)}
+            onChange={setEmoji}
             placeholder={categoryIcon(category)}
-            maxLength={16}
+            label="Place emoji"
+            noneLabel="Use the category icon"
             disabled={!isAdder}
-            aria-describedby="emoji-hint"
+            describedBy="emoji-hint"
           />
-          <span id="emoji-hint" className="place-collection-note">Only for this collection. Leave empty for the category icon.</span>
-        </label>
+          <span id="emoji-hint" className="place-collection-note">Only for this collection. Pick none to use the category icon.</span>
+        </div>
 
         <label className="field">
           <span className="modal-label">Category</span>

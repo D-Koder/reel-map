@@ -8,26 +8,58 @@ import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 
-// On/off switch for the weekly Friday pick notification. This device only; the server keeps one row per device.
-function FridayPickToggle({ userId }) {
+// On/off switch for push notifications: reminders, votes, new places and the weekly Friday pick. It is a setting on
+// the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
+// needs its own one-time browser permission, which turning the switch on asks for when this device has none yet.
+// Until the database has the column, the switch falls back to this device only.
+function NotificationsToggle({ userId }) {
   const [supported] = useState(() => isPushSupported());
-  const [enabled, setEnabled] = useState(false);
+  // The account setting: null while loading, 'missing' when the database has no such column yet.
+  const [account, setAccount] = useState(null);
+  const [deviceOn, setDeviceOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
+    supabase.from('profiles').select('notifications_enabled').eq('id', userId).maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (!cancelled) setAccount(readError ? 'missing' : data?.notifications_enabled !== false);
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
     if (!supported) return;
-    getPushSubscription().then((sub) => setEnabled(Boolean(sub))).catch(() => {});
+    getPushSubscription().then((sub) => setDeviceOn(Boolean(sub))).catch(() => {});
   }, [supported]);
+
+  const accountWide = account !== null && account !== 'missing';
+  const checked = accountWide ? account : deviceOn;
 
   const toggle = async (event) => {
     const wantOn = event.target.checked;
     setBusy(true);
     setError('');
     try {
-      if (wantOn) await enableFridayPick(userId);
-      else await disableFridayPick();
-      setEnabled(wantOn);
+      if (accountWide) {
+        const { error: saveError } = await supabase.from('profiles').update({ notifications_enabled: wantOn }).eq('id', userId);
+        if (saveError) throw new Error(saveError.message);
+        setAccount(wantOn);
+        // Turning it on from a device that hasn't allowed notifications yet asks for that too.
+        if (wantOn && supported && !deviceOn) {
+          try {
+            await enableFridayPick(userId);
+            setDeviceOn(true);
+          } catch (err) {
+            setError(`${err.message} Your other devices will still get notifications.`);
+          }
+        }
+      } else {
+        if (wantOn) await enableFridayPick(userId);
+        else await disableFridayPick();
+        setDeviceOn(wantOn);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -35,16 +67,21 @@ function FridayPickToggle({ userId }) {
     }
   };
 
-  if (!supported) {
-    return <div className="toggle-hint">Friday pick notifications need the app installed to your home screen.</div>;
+  if (!supported && !accountWide) {
+    return <div className="toggle-hint">Notifications need the app installed to your home screen.</div>;
   }
 
   return (
     <div className="cascade-delete-toggle">
       <label>
-        <input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} />
-        <Bell className="ico" aria-hidden="true" /> Notifications on this device
+        <input type="checkbox" checked={checked} disabled={busy || account === null} onChange={toggle} />
+        <Bell className="ico" aria-hidden="true" /> Notifications
       </label>
+      <div className="toggle-hint">
+        Reminders, votes, new places and Friday picks.
+        {accountWide ? ' This switch covers all your devices.' : ' Turn this on in each device you use.'}
+      </div>
+      {!supported && <div className="toggle-hint">This device can only show notifications once the app is on your home screen.</div>}
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );
@@ -193,58 +230,21 @@ function ShortcutSetup({ showToast }) {
   );
 }
 
-// isInbox: my TBD collection, where shared reels land. It can be renamed but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onRename, onTogglePrivacy, onShare, onRemoveMember, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const [managing, setManaging] = useState(false);
-  const [draft, setDraft] = useState(collection.name);
+// isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare }) {
   const owner = collection.members.find((m) => m.role === 'owner');
-
-  const save = () => {
-    const name = draft.trim();
-    setEditing(false);
-    if (!name || name === collection.name) {
-      setDraft(collection.name);
-      return;
-    }
-    onRename(collection, name);
-  };
 
   return (
     <div className="collection-item">
-      <div
-        className={`collection-name ${isOwner ? '' : 'readonly'}`}
-        onClick={() => isOwner && !editing && setEditing(true)}
-        title={isOwner ? 'Tap to rename' : undefined}
-      >
-        {editing ? (
-          <input
-            autoFocus
-            value={draft}
-            maxLength={60}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={save}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') save();
-              if (e.key === 'Escape') {
-                setDraft(collection.name);
-                setEditing(false);
-              }
-            }}
-          />
-        ) : (
-          <>
-            <span className="collection-name-text">
-              {collection.emoji} {collection.name}
-            </span>
-            <span className="collection-meta">
-              {isInbox
-                ? 'Shared reels land here'
-                : <>{isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}</>}
-            </span>
-          </>
-        )}
+      <div className="collection-name readonly">
+        <span className="collection-name-text">
+          {collection.emoji} {collection.name}
+        </span>
+        <span className="collection-meta">
+          {isInbox
+            ? 'Shared reels land here'
+            : <>{isOwner ? 'Yours' : `Owned by ${owner?.display_name ?? 'someone'}`} · <Users className="ico" aria-hidden="true" /> {collection.members.length}</>}
+        </span>
       </div>
       <div className="collection-move" role="group" aria-label={`Move ${collection.name}`}>
         <button type="button" className="collection-icon" onClick={() => onMove(-1)} disabled={!canMoveUp} aria-label={`Move ${collection.name} up`}>
@@ -254,44 +254,26 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           <ChevronDown aria-hidden="true" />
         </button>
       </div>
-      {isOwner && (
-        <div className="collection-icons">
-          <button className="collection-icon" onClick={() => setManaging((open) => !open)} title="Manage collection" aria-label="Manage collection" aria-expanded={managing}>
-            <Settings aria-hidden="true" />
-          </button>
-          <button
-            className="collection-icon"
-            onClick={() => onShare(collection)}
-            title="Share collection"
-            aria-label="Share"
-          >
-            <Share2 aria-hidden="true" />
-          </button>
+      <div className="collection-icons">
+        <button
+          className="collection-icon"
+          onClick={() => onShare(collection)}
+          title={isOwner ? 'Edit, share and manage' : 'Share'}
+          aria-label={isOwner ? 'Edit, share and manage' : 'Share'}
+        >
+          {isOwner ? <Settings aria-hidden="true" /> : <Share2 aria-hidden="true" />}
+        </button>
+        {isOwner && (
           <button
             className="collection-icon"
             onClick={() => onTogglePrivacy(collection)}
-            title={collection.isPrivate ? 'Private — tap to share' : 'Shared — tap to make private'}
-            aria-label={collection.isPrivate ? 'Make shared' : 'Make private'}
+            title={collection.isPrivate ? 'Locked: no new people can join. Tap to unlock' : 'Unlocked: tap to stop new people joining'}
+            aria-label={collection.isPrivate ? 'Unlock collection' : 'Lock collection'}
           >
             {collection.isPrivate ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}
           </button>
-        </div>
-      )}
-      {isOwner && managing && (
-        <div className="collection-manage-panel">
-          <div className="collection-manage-heading">Members</div>
-          {collection.members.map((member) => (
-            <div className="collection-member-row" key={member.id}>
-              <span>{member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}</span>
-              <span className="collection-member-label">{member.display_name}{member.role === 'owner' ? ' · Owner' : ''}</span>
-              {member.role !== 'owner' && <button type="button" className="collection-icon" aria-label={`Remove ${member.display_name}`} onClick={() => onRemoveMember(collection, member)}>−</button>}
-            </div>
-          ))}
-          {isInbox
-            ? <p className="toggle-hint">This is where shared reels land, so it can't be deleted.</p>
-            : <button type="button" className="step-btn danger full-width" onClick={() => onDelete(collection)}>Delete collection</button>}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -642,11 +624,8 @@ export default function SettingsDrawer({
   profile,
   collections,
   onCreateCollection,
-  onUpdateCollection,
   onSetPrivacy,
   onUpdateProfile,
-  onRemoveCollectionMember,
-  onDeleteCollection,
   showToast,
   onShare,
   onOpenDeleteModal,
@@ -666,40 +645,11 @@ export default function SettingsDrawer({
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ''));
   }, []);
 
-  const rename = async (collection, name) => {
-    if (await onUpdateCollection(collection.id, { name })) showToast(`Renamed to "${name}"`);
-  };
-
-  const togglePrivacy = async (collection) => {
-    const makePrivate = !collection.isPrivate;
-    const others = collection.members.filter((m) => m.role !== 'owner');
-    if (makePrivate && others.length > 0) {
-      const names = others.map((m) => m.display_name).join(', ');
-      const ok = window.confirm(
-        `Make "${collection.name}" private?\n\n` +
-        `This removes ${others.length} member(s): ${names}.\n` +
-        'They will be told they were removed. Open invite links will stop working.'
-      );
-      if (!ok) return;
-    }
-    const result = await onSetPrivacy(collection.id, makePrivate, makePrivate && others.length > 0);
-    if (result.ok) {
-      const removedNote = makePrivate && result.removed ? ` · removed ${result.removed}` : '';
-      showToast(makePrivate ? `Now private${removedNote}` : 'Now shared');
-    }
-  };
-
-  const removeMember = async (collection, member) => {
-    if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) {
-      await onRemoveCollectionMember(collection.id, member.id);
-    }
-  };
-
-  const deleteCollection = async (collection) => {
-    if (collection.id === inboxId) return;
-    if (window.confirm(`Delete "${collection.name}" and remove it for all members?`)) {
-      await onDeleteCollection(collection.id);
-    }
+  // Locked: nobody new can join until it's unlocked. Nobody is removed.
+  const toggleLock = async (collection) => {
+    const lock = !collection.isPrivate;
+    const result = await onSetPrivacy(collection.id, lock, false);
+    if (result.ok) showToast(lock ? 'Locked: nobody new can join' : 'Unlocked: people can join again');
   };
 
   const addCollection = async (e) => {
@@ -723,7 +673,7 @@ export default function SettingsDrawer({
 
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
-          {userId && <FridayPickToggle userId={userId} />}
+          {userId && <NotificationsToggle userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
@@ -745,11 +695,8 @@ export default function SettingsDrawer({
                   [ids[index], ids[index + step]] = [ids[index + step], ids[index]];
                   onReorderCollections?.(ids);
                 }}
-                onRename={rename}
-                onTogglePrivacy={togglePrivacy}
+                onTogglePrivacy={toggleLock}
                 onShare={onShare}
-                onRemoveMember={removeMember}
-                onDelete={deleteCollection}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>

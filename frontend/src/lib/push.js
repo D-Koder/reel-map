@@ -2,7 +2,9 @@ import { supabase } from './supabase';
 
 // Public half of the VAPID key pair. It is safe to ship in the app.
 // The private half lives only in the Supabase function secrets (VAPID_PRIVATE_KEY).
-export const VAPID_PUBLIC_KEY = 'BP3dHPcdbIT7LLrzTM3kTBoMr80SAtEJmvkn5y4gXkh2IOQXVD1KIVEL89LXD9DI3HCB5BRtzIgDqf97ZwrWga4';
+// A build can use its own pair (VITE_VAPID_PUBLIC_KEY, e.g. staging); otherwise it uses production's.
+export const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  || 'BP3dHPcdbIT7LLrzTM3kTBoMr80SAtEJmvkn5y4gXkh2IOQXVD1KIVEL89LXD9DI3HCB5BRtzIgDqf97ZwrWga4';
 
 export const isPushSupported = () =>
   typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -41,6 +43,8 @@ export async function enableFridayPick(userId) {
     await subscription.unsubscribe();
     throw new Error(error.message);
   }
+  // Allowing notifications on a device turns the account's switch back on (ignored until the database has it).
+  await supabase.from('profiles').update({ notifications_enabled: true }).eq('id', userId);
   return true;
 }
 

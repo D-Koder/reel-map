@@ -97,6 +97,21 @@ function detailsOf(place, placeId) {
   };
 }
 
+// A place's first Google photo as { url, attribution }, or null. The url is Google's own picture address (no
+// key in it), shown by the app straight from Google: nothing is downloaded or kept here. Two billed calls: the
+// photo's name, then its address.
+async function placePhoto(placeId) {
+  const place = await call(`/places/${encodeURIComponent(placeId)}`, { fields: 'photos' });
+  const photo = place.photos?.[0];
+  if (!photo?.name || !photo.name.startsWith('places/')) return null;
+  const media = await call(`/${photo.name}/media?maxWidthPx=480&skipHttpRedirect=true`);
+  if (!/^https:\/\//.test(media.photoUri || '')) {
+    console.warn('Place photo: no photoUri in', JSON.stringify(media).replace(/key=[^&"]+/g, 'key=…').slice(0, 300));
+    return null;
+  }
+  return { url: media.photoUri, attribution: photo.authorAttributions?.[0]?.displayName || '' };
+}
+
 async function placeDetails(placeId) {
   return detailsOf(await call(`/places/${encodeURIComponent(placeId)}`, { fields: DETAIL_FIELDS, language: 'en' }), placeId);
 }
@@ -183,6 +198,6 @@ async function biasFor(location) {
 }
 
 module.exports = {
-  biasFor, enabled, searchPlaces, placeDetails, placeIdFromUrl,
+  biasFor, enabled, searchPlaces, placeDetails, placePhoto, placeIdFromUrl,
   autocomplete, retrievePlace, nearby, reverseGeocode, geocodeAddress,
 };

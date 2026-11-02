@@ -20,6 +20,8 @@ const TITLES: Record<string, string> = {
   collection_joined: '👋 Joined a collection',
   collection_left: '🚪 Left a collection',
   collection_private: '🔒 Collection made private',
+  booking_reminder: '⏰ Coming up',
+  role_changed: '✏️ Your role changed',
 };
 
 type Subscription = { id: string; endpoint: string; p256dh: string; auth: string };
@@ -47,6 +49,10 @@ Deno.serve(async (req) => {
 
   const { user_id, type, message } = await req.json().catch(() => ({}));
   if (!user_id || !message) return json({ error: 'user_id and message are required' }, 400);
+
+  // The account's switch in Settings: off silences every device. (A missing column reads as on.)
+  const { data: profile } = await supabase.from('profiles').select('notifications_enabled').eq('id', user_id).maybeSingle();
+  if (profile?.notifications_enabled === false) return json({ sent: 0, skipped: 'notifications are off' });
 
   const { data: subscriptions, error } = await supabase
     .from('push_subscriptions')
