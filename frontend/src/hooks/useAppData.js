@@ -191,7 +191,7 @@ export function useAppData(userId, showToast) {
       supabase.rpc('get_streak'),
       // Each place's name, category and event day in each collection. The places function doesn't return these.
       readEntries(),
-      supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
+      supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by, review, photo_path'),
       // Read on its own, so the app still loads before the column has been added.
       supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle(),
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
