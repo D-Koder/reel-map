@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { BellRing, Camera, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import VisitMemory from './VisitMemory';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar, googleCalendarUrl } from '../lib/calendar';
@@ -135,27 +135,6 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   );
 }
 
-// The review and photo added when the place was marked done.
-function VisitMemory({ booking }) {
-  const [url, setUrl] = useState(null);
-  useEffect(() => {
-    let live = true;
-    setUrl(null);
-    if (booking.photo_path) {
-      supabase.storage.from('visit-photos').createSignedUrl(booking.photo_path, 60 * 60)
-        .then(({ data }) => { if (live) setUrl(data?.signedUrl || null); });
-    }
-    return () => { live = false; };
-  }, [booking.photo_path]);
-  if (!booking.review && !booking.photo_path) return null;
-  return (
-    <div className="visit-memory">
-      {url && <img src={url} alt="Photo from the visit" className="visit-memory-photo" />}
-      {booking.review && <p className="visit-memory-review">{booking.review}</p>}
-    </div>
-  );
-}
-
 export default function PinModal({
   place,
   userId,
@@ -163,6 +142,7 @@ export default function PinModal({
   onSetVibe,
   onBook,
   onMarkDone,
+  onSaveReview,
   onEdit,
   onDelete,
   onClose,
@@ -208,6 +188,10 @@ export default function PinModal({
   const [wasBooked] = useState(Boolean(booking));
   // A place that's been visited goes back to being a normal place; "Plan again" starts a new plan.
   const isDone = Boolean(booking?.done_at);
+  // The review and photos can be added or changed while the plan is for today (or it was marked done today).
+  const sameDay = (value) => value && new Date(value).toDateString() === new Date().toDateString();
+  const memoryEditable = canEdit && Boolean(booking) && (sameDay(booking.planned_at) || sameDay(booking.done_at));
+  const visitMemory = <VisitMemory place={place} editable={memoryEditable} onSaveReview={onSaveReview} showToast={showToast} />;
   const [replanning, setReplanning] = useState(false);
   const markDone = () => {
     setReplanning(false);
@@ -523,6 +507,13 @@ export default function PinModal({
           </div>
         )}
 
+        {booking && !isDone && memoryEditable && (
+          <div className="modal-section">
+            <div className="modal-label"><Camera className="ico" aria-hidden="true" /> Review &amp; photos</div>
+            {visitMemory}
+          </div>
+        )}
+
         {(place?.note || place?.custom_info) && (
           <div className="modal-section">
             <div className="modal-label"><StickyNote className="ico" aria-hidden="true" /> Notes</div>
@@ -579,7 +570,7 @@ export default function PinModal({
         ) : isDone && !replanning ? (
           <>
             <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Been there · {formatDate(booking.done_at)} · marked by {nameOf(booking.marked_by)}</div>
-            <VisitMemory booking={booking} />
+            {visitMemory}
             {canEdit && (
               <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
                 <CalendarPlus className="ico" aria-hidden="true" /> Plan again

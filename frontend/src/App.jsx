@@ -603,6 +603,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           onSetVibe={(feeling) => data.setReaction(openPin, feeling)}
           onBook={(plannedAt) => data.book(openPin, plannedAt)}
           onMarkDone={() => markDone(openPin)}
+          onSaveReview={(text) => data.saveReview(openPin, text)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
           canEdit={canEdit(openPin.collection_id)}

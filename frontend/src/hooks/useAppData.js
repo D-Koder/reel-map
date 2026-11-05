@@ -630,6 +630,9 @@ export function useAppData(userId, showToast) {
       return Boolean(await run(supabase.from('bookings').update(patch).eq('collection_id', place.collection_id).eq('place_id', place.id)));
     },
 
+    saveReview: async (place, text) =>
+      Boolean(await run(supabase.from('bookings').update({ review: text || null }).eq('collection_id', place.collection_id).eq('place_id', place.id))),
+
     reorder: (orderedIds, collectionId) => {
       const rows = orderedIds.map((placeId, i) => ({ user_id: userId, collection_id: collectionId, place_id: placeId, position: i }));
       setOrder((o) => ({ ...o, ...Object.fromEntries(rows.map((r) => [`${r.collection_id}:${r.place_id}`, r.position])) }));
