@@ -373,7 +373,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const markDone = async (place) => {
     if (!(await data.markDone(place))) return;
     closePin();
-    setCelebrating({ name: place.name });
+    setCelebrating({ name: place.name, place });
   };
 
   const handleTransferOwnership = async (collectionId, newOwnerId) => {
@@ -690,7 +690,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
       )}
 
       {celebrating && (
-        <Celebration placeName={celebrating.name} streak={streak} onClose={() => setCelebrating(null)} />
+        <Celebration placeName={celebrating.name} streak={streak} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
       )}
 
       {sharedPlaceId && !sharedIsMine && (

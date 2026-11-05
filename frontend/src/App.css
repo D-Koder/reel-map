@@ -5855,3 +5855,23 @@ button.profile-open {
   flex: 1;
   min-width: 0;
 }
+
+/* Add to Google Calendar is a link: centre its icon and text like the buttons around it. */
+a.step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ---------- DONE: quick review + photo ---------- */
+.celebrate-memory { display: grid; gap: 8px; margin: 0 0 12px; text-align: left; }
+.celebrate-review {
+  width: 100%; resize: none; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--text); font: inherit; font-size: 15px;
+}
+.celebrate-photo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 0; cursor: pointer; }
+.celebrate-photo.disabled { opacity: 0.6; pointer-events: none; }
+.celebrate-photo-thumb { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
+.celebrate-error { margin: 0; font-size: 13px; color: var(--danger); }

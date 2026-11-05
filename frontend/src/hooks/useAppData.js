@@ -595,6 +595,21 @@ export function useAppData(userId, showToast) {
       return run(supabase.from('bookings').update({ done_at: new Date().toISOString(), marked_by: userId }).eq('collection_id', place.collection_id).eq('place_id', place.id));
     },
 
+    // The quick review and photo from the "done" pop-up. The photo goes in the private visit-photos bucket.
+    saveVisitMemory: async (place, { review, photo }) => {
+      const patch = {};
+      if (review) patch.review = review;
+      if (photo) {
+        const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
+        const path = `${place.collection_id}/${place.id}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from('visit-photos').upload(path, photo, { contentType: photo.type });
+        if (error) return false;
+        patch.photo_path = path;
+      }
+      if (!Object.keys(patch).length) return true;
+      return Boolean(await run(supabase.from('bookings').update(patch).eq('collection_id', place.collection_id).eq('place_id', place.id)));
+    },
+
     reorder: (orderedIds, collectionId) => {
       const rows = orderedIds.map((placeId, i) => ({ user_id: userId, collection_id: collectionId, place_id: placeId, position: i }));
       setOrder((o) => ({ ...o, ...Object.fromEntries(rows.map((r) => [`${r.collection_id}:${r.place_id}`, r.position])) }));
