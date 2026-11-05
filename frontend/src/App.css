@@ -5893,3 +5893,18 @@ a.step-btn {
 .visit-photo-btn img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-sm); }
 .visit-photo-remove { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; display: grid; place-items: center; border: none; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; }
 .visit-photo-remove .ico { width: 14px; height: 14px; }
+
+/* ---------- REVIEWS ---------- */
+.reviews-btn { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; }
+.reviews-mine { font-weight: 400; color: var(--text-muted); }
+.reviews-overlay { z-index: 450; }
+.reviews-modal { max-height: 85vh; overflow-y: auto; }
+.review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.review-card { display: grid; gap: 8px; padding: 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+.review-head { display: flex; align-items: center; gap: 10px; }
+.review-who { display: grid; flex: 1; min-width: 0; font-size: 14px; }
+.review-who span { color: var(--text-muted); font-size: 13px; }
+.review-edit { width: 36px; height: 36px; display: grid; place-items: center; border: none; border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.review-body { margin: 0; font-size: 15px; white-space: pre-wrap; }
+.pin-review-count { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; font-size: 13px; font-weight: 500; color: var(--text-muted); vertical-align: middle; }
+.pin-review-count svg { width: 13px; height: 13px; }

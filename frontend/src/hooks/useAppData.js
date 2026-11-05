@@ -5,7 +5,7 @@ import { readJSON, writeJSON } from '../lib/storage';
 import { INBOX_COLLECTION } from './useReelInbox';
 import { detailsForImport } from '../lib/collectionFile';
 
-const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order'];
+const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order', 'place_reviews'];
 
 const COLLECTION_SELECT = `
   id, name, emoji, is_private, owner_id, created_at,
@@ -159,11 +159,17 @@ async function readEntries() {
   return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false, hasEventEndDates: false, hasEventRuns: false };
 }
 
-// Bookings with the review and photo columns, or without them before the database has them.
-async function readBookings() {
-  const columns = 'place_id, collection_id, booked_by, planned_at, done_at, marked_by';
-  const withMemory = await supabase.from('bookings').select(`${columns}, review, photo_path`);
-  return withMemory.error ? supabase.from('bookings').select(columns) : withMemory;
+// Everyone's reviews I can see, grouped by location: { "<location_id>": [{ user_id, body, updated_at, author }] }.
+// A location is the place's venue (the real-world spot, shared across collections), or the place itself without one.
+async function readReviews() {
+  const { data, error } = await supabase
+    .from('place_reviews')
+    .select('location_id, user_id, body, updated_at, author:profiles(id, display_name, avatar, avatar_url)')
+    .order('updated_at', { ascending: false });
+  if (error) return {};
+  const byLocation = {};
+  for (const r of data) (byLocation[r.location_id] ??= []).push(r);
+  return byLocation;
 }
 
 // Each place's note in each collection: { "<collection>:<place>": text }. Empty before the column exists.
@@ -199,7 +205,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, reviewsByLocation] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -207,12 +213,13 @@ export function useAppData(userId, showToast) {
       supabase.rpc('get_streak'),
       // Each place's name, category and event day in each collection. The places function doesn't return these.
       readEntries(),
-      readBookings(),
+      supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by'),
       // Read on its own, so the app still loads before the column has been added.
       supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle(),
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
       readReactions(),
       readNotes(),
+      readReviews(),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
     const votes = {};
@@ -247,6 +254,8 @@ export function useAppData(userId, showToast) {
     const bookings = Object.fromEntries(bookingsRes.data.map((b) => [`${b.collection_id}:${b.place_id}`, b]));
     const places = placesRes.data.map(p => ({
       ...p,
+      location_id: p.venue_id ?? p.id,
+      reviews: reviewsByLocation[p.venue_id ?? p.id] ?? [],
       reactions: p.reactions || {},
       collection_places: (p.collection_places ? p.collection_places.filter(cp => cp) : []).map((cp) => {
         const entry = entries[`${cp.collection_id}:${p.id}`];
@@ -615,23 +624,28 @@ export function useAppData(userId, showToast) {
       return run(supabase.from('bookings').update({ done_at: new Date().toISOString(), marked_by: userId }).eq('collection_id', place.collection_id).eq('place_id', place.id));
     },
 
-    // The quick review and photo from the "done" pop-up. The photo goes in the private visit-photos bucket.
-    saveVisitMemory: async (place, { review, photo }) => {
-      const patch = {};
-      if (review) patch.review = review;
-      if (photo) {
-        const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
-        const path = `${place.collection_id}/${place.id}/${Date.now()}-${safeName}`;
-        const { error } = await supabase.storage.from('visit-photos').upload(path, photo, { contentType: photo.type });
-        if (error) return false;
-        patch.photo_path = path;
-      }
-      if (!Object.keys(patch).length) return true;
-      return Boolean(await run(supabase.from('bookings').update(patch).eq('collection_id', place.collection_id).eq('place_id', place.id)));
+    // My review of a location (one per person), whichever collection or visit it came from.
+    saveReview: async (place, text) =>
+      Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body: text }, { onConflict: 'location_id,user_id' }))),
+
+    deleteReview: async (place) => {
+      const { data } = await supabase.storage.from('visit-photos').list(`${place.location_id}/${userId}`);
+      if (data?.length) await supabase.storage.from('visit-photos').remove(data.map((f) => `${place.location_id}/${userId}/${f.name}`));
+      return Boolean(await run(supabase.from('place_reviews').delete().eq('location_id', place.location_id).eq('user_id', userId)));
     },
 
-    saveReview: async (place, text) =>
-      Boolean(await run(supabase.from('bookings').update({ review: text || null }).eq('collection_id', place.collection_id).eq('place_id', place.id))),
+    // The quick review and photo from the "done" pop-up: the same review as in the Reviews pop-up.
+    saveVisitMemory: async (place, { review, photo }) => {
+      if (photo) {
+        const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
+        const { error } = await supabase.storage.from('visit-photos').upload(`${place.location_id}/${userId}/${Date.now()}-${safeName}`, photo, { contentType: photo.type });
+        if (error) return false;
+      }
+      const mine = place.reviews?.find((r) => r.user_id === userId);
+      const body = review || mine?.body || '';
+      if (!review && mine) return true;
+      return Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body }, { onConflict: 'location_id,user_id' })));
+    },
 
     reorder: (orderedIds, collectionId) => {
       const rows = orderedIds.map((placeId, i) => ({ user_id: userId, collection_id: collectionId, place_id: placeId, position: i }));

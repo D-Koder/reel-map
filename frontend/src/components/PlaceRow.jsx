@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CalendarDays, Check, CircleCheck, GripVertical, MapPin, StickyNote } from 'lucide-react';
+import { CalendarDays, Check, CircleCheck, GripVertical, MapPin, MessageSquareText, StickyNote } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
@@ -121,7 +121,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
             : <PlaceThumb place={pin} className="pin-thumbnail" />}
         </button>
         <div className="pin-info">
-          <div className="pin-name">{pin.emoji && <span aria-hidden="true">{pin.emoji} </span>}{pin.name}</div>
+          <div className="pin-name">{pin.emoji && <span aria-hidden="true">{pin.emoji} </span>}{pin.name}{pin.reviews?.length > 0 && <span className="pin-review-count" title={`${pin.reviews.length} review${pin.reviews.length === 1 ? '' : 's'}`}><MessageSquareText aria-hidden="true" />{pin.reviews.length}</span>}</div>
           {where && (
             <div className="pin-where">
               <MapPin aria-hidden="true" />

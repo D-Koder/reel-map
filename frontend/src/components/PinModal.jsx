@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, Camera, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
-import VisitMemory from './VisitMemory';
+import { BellRing, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import ReviewsModal from './ReviewsModal';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
 import { addToCalendar, googleCalendarUrl } from '../lib/calendar';
@@ -143,6 +143,7 @@ export default function PinModal({
   onBook,
   onMarkDone,
   onSaveReview,
+  onDeleteReview,
   onEdit,
   onDelete,
   onClose,
@@ -188,10 +189,12 @@ export default function PinModal({
   const [wasBooked] = useState(Boolean(booking));
   // A place that's been visited goes back to being a normal place; "Plan again" starts a new plan.
   const isDone = Boolean(booking?.done_at);
-  // The review and photos can be added or changed while the plan is for today (or it was marked done today).
+  // Reviews belong to the location. You can add yours once you've been, or while the plan is for today;
+  // you can always change the one you wrote.
   const sameDay = (value) => value && new Date(value).toDateString() === new Date().toDateString();
-  const memoryEditable = canEdit && Boolean(booking) && (sameDay(booking.planned_at) || sameDay(booking.done_at));
-  const visitMemory = <VisitMemory place={place} editable={memoryEditable} onSaveReview={onSaveReview} showToast={showToast} />;
+  const myReview = (place.reviews ?? []).find((r) => r.user_id === userId);
+  const canReview = Boolean(booking) && (isDone || sameDay(booking.planned_at));
+  const [reviewsOpen, setReviewsOpen] = useState(false);
   const [replanning, setReplanning] = useState(false);
   const markDone = () => {
     setReplanning(false);
@@ -471,6 +474,23 @@ export default function PinModal({
           showToast={showToast}
         />
 
+        {/* Everyone's reviews of this location, from any collection or visit. */}
+        <button type="button" className="step-btn secondary full-width reviews-btn" onClick={() => setReviewsOpen(true)}>
+          <MessageSquareText className="ico" aria-hidden="true" /> Reviews{place.reviews?.length ? ` · ${place.reviews.length}` : ''}
+          {myReview && <span className="reviews-mine"> (incl. yours)</span>}
+        </button>
+        {reviewsOpen && (
+          <ReviewsModal
+            place={place}
+            userId={userId}
+            canWrite={canReview || Boolean(myReview)}
+            onSave={onSaveReview}
+            onDelete={onDeleteReview}
+            onClose={() => setReviewsOpen(false)}
+            showToast={showToast}
+          />
+        )}
+
         {booking && !isDone && (
           <div className="modal-section">
             <div className="modal-label"><CalendarDays className="ico" aria-hidden="true" /> Planned Date</div>
@@ -504,13 +524,6 @@ export default function PinModal({
             )}
             {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
             {!canEdit && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
-          </div>
-        )}
-
-        {booking && !isDone && memoryEditable && (
-          <div className="modal-section">
-            <div className="modal-label"><Camera className="ico" aria-hidden="true" /> Review &amp; photos</div>
-            {visitMemory}
           </div>
         )}
 
@@ -570,7 +583,6 @@ export default function PinModal({
         ) : isDone && !replanning ? (
           <>
             <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> Been there · {formatDate(booking.done_at)} · marked by {nameOf(booking.marked_by)}</div>
-            {visitMemory}
             {canEdit && (
               <button type="button" className="step-btn secondary full-width" onClick={() => setReplanning(true)}>
                 <CalendarPlus className="ico" aria-hidden="true" /> Plan again

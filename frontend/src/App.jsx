@@ -604,6 +604,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           onBook={(plannedAt) => data.book(openPin, plannedAt)}
           onMarkDone={() => markDone(openPin)}
           onSaveReview={(text) => data.saveReview(openPin, text)}
+          onDeleteReview={() => data.deleteReview(openPin)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
           canEdit={canEdit(openPin.collection_id)}
