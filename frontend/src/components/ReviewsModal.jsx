@@ -120,7 +120,7 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
   const card = (review, isMine) => (
     <li key={review.user_id} className="review-card">
       <div className="review-head">
-        <Avatar person={review.author} className="face-avatar" />
+        <Avatar person={review.author} className="review-avatar" />
         <div className="review-who">
           <strong>{isMine ? 'You' : review.author?.display_name ?? 'Someone'}</strong>
           <span>{when(review.updated_at)}</span>
@@ -134,18 +134,23 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
       {isMine && editing ? (
         <>
           <textarea className="step-input note-input" rows={4} maxLength={500} autoFocus placeholder="How was it?" value={text} onChange={(e) => setText(e.target.value)} disabled={saving} />
+          <ReviewPhotos locationId={locationId} personId={review.user_id} editable showToast={showToast} onOpen={setViewing} />
           <div className="step-buttons">
             <button type="button" className="step-btn primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
             <button type="button" className="step-btn secondary" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>
           </div>
-          <button type="button" className="step-btn secondary full-width" disabled={saving} onClick={remove}>
-            <Trash2 className="ico" aria-hidden="true" /> Delete my review
-          </button>
+          {Boolean(mine) && (
+            <button type="button" className="step-btn secondary full-width" disabled={saving} onClick={remove}>
+              <Trash2 className="ico" aria-hidden="true" /> Delete my review
+            </button>
+          )}
         </>
       ) : (
-        review.body && <p className="review-body">{review.body}</p>
+        <>
+          {review.body && <p className="review-body">{review.body}</p>}
+          <ReviewPhotos locationId={locationId} personId={review.user_id} editable={false} showToast={showToast} onOpen={setViewing} />
+        </>
       )}
-      <ReviewPhotos locationId={locationId} personId={review.user_id} editable={isMine && editing} showToast={showToast} onOpen={setViewing} />
     </li>
   );
 
