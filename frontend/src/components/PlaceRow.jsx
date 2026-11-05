@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CalendarDays, Check, CircleCheck, GripVertical, MapPin } from 'lucide-react';
+import { CalendarDays, Check, CircleCheck, GripVertical, MapPin, StickyNote } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { feelings, feelingEmoji, formatChipDate, getVibe } from '../lib/constants';
@@ -134,7 +134,9 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
               <span>{eventDates}</span>
             </div>
           )}
-          {pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
+          {pin.note
+            ? <div className="pin-custom-info pin-note" title={pin.note}><StickyNote aria-hidden="true" /><span>{pin.note}</span></div>
+            : pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
           {showDoneLook ? (
             <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>
           ) : shared ? (

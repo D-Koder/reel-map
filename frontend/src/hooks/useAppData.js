@@ -64,6 +64,8 @@ function normalisePlace(row) {
     category: cp.category || row.category,
     // Optional emoji chosen for this collection, shown next to the name.
     emoji: cp.custom_emoji || null,
+    // A note written for this collection; shows on the card and the place sheet.
+    note: cp.note ?? null,
     collection_id: cp.collection_id,
     // Every collection this place is in, so the edit sheet can offer only the others.
     collectionIds: collections.map((c) => c.collection_id),
@@ -157,6 +159,20 @@ async function readEntries() {
   return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false, hasEventEndDates: false, hasEventRuns: false };
 }
 
+// Bookings with the review and photo columns, or without them before the database has them.
+async function readBookings() {
+  const columns = 'place_id, collection_id, booked_by, planned_at, done_at, marked_by';
+  const withMemory = await supabase.from('bookings').select(`${columns}, review, photo_path`);
+  return withMemory.error ? supabase.from('bookings').select(columns) : withMemory;
+}
+
+// Each place's note in each collection: { "<collection>:<place>": text }. Empty before the column exists.
+async function readNotes() {
+  const { data, error } = await supabase.from('collection_places').select('place_id, collection_id, note').not('note', 'is', null);
+  if (error) return {};
+  return Object.fromEntries(data.map((r) => [`${r.collection_id}:${r.place_id}`, r.note]));
+}
+
 export function useAppData(userId, showToast) {
   const [cached] = useState(() => readJSON(cacheKey(userId)));
   const [state, setState] = useState(() =>
@@ -183,7 +199,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -191,11 +207,12 @@ export function useAppData(userId, showToast) {
       supabase.rpc('get_streak'),
       // Each place's name, category and event day in each collection. The places function doesn't return these.
       readEntries(),
-      supabase.from('bookings').select('place_id, collection_id, booked_by, planned_at, done_at, marked_by, review, photo_path'),
+      readBookings(),
       // Read on its own, so the app still loads before the column has been added.
       supabase.from('profiles').select('collection_order').eq('id', userId).maybeSingle(),
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
       readReactions(),
+      readNotes(),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
     const votes = {};
@@ -236,6 +253,7 @@ export function useAppData(userId, showToast) {
         return {
           ...cp,
           custom_name: entry?.custom_name ?? null,
+          note: notesByEntry[`${cp.collection_id}:${p.id}`] ?? null,
           category: entry?.category ?? null,
           custom_emoji: entry?.custom_emoji ?? null,
           booking: bookings[`${cp.collection_id}:${p.id}`] ?? null,
@@ -483,7 +501,7 @@ export function useAppData(userId, showToast) {
     // Only whoever added the place can change it. The database quietly skips other people's rows, so
     // an update that changes nothing is reported as a failure instead of looking like it saved.
     // A new location is saved for this collection only (relocate_place), like its name and emoji.
-    updatePlace: async (place, { name, emoji, category, eventDate, eventEndDate, eventRuns, eventPrice, eventContact, location = null }) => {
+    updatePlace: async (place, { name, emoji, note, category, eventDate, eventEndDate, eventRuns, eventPrice, eventContact, location = null }) => {
       if (location) {
         const { error: locationError } = await supabase.rpc('relocate_place', {
           p_collection_id: place.collection_id,
@@ -503,6 +521,8 @@ export function useAppData(userId, showToast) {
         }
       }
       const patch = { custom_name: name, custom_emoji: emoji || null, category };
+      // Only sent once the column exists, so saving still works before the migration.
+      if (note !== undefined && (note || place.note !== null)) patch.note = note || null;
       if (eventDatesReady) Object.assign(patch, eventDays(category === 'event' ? runsFrom({ eventRuns, eventDate, eventEndDate }) : [], category === 'event' ? eventPrice : '', category === 'event' ? eventContact : ''));
       const { data, error } = await supabase
         .from('collection_places')

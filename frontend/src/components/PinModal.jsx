@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -520,6 +520,13 @@ export default function PinModal({
             )}
             {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
             {!canEdit && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
+          </div>
+        )}
+
+        {(place?.note || place?.custom_info) && (
+          <div className="modal-section">
+            <div className="modal-label"><StickyNote className="ico" aria-hidden="true" /> Notes</div>
+            <p className="place-note-text">{place.note || place.custom_info}</p>
           </div>
         )}
 

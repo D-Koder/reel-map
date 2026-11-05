@@ -19,6 +19,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [name, setName] = useState(place.name);
   const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
+  const [note, setNote] = useState(place.note ?? '');
   const [eventRuns, setEventRuns] = useState(() => runsOf(place));
   const [eventPrice, setEventPrice] = useState(place.event_price ?? '');
   const [eventContact, setEventContact] = useState(place.event_contact ?? '');
@@ -160,7 +161,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
       }
     }
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), category, eventRuns: cleanRuns(eventRuns), eventPrice, eventContact, location: newSpot });
+    await onSave({ name: name.trim(), emoji: emoji.trim(), note: note.trim(), category, eventRuns: cleanRuns(eventRuns), eventPrice, eventContact, location: newSpot });
     setSaving(false);
   };
 
@@ -286,6 +287,20 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="field">
+          <span className="modal-label">Notes (optional)</span>
+          <textarea
+            className="step-input note-input"
+            rows={3}
+            maxLength={500}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Order the lamb, book ahead, ask for Sam…"
+            disabled={!isAdder}
+          />
+          <span className="field-hint">Only for this collection. Everyone in it can read it.</span>
         </label>
 
         {category === 'event' && eventDatesReady && (
