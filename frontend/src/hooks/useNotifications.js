@@ -82,6 +82,13 @@ export function useNotifications(userId, onNew) {
     await supabase.from('notifications').delete().eq('id', id);
   }, []);
 
+  // Several at once, e.g. the reminders that were seen.
+  const removeMany = useCallback(async (ids) => {
+    if (!ids.length) return;
+    setRows((prev) => prev.filter((n) => !ids.includes(n.id)));
+    await supabase.from('notifications').delete().in('id', ids);
+  }, []);
+
   // A "Pick the place" notification is made before its place exists, so it has no place id. Once the place
   // is saved, this gives the earliest one that is still unlinked the new place's id: the one quoting the
   // same name as the reel's lookup if there is one, else just the earliest. Tapping it then opens the place.
@@ -115,6 +122,7 @@ export function useNotifications(userId, onNew) {
     markAllRead,
     clearAll,
     remove,
+    removeMany,
     linkPlace,
   };
 }

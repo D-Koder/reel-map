@@ -85,7 +85,25 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, linkPlace: linkNotificationPlace } = useNotifications(userId, () => data.refresh());
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, removeMany: removeNotifications, linkPlace: linkNotificationPlace } = useNotifications(userId, () => data.refresh());
+  // Reminders ("in 30 minutes") are deleted once they've been seen: the panel was open for over a second with them
+  // in it. They stay readable until the panel closes, then they go. Everything else goes when it's tapped.
+  const seenReminders = useRef(new Set());
+  // A string, so the timer below isn't restarted by every re-render.
+  const reminderIds = notifications.filter((n) => n.type === 'booking_reminder').map((n) => n.id).join(',');
+  useEffect(() => {
+    if (notificationsOpen) {
+      const timer = setTimeout(() => {
+        reminderIds.split(',').filter(Boolean).forEach((id) => seenReminders.current.add(id));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    if (seenReminders.current.size) {
+      removeNotifications([...seenReminders.current]);
+      seenReminders.current.clear();
+    }
+    return undefined;
+  }, [notificationsOpen, reminderIds, removeNotifications]);
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
   const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
@@ -339,7 +357,11 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   useEffect(() => {
     if (!pendingNotificationId || !notificationsLoaded) return;
     setPendingNotificationId(null);
-    if (!openTarget(targetOf(notifications.find((n) => n.id === pendingNotificationId)))) {
+    const tapped = notifications.find((n) => n.id === pendingNotificationId);
+    // A tapped push counts as tapping the notification: it's deleted once it opens.
+    if (openTarget(targetOf(tapped))) {
+      removeNotification(pendingNotificationId);
+    } else {
       setNotificationsOpen(true);
       markAllRead();
     }
@@ -591,7 +613,11 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         onClear={clearAll}
         onRemove={removeNotification}
         canOpen={(notif) => Boolean(targetOf(notif))}
-        onOpen={(notif) => openTarget(targetOf(notif))}
+        onOpen={(notif) => {
+          // Tapping a notification takes you to it and deletes it.
+          removeNotification(notif.id);
+          openTarget(targetOf(notif));
+        }}
       />
 
       {openPin && !editPin && (
