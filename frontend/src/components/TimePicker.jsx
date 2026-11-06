@@ -87,7 +87,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
           {picked.state === 'late' && (
             <div className="tp-warn" role="alert">
               <b>It closes too soon</b>
-              Closes at {timeText(picked.closes)}{minutes ? ', before your plan ends' : ''}. You can still pick this time.
+              Closes at {timeText(picked.closes)}{minutes && picked.start.getTime() + minutes * 60000 > picked.closes.getTime() ? ', before your plan ends' : ', 30 minutes or less after this time'}. You can still pick this time.
             </div>
           )}
           {clash.length > 0 && (
