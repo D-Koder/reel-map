@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, Pencil, Trash2, X } from 'lucide-react';
+import { Camera, Flag, Pencil, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Avatar from './Avatar';
 
@@ -45,7 +45,7 @@ function PhotoGrid({ paths, onOpen, onRemove }) {
 
 // Every review of this location, whichever collection or visit it was written in.
 // Yours comes first, with an edit icon. canWrite: you can add a review (you've been, or it's planned for today).
-export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete, onClose, showToast }) {
+export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete, onReport, onClose, showToast }) {
   const locationId = place.location_id;
   const reviews = place.reviews ?? [];
   const mine = reviews.find((r) => r.user_id === userId);
@@ -58,6 +58,9 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
   // and what was taken off (only removed from storage once Save goes through).
   const [paths, setPaths] = useState(mine?.photos ?? []);
   const [uploading, setUploading] = useState(false);
+  // Whose review is being reported: asked once before it's sent.
+  const [reporting, setReporting] = useState(null);
+  const [reported, setReported] = useState([]);
   const addedRef = useRef([]);
   const removedRef = useRef([]);
   const viewingRef = useRef(null);
@@ -149,6 +152,13 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
     if (await onDelete()) { addedRef.current = []; removedRef.current = []; setEditing(false); }
   };
 
+  const report = async (review) => {
+    const ok = await onReport?.(review);
+    setReporting(null);
+    if (ok) { setReported((list) => [...list, review.user_id]); showToast('Thanks, we will take a look.'); }
+    else showToast("Couldn't send the report.");
+  };
+
   const when = (value) => new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
   const card = (review, isMine) => (
@@ -162,6 +172,11 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
         {isMine && !editing && (
           <button type="button" className="review-edit" onClick={startEdit} aria-label="Edit your review" title="Edit">
             <Pencil className="ico" aria-hidden="true" />
+          </button>
+        )}
+        {!isMine && onReport && !reported.includes(review.user_id) && reporting !== review.user_id && (
+          <button type="button" className="review-edit" onClick={() => setReporting(review.user_id)} aria-label="Report this review" title="Report">
+            <Flag className="ico" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -189,6 +204,13 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
         <>
           {review.body && <p className="review-body">{review.body}</p>}
           <PhotoGrid paths={review.photos ?? []} onOpen={setViewing} />
+          {!isMine && reporting === review.user_id && (
+            <div className="review-report">
+              <span>Report this review?</span>
+              <button type="button" className="step-btn danger" onClick={() => report(review)}>Report</button>
+              <button type="button" className="step-btn secondary" onClick={() => setReporting(null)}>Cancel</button>
+            </div>
+          )}
         </>
       )}
     </li>
@@ -216,7 +238,10 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
         {!reviews.length && !editing && !canWrite && (
           <p className="place-collection-note">No reviews yet. Once you've been, you can add one.</p>
         )}
-        <p className="place-collection-note">Reviews are for the location, so they show wherever it's saved. People you share a collection with can see them.</p>
+        {place.location_id === place.id && (
+          <p className="place-collection-note">This place has no map pin yet, so only you can see its reviews. Verify its location to share them.</p>
+        )}
+        <p className="place-collection-note">Reviews are public: anyone using the app can see them for this venue, with the reviewer's name.</p>
       </div>
       {viewing && (
         <div className="booking-lightbox" role="dialog" aria-modal="true" aria-label="Photo" onClick={(e) => { e.stopPropagation(); setViewing(null); }}>

@@ -159,16 +159,25 @@ async function readEntries() {
   return { ...(await supabase.from('collection_places').select(columns)), hasEventDates: false, hasEventEndDates: false, hasEventRuns: false };
 }
 
-// Everyone's reviews I can see, grouped by location: { "<location_id>": [{ user_id, body, updated_at, author }] }.
-// A location is the place's venue (the real-world spot, shared across collections), or the place itself without one.
-async function readReviews() {
-  const { data, error } = await supabase
-    .from('place_reviews')
-    .select('location_id, user_id, body, photos, updated_at, author:profiles(id, display_name, avatar, avatar_url)')
-    .order('updated_at', { ascending: false });
+// Every review of the venues I have places at, grouped by location: { "<location_id>": [{ user_id, body, photos, updated_at, author }] }.
+// Reviews are public per venue, so this includes people I share nothing with. A location is the place's venue
+// (the real-world spot), or the place itself when it has no map pin (then only mine can be there).
+async function readReviews(locationIds) {
+  if (!locationIds.length) return {};
+  const { data, error } = await supabase.rpc('reviews_for_locations', { p_ids: locationIds });
   if (error) return {};
   const byLocation = {};
-  for (const r of data) (byLocation[r.location_id] ??= []).push(r);
+  for (const r of data) {
+    (byLocation[r.location_id] ??= []).push({
+      location_id: r.location_id,
+      user_id: r.user_id,
+      body: r.body,
+      photos: r.photos ?? [],
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      author: { id: r.user_id, display_name: r.display_name, avatar: r.avatar, avatar_url: r.avatar_url },
+    });
+  }
   return byLocation;
 }
 
@@ -205,7 +214,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, reviewsByLocation] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -219,7 +228,6 @@ export function useAppData(userId, showToast) {
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
       readReactions(),
       readNotes(),
-      readReviews(),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
     const votes = {};
@@ -249,6 +257,9 @@ export function useAppData(userId, showToast) {
     // Build order map by (collection_id, place_id)
     const nextOrder = Object.fromEntries(orderRes.data.map((o) => [`${o.collection_id}:${o.place_id}`, o.position]));
     setOrder(nextOrder);
+
+    // Reviews need the places first: they're read for every venue I have a place at.
+    const reviewsByLocation = await readReviews([...new Set(placesRes.data.map((p) => p.venue_id ?? p.id))]);
 
     const entries = Object.fromEntries(entriesRes.data.map((e) => [`${e.collection_id}:${e.place_id}`, e]));
     const bookings = Object.fromEntries(bookingsRes.data.map((b) => [`${b.collection_id}:${b.place_id}`, b]));
@@ -648,6 +659,12 @@ export function useAppData(userId, showToast) {
     // My review of a location (one per person), whichever collection or visit it came from.
     saveReview: async (place, text, photos = []) =>
       Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body: text, photos: photos.slice(0, 5) }, { onConflict: 'location_id,user_id' }))),
+
+    // Tell us a review is a problem. One report per person per review.
+    reportReview: async (place, review) => {
+      const { error } = await supabase.from('review_reports').insert({ location_id: place.location_id, review_user_id: review.user_id, reporter_id: userId });
+      return !error || error.code === '23505';
+    },
 
     deleteReview: async (place) => {
       const { data } = await supabase.storage.from('visit-photos').list(`${place.location_id}/${userId}`);

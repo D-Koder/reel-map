@@ -5964,3 +5964,7 @@ a.step-btn {
 .keyboard-open .sheet-footer { padding-bottom: 12px; }
 .sheet-footer .step-btn:disabled { opacity: 0.45; }
 .edit-sheet .step-input { min-width: 0; max-width: 100%; }
+
+.review-report { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; }
+.review-report > span { flex: 1 1 100%; color: var(--text-muted); }
+.review-report .step-btn { flex: 1; min-height: 40px; }

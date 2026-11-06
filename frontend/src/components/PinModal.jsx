@@ -145,6 +145,7 @@ export default function PinModal({
   onSaveReview,
   onCancelBooking,
   onDeleteReview,
+  onReportReview,
   onEdit,
   onDelete,
   onClose,
@@ -488,6 +489,7 @@ export default function PinModal({
             canWrite={canReview || Boolean(myReview)}
             onSave={onSaveReview}
             onDelete={onDeleteReview}
+            onReport={onReportReview}
             onClose={() => setReviewsOpen(false)}
             showToast={showToast}
           />

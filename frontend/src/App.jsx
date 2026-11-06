@@ -638,6 +638,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           }}
           onSaveReview={(text, photos) => data.saveReview(openPin, text, photos)}
           onDeleteReview={() => data.deleteReview(openPin)}
+          onReportReview={(review) => data.reportReview(openPin, review)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
           canEdit={canEdit(openPin.collection_id)}
