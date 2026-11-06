@@ -1,3 +1,5 @@
+import { forgetGoogleToken } from './googleCalendar';
+
 // JSON helpers for localStorage. Storage can be full or blocked (private browsing),
 // so every call is guarded and the app keeps working without it.
 export function readJSON(key, fallback = null) {
@@ -18,6 +20,7 @@ export function writeJSON(key, value) {
 
 // Removes everything Reel Map saved on this device for one user. Keys end in ":<userId>".
 export function clearUserStorage(userId) {
+  forgetGoogleToken();
   try {
     Object.keys(localStorage)
       .filter((key) => key.startsWith('reelmap:') && key.endsWith(`:${userId}`))

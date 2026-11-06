@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { fetchBusy, forgetCalendarLink, saveCalendarLink, saveGoogleCalendar } from '../lib/calendarLink';
-import { connectGoogleCalendar, disconnectGoogleCalendar, googleCalendarEnabled, preloadGoogle, restoreGoogleCalendar } from '../lib/googleCalendar';
+import { connectGoogleCalendar, disconnectGoogleCalendar, googleCalendarEnabled, preloadGoogle, restoreGoogleCalendar, setGoogleOwner } from '../lib/googleCalendar';
 
 // Connect or disconnect the person's calendar, so "Check Hours" can suggest a time they're free.
 // Google Calendar is one tap (lib/googleCalendar.js); any other calendar (Apple's, say) is a pasted link that
 // stays on this device (lib/calendarLink.js). onChange(connection) hears { kind: 'google' }, { kind: 'link', link }
 // or { kind: '' } once disconnected. needsTap: Google is connected but its window hasn't been opened this visit.
 export default function CalendarConnect({ userId, connection, needsTap, onChange }) {
+  setGoogleOwner(userId);
   const [linkOpen, setLinkOpen] = useState(!googleCalendarEnabled);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);

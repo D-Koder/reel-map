@@ -15,7 +15,7 @@ import Avatar from './Avatar';
 import { checkedGoogleMapsLink, googleMapsLink } from '../lib/places';
 import { groupedHours, openStatus, suburbOf } from '../lib/hours';
 import { busyFor, savedConnection, savedGoogleCalendar } from '../lib/calendarLink';
-import { addGoogleEvent, googleCalendarEnabled, NeedsGoogleTap } from '../lib/googleCalendar';
+import { addGoogleEvent, googleCalendarEnabled, NeedsGoogleTap, setGoogleOwner } from '../lib/googleCalendar';
 import { DEFAULT_PLAN_MINUTES } from '../lib/freeSlot';
 import TimePicker from './TimePicker';
 import { eventDatesText, eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
@@ -227,6 +227,8 @@ export default function PinModal({
   // The time set in step 1 (an event takes its time in step 2 instead).
   const [timeChosen, setTimeChosen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // Whose saved Google token (if any) the free-times check may use.
+  setGoogleOwner(userId);
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
 
