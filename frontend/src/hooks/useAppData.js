@@ -641,6 +641,12 @@ export function useAppData(userId, showToast) {
         showToast(`${friendlyError(error)}`);
         return false;
       }
+      // The plan's booking confirmations go with it, so a later plan for this place doesn't start with old files.
+      if (data?.length) {
+        const folder = `${place.collection_id}/${place.id}`;
+        const { data: files } = await supabase.storage.from('booking-files').list(folder);
+        if (files?.length) await supabase.storage.from('booking-files').remove(files.map((f) => `${folder}/${f.name}`));
+      }
       await refresh();
       if (!data?.length) {
         showToast("Only the person who made the plan or an editor can cancel it");
