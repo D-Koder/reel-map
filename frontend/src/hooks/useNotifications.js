@@ -58,6 +58,12 @@ export function useNotifications(userId, onNew) {
           onNewRef.current?.(payload.new);
         }
       )
+      // A notification the server removed (a reminder that was replaced or is no longer useful) leaves the list too.
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications' },
+        (payload) => setRows((prev) => prev.filter((n) => n.id !== payload.old?.id))
+      )
       .subscribe();
 
     return () => {
