@@ -15,7 +15,8 @@ import { requestLocationApi } from '../lib/googlePlaces';
 // and not in a collection they only view.
 export default function EditPlaceSheet({ place, collections = [], places = [], userId, eventDatesReady = false, canEdit = () => true, onSave, onCopy, onMove, onClose }) {
   const sheetRef = React.useRef(null);
-  const sheetDrag = useSheetDrag(sheetRef, onClose);
+  const bodyRef = React.useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, onClose, bodyRef);
   const [name, setName] = useState(place.name);
   const [emoji, setEmoji] = useState(place.emoji ?? '');
   const [category, setCategory] = useState(place.category);
@@ -180,7 +181,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
     <div className="modal-overlay" onClick={onClose}>
       <form
         ref={sheetRef}
-        className="modal edit-sheet"
+        className="modal edit-sheet sheet-split"
         onClick={(e) => e.stopPropagation()}
         onSubmit={save}
         role="dialog"
@@ -194,6 +195,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           </button>
         </div>
 
+        <div className="sheet-body" ref={bodyRef}>
         {isViewer ? (
           <p className="place-collection-note">You're a viewer here, so you can't change this place. You can still copy it to your collections.</p>
         ) : !isAdder && (
@@ -404,8 +406,10 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           />
         )}
 
+        </div>
+
         {isAdder && (
-          <div className="edit-save-bar">
+          <div className="sheet-footer">
             <button type="submit" className="step-btn primary full-width" disabled={saving || !dirty}>
               {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
             </button>

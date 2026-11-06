@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 // Swipe a bottom sheet's handle down to close it. The sheet follows the finger.
 // Released past 100px it closes, otherwise it springs back.
 // Pulling down on the content works too, once it's scrolled to the top (like iPhone sheets).
-export default function useSheetDrag(sheetRef, onClose) {
+export default function useSheetDrag(sheetRef, onClose, bodyRef) {
   const startY = useRef(null);
   const offset = useRef(0);
   const closeRef = useRef(onClose);
@@ -14,20 +14,22 @@ export default function useSheetDrag(sheetRef, onClose) {
     if (!sheet) return undefined;
     let fromY = null;
     let pulled = 0;
+    // The part that scrolls: a body inside the sheet when there is one (so a pinned footer stays put), else the sheet.
+    const scrolled = () => (bodyRef?.current ?? sheet).scrollTop;
     const move = (px) => {
       sheet.style.transform = px ? `translateY(${px}px)` : '';
     };
     const onStart = (event) => {
       // Fields and the reorder handles keep their own gestures.
       if (event.touches.length !== 1 || event.target.closest('input, textarea, select, .mapboxgl-map')) return;
-      fromY = sheet.scrollTop <= 0 ? event.touches[0].clientY : null;
+      fromY = scrolled() <= 0 ? event.touches[0].clientY : null;
       pulled = 0;
     };
     const onMove = (event) => {
       if (fromY === null) return;
       const dy = event.touches[0].clientY - fromY;
       // Scrolling up into the content, or the content has moved: let it scroll normally.
-      if (dy <= 0 || sheet.scrollTop > 0) {
+      if (dy <= 0 || scrolled() > 0) {
         if (pulled) move(0);
         fromY = pulled ? fromY : null;
         pulled = 0;
@@ -56,7 +58,7 @@ export default function useSheetDrag(sheetRef, onClose) {
       sheet.removeEventListener('touchend', onEnd);
       sheet.removeEventListener('touchcancel', onEnd);
     };
-  }, [sheetRef]);
+  }, [sheetRef, bodyRef]);
 
   const setOffset = (px) => {
     if (sheetRef.current) sheetRef.current.style.transform = px ? `translateY(${px}px)` : '';

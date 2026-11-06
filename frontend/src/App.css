@@ -5955,11 +5955,12 @@ a.step-btn {
 .edit-place-collections-more .ico.open { transform: rotate(90deg); }
 .edit-place-actions { display: grid; gap: 8px; margin-top: 8px; }
 .edit-place-actions .field-row { align-items: stretch; }
-.edit-save-bar {
-  position: sticky; bottom: 0; z-index: 2;
-  margin: 8px calc(-1 * (var(--gutter) + var(--safe-right))) calc(-1 * (var(--gutter) + var(--safe-bottom))) calc(-1 * (var(--gutter) + var(--safe-left)));
-  padding: 12px calc(var(--gutter) + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
-  background: var(--card); border-top: 1px solid var(--border);
-}
-.edit-save-bar .step-btn:disabled { opacity: 0.45; }
+/* A sheet whose body scrolls while its Save button stays pinned below it. */
+.sheet-split { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.sheet-split > * { flex: none; }
+.sheet-split > .sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 12px; }
+.sheet-footer { padding: 12px 0 calc(12px + var(--safe-bottom)); border-top: 1px solid var(--border); background: var(--card); }
+.keyboard-open .sheet-split { padding-bottom: 0; }
+.keyboard-open .sheet-footer { padding-bottom: 12px; }
+.sheet-footer .step-btn:disabled { opacity: 0.45; }
 .edit-sheet .step-input { min-width: 0; max-width: 100%; }

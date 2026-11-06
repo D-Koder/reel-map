@@ -176,7 +176,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     if (loading && onBackground) onBackground(reelUrlInput.trim());
     onClose();
   };
-  const sheetDrag = useSheetDrag(sheetRef, dismiss);
+  const bodyRef = useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, dismiss, bodyRef);
   // The warning button sends this lookup's details and a comment to the debug table.
   const [reportOpen, setReportOpen] = useState(false);
   const [reportComment, setReportComment] = useState('');
@@ -864,7 +865,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     <div className="modal-overlay" onClick={dismiss}>
       <div
         ref={sheetRef}
-        className="modal edit-sheet"
+        className="modal edit-sheet sheet-split"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={sheetTitle}
@@ -899,6 +900,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
           </div>
         </div>
 
+        <div className="sheet-body" ref={bodyRef}>
         {reportOpen && (
           <div className="field" style={{ marginBottom: 12 }}>
             <span className="modal-label">Report this lookup</span>
@@ -1017,7 +1019,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
 
         {/* STEP 2: Place Details */}
         {step === 'details' && (
-          <form onSubmit={submit}>
+          <form id="add-place-form" onSubmit={submit}>
             {/* Reel Thumbnail Preview */}
             {scrapedData && (
               <div style={{
@@ -1235,7 +1237,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                   ? 'Pinned from your pick. Change the address to search again.'
                   : pinCoords?.source === 'area'
                     ? 'Approximate: pickup area only. Change the address to search again.'
-                    : 'Pick a suggestion for the map pin. Not listed? The binoculars search Google Maps.'}
+                    : 'Not listed? Tap the binoculars to search Google Maps.'}
               </span>
             </div>
 
@@ -1395,57 +1397,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               </div>
             )}
 
-            {/* Custom info and link for this entry. Optional, shown on the pin. */}
-            <label className="field">
-              <span className="modal-label">Custom info (optional)</span>
-              <input
-                className="step-input"
-                value={customInfo}
-                onChange={(e) => setCustomInfo(e.target.value)}
-                placeholder="e.g. Pottery class"
-                maxLength={120}
-                disabled={saving}
-              />
-            </label>
-            {/* A reel is already a link, so the link field only appears for manual adds. */}
-            {!reelUrl && (
-              <label className="field">
-                <span className="modal-label">Link (optional)</span>
-                <input
-                  className="step-input"
-                  type="text"
-                  inputMode="url"
-                  value={entryUrl}
-                  onChange={(e) => {
-                    setEntryUrl(e.target.value);
-                    setEntryUrlError('');
-                  }}
-                  placeholder="https://"
-                  disabled={saving}
-                />
-                {entryUrlError && (
-                  <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
-                    <TriangleAlert className="ico" aria-hidden="true" /> {entryUrlError}
-                  </span>
-                )}
-              </label>
-            )}
-
-            {/* Same location already saved: confirm before adding another entry there. */}
-            {duplicates.length > 0 && (
-              <DuplicateWarning
-                matches={duplicates}
-                title="This collection already has this location"
-                question="Add this location again as a new place?"
-                confirmLabel="Yes, add it"
-                onCancel={() => setDuplicates([])}
-                onConfirm={() => {
-                  setDuplicates([]);
-                  submit(null, true);
-                }}
-              />
-            )}
-
             {/* Collection & Category */}
             <div className="field-row">
               <label className="field">
@@ -1497,6 +1448,57 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               />
             )}
 
+            {/* Custom info and link for this entry. Optional, shown on the pin. */}
+            <label className="field">
+              <span className="modal-label">Custom info (optional)</span>
+              <input
+                className="step-input"
+                value={customInfo}
+                onChange={(e) => setCustomInfo(e.target.value)}
+                placeholder="e.g. Pottery class"
+                maxLength={120}
+                disabled={saving}
+              />
+            </label>
+            {/* A reel is already a link, so the link field only appears for manual adds. */}
+            {!reelUrl && (
+              <label className="field">
+                <span className="modal-label">Link (optional)</span>
+                <input
+                  className="step-input"
+                  type="text"
+                  inputMode="url"
+                  value={entryUrl}
+                  onChange={(e) => {
+                    setEntryUrl(e.target.value);
+                    setEntryUrlError('');
+                  }}
+                  placeholder="https://"
+                  disabled={saving}
+                />
+                {entryUrlError && (
+                  <span style={{ fontSize: '12px', color: 'var(--danger-text)', marginTop: '4px', display: 'block' }}>
+                    <TriangleAlert className="ico" aria-hidden="true" /> {entryUrlError}
+                  </span>
+                )}
+              </label>
+            )}
+
+            {/* Same location already saved: confirm before adding another entry there. */}
+            {duplicates.length > 0 && (
+              <DuplicateWarning
+                matches={duplicates}
+                title="This collection already has this location"
+                question="Add this location again as a new place?"
+                confirmLabel="Yes, add it"
+                onCancel={() => setDuplicates([])}
+                onConfirm={() => {
+                  setDuplicates([]);
+                  submit(null, true);
+                }}
+              />
+            )}
+
             {/* Vibe/Feeling */}
             <div className="field">
               <span className="modal-label">Your vibe</span>
@@ -1517,10 +1519,6 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button type="submit" className="step-btn primary full-width" disabled={saving || !name.trim()}>
-              {saving ? <><span className="spinner" aria-hidden="true" />Adding…</> : 'Add place'}
-            </button>
           </form>
         )}
 
@@ -1565,6 +1563,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        </div>
+
+        {step === 'details' && (
+          <div className="sheet-footer">
+            <button type="submit" form="add-place-form" className="step-btn primary full-width" disabled={saving || !name.trim()}>
+              {saving ? <><span className="spinner" aria-hidden="true" />Adding…</> : 'Add place'}
+            </button>
           </div>
         )}
       </div>
