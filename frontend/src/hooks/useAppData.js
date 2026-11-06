@@ -164,7 +164,7 @@ async function readEntries() {
 async function readReviews() {
   const { data, error } = await supabase
     .from('place_reviews')
-    .select('location_id, user_id, body, updated_at, author:profiles(id, display_name, avatar, avatar_url)')
+    .select('location_id, user_id, body, photos, updated_at, author:profiles(id, display_name, avatar, avatar_url)')
     .order('updated_at', { ascending: false });
   if (error) return {};
   const byLocation = {};
@@ -646,8 +646,8 @@ export function useAppData(userId, showToast) {
     },
 
     // My review of a location (one per person), whichever collection or visit it came from.
-    saveReview: async (place, text) =>
-      Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body: text }, { onConflict: 'location_id,user_id' }))),
+    saveReview: async (place, text, photos = []) =>
+      Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body: text, photos: photos.slice(0, 5) }, { onConflict: 'location_id,user_id' }))),
 
     deleteReview: async (place) => {
       const { data } = await supabase.storage.from('visit-photos').list(`${place.location_id}/${userId}`);
@@ -657,15 +657,18 @@ export function useAppData(userId, showToast) {
 
     // The quick review and photo from the "done" pop-up: the same review as in the Reviews pop-up.
     saveVisitMemory: async (place, { review, photo }) => {
-      if (photo) {
-        const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
-        const { error } = await supabase.storage.from('visit-photos').upload(`${place.location_id}/${userId}/${Date.now()}-${safeName}`, photo, { contentType: photo.type });
-        if (error) return false;
-      }
       const mine = place.reviews?.find((r) => r.user_id === userId);
+      const photos = [...(mine?.photos ?? [])];
+      if (photo && photos.length < 5) {
+        const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
+        const path = `${place.location_id}/${userId}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from('visit-photos').upload(path, photo, { contentType: photo.type });
+        if (error) return false;
+        photos.push(path);
+      }
       const body = review || mine?.body || '';
-      if (!review && mine) return true;
-      return Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body }, { onConflict: 'location_id,user_id' })));
+      if (!review && !photo) return true;
+      return Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body, photos }, { onConflict: 'location_id,user_id' })));
     },
 
     reorder: (orderedIds, collectionId) => {

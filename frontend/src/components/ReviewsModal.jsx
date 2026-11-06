@@ -8,71 +8,38 @@ const BUCKET = 'visit-photos';
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_BYTES = 10 * 1024 * 1024;
 
-// One person's photos for a location: "<location>/<person>/<file>".
-function ReviewPhotos({ locationId, personId, editable, showToast, onOpen, refreshKey }) {
-  const folder = `${locationId}/${personId}`;
-  const [photos, setPhotos] = useState([]);
-  const [uploading, setUploading] = useState(false);
+const MAX_PHOTOS = 5;
 
-  const load = async () => {
-    const { data, error } = await supabase.storage.from(BUCKET).list(folder, { sortBy: { column: 'created_at', order: 'asc' } });
-    if (error || !data?.length) { setPhotos([]); return; }
-    const paths = data.map((file) => `${folder}/${file.name}`);
-    const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60);
-    setPhotos(data.map((file, i) => ({ path: paths[i], url: signed?.[i]?.signedUrl || null })).filter((p) => p.url));
-  };
-  useEffect(() => { load(); }, [folder, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const upload = async (event) => {
-    const chosen = [...(event.target.files || [])];
-    event.target.value = '';
-    const ok = chosen.filter((file) => TYPES.includes(file.type) && file.size <= MAX_BYTES);
-    if (ok.length < chosen.length) showToast('Only photos under 10 MB can be added.');
-    if (!ok.length) return;
-    setUploading(true);
-    let failed = 0;
-    for (const file of ok) {
-      const safeName = file.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
-      const { error } = await supabase.storage.from(BUCKET).upload(`${folder}/${Date.now()}-${safeName}`, file, { contentType: file.type });
-      if (error) failed += 1;
-    }
-    setUploading(false);
-    if (failed) showToast(`${failed} photo${failed === 1 ? '' : 's'} couldn't be uploaded.`);
-    load();
-  };
-
-  const remove = async (photo) => {
-    const { data, error } = await supabase.storage.from(BUCKET).remove([photo.path]);
-    if (error || !data?.length) { showToast("Couldn't remove that photo."); return; }
-    load();
-  };
-
-  if (!editable && !photos.length) return null;
+// The photos a review lists (storage paths), shown as a grid. With onRemove each has a remove button.
+function PhotoGrid({ paths, onOpen, onRemove }) {
+  const [urls, setUrls] = useState({});
+  const key = paths.join('|');
+  useEffect(() => {
+    let live = true;
+    if (!paths.length) { setUrls({}); return undefined; }
+    supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60).then(({ data }) => {
+      if (!live) return;
+      setUrls(Object.fromEntries((data ?? []).filter((f) => f.signedUrl).map((f) => [f.path, f.signedUrl])));
+    });
+    return () => { live = false; };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = paths.filter((path) => urls[path]);
+  if (!shown.length) return null;
   return (
-    <>
-      {photos.length > 0 && (
-        <ul className="visit-photos">
-          {photos.map((photo) => (
-            <li key={photo.path}>
-              <button type="button" className="visit-photo-btn" onClick={() => onOpen(photo)} aria-label="Open photo">
-                <img src={photo.url} alt="Review photo" />
-              </button>
-              {editable && (
-                <button type="button" className="visit-photo-remove" onClick={() => remove(photo)} aria-label="Remove photo">
-                  <Trash2 className="ico" aria-hidden="true" />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {editable && (
-        <label className={`step-btn secondary full-width booking-files-upload${uploading ? ' disabled' : ''}`}>
-          <input type="file" accept="image/*" multiple hidden disabled={uploading} onChange={upload} />
-          {uploading ? <><span className="spinner" aria-hidden="true" />Uploading…</> : <><Camera className="ico" aria-hidden="true" /> Add photos</>}
-        </label>
-      )}
-    </>
+    <ul className="visit-photos">
+      {shown.map((path) => (
+        <li key={path}>
+          <button type="button" className="visit-photo-btn" onClick={() => onOpen({ path, url: urls[path] })} aria-label="Open photo">
+            <img src={urls[path]} alt="Review photo" />
+          </button>
+          {onRemove && (
+            <button type="button" className="visit-photo-remove" onClick={() => onRemove(path)} aria-label="Remove photo">
+              <Trash2 className="ico" aria-hidden="true" />
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -87,32 +54,99 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
   const [text, setText] = useState(mine?.body ?? '');
   const [saving, setSaving] = useState(false);
   const [viewing, setViewing] = useState(null);
+  // Photos while editing: the review's list, what was uploaded this time (dropped again on Cancel),
+  // and what was taken off (only removed from storage once Save goes through).
+  const [paths, setPaths] = useState(mine?.photos ?? []);
+  const [uploading, setUploading] = useState(false);
+  const addedRef = useRef([]);
+  const removedRef = useRef([]);
   const viewingRef = useRef(null);
   viewingRef.current = viewing;
+  const closeRef = useRef(null);
 
   useEffect(() => {
     const onKey = (event) => {
       if (event.key !== 'Escape') return;
       event.stopImmediatePropagation();
       if (viewingRef.current) setViewing(null);
-      else onClose();
+      else closeRef.current();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+  }, []);
 
-  const startEdit = () => { setText(mine?.body ?? ''); setEditing(true); };
+  const dropFiles = (list) => (list.length ? supabase.storage.from(BUCKET).remove(list) : null);
+
+  const startEdit = () => {
+    setText(mine?.body ?? '');
+    setPaths(mine?.photos ?? []);
+    addedRef.current = [];
+    removedRef.current = [];
+    setEditing(true);
+  };
+
+  const stopEdit = () => {
+    dropFiles(addedRef.current);
+    addedRef.current = [];
+    removedRef.current = [];
+    setEditing(false);
+  };
+
+  const close = () => {
+    if (editing) stopEdit();
+    onClose();
+  };
+
+  closeRef.current = close;
+
+  const addPhotos = async (event) => {
+    const chosen = [...(event.target.files || [])];
+    event.target.value = '';
+    const ok = chosen.filter((file) => TYPES.includes(file.type) && file.size <= MAX_BYTES);
+    if (ok.length < chosen.length) showToast('Only photos under 10 MB can be added.');
+    const room = MAX_PHOTOS - paths.length;
+    if (ok.length > room) showToast(`A review can have up to ${MAX_PHOTOS} photos.`);
+    const take = ok.slice(0, Math.max(0, room));
+    if (!take.length) return;
+    setUploading(true);
+    const done = [];
+    let failed = 0;
+    for (const file of take) {
+      const safeName = file.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
+      const path = `${locationId}/${userId}/${Date.now()}-${done.length}-${safeName}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      if (error) failed += 1; else done.push(path);
+    }
+    setUploading(false);
+    if (failed) showToast(`${failed} photo${failed === 1 ? '' : 's'} couldn't be uploaded.`);
+    addedRef.current = [...addedRef.current, ...done];
+    setPaths((list) => [...list, ...done].slice(0, MAX_PHOTOS));
+  };
+
+  const removePhoto = (path) => {
+    setPaths((list) => list.filter((p) => p !== path));
+    if (addedRef.current.includes(path)) {
+      addedRef.current = addedRef.current.filter((p) => p !== path);
+      dropFiles([path]);
+    } else {
+      removedRef.current = [...removedRef.current, path];
+    }
+  };
 
   const save = async () => {
     setSaving(true);
-    const ok = await onSave(text.trim());
+    const ok = await onSave(text.trim(), paths);
     setSaving(false);
-    if (ok) setEditing(false);
-    else showToast("Couldn't save the review.");
+    if (ok) {
+      dropFiles(removedRef.current);
+      addedRef.current = [];
+      removedRef.current = [];
+      setEditing(false);
+    } else showToast("Couldn't save the review.");
   };
 
   const remove = async () => {
-    if (await onDelete()) setEditing(false);
+    if (await onDelete()) { addedRef.current = []; removedRef.current = []; setEditing(false); }
   };
 
   const when = (value) => new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -134,10 +168,16 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
       {isMine && editing ? (
         <>
           <textarea className="step-input note-input" rows={4} maxLength={500} autoFocus placeholder="How was it?" value={text} onChange={(e) => setText(e.target.value)} disabled={saving} />
-          <ReviewPhotos locationId={locationId} personId={review.user_id} editable showToast={showToast} onOpen={setViewing} />
+          <PhotoGrid paths={paths} onOpen={setViewing} onRemove={removePhoto} />
+          {paths.length < MAX_PHOTOS && (
+            <label className={`step-btn secondary full-width booking-files-upload${uploading ? ' disabled' : ''}`}>
+              <input type="file" accept="image/*" multiple hidden disabled={uploading} onChange={addPhotos} />
+              {uploading ? <><span className="spinner" aria-hidden="true" />Uploading…</> : <><Camera className="ico" aria-hidden="true" /> Add photos ({paths.length}/{MAX_PHOTOS})</>}
+            </label>
+          )}
           <div className="step-buttons">
-            <button type="button" className="step-btn primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
-            <button type="button" className="step-btn secondary" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="step-btn primary" disabled={saving || uploading} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
+            <button type="button" className="step-btn secondary" disabled={saving} onClick={stopEdit}>Cancel</button>
           </div>
           {Boolean(mine) && (
             <button type="button" className="step-btn secondary full-width" disabled={saving} onClick={remove}>
@@ -148,18 +188,18 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
       ) : (
         <>
           {review.body && <p className="review-body">{review.body}</p>}
-          <ReviewPhotos locationId={locationId} personId={review.user_id} editable={false} showToast={showToast} onOpen={setViewing} />
+          <PhotoGrid paths={review.photos ?? []} onOpen={setViewing} />
         </>
       )}
     </li>
   );
 
   return createPortal(
-    <div className="modal-overlay reviews-overlay" onClick={onClose}>
+    <div className="modal-overlay reviews-overlay" onClick={close}>
       <div className="modal reviews-modal" role="dialog" aria-modal="true" aria-label={`Reviews of ${place.name}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">Reviews · {place.name}</div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
+          <button type="button" className="modal-close" onClick={close} aria-label="Close"><X aria-hidden="true" /></button>
         </div>
         <ul className="review-list">
           {mine && card(mine, true)}

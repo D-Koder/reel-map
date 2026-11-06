@@ -636,7 +636,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
             showToast('Booking cancelled');
             return true;
           }}
-          onSaveReview={(text) => data.saveReview(openPin, text)}
+          onSaveReview={(text, photos) => data.saveReview(openPin, text, photos)}
           onDeleteReview={() => data.deleteReview(openPin)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}
           onDelete={() => deletePlace(openPin)}
