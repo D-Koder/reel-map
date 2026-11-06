@@ -5941,3 +5941,25 @@ a.step-btn {
 .calendar-connect:has(.calendar-connected) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .calendar-show-btn { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--card); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .calendar-show-btn:active { background: var(--surface-hover); }
+
+/* Edit place: emoji and category on one row, collections folded away, Save pinned to the bottom. */
+.edit-place-pair { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.edit-place-collections {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 48px;
+  padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.edit-place-collections-names { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-place-collections-more { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--text-muted); font-size: 14px; }
+.edit-place-collections-more .ico { width: 18px; height: 18px; transition: transform 0.15s; }
+.edit-place-collections-more .ico.open { transform: rotate(90deg); }
+.edit-place-actions { display: grid; gap: 8px; margin-top: 8px; }
+.edit-place-actions .field-row { align-items: stretch; }
+.edit-save-bar {
+  position: sticky; bottom: 0; z-index: 2;
+  margin: 8px calc(-1 * (var(--gutter) + var(--safe-right))) calc(-1 * (var(--gutter) + var(--safe-bottom))) calc(-1 * (var(--gutter) + var(--safe-left)));
+  padding: 12px calc(var(--gutter) + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
+  background: var(--card); border-top: 1px solid var(--border);
+}
+.edit-save-bar .step-btn:disabled { opacity: 0.45; }
+.edit-sheet .step-input { min-width: 0; max-width: 100%; }

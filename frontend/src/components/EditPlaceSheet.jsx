@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
@@ -27,6 +27,8 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
   const [busyAction, setBusyAction] = useState(null); // 'copy' | 'move' | null
+  // Copy and move stay folded away until the Collections row is tapped.
+  const [showCollections, setShowCollections] = useState(false);
   // Places already in the chosen collection that this one would duplicate, for copy and move.
   const [copyDuplicates, setCopyDuplicates] = useState([]);
   const [moveDuplicates, setMoveDuplicates] = useState([]);
@@ -50,6 +52,15 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const isViewer = !canEdit(place.collection_id);
   const isAdder = place.added_by === userId && !isViewer;
   const canMove = isAdder;
+  // Save only switches on once something changed.
+  const dirty = name.trim() !== place.name
+    || emoji.trim() !== (place.emoji ?? '')
+    || category !== place.category
+    || note.trim() !== (place.note ?? '').trim()
+    || Boolean(newSpot)
+    || JSON.stringify(cleanRuns(eventRuns)) !== JSON.stringify(cleanRuns(runsOf(place)))
+    || String(eventPrice) !== String(place.event_price ?? '')
+    || String(eventContact) !== String(place.event_contact ?? '');
 
   const runCopy = async (confirmed = false) => {
     if (!confirmed) {
@@ -252,8 +263,8 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
               {locationError && <div className="map-search-note place-search-note" role="alert">{locationError}</div>}
               <span className="field-hint">
                 {newSpot
-                  ? 'New spot picked. Save to move it there for this collection only.'
-                  : <>Search to move this place to the right spot. Not listed?{' '}
+                  ? 'New spot picked. Save to move it (this collection only).'
+                  : <>Not listed?{' '}
                     <button type="button" className="link-btn" onClick={searchGoogle} disabled={saving || googleResults === 'searching' || !(name.trim() || locationText.trim())}>
                       <strong>Search Google Maps</strong>
                     </button></>}
@@ -265,42 +276,37 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
         </div>
 
         <div className="field">
-          <span className="modal-label">Emoji (optional)</span>
-          <EmojiPicker
-            value={emoji}
-            onChange={setEmoji}
-            placeholder={categoryIcon(category)}
-            label="Place emoji"
-            noneLabel="Use the category icon"
-            disabled={!isAdder}
-            describedBy="emoji-hint"
-          />
-          <span id="emoji-hint" className="place-collection-note">Only for this collection. Pick none to use the category icon.</span>
+          <span className="modal-label">Category</span>
+          <div className="edit-place-pair">
+            <EmojiPicker
+              value={emoji}
+              onChange={setEmoji}
+              placeholder={categoryIcon(category)}
+              label="Place emoji (this collection only)"
+              noneLabel="Use the category icon"
+              disabled={!isAdder}
+            />
+            <select className="step-input" aria-label="Category" value={category} onChange={(e) => setCategory(e.target.value)} disabled={!isAdder}>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <label className="field">
-          <span className="modal-label">Category</span>
-          <select className="step-input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={!isAdder}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span className="modal-label">Notes (optional)</span>
+          <span className="modal-label">Notes</span>
           <textarea
             className="step-input note-input"
             rows={3}
             maxLength={500}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Order the lamb, book ahead, ask for Sam…"
+            placeholder="Add a note for this collection"
             disabled={!isAdder}
           />
-          <span className="field-hint">Only for this collection. Everyone in it can read it.</span>
         </label>
 
         {category === 'event' && eventDatesReady && (
@@ -312,44 +318,49 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
 
         <div className="field">
           <span className="modal-label">Collections</span>
-          <div className="place-collections">
-            {collections.filter((c) => placeIn.includes(c.id)).map((c) => (
-              <span key={c.id} className="place-collection-chip">{c.emoji} {c.name}</span>
-            ))}
-          </div>
-        </div>
+          <button
+            type="button"
+            className="edit-place-collections"
+            aria-expanded={showCollections}
+            onClick={() => setShowCollections((v) => !v)}
+          >
+            <span className="edit-place-collections-names">
+              {collections.filter((c) => placeIn.includes(c.id)).map((c) => `${c.emoji} ${c.name}`).join(', ') || 'None'}
+            </span>
+            <span className="edit-place-collections-more">
+              Copy or move <ChevronRight className={`ico ${showCollections ? 'open' : ''}`} aria-hidden="true" />
+            </span>
+          </button>
 
-        <div className="field">
-          <span className="modal-label">Copy to another collection</span>
-          {copyOptions.length === 0 ? (
-            <div className="place-collection-note">It's already in all the collections you can add to.</div>
-          ) : (
-            <div className="field-row">
-              <select className="step-input" value={copyTarget} onChange={(e) => setCopyTarget(e.target.value)} disabled={!!busyAction}>
-                <option value="">Choose a collection…</option>
-                {copyOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-              </select>
-              <button type="button" className="step-btn secondary" disabled={!copyTarget || !!busyAction} onClick={() => runCopy()}>
-                {busyAction === 'copy' ? <><span className="spinner" aria-hidden="true" />Copying…</> : 'Copy'}
-              </button>
+          {showCollections && (
+            <div className="edit-place-actions">
+              {copyOptions.length === 0 ? (
+                <div className="place-collection-note">It's already in all the collections you can add to.</div>
+              ) : (
+                <div className="field-row">
+                  <select className="step-input" aria-label="Copy to another collection" value={copyTarget} onChange={(e) => setCopyTarget(e.target.value)} disabled={!!busyAction}>
+                    <option value="">Copy to…</option>
+                    {copyOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
+                  </select>
+                  <button type="button" className="step-btn secondary" disabled={!copyTarget || !!busyAction} onClick={() => runCopy()}>
+                    {busyAction === 'copy' ? <><span className="spinner" aria-hidden="true" />Copying…</> : 'Copy'}
+                  </button>
+                </div>
+              )}
+              {canMove && moveOptions.length > 0 && (
+                <div className="field-row">
+                  <select className="step-input" aria-label="Move to another collection" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} disabled={!!busyAction}>
+                    <option value="">Move to…</option>
+                    {moveOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
+                  </select>
+                  <button type="button" className="step-btn secondary" disabled={!moveTarget || !!busyAction} onClick={() => runMove()}>
+                    {busyAction === 'move' ? <><span className="spinner" aria-hidden="true" />Moving…</> : 'Move'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        {canMove && moveOptions.length > 0 && (
-          <div className="field">
-            <span className="modal-label">Move to another collection (you added this place)</span>
-            <div className="field-row">
-              <select className="step-input" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} disabled={!!busyAction}>
-                <option value="">Choose a collection…</option>
-                {moveOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}
-              </select>
-              <button type="button" className="step-btn secondary" disabled={!moveTarget || !!busyAction} onClick={() => runMove()}>
-                {busyAction === 'move' ? <><span className="spinner" aria-hidden="true" />Moving…</> : 'Move'}
-              </button>
-            </div>
-          </div>
-        )}
 
         {copyDuplicates.length > 0 && (
           <DuplicateWarning
@@ -394,9 +405,11 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
         )}
 
         {isAdder && (
-          <button type="submit" className="step-btn primary full-width" disabled={saving}>
-            {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
-          </button>
+          <div className="edit-save-bar">
+            <button type="submit" className="step-btn primary full-width" disabled={saving || !dirty}>
+              {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
+            </button>
+          </div>
         )}
       </form>
     </div>
