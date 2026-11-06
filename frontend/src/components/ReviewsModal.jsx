@@ -159,7 +159,7 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
     else showToast("Couldn't send the report.");
   };
 
-  const when = (value) => new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  const when = (value) => new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   const card = (review, isMine) => (
     <li key={review.user_id} className="review-card">
@@ -167,7 +167,7 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
         <Avatar person={review.author} className="review-avatar" />
         <div className="review-who">
           <strong>{isMine ? 'You' : review.author?.display_name ?? 'Someone'}</strong>
-          <span>{when(review.updated_at)}</span>
+          <span>{when(review.created_at ?? review.updated_at)}</span>
         </div>
         {isMine && !editing && (
           <button type="button" className="review-edit" onClick={startEdit} aria-label="Edit your review" title="Edit">
