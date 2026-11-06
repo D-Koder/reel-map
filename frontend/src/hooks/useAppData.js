@@ -617,6 +617,27 @@ export function useAppData(userId, showToast) {
       return run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at }));
     },
 
+    // Removes the plan and keeps the place. Done places keep their booking row as the "been" record, so those aren't cancelled.
+    cancelBooking: async (place) => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('collection_id', place.collection_id)
+        .eq('place_id', place.id)
+        .is('done_at', null)
+        .select('place_id');
+      if (error) {
+        showToast(`${friendlyError(error)}`);
+        return false;
+      }
+      await refresh();
+      if (!data?.length) {
+        showToast("Only the person who made the plan or an editor can cancel it");
+        return false;
+      }
+      return true;
+    },
+
     markDone: (place) => {
       if (!place.booking) {
         return run(supabase.from('bookings').insert({ collection_id: place.collection_id, place_id: place.id, planned_at: new Date().toISOString(), done_at: new Date().toISOString(), marked_by: userId }));

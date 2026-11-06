@@ -4,10 +4,13 @@ import { toLocalInputValue } from '../lib/constants';
 
 // Edit a planned booking: when it's on, and its booking confirmations (screenshots or PDFs).
 // The time saves the same way planning it does (onSave resolves true when it's saved).
-export default function EditBookingDialog({ place, canUpload, onSave, onClose, showToast }) {
+export default function EditBookingDialog({ place, canUpload, onSave, onCancelBooking, onClose, showToast }) {
   const original = toLocalInputValue(place.booking.planned_at);
   const [when, setWhen] = useState(original);
   const [saving, setSaving] = useState(false);
+  // Cancelling asks twice: the first tap only shows the question.
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const changed = Boolean(when) && when !== original;
 
   // Escape closes this only, not the place sheet underneath (it listens on window too).
@@ -29,6 +32,14 @@ export default function EditBookingDialog({ place, canUpload, onSave, onClose, s
       showToast('Booking updated');
       onClose();
     }
+  };
+
+  const cancelBooking = async () => {
+    setCancelling(true);
+    const ok = await onCancelBooking();
+    setCancelling(false);
+    if (ok) onClose();
+    else setConfirmingCancel(false);
   };
 
   return (
@@ -71,6 +82,24 @@ export default function EditBookingDialog({ place, canUpload, onSave, onClose, s
           <div className="modal-label">Booking confirmation</div>
           <BookingFiles place={place} canUpload={canUpload} showToast={showToast} />
         </div>
+        {canUpload && onCancelBooking && (
+          confirmingCancel ? (
+            <div className="cancel-booking">
+              <div className="modal-label">Cancel this booking?</div>
+              <p className="place-collection-note">The plan is removed for everyone. The place stays in your collection. If you booked with the venue, cancel that separately.</p>
+              <div className="confirm-actions">
+                <button type="button" className="step-btn danger" onClick={cancelBooking} disabled={cancelling}>
+                  {cancelling ? 'Cancelling…' : 'Yes, cancel it'}
+                </button>
+                <button type="button" className="step-btn secondary" onClick={() => setConfirmingCancel(false)} disabled={cancelling}>Keep it</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="step-btn secondary full-width cancel-booking-btn" onClick={() => setConfirmingCancel(true)}>
+              Cancel booking
+            </button>
+          )
+        )}
         {!canUpload && (
           <div className="confirm-actions">
             <button type="button" className="step-btn secondary" onClick={onClose}>Close</button>

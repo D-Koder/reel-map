@@ -603,6 +603,12 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           onSetVibe={(feeling) => data.setReaction(openPin, feeling)}
           onBook={(plannedAt) => data.book(openPin, plannedAt)}
           onMarkDone={() => markDone(openPin)}
+          onCancelBooking={async () => {
+            if (!(await data.cancelBooking(openPin))) return false;
+            closePin();
+            showToast('Booking cancelled');
+            return true;
+          }}
           onSaveReview={(text) => data.saveReview(openPin, text)}
           onDeleteReview={() => data.deleteReview(openPin)}
           onEdit={() => setEditPinId(`${openPin.collection_id}:${openPin.id}`)}

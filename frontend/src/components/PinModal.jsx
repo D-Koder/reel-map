@@ -143,6 +143,7 @@ export default function PinModal({
   onBook,
   onMarkDone,
   onSaveReview,
+  onCancelBooking,
   onDeleteReview,
   onEdit,
   onDelete,
@@ -762,6 +763,7 @@ export default function PinModal({
           place={place}
           canUpload={canEdit}
           onSave={(value) => onBook(value)}
+          onCancelBooking={onCancelBooking}
           onClose={() => setEditingBooking(false)}
           showToast={showToast}
         />

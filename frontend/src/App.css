@@ -5917,3 +5917,6 @@ a.step-btn {
 .more-calendars-toggle .chevron.open { transform: rotate(180deg); }
 .more-calendars-item { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; }
 .calendar-hint { margin: 6px 0 0; font-size: 13px; color: var(--text-muted); }
+
+.cancel-booking { display: grid; gap: 6px; margin-top: 12px; }
+.cancel-booking-btn { margin-top: 12px; color: var(--danger); }
