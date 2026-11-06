@@ -167,7 +167,7 @@ function ContactFields({ contact, onContact, disabled }) {
 // price / onPrice: an optional text box for what it costs, as written. contact / onContact: who to ask, an
 // email, a phone number or both.
 // Nothing is open until someone taps Add dates or a saved run. A run with no day picked is dropped on Done.
-export default function EventTimesEditor({ runs, onChange, price = '', onPrice = null, contact = '', onContact = null, disabled = false, fromCaption = false }) {
+export default function EventTimesEditor({ runs, onChange, price = '', onPrice = null, contact = '', onContact = null, disabled = false, fromCaption = false, warnNoDate = true }) {
   const [openIndex, setOpenIndex] = useState(-1);
   const today = dayString();
   const update = (index, run) => onChange(runs.map((r, i) => (i === index ? run : r)));
@@ -206,7 +206,7 @@ export default function EventTimesEditor({ runs, onChange, price = '', onPrice =
           </button>
         </div>
       )))}
-      {!runs.some((run) => run.start) && openIndex < 0 && (
+      {warnNoDate && !runs.some((run) => run.start) && openIndex < 0 && (
         <div className="evt-warn-note" role="alert"><TriangleAlert className="ico" aria-hidden="true" /> No date set. Add the dates, or check the post for them before you save.</div>
       )}
       {openIndex < 0 && (

@@ -1445,6 +1445,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 onContact={setEventContact}
                 disabled={saving}
                 fromCaption={runsFromCaption}
+                // A manual add has no post to check the dates against, so no warning there.
+                warnNoDate={Boolean(reelUrl)}
               />
             )}
 
