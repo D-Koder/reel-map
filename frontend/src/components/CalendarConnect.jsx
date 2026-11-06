@@ -57,9 +57,10 @@ export default function CalendarConnect({ userId, connection, needsTap, onChange
       <div className="calendar-connect">
         {needsTap && (
           <button type="button" className="step-btn secondary full-width" onClick={google}>
-            <CalendarDays className="ico" aria-hidden="true" /> Check my Google Calendar
+            <CalendarDays className="ico" aria-hidden="true" /> Show my free times
           </button>
         )}
+        {needsTap && <p className="calendar-hint">Google only shares your calendar for an hour at a time, so it needs one tap each visit.</p>}
         {error && <div className="calendar-error">{error}</div>}
         <span className="calendar-connected"><CalendarDays className="ico" aria-hidden="true" /> {connection.kind === 'google' ? 'Google Calendar' : 'Calendar'} connected</span>
         <button type="button" className="calendar-link-btn" onClick={disconnect}>Disconnect</button>

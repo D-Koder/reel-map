@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, ChevronDown, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import ReviewsModal from './ReviewsModal';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -196,6 +196,7 @@ export default function PinModal({
   const canReview = Boolean(booking) && (isDone || sameDay(booking.planned_at));
   const [reviewsOpen, setReviewsOpen] = useState(false);
   const [replanning, setReplanning] = useState(false);
+  const [moreCalendars, setMoreCalendars] = useState(false);
   const markDone = () => {
     setReplanning(false);
     onMarkDone();
@@ -329,7 +330,7 @@ export default function PinModal({
     : freeTime.state === 'checking'
     ? 'Checking your calendar…'
     : freeTime.state === 'tap'
-    ? 'Tap below to check your Google Calendar for times you\'re free.'
+    ? 'Google Calendar is connected. Tap below to show your free times.'
     : freeTime.state === 'failed'
     ? "Couldn't read your calendar. Check the link or reconnect it."
     : freeTime.state === 'ready'
@@ -721,9 +722,20 @@ export default function PinModal({
                 >
                   <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
                 </a>
-                <button className="step-btn secondary full-width" onClick={saveToCalendar}>
-                  <CalendarDays className="ico" aria-hidden="true" /> Add to Apple or other calendar
+                {/* Google first. Apple and other calendars (an .ics file) sit one tap away. */}
+                <button
+                  type="button"
+                  className="step-btn secondary full-width more-calendars-toggle"
+                  aria-expanded={moreCalendars}
+                  onClick={() => setMoreCalendars((open) => !open)}
+                >
+                  Other calendars <ChevronDown className={`ico chevron${moreCalendars ? ' open' : ''}`} aria-hidden="true" />
                 </button>
+                {moreCalendars && (
+                  <button type="button" className="step-btn secondary full-width more-calendars-item" onClick={saveToCalendar}>
+                    <CalendarDays className="ico" aria-hidden="true" /> Add to Apple or other calendar
+                  </button>
+                )}
                 <button type="button" className="step-link" onClick={() => completeStep(3)}>Done</button>
               </div>
             )}
