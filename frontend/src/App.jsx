@@ -726,7 +726,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
       )}
 
       {celebrating && (
-        <Celebration placeName={celebrating.name} streak={streak} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
+        <Celebration placeName={celebrating.name} streak={streak} maxPhotos={Math.max(0, 5 - (celebrating.place?.reviews?.find((r) => r.user_id === userId)?.photos?.length ?? 0))} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
       )}
 
       {sharedPlaceId && !sharedIsMine && (

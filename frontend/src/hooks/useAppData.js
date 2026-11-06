@@ -673,18 +673,24 @@ export function useAppData(userId, showToast) {
     },
 
     // The quick review and photo from the "done" pop-up: the same review as in the Reviews pop-up.
-    saveVisitMemory: async (place, { review, photo }) => {
+    saveVisitMemory: async (place, { review, photos: files = [] }) => {
       const mine = place.reviews?.find((r) => r.user_id === userId);
       const photos = [...(mine?.photos ?? [])];
-      if (photo && photos.length < 5) {
+      const uploaded = [];
+      for (const photo of files.slice(0, Math.max(0, 5 - photos.length))) {
         const safeName = photo.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'photo';
-        const path = `${place.location_id}/${userId}/${Date.now()}-${safeName}`;
+        const path = `${place.location_id}/${userId}/${Date.now()}-${uploaded.length}-${safeName}`;
         const { error } = await supabase.storage.from('visit-photos').upload(path, photo, { contentType: photo.type });
-        if (error) return false;
-        photos.push(path);
+        if (!error) uploaded.push(path);
       }
+      // Some or all uploads failed: say so, and keep none half-attached.
+      if (uploaded.length < Math.min(files.length, Math.max(0, 5 - photos.length))) {
+        if (uploaded.length) await supabase.storage.from('visit-photos').remove(uploaded);
+        return false;
+      }
+      photos.push(...uploaded);
       const body = review || mine?.body || '';
-      if (!review && !photo) return true;
+      if (!review && !uploaded.length) return true;
       return Boolean(await run(supabase.from('place_reviews').upsert({ location_id: place.location_id, user_id: userId, body, photos }, { onConflict: 'location_id,user_id' })));
     },
 

@@ -1,17 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Camera } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Camera, X } from 'lucide-react';
 
 const CONFETTI = ['🎉', '✨', '🧡', '🥂', '⭐', '🎊'];
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_BYTES = 10 * 1024 * 1024;
 
-// Shown after a place is marked as done. The review and photo are optional and quick:
-// "Save" sends them, "Skip" just closes.
-export default function Celebration({ placeName, streak, onClose, onSave }) {
+// Shown after a place is marked as done. The review and photos (up to maxPhotos, 5 at most) are optional and quick:
+// "Save" sends them, "Nice!" just closes.
+export default function Celebration({ placeName, streak, onClose, onSave, maxPhotos = 5 }) {
   const buttonRef = useRef(null);
   const [review, setReview] = useState('');
-  const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,31 +21,28 @@ export default function Celebration({ placeName, streak, onClose, onSave }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useEffect(() => {
-    if (!photo) { setPreview(null); return undefined; }
-    const url = URL.createObjectURL(photo);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
+  // Each photo with a preview address, made once when it's added and released when it's taken off.
+  const previews = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
+  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
 
   const pick = (event) => {
-    const file = event.target.files?.[0];
+    const chosen = [...(event.target.files || [])];
     event.target.value = '';
-    if (!file) return;
-    if (!TYPES.includes(file.type) || file.size > MAX_BYTES) {
-      setError('Pick a photo under 10 MB.');
-      return;
-    }
-    setError('');
-    setPhoto(file);
+    if (!chosen.length) return;
+    const ok = chosen.filter((file) => TYPES.includes(file.type) && file.size <= MAX_BYTES);
+    const room = maxPhotos - photos.length;
+    if (ok.length < chosen.length) setError('Only photos under 10 MB can be added.');
+    else if (ok.length > room) setError(`Up to ${maxPhotos} photos.`);
+    else setError('');
+    if (ok.length) setPhotos((list) => [...list, ...ok.slice(0, Math.max(0, room))]);
   };
 
-  const hasMemory = Boolean(photo || review.trim());
+  const hasMemory = Boolean(photos.length || review.trim());
 
   const save = async () => {
     setSaving(true);
     setError('');
-    const ok = await onSave?.({ review: review.trim(), photo });
+    const ok = await onSave?.({ review: review.trim(), photos });
     setSaving(false);
     if (ok === false) setError("Couldn't save that. Try again, or skip.");
     else onClose();
@@ -87,13 +83,25 @@ export default function Celebration({ placeName, streak, onClose, onSave }) {
               onChange={(event) => setReview(event.target.value)}
               disabled={saving}
             />
-            <label className={`step-btn secondary full-width celebrate-photo${saving ? ' disabled' : ''}`}>
-              <input type="file" accept="image/*" hidden disabled={saving} onChange={pick} />
-              {preview
-                ? <img src={preview} alt="Your photo" className="celebrate-photo-thumb" />
-                : <Camera className="ico" aria-hidden="true" />}
-              {preview ? 'Change photo' : 'Add a photo'}
-            </label>
+            {photos.length > 0 && (
+              <ul className="celebrate-thumbs">
+                {photos.map((file, i) => (
+                  <li key={`${file.name}-${i}`}>
+                    <img src={previews[i]} alt={`Photo ${i + 1}`} />
+                    <button type="button" aria-label={`Remove photo ${i + 1}`} disabled={saving} onClick={() => setPhotos((list) => list.filter((_, j) => j !== i))}>
+                      <X aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {photos.length < maxPhotos ? (
+              <label className={`step-btn secondary full-width celebrate-photo${saving ? ' disabled' : ''}`}>
+                <input type="file" accept="image/*" multiple hidden disabled={saving} onChange={pick} />
+                <Camera className="ico" aria-hidden="true" />
+                {photos.length ? `Add more (${photos.length}/${maxPhotos})` : 'Add photos'}
+              </label>
+            ) : null}
             {error && <p className="celebrate-error" role="alert">{error}</p>}
           </div>
         )}
