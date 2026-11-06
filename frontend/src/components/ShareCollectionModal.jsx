@@ -132,7 +132,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             ) : invite ? (
               <>
                 <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
-                <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 30 days.</div>
+                <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 7 days.</div>
                 <div className="invite-actions">
                   <button type="button" className="step-btn primary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
                     <Copy className="ico" aria-hidden="true" /> Copy code

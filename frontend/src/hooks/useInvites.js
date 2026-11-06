@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-const INVITE_DAYS = 30;
+const INVITE_DAYS = 7;
 // No 0/O, 1/I/L, so a code read out loud or typed from a screenshot comes out right.
 const CODE_LETTERS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_LENGTH = 8;
@@ -35,7 +35,7 @@ const isShortCode = (code) => typeof code === 'string' && code.length === CODE_L
 
 export function useInvites(userId, showToast) {
   // An invite for a collection: { url, code }. Reuses my newest unexpired invite with a short code
-  // (still a week or more to go), so opening Share again doesn't pile up invites.
+  // (still more than a day to go), so opening Share again doesn't pile up invites.
   const getInvite = useCallback(
     async (collectionId) => {
       try {
@@ -55,7 +55,7 @@ export function useInvites(userId, showToast) {
           .from('collection_invites')
           .select('id, code, expires_at')
           .eq('collection_id', collectionId)
-          .gt('expires_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+          .gt('expires_at', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString())
           .order('created_at', { ascending: false })
           .limit(5);
         const reusable = (existing ?? []).find((invite) => isShortCode(invite.code));
