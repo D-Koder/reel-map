@@ -58,9 +58,11 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
   };
 
   // The code is made (or the existing one reused) only when it's asked for, not every time Share opens.
-  const [asked, setAsked] = useState(false);
+  // shown: whether the code is on screen. Hiding keeps it, so showing it again needs no new lookup.
+  const [shown, setShown] = useState(false);
   const showInvite = async () => {
-    setAsked(true);
+    setShown(true);
+    if (invite) return;
     setLoading(true);
     setInvite(await getInvite(collection.id));
     setLoading(false);
@@ -123,6 +125,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               <div className="invite-card-hint">
                 <Lock className="ico" aria-hidden="true" /> No new people can join until it's unlocked.{isOwner ? ' Unlock it in Settings.' : ' Ask the owner to unlock it.'} Everyone already in keeps access.
               </div>
+            ) : !shown ? (
+              <button type="button" className="step-btn primary full-width" onClick={showInvite}>Show invite code</button>
             ) : loading ? (
               <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
             ) : invite ? (
@@ -137,11 +141,10 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                     <Link className="ico" aria-hidden="true" /> Copy link
                   </button>
                 </div>
+                <button type="button" className="calendar-link-btn" style={{ marginLeft: 0 }} onClick={() => setShown(false)}>Hide invite code</button>
               </>
             ) : (
-              <button type="button" className="step-btn primary full-width" onClick={showInvite}>
-                {asked ? 'Try again' : 'Show invite code'}
-              </button>
+              <button type="button" className="step-btn primary full-width" onClick={showInvite}>Try again</button>
             )}
             {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
