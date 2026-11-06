@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, ChevronDown, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, ChevronDown, Download, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import ReviewsModal from './ReviewsModal';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -722,7 +722,7 @@ export default function PinModal({
                 >
                   <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
                 </a>
-                {/* Google first. Apple and other calendars (an .ics file) sit one tap away. */}
+                {/* Google first. Apple and other calendars get an .ics file, one tap away. */}
                 <button
                   type="button"
                   className="step-btn secondary full-width more-calendars-toggle"
@@ -733,7 +733,7 @@ export default function PinModal({
                 </button>
                 {moreCalendars && (
                   <button type="button" className="step-btn secondary full-width more-calendars-item" onClick={saveToCalendar}>
-                    <CalendarDays className="ico" aria-hidden="true" /> Add to Apple or other calendar
+                    <Download className="ico" aria-hidden="true" /> Download calendar
                   </button>
                 )}
                 <button type="button" className="step-link" onClick={() => completeStep(3)}>Done</button>
