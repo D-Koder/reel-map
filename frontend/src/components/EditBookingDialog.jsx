@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import BookingFiles from './BookingFiles';
 import { toLocalInputValue } from '../lib/constants';
 
@@ -58,9 +59,17 @@ export default function EditBookingDialog({ place, canUpload, onSave, onCancelBo
         aria-labelledby="edit-booking-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="confirm-title" id="edit-booking-title">Edit booking</div>
+        <div className="edit-booking-head">
+          <div className="edit-booking-heading">
+            <div className="confirm-title" id="edit-booking-title">Edit booking</div>
+            <div className="edit-booking-sub">{place.name}</div>
+          </div>
+          <button type="button" className="edit-booking-x" onClick={onClose} aria-label="Close">
+            <X aria-hidden="true" />
+          </button>
+        </div>
 
-        <div className="modal-label" id="edit-booking-when-label">Planned for</div>
+        <div className="modal-label" id="edit-booking-when-label">Date and time</div>
         <input
           type="datetime-local"
           className="step-input"
@@ -69,13 +78,10 @@ export default function EditBookingDialog({ place, canUpload, onSave, onCancelBo
           disabled={!canUpload}
           onChange={(e) => setWhen(e.target.value)}
         />
-        {canUpload && (
-          <div className="confirm-actions">
-            <button type="button" className="step-btn primary" onClick={save} disabled={saving || !changed}>
-              {saving ? 'Saving…' : 'Save date'}
-            </button>
-            <button type="button" className="step-btn secondary" onClick={onClose}>Close</button>
-          </div>
+        {canUpload && changed && (
+          <button type="button" className="step-btn primary full-width edit-booking-save" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
         )}
 
         <div className="edit-booking-files">
@@ -83,26 +89,23 @@ export default function EditBookingDialog({ place, canUpload, onSave, onCancelBo
           <BookingFiles place={place} canUpload={canUpload} showToast={showToast} />
         </div>
         {canUpload && onCancelBooking && (
-          confirmingCancel ? (
-            <div className="cancel-booking">
-              <div className="modal-label">Cancel this booking?</div>
-              <p className="place-collection-note">The plan is removed for everyone. The place stays in your collection. If you booked with the venue, cancel that separately.</p>
-              <div className="confirm-actions">
-                <button type="button" className="step-btn danger" onClick={cancelBooking} disabled={cancelling}>
-                  {cancelling ? 'Cancelling…' : 'Yes, cancel it'}
-                </button>
-                <button type="button" className="step-btn secondary" onClick={() => setConfirmingCancel(false)} disabled={cancelling}>Keep it</button>
+          <div className="edit-booking-foot">
+            {confirmingCancel ? (
+              <div className="cancel-booking">
+                <div className="modal-label">Cancel this booking?</div>
+                <p className="place-collection-note">It's removed for everyone. The place stays in your collection. If you booked with the venue, cancel that separately.</p>
+                <div className="confirm-actions">
+                  <button type="button" className="step-btn danger" onClick={cancelBooking} disabled={cancelling}>
+                    {cancelling ? 'Cancelling…' : 'Yes, cancel it'}
+                  </button>
+                  <button type="button" className="step-btn secondary" onClick={() => setConfirmingCancel(false)} disabled={cancelling}>Keep it</button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <button type="button" className="step-btn secondary full-width cancel-booking-btn" onClick={() => setConfirmingCancel(true)}>
-              Cancel booking
-            </button>
-          )
-        )}
-        {!canUpload && (
-          <div className="confirm-actions">
-            <button type="button" className="step-btn secondary" onClick={onClose}>Close</button>
+            ) : (
+              <button type="button" className="cancel-booking-link" onClick={() => setConfirmingCancel(true)}>
+                Cancel booking
+              </button>
+            )}
           </div>
         )}
       </div>

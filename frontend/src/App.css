@@ -1787,7 +1787,23 @@ select.step-input {
 .edit-booking {
   max-width: 440px;
   max-height: 85vh;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+.edit-booking-head { display: flex; align-items: flex-start; gap: 10px; }
+.edit-booking-heading { flex: 1; min-width: 0; }
+.edit-booking-sub { font-size: 13px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-booking-x {
+  flex: none; width: 38px; height: 38px; display: grid; place-items: center;
+  border: none; border-radius: 50%; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.edit-booking-x .lucide, .edit-booking-x svg { width: 20px; height: 20px; }
+.edit-booking .step-input { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.edit-booking-save { margin-top: 10px; }
+.edit-booking-foot { margin-top: 12px; padding-top: 4px; border-top: 1px solid var(--border, rgba(128,128,128,.25)); }
+.cancel-booking-link {
+  display: block; width: 100%; padding: 12px; background: none; border: none;
+  color: var(--danger); font: inherit; font-weight: 600; text-align: center; cursor: pointer;
 }
 
 .edit-booking-files {
