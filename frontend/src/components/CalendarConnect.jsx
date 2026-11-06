@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { fetchBusy, forgetCalendarLink, saveCalendarLink, saveGoogleCalendar } from '../lib/calendarLink';
-import { connectGoogleCalendar, disconnectGoogleCalendar, googleCalendarEnabled, preloadGoogle } from '../lib/googleCalendar';
+import { connectGoogleCalendar, disconnectGoogleCalendar, googleCalendarEnabled, preloadGoogle, restoreGoogleCalendar } from '../lib/googleCalendar';
 
 // Connect or disconnect the person's calendar, so "Check Hours" can suggest a time they're free.
 // Google Calendar is one tap (lib/googleCalendar.js); any other calendar (Apple's, say) is a pasted link that
@@ -14,6 +14,23 @@ export default function CalendarConnect({ userId, connection, needsTap, onChange
   const [error, setError] = useState('');
 
   useEffect(() => { preloadGoogle(); }, []);
+
+  // Google is connected but has no token this visit: try to get one without a tap first, and only show the
+  // button when that doesn't work.
+  const [restoring, setRestoring] = useState(false);
+  useEffect(() => {
+    if (!needsTap || connection.kind !== 'google') return undefined;
+    let live = true;
+    setRestoring(true);
+    restoreGoogleCalendar().then((ok) => {
+      if (!live) return;
+      setRestoring(false);
+      if (ok) onChange({ kind: 'google' });
+    });
+    return () => { live = false; };
+    // Tried once when the check needs a tap, not on every re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsTap, connection.kind]);
 
   const google = async () => {
     setError('');
@@ -55,14 +72,13 @@ export default function CalendarConnect({ userId, connection, needsTap, onChange
   if (connection.kind) {
     return (
       <div className="calendar-connect">
-        {needsTap && (
-          <button type="button" className="step-btn secondary full-width" onClick={google}>
-            <CalendarDays className="ico" aria-hidden="true" /> Show my free times
-          </button>
-        )}
-        {needsTap && <p className="calendar-hint">Google only shares your calendar for an hour at a time, so it needs one tap each visit.</p>}
         {error && <div className="calendar-error">{error}</div>}
-        <span className="calendar-connected"><CalendarDays className="ico" aria-hidden="true" /> {connection.kind === 'google' ? 'Google Calendar' : 'Calendar'} connected</span>
+        <span className="calendar-connected">
+          <CalendarDays className="ico" aria-hidden="true" /> {connection.kind === 'google' ? 'Google Calendar' : 'Calendar'} connected
+        </span>
+        {needsTap && (restoring
+          ? <span className="calendar-hint">Checking…</span>
+          : <button type="button" className="calendar-show-btn" onClick={google}>Show free times</button>)}
         <button type="button" className="calendar-link-btn" onClick={disconnect}>Disconnect</button>
       </div>
     );

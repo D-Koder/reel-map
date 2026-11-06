@@ -331,7 +331,7 @@ export default function PinModal({
     : freeTime.state === 'checking'
     ? 'Checking your calendar…'
     : freeTime.state === 'tap'
-    ? 'Google Calendar is connected. Tap below to show your free times.'
+    ? 'Tap "Show free times" below to see when you\'re busy.'
     : freeTime.state === 'failed'
     ? "Couldn't read your calendar. Check the link or reconnect it."
     : freeTime.state === 'ready'

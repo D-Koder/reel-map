@@ -35,7 +35,7 @@ export function preloadGoogle() {
 }
 
 // Asks Google for an access token for one permission. The window opens right away, so call it straight from a tap.
-function requestToken(scope, notGranted) {
+function requestToken(scope, notGranted, prompt = '') {
   return new Promise((resolve, reject) => {
     if (!loaded()) {
       preloadGoogle();
@@ -58,13 +58,24 @@ function requestToken(scope, notGranted) {
         ? 'The Google window was closed.'
         : 'Could not open Google sign-in. Is a pop-up blocker on?')),
     });
-    client.requestAccessToken({ prompt: '' });
+    client.requestAccessToken({ prompt });
   });
 }
 
 // Opens Google's sign-in and permission window. Call it straight from a tap.
 export async function connectGoogleCalendar() {
   token = await requestToken(SCOPE, 'Allow "See your availability" so we can find a free time.');
+}
+
+// Quietly asks Google for the free/busy token again, with no window, for someone who already allowed it.
+// Phones often refuse to open Google's window without a tap, so this can fail: true when it worked.
+export async function restoreGoogleCalendar() {
+  try {
+    token = await requestToken(SCOPE, 'Not allowed', 'none');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Takes back the permission given to this app and forgets the tokens.

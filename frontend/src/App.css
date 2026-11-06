@@ -5920,3 +5920,8 @@ a.step-btn {
 
 .cancel-booking { display: grid; gap: 6px; margin-top: 12px; }
 .cancel-booking-btn { margin-top: 12px; color: var(--danger); }
+
+/* Connected row: status, one small action, and Disconnect, all on one line. */
+.calendar-connect:has(.calendar-connected) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.calendar-show-btn { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--card); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.calendar-show-btn:active { background: var(--surface-hover); }
