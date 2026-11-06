@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function ConfirmDialog({ title, message, warning, confirmLabel, onConfirm, onCancel }) {
+export default function ConfirmDialog({ title, message, warning, confirmLabel, onConfirm, onCancel, confirmClass = 'danger-solid' }) {
   const cancelRef = useRef(null);
 
   // Start on Cancel so a stray Enter/tap doesn't delete anything.
@@ -33,7 +33,7 @@ export default function ConfirmDialog({ title, message, warning, confirmLabel, o
         </div>
         {warning && <div className="confirm-warning">{warning}</div>}
         <div className="confirm-actions">
-          <button className="step-btn danger-solid" onClick={onConfirm}>
+          <button className={`step-btn ${confirmClass}`} onClick={onConfirm}>
             {confirmLabel}
           </button>
           <button ref={cancelRef} className="step-btn secondary" onClick={onCancel}>

@@ -6,6 +6,7 @@ import { DEFAULT_AVATAR_URL } from '../lib/constants';
 import { exportCollection } from '../lib/collectionFile';
 import { canEditCollection } from '../lib/roles';
 import EmojiPicker from './EmojiPicker';
+import ConfirmDialog from './ConfirmDialog';
 
 async function copy(text, label, showToast) {
   try {
@@ -43,6 +44,9 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
     if (await onUpdate?.(patch)) showToast('Saved');
     setSavingDetails(false);
   };
+
+  // A role change is asked about first: { member, role } while the question is up.
+  const [pendingRole, setPendingRole] = useState(null);
 
   const setRole = async (member, role) => {
     if (member.role === role || savingRole) return;
@@ -196,7 +200,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                           className={`role-switch-option ${member.role === role ? 'is-on' : ''}`}
                           aria-pressed={member.role === role}
                           disabled={savingRole === member.id}
-                          onClick={() => setRole(member, role)}
+                          onClick={() => member.role !== role && setPendingRole({ member, role })}
                         >
                           {role === 'editor' ? 'Editor' : 'Viewer'}
                         </button>
@@ -227,6 +231,22 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
           )}
         </div>
       </div>
+      {pendingRole && (
+        <ConfirmDialog
+          title={pendingRole.role === 'editor' ? `Make ${pendingRole.member.display_name} an editor?` : `Make ${pendingRole.member.display_name} a viewer?`}
+          message={pendingRole.role === 'editor'
+            ? `They'll be able to add, edit, move and remove places in "${collection.name}".`
+            : `They'll only be able to view, vote and copy places in "${collection.name}". They won't be able to change them.`}
+          confirmLabel={pendingRole.role === 'editor' ? 'Make editor' : 'Make viewer'}
+          confirmClass="primary"
+          onCancel={() => setPendingRole(null)}
+          onConfirm={() => {
+            const { member, role } = pendingRole;
+            setPendingRole(null);
+            setRole(member, role);
+          }}
+        />
+      )}
     </div>
   );
 }
