@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Camera, Flag, Pencil, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Avatar from './Avatar';
+import useSheetDrag from '../lib/useSheetDrag';
 
 const BUCKET = 'visit-photos';
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -101,6 +102,8 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
   };
 
   closeRef.current = close;
+  const sheetRef = useRef(null);
+  const sheetDrag = useSheetDrag(sheetRef, close);
 
   const addPhotos = async (event) => {
     const chosen = [...(event.target.files || [])];
@@ -218,7 +221,8 @@ export default function ReviewsModal({ place, userId, canWrite, onSave, onDelete
 
   return createPortal(
     <div className="modal-overlay reviews-overlay" onClick={close}>
-      <div className="modal reviews-modal" role="dialog" aria-modal="true" aria-label={`Reviews of ${place.name}`} onClick={(e) => e.stopPropagation()}>
+      <div ref={sheetRef} className="modal reviews-modal" role="dialog" aria-modal="true" aria-label={`Reviews of ${place.name}`} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" aria-hidden="true" {...sheetDrag} />
         <div className="modal-header">
           <div className="modal-title">Reviews · {place.name}</div>
           <button type="button" className="modal-close" onClick={close} aria-label="Close"><X aria-hidden="true" /></button>

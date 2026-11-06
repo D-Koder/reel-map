@@ -74,11 +74,11 @@ export default function CalendarConnect({ userId, connection, needsTap, onChange
       <div className="calendar-connect">
         {error && <div className="calendar-error">{error}</div>}
         <span className="calendar-connected">
-          <CalendarDays className="ico" aria-hidden="true" /> {connection.kind === 'google' ? 'Google Calendar' : 'Calendar'} connected
+          <CalendarDays className="ico" aria-hidden="true" /> {connection.kind === 'google' ? 'Google Calendar' : 'Calendar'}{needsTap ? '' : ' connected'}
         </span>
         {needsTap && (restoring
           ? <span className="calendar-hint">Checking…</span>
-          : <button type="button" className="calendar-show-btn" onClick={google}>Show free times</button>)}
+          : <button type="button" className="calendar-show-btn" onClick={google}>Show my busy times</button>)}
         <button type="button" className="calendar-link-btn" onClick={disconnect}>Disconnect</button>
       </div>
     );

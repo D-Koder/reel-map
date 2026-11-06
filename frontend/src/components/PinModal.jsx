@@ -332,7 +332,7 @@ export default function PinModal({
     : freeTime.state === 'checking'
     ? 'Checking your calendar…'
     : freeTime.state === 'tap'
-    ? 'Tap "Show free times" below to see when you\'re busy.'
+    ? 'Google asks for a tap each visit. Tap "Show my busy times" to see when you\'re busy.'
     : freeTime.state === 'failed'
     ? "Couldn't read your calendar. Check the link or reconnect it."
     : freeTime.state === 'ready'
@@ -615,6 +615,8 @@ export default function PinModal({
                   <>
                     <div className="step-title">Pick a time</div>
                     <div className="step-description">{hoursSummary}</div>
+                    {/* Needs a tap: the button goes right under the text, not below the whole picker. */}
+                    {hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
                     {hours.length > 0 ? (
                       <TimePicker
                         hours={hours}
@@ -642,7 +644,7 @@ export default function PinModal({
                         </button>
                       </>
                     )}
-                    {hours.length > 0 && <CalendarConnect userId={userId} connection={connection} needsTap={freeTime.state === 'tap'} onChange={setConnection} />}
+                    {hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
                   </>
                 )}
               </div>
