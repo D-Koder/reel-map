@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
@@ -57,18 +57,14 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
     setSavingRole(null);
   };
 
-  // Everyone in the collection can share it, so the code shows straight away; it's made (or reused) when Share opens.
-  useEffect(() => {
-    if (collection.isPrivate) return undefined;
-    let cancelled = false;
+  // The code is made (or the existing one reused) only when it's asked for, not every time Share opens.
+  const [asked, setAsked] = useState(false);
+  const showInvite = async () => {
+    setAsked(true);
     setLoading(true);
-    getInvite(collection.id).then((result) => {
-      if (cancelled) return;
-      setInvite(result);
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [collection.id, collection.isPrivate, getInvite]);
+    setInvite(await getInvite(collection.id));
+    setLoading(false);
+  };
 
   const removeMember = async (member) => {
     if (window.confirm(`Remove ${member.display_name} from ${collection.name}?`)) await onRemoveMember?.(member);
@@ -143,11 +139,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                 </div>
               </>
             ) : (
-              <button type="button" className="step-btn secondary full-width" onClick={() => {
-                setLoading(true);
-                getInvite(collection.id).then((result) => { setInvite(result); setLoading(false); });
-              }}>
-                Try again
+              <button type="button" className="step-btn primary full-width" onClick={showInvite}>
+                {asked ? 'Try again' : 'Show invite code'}
               </button>
             )}
             {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
