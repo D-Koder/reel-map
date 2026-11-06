@@ -66,7 +66,17 @@ export function useNotifications(userId, onNew) {
       )
       .subscribe();
 
+    // A phone pauses the live connection while the app is in the background, so what arrived meanwhile
+    // (a newer reminder replacing an older one) is missed. Reload when the app comes back to the front.
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('online', onVisible);
+
     return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onVisible);
       supabase.removeChannel(channel);
     };
   }, [userId, load]);
@@ -125,6 +135,7 @@ export function useNotifications(userId, onNew) {
     items,
     loaded,
     unreadCount: items.filter((n) => !n.read).length,
+    reload: load,
     markAllRead,
     clearAll,
     remove,

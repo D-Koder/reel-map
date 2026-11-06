@@ -85,7 +85,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, removeMany: removeNotifications, linkPlace: linkNotificationPlace } = useNotifications(userId, () => data.refresh());
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, removeMany: removeNotifications, linkPlace: linkNotificationPlace, reload: reloadNotifications } = useNotifications(userId, () => data.refresh());
   // Reminders ("in 30 minutes") are deleted once they've been seen: the panel was open for over a second with them
   // in it. They stay readable until the panel closes, then they go. Everything else goes when it's tapped.
   const seenReminders = useRef(new Set());
@@ -93,6 +93,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const reminderIds = notifications.filter((n) => n.type === 'booking_reminder').map((n) => n.id).join(',');
   useEffect(() => {
     if (notificationsOpen) {
+      reloadNotifications();
       const timer = setTimeout(() => {
         reminderIds.split(',').filter(Boolean).forEach((id) => seenReminders.current.add(id));
       }, 1000);
@@ -103,7 +104,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
       seenReminders.current.clear();
     }
     return undefined;
-  }, [notificationsOpen, reminderIds, removeNotifications]);
+  }, [notificationsOpen, reminderIds, removeNotifications, reloadNotifications]);
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
   const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
