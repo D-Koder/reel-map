@@ -1,0 +1,56 @@
+.soon {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+.soon-inner { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
+.soon-brand { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+.soon-badge {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--butter);
+  color: #1a1a18;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.soon-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 8vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -1px;
+}
+.soon-lead { margin: 0; font-size: 16px; line-height: 1.5; color: var(--text-muted); }
+.soon-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.soon-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--hard-shadow);
+}
+.soon-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #1a1a18;
+}
+.soon-card-title { margin: 0 0 2px; font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+.soon-card-text { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text-muted); }
+.soon-foot { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); text-align: center; }

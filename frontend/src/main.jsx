@@ -2,7 +2,8 @@
 import './lib/wipeOnce';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import { showComingSoon } from './lib/comingSoon';
+import './components/ComingSoon.css';
 import { keepFocusedFieldVisible, trackVisibleViewport } from './lib/viewport';
 
 trackVisibleViewport();
@@ -25,8 +26,14 @@ if (sentryDsn) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// The app itself only loads when the page isn't gated, so visitors never reach the login screen.
+const root = ReactDOM.createRoot(document.getElementById('root'));
+function show(Screen) {
+  root.render(
+    <React.StrictMode>
+      <Screen />
+    </React.StrictMode>
+  );
+}
+if (showComingSoon()) import('./components/ComingSoon').then((m) => show(m.default));
+else import('./App').then((m) => show(m.default));
