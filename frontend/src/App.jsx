@@ -85,26 +85,13 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     writeJSON(NEAR_ALERTS_KEY, on);
   };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, removeMany: removeNotifications, linkPlace: linkNotificationPlace, reload: reloadNotifications } = useNotifications(userId, () => data.refresh());
-  // Reminders ("in 30 minutes") are deleted once they've been seen: the panel was open for over a second with them
-  // in it. They stay readable until the panel closes, then they go. Everything else goes when it's tapped.
-  const seenReminders = useRef(new Set());
-  // A string, so the timer below isn't restarted by every re-render.
-  const reminderIds = notifications.filter((n) => n.type === 'booking_reminder').map((n) => n.id).join(',');
+  const { items: notifications, loaded: notificationsLoaded, unreadCount, markAllRead, clearAll, remove: removeNotification, linkPlace: linkNotificationPlace, reload: reloadNotifications } = useNotifications(userId, () => data.refresh());
+  // Opening the panel loads the latest from the server (a phone may have missed live updates while in the background).
+  // A reminder ("in 30 minutes") goes the same way as every other notification: when it's tapped, or its ✕ is.
+  // The server also replaces an older reminder with the next one, and clears them once the plan is over.
   useEffect(() => {
-    if (notificationsOpen) {
-      reloadNotifications();
-      const timer = setTimeout(() => {
-        reminderIds.split(',').filter(Boolean).forEach((id) => seenReminders.current.add(id));
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-    if (seenReminders.current.size) {
-      removeNotifications([...seenReminders.current]);
-      seenReminders.current.clear();
-    }
-    return undefined;
-  }, [notificationsOpen, reminderIds, removeNotifications, reloadNotifications]);
+    if (notificationsOpen) reloadNotifications();
+  }, [notificationsOpen, reloadNotifications]);
   // A notification id from a tapped push (?notification=), opened once notifications have loaded.
   const [pendingNotificationId, setPendingNotificationId] = useState(null);
   const [openPinId, setOpenPinId] = useState(null);
