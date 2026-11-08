@@ -1,14 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CalendarCheck, Flame, MapPin, Share2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import '../App.css';
 
-// Shown instead of the app on the public domain until launch. Nothing here talks to the database.
+// Shown instead of the app on the public domain until launch. The only thing it does is add an email to the waitlist.
 const TEASERS = [
   { icon: Share2, title: 'Save a reel', text: 'Share it from Instagram and the place lands on your map.', tint: 'var(--butter)' },
   { icon: Flame, title: 'Vote together', text: 'Are you both keen? Find out before the group chat goes quiet.', tint: 'var(--accent-soft)' },
   { icon: CalendarCheck, title: 'Plan it for real', text: 'Pick a time, get a nudge, and actually go.', tint: 'var(--mint)' },
   { icon: MapPin, title: 'See it all on a map', text: 'Every saved spot in one place, near you or not.', tint: 'var(--lilac)' },
 ];
+
+function WaitlistForm() {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState('idle'); // idle | sending | done | error
+
+  async function submit(e) {
+    e.preventDefault();
+    if (state === 'sending' || !supabase) return setState('error');
+    setState('sending');
+    const { error } = await supabase.rpc('join_waitlist', { p_email: email });
+    setState(error ? 'error' : 'done');
+  }
+
+  if (state === 'done') return <p className="soon-done" role="status">You're on the list. We'll email you when it opens. 🎉</p>;
+  return (
+    <form className="soon-form" onSubmit={submit}>
+      <label className="soon-label" htmlFor="waitlist-email">Get told when it opens</label>
+      <div className="soon-row">
+        <input
+          id="waitlist-email"
+          className="soon-input"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@email.com"
+          required
+          value={email}
+          onChange={(e) => { setEmail(e.target.value); if (state === 'error') setState('idle'); }}
+        />
+        <button className="soon-btn" type="submit" disabled={state === 'sending'}>{state === 'sending' ? '...' : 'Join'}</button>
+      </div>
+      {state === 'error' && <p className="soon-error" role="alert">That didn't work. Check the email and try again.</p>}
+    </form>
+  );
+}
 
 export default function ComingSoon() {
   return (
@@ -35,7 +71,8 @@ export default function ComingSoon() {
             </li>
           ))}
         </ul>
-        <p className="soon-foot">Not open yet. Check back soon.</p>
+        <WaitlistForm />
+        <p className="soon-foot">Not open yet. We'll only email you about the launch.</p>
       </div>
     </main>
   );
