@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
 import CandidateAddress from './CandidateAddress';
-import { ArrowUpRight, Binoculars, ClipboardPaste, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
+import { ArrowUpRight, Binoculars, Check, ClipboardPaste, Flag, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, feelings, knownCategory } from '../lib/constants';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
@@ -29,6 +29,28 @@ const LISTED_STATUS = {
   pick: 'Pick from Google’s results',
   none: 'Not found on Google Maps',
 };
+
+// The small tag on a listed place: matched, or needs picking.
+function ListedTag({ status }) {
+  if (status === 'found') return <span className="listed-tag done"><Check size={13} aria-hidden="true" /> Done</span>;
+  if (status === 'pick') return <span className="listed-tag todo">Pick place ›</span>;
+  if (status === 'none') return <span className="listed-tag todo">Not found. Search ›</span>;
+  if (status === 'looking') return <span>{LISTED_STATUS.looking}</span>;
+  return null;
+}
+
+// "2 done · 4 to pick" for a list post, so progress shows at a glance.
+function ListedSummary({ list, status }) {
+  const done = list.filter((item) => status[item.line] === 'found').length;
+  const toPick = list.filter((item) => ['pick', 'none'].includes(status[item.line])).length;
+  if (!done && !toPick) return null;
+  return (
+    <div className="listed-summary" role="status">
+      {done > 0 && <span className="listed-pill done">{done} done</span>}
+      {toPick > 0 && <span className="listed-pill todo">{toPick} to pick</span>}
+    </div>
+  );
+}
 
 // The same name, or the same Chinese name in the other script (人和館 / 人和馆): it changes characters
 // one for one. Same rule as otherScript in api/_lib/ai-place.js.
@@ -877,12 +899,11 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             {step === 'details' && (
               <button
                 type="button"
-                className="modal-close"
+                className="report-problem-btn"
                 onClick={() => { setReportOpen((open) => !open); setReportStatus(''); }}
-                aria-label="Report a problem with this lookup"
-                title="Report a problem with this lookup"
+                aria-expanded={reportOpen}
               >
-                <TriangleAlert aria-hidden="true" />
+                <Flag size={14} aria-hidden="true" /> Report problem
               </button>
             )}
             {/* The X discards the draft. Clicking outside, Escape or dragging down keeps it. */}
@@ -903,7 +924,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         <div className="sheet-body" ref={bodyRef}>
         {reportOpen && (
           <div className="field" style={{ marginBottom: 12 }}>
-            <span className="modal-label">Report this lookup</span>
+            <span className="modal-label">Wrong or missing place?</span>
+            <span className="toggle-hint">This sends us what the app found for this reel so we can fix it.</span>
             <textarea
               value={reportComment}
               onChange={(e) => setReportComment(e.target.value)}
@@ -1115,8 +1137,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                 <span className="modal-label">
                   {leftToPick
                     ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
-                    : `This post lists ${scrapedData.listedPlaces.length} places. Which one?`}
+                    : `This post lists ${scrapedData.listedPlaces.length} places`}
                 </span>
+                <ListedSummary list={leftToPick ?? scrapedData.listedPlaces} status={listedStatus} />
                 <div className="listed-places">
                   {(leftToPick ?? scrapedData.listedPlaces).map((item) => (
                     <div key={item.line} className="listed-row">
@@ -1128,9 +1151,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                         disabled={saving || !!loadingCandidateUrl}
                       >
                         <strong>{choosingListed === item.line && <span className="spinner" aria-hidden="true" />}{listedNames[item.line] || item.name}</strong>
-                        {listedNames[item.line] && !sameName(listedNames[item.line], item.name) && <span>In the post: {item.name}</span>}
-                        {item.address && <span>{item.address}</span>}
-                        {listedStatus[item.line] && <span>{LISTED_STATUS[listedStatus[item.line]]}</span>}
+                        {listedNames[item.line] && !sameName(listedNames[item.line], item.name) && <span>{item.name}</span>}
+                        {listedStatus[item.line] !== 'found' && item.address && <span>{item.address}</span>}
+                        <ListedTag status={listedStatus[item.line]} />
                         {(listedStatus[item.line] === 'looking' || choosingListed === item.line) && (
                           <span className="listed-progress" role="progressbar" aria-label={`Looking up ${item.name}`} />
                         )}

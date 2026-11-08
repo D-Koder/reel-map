@@ -6067,3 +6067,37 @@ a.step-btn {
 .lc-name { font-weight: 700; }
 .lc-addr { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inbox-action:disabled { opacity: 0.5; cursor: default; }
+
+/* Listed places: a clear tag instead of a sentence, and a one-line summary. */
+.listed-place .listed-tag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.listed-place .listed-tag.done { background: var(--success-bg); color: var(--success-text); }
+.listed-place .listed-tag.todo { background: var(--accent); color: #fff; }
+.listed-summary { display: flex; gap: 6px; flex-wrap: wrap; }
+.listed-pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.listed-pill.done { background: var(--success-bg); color: var(--success-text); }
+.listed-pill.todo { background: var(--accent-soft); color: var(--accent-text); }
+.report-problem-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}

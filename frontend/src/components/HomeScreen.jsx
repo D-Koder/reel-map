@@ -145,15 +145,15 @@ function TodayBoard({ places, collections, membersOf, userId, isOpen, onToggle, 
         onClick={onToggle}
       >
         <span className="collection-title">
-          <TodayIcon /> Today
-          <span className="collection-subtext">Bookings and events on today</span>
+          <TodayIcon /> Today · {new Date().toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+          <span className="collection-subtext">{pins.length ? 'Booked or on today' : 'Nothing planned yet'}</span>
         </span>
         <span className="collection-count">{pins.length} {pins.length === 1 ? 'place' : 'places'}</span>
         <ChevronDown className="collection-chevron" aria-hidden="true" />
       </button>
       {isOpen && (
         <div id="collection-body-today" className="collection-body">
-          {pins.length === 0 && <div className="collection-empty">Nothing booked or on today.</div>}
+          {pins.length === 0 && <div className="collection-empty">When you book or schedule a place for today, it shows up here.</div>}
           <div className="pin-list">
             {pins.map((pin) => {
               const open = () => onOpenPin(`${pin.collection_id}:${pin.id}`);
