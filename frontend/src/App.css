@@ -6037,3 +6037,9 @@ a.step-btn {
 .welcome-text { flex: 1; min-width: 0; }
 .welcome-title { font-weight: 600; }
 .welcome-hint { font-size: 13px; color: var(--text-muted); }
+
+/* A pasted reel waits here until you say the found place is right. */
+.inbox-card.confirm { flex-wrap: wrap; border-color: var(--accent); }
+.inbox-confirm { display: flex; gap: 8px; width: 100%; }
+.inbox-confirm .inbox-action { flex: 1; }
+.inbox-action.secondary { background: var(--surface-muted); color: var(--text); }

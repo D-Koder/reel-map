@@ -58,6 +58,39 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     return typeof created === 'string' ? created : null;
   }, [pickCollection]);
 
+  // Saves the place a lookup found, and removes the card. A pop-up keeps its own name (the Maps match is only
+  // its street) and is saved as an event on its days.
+  const saveFound = useCallback(async (item, data, collectionId) => {
+    const details = data.maps.details;
+    const popup = data.popup;
+    const name = popup?.name || details.name;
+    // Show the name as soon as it is known, while the place is being saved.
+    update(item.id, { status: 'saving', name });
+    const created = await latest.current.addPlace({
+      name,
+      location: details.address || data.location || '',
+      category: popup ? 'event' : knownCategory(data.category) || 'food',
+      collectionId,
+      reelUrl: item.url,
+      venueDetails: popup ? { ...details, name } : details,
+      // Sharing a reel means you're keen on it.
+      feeling: 'keen',
+      eventDate: popup?.startDate || null,
+      eventEndDate: popup?.endDate || null,
+      eventRuns: popup?.runs?.length ? popup.runs : undefined,
+      eventPrice: popup?.price || '',
+      eventContact: popup?.contact || '',
+      customInfo: popup ? popup.locationNote || popup.howToBook || '' : '',
+    });
+    if (!created) {
+      update(item.id, { status: 'failed', collectionId, name, reelData: data });
+      return;
+    }
+    remove(item.id);
+    const collection = latest.current.collections.find((c) => c.id === collectionId);
+    latest.current.onSaved?.(created.id, name, collection?.name);
+  }, [remove]);
+
   const process = useCallback(async (item) => {
     if (running.current.has(item.id)) return;
     running.current.add(item.id);
@@ -89,44 +122,46 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
         return;
       }
 
-      // A pop-up keeps its own name (the Maps match is only its street) and is saved as an event on its days.
-      const popup = data.popup;
-      const name = popup?.name || details.name;
-      // Show the name as soon as it is known, while the place is being saved.
-      update(item.id, { name });
-      const created = await latest.current.addPlace({
-        name,
-        location: details.address || data.location || '',
-        category: popup ? 'event' : knownCategory(data.category) || 'food',
-        collectionId,
-        reelUrl: item.url,
-        venueDetails: popup ? { ...details, name } : details,
-        // Sharing a reel means you're keen on it.
-        feeling: 'keen',
-        eventDate: popup?.startDate || null,
-        eventEndDate: popup?.endDate || null,
-        eventRuns: popup?.runs?.length ? popup.runs : undefined,
-        eventPrice: popup?.price || '',
-        eventContact: popup?.contact || '',
-        customInfo: popup ? popup.locationNote || popup.howToBook || '' : '',
-      });
-      if (!created) {
-        update(item.id, { status: 'failed', collectionId, name, reelData: data });
+      // A pasted reel waits for a tap on the place it found; others save straight away.
+      if (item.confirm) {
+        const found = data.popup?.name || details.name;
+        update(item.id, { status: 'confirm', collectionId, name: found, address: details.address || data.location || '', reelData: data });
         return;
       }
-      remove(item.id);
-      const collection = latest.current.collections.find((c) => c.id === collectionId);
-      latest.current.onSaved?.(created.id, name, collection?.name);
+      await saveFound(item, data, collectionId);
     } catch {
       update(item.id, { status: navigator.onLine ? 'failed' : 'offline' });
     } finally {
       running.current.delete(item.id);
     }
-  }, [inboxCollectionId, remove]);
+  }, [inboxCollectionId, saveFound]);
+
+  // A pasted reel's found place was approved (Save): it is added now.
+  const confirm = useCallback(async (item) => {
+    if (running.current.has(item.id) || !item.reelData?.maps?.details?.name) return;
+    running.current.add(item.id);
+    try {
+      const collectionId = latest.current.collections.some((c) => c.id === item.collectionId)
+        ? item.collectionId
+        : await inboxCollectionId();
+      if (!collectionId) throw new Error('No collection to save into');
+      await saveFound(item, item.reelData, collectionId);
+    } catch {
+      update(item.id, { status: navigator.onLine ? 'failed' : 'offline' });
+    } finally {
+      running.current.delete(item.id);
+    }
+  }, [inboxCollectionId, saveFound]);
+
+  // "Wrong place": the user picks the right one in the Finish sheet instead.
+  const reject = useCallback((item) => {
+    update(item.id, { status: 'needs-place', confirm: false });
+    prefetchListedPlaces(item.url, item.reelData);
+  }, []);
 
   // reelData: a lookup the server already did (shared from the Shortcut, no clear match), so the
   // reel goes straight to Finish without looking it up again.
-  const enqueue = useCallback((url, { reelData } = {}) => {
+  const enqueue = useCallback((url, { reelData, confirm: askFirst } = {}) => {
     // Null until TBD exists. The lookup makes it.
     const collectionId = pickCollection();
     const { places, collections, showToast } = latest.current;
@@ -155,9 +190,9 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       if (navigator.onLine) process(item);
       return true;
     }
-    const item = { id: newId(), url, collectionId, status: navigator.onLine ? 'saving' : 'offline', addedAt: Date.now() };
+    const item = { id: newId(), url, collectionId, status: navigator.onLine ? 'saving' : 'offline', confirm: Boolean(askFirst), addedAt: Date.now() };
     setItems((list) => [...list, item]);
-    showToast(navigator.onLine ? `Saved! Finding the place…` : `Saved! We'll find the place when you're online.`);
+    showToast(askFirst ? 'Finding the place…' : navigator.onLine ? `Saved! Finding the place…` : `Saved! We'll find the place when you're online.`);
     if (navigator.onLine) process(item);
     return true;
   }, [pickCollection, process]);
@@ -188,5 +223,5 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     remove(id);
   }, [remove]);
 
-  return { items, enqueue, watch, unwatch, retry: process, remove, dismiss };
+  return { items, enqueue, confirm, reject, watch, unwatch, retry: process, remove, dismiss };
 }

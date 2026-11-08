@@ -9,13 +9,14 @@ const MESSAGES = {
 };
 
 // Reels shared into the app that are still being saved, or need the user to finish them.
-export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
+export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfirm, onReject }) {
   if (!items.length) return null;
   return (
     <div className="reel-inbox" aria-label="Shared reels">
       {items.map((item) => {
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';
+        const confirming = item.status === 'confirm';
         return (
           <div key={item.id} className={`inbox-card ${item.status}`} role="status">
             <span className="inbox-thumb" aria-hidden="true">
@@ -25,9 +26,15 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
               {item.name && <div className="inbox-name">{item.name}</div>}
               <div className="inbox-message">
                 {busy && <span className="spinner" aria-hidden="true" />}
-                {busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
+                {confirming ? (item.address || 'Is this the right place?') : busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
               </div>
             </div>
+            {confirming && (
+              <div className="inbox-confirm">
+                <button type="button" className="inbox-action" onClick={() => onConfirm(item)}>Save</button>
+                <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Wrong place</button>
+              </div>
+            )}
             {finish && (
               <button type="button" className="inbox-action" onClick={() => onFinish(item)}>
                 Finish
