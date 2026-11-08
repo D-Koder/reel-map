@@ -25,7 +25,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss }) {
               {item.name && <div className="inbox-name">{item.name}</div>}
               <div className="inbox-message">
                 {busy && <span className="spinner" aria-hidden="true" />}
-                {MESSAGES[item.status]}
+                {busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
               </div>
             </div>
             {finish && (

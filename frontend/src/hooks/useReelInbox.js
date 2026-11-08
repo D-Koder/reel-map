@@ -92,6 +92,8 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       // A pop-up keeps its own name (the Maps match is only its street) and is saved as an event on its days.
       const popup = data.popup;
       const name = popup?.name || details.name;
+      // Show the name as soon as it is known, while the place is being saved.
+      update(item.id, { name });
       const created = await latest.current.addPlace({
         name,
         location: details.address || data.location || '',
