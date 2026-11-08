@@ -468,7 +468,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
               <>
                 <WelcomeSteps userId={userId} places={places} collections={collections} onInvite={() => setShareModal(collections[0])} />
                 <PasteReelCard onSave={(url) => inbox.enqueue(url, { confirm: true })} showToast={showToast} />
-                <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} onConfirm={inbox.confirm} onReject={inbox.reject} />
+                <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} onConfirm={inbox.confirm} onReject={inbox.reject} onSaveListed={inbox.saveListed} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />
               </>
             }

@@ -3,7 +3,8 @@ import { readJSON, writeJSON } from '../lib/storage';
 import { knownCategory } from '../lib/constants';
 import { apiFetch } from '../lib/api';
 import { shareNote } from '../lib/shareText';
-import { forgetListedLookups, prefetchListedPlaces } from '../lib/listedLookups';
+import { forgetListedLookups, lookupListedPlace, prefetchListedPlaces } from '../lib/listedLookups';
+import { requestLocationApi } from '../lib/googlePlaces';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -19,6 +20,18 @@ export function findInboxCollection(collections) {
 // The collection a place was last added to by hand.
 export function rememberCollection(userId, collectionId) {
   if (collectionId) writeJSON(lastCollectionKey(userId), collectionId);
+}
+
+// A carousel link remembers the slide it was copied on (?img_index=3), and the lookup then returns only that
+// slide's place. Without it the lookup returns every place the post lists.
+function withoutSlide(url) {
+  try {
+    const link = new URL(url);
+    link.searchParams.delete('img_index');
+    return link.toString();
+  } catch {
+    return url;
+  }
 }
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -103,13 +116,19 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       if (!collectionId) throw new Error('No collection to save into');
       const response = await apiFetch('/api/enrich-reel', {
         // from: 'inbox' asks the server to keep a debug row when no place is matched.
-        body: JSON.stringify({ reelUrl: item.url, from: 'inbox', sharedText: shareNote(item.url) }),
+        body: JSON.stringify({ reelUrl: item.confirm ? withoutSlide(item.url) : item.url, from: 'inbox', sharedText: shareNote(item.url) }),
         signal: AbortSignal.timeout(120000),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.error || `Reel lookup returned HTTP ${response.status}`);
       // Cancelled (✕) while it ran: nothing is saved.
       if (!latest.current.items.some((i) => i.id === item.id)) return;
+
+      // A pasted post that lists several places: pick which to save before anything is added.
+      if (item.confirm && data.listedPlaces?.length > 1) {
+        update(item.id, { status: 'confirm-list', collectionId, name: '', reelData: data });
+        return;
+      }
 
       const details = data.maps?.details;
       if (!details?.name) {
@@ -152,6 +171,74 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       running.current.delete(item.id);
     }
   }, [inboxCollectionId, saveFound]);
+
+  // The places ticked on a pasted list post. Each is matched on Google Maps and saved when the match is clear.
+  // The ones Maps can't match clearly are left to pick by hand in the Finish sheet.
+  const saveListed = useCallback(async (item, lines) => {
+    if (running.current.has(item.id) || !item.reelData?.listedPlaces?.length) return;
+    running.current.add(item.id);
+    const data = item.reelData;
+    const listUrl = withoutSlide(item.url);
+    const chosen = data.listedPlaces.filter((place) => lines.includes(place.line));
+    const saved = [];
+    const unclear = [];
+    try {
+      const collectionId = latest.current.collections.some((c) => c.id === item.collectionId)
+        ? item.collectionId
+        : await inboxCollectionId();
+      if (!collectionId) throw new Error('No collection to save into');
+      for (const [index, listed] of chosen.entries()) {
+        update(item.id, { status: 'saving', progress: `${index + 1} of ${chosen.length}` });
+        try {
+          const { best, details } = await lookupListedPlace(listUrl, listed, data);
+          if (!best) { unclear.push(listed); continue; }
+          const venueDetails = details || await requestLocationApi({
+            action: 'details',
+            query: best.searchQuery,
+            placeUrl: best.url,
+            placeAddress: best.address,
+            placeName: best.name,
+            location: best.address || listed.address || data.area || '',
+          });
+          const created = await latest.current.addPlace({
+            name: (venueDetails?.name || best.name || listed.name).trim(),
+            location: (venueDetails?.address || best.address || listed.address || '').trim(),
+            category: knownCategory(listed.category) || 'food',
+            collectionId,
+            reelUrl: listUrl,
+            venueDetails,
+            feeling: 'keen',
+            customInfo: '',
+            url: null,
+            eventDate: null,
+          });
+          if (created) saved.push(created); else unclear.push(listed);
+        } catch {
+          unclear.push(listed);
+        }
+      }
+      const { showToast: toast, collections } = latest.current;
+      const collectionName = collections.find((c) => c.id === collectionId)?.name ?? 'your collection';
+      if (!unclear.length) {
+        remove(item.id);
+        forgetListedLookups(listUrl);
+        toast(`Saved ${saved.length} ${saved.length === 1 ? 'place' : 'places'} to ${collectionName}`);
+        return;
+      }
+      toast(saved.length
+        ? `Saved ${saved.length} to ${collectionName}. ${unclear.length} need picking by hand.`
+        : "Couldn't match those on the map. Pick them by hand.");
+      // What is left goes to Finish: a list when several, else the one place on its own.
+      const reelData = unclear.length > 1
+        ? { ...data, listedPlaces: unclear }
+        : { ...data, listedPlaces: undefined, placeName: unclear[0].name, location: unclear[0].address || '', maps: undefined };
+      update(item.id, { status: 'needs-place', url: listUrl, collectionId, name: unclear[0].name, progress: '', confirm: false, reelData });
+    } catch {
+      update(item.id, { status: navigator.onLine ? 'failed' : 'offline', progress: '' });
+    } finally {
+      running.current.delete(item.id);
+    }
+  }, [inboxCollectionId, remove]);
 
   // "Wrong place": the user picks the right one in the Finish sheet instead.
   const reject = useCallback((item) => {
@@ -223,5 +310,5 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     remove(id);
   }, [remove]);
 
-  return { items, enqueue, confirm, reject, watch, unwatch, retry: process, remove, dismiss };
+  return { items, enqueue, confirm, reject, saveListed, watch, unwatch, retry: process, remove, dismiss };
 }
