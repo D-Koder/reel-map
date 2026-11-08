@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Users, X } from 'lucide-react';
+import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Send, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
 import { DEFAULT_AVATAR_URL } from '../lib/constants';
@@ -60,6 +60,31 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
   // The code is made (or the existing one reused) only when it's asked for, not every time Share opens.
   // shown: whether the code is on screen. Hiding keeps it, so showing it again needs no new lookup.
   const [shown, setShown] = useState(false);
+  // One tap: makes the code if needed, then opens the phone's share sheet with a ready message.
+  const sendInvite = async () => {
+    setShown(true);
+    let current = invite;
+    if (!current) {
+      setLoading(true);
+      current = await getInvite(collection.id);
+      setInvite(current);
+      setLoading(false);
+    }
+    if (!current) return;
+    const text = `Join "${collection.name}" on Waylit Maps. Tap the link, or use code ${formatInviteCode(current.code)}.`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Waylit Maps', text, url: current.url });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} ${current.url}`);
+      showToast('Invite copied. Paste it in a message.');
+    } catch (error) {
+      // Closing the share sheet is not an error.
+      if (error?.name !== 'AbortError') showToast("Couldn't share the invite. Try again.");
+    }
+  };
+
   const showInvite = async () => {
     setShown(true);
     if (invite) return;
@@ -126,15 +151,23 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
                 <Lock className="ico" aria-hidden="true" /> No new people can join until it's unlocked.{isOwner ? ' Unlock it in Settings.' : ' Ask the owner to unlock it.'} Everyone already in keeps access.
               </div>
             ) : !shown ? (
-              <button type="button" className="step-btn primary full-width" onClick={showInvite}>Show invite code</button>
+              <>
+                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                  <Send className="ico" aria-hidden="true" /> Send invite to my partner
+                </button>
+                <button type="button" className="step-btn secondary full-width" onClick={showInvite}>Show invite code</button>
+              </>
             ) : loading ? (
               <div className="invite-code"><span className="spinner" aria-hidden="true" /></div>
             ) : invite ? (
               <>
                 <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
                 <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 7 days.</div>
+                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                  <Send className="ico" aria-hidden="true" /> Send invite to my partner
+                </button>
                 <div className="invite-actions">
-                  <button type="button" className="step-btn primary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
+                  <button type="button" className="step-btn secondary invite-copy" onClick={() => copy(formatInviteCode(invite.code), 'code', showToast)}>
                     <Copy className="ico" aria-hidden="true" /> Copy code
                   </button>
                   <button type="button" className="step-btn secondary" onClick={() => copy(invite.url, 'link', showToast)}>

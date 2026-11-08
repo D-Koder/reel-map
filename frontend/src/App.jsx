@@ -14,6 +14,8 @@ import ShareCollectionModal from './components/ShareCollectionModal';
 const MapScreen = lazy(() => import('./components/MapScreen'));
 import ReelInbox from './components/ReelInbox';
 import FridayPickCard from './components/FridayPickCard';
+import PasteReelCard from './components/PasteReelCard';
+import WelcomeSteps from './components/WelcomeSteps';
 import Celebration from './components/Celebration';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
 import { useAuth } from './hooks/useAuth';
@@ -464,6 +466,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
             collections={collections}
             banner={
               <>
+                <WelcomeSteps userId={userId} places={places} collections={collections} onInvite={() => setShareModal(collections[0])} />
+                <PasteReelCard onSave={inbox.enqueue} showToast={showToast} />
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />
               </>
