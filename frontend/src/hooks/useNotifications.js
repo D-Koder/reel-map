@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Bell, CalendarCheck, CircleCheck, Clock, Lock, LogOut, MapPin, MessageCircle, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { Bell, CalendarCheck, CalendarClock, CalendarX, CircleCheck, Clock, Lock, LogOut, MapPin, MessageCircle, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { localTimes } from '../lib/notificationTime';
 
 const ICONS = {
   place_added: MapPin,
   place_reacted: MessageCircle,
   place_booked: CalendarCheck,
+  place_booking_changed: CalendarClock,
+  place_booking_cancelled: CalendarX,
   place_done: CircleCheck,
   place_removed: Trash2,
   collection_joined: UserPlus,
@@ -123,7 +126,7 @@ export function useNotifications(userId, onNew) {
   const items = rows.map((n) => ({
     id: n.id,
     type: n.type,
-    message: n.message,
+    message: localTimes(n.message),
     icon: ICONS[n.type] ?? Bell,
     time: formatTime(n.created_at),
     read: Boolean(n.read_at),

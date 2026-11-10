@@ -15,6 +15,8 @@ const TITLES: Record<string, string> = {
   place_added: '📍 New place saved',
   place_reacted: '💬 New reaction',
   place_booked: '🟢 Place booked',
+  place_booking_changed: '📅 Booking changed',
+  place_booking_cancelled: '❌ Booking cancelled',
   place_done: '✅ Date done',
   place_removed: '🗑️ Place removed',
   collection_joined: '👋 Joined a collection',
@@ -25,6 +27,19 @@ const TITLES: Record<string, string> = {
 };
 
 type Subscription = { id: string; endpoint: string; p256dh: string; auth: string };
+
+// Times in a message are written as {{2026-11-12T08:00:00Z}}; each person is told theirs in their own time zone.
+function inTimeZone(text: string, timeZone: string) {
+  return text.replace(/\{\{([^}]+)\}\}/g, (_match, iso: string) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('en-AU', { timeZone, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+    } catch {
+      return date.toISOString();
+    }
+  });
+}
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -51,7 +66,7 @@ Deno.serve(async (req) => {
   if (!user_id || !message) return json({ error: 'user_id and message are required' }, 400);
 
   // The account's switch in Settings: off silences every device. (A missing column reads as on.)
-  const { data: profile } = await supabase.from('profiles').select('notifications_enabled').eq('id', user_id).maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('notifications_enabled, timezone').eq('id', user_id).maybeSingle();
   if (profile?.notifications_enabled === false) return json({ sent: 0, skipped: 'notifications are off' });
 
   const { data: subscriptions, error } = await supabase
@@ -73,7 +88,7 @@ Deno.serve(async (req) => {
 
   const payload = JSON.stringify({
     title: TITLES[type] ?? 'Waylit Maps',
-    body: message,
+    body: inTimeZone(message, profile?.timezone || 'UTC'),
     url: row?.id ? `/?notification=${encodeURIComponent(row.id)}` : '/',
   });
 

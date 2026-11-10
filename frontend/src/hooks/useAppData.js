@@ -197,6 +197,17 @@ export function useAppData(userId, showToast) {
   );
   const [order, setOrder] = useState(() => cached?.order ?? {}); // place_id -> my position
   const refreshTimer = useRef(null);
+  // Keeps my profile's time zone current, so streak days and push notification times use where I am.
+  useEffect(() => {
+    if (!userId) return;
+    let zone = '';
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    } catch {
+      return;
+    }
+    if (zone) supabase.from('profiles').update({ timezone: zone }).eq('id', userId).neq('timezone', zone).then(() => {}, () => {});
+  }, [userId]);
   // False until the database has the event_date column (see 20261013090000_event_dates.sql).
   const [eventDatesReady, setEventDatesReady] = useState(false);
   // False until the database has the event_end_date column (see 20261018090000_event_end_dates.sql).
