@@ -13,6 +13,16 @@ export const SAMPLE_DETAILS = {
   address: '1 Example St, Melbourne VIC 3000',
   latitude: -37.81837,
   longitude: 144.96719,
+  // Built in, so the tour never asks Google or the AI for hours.
+  hours: [
+    { days: 'Monday', time: '11:30 AM – 3:00 PM, 5:00 – 10:00 PM' },
+    { days: 'Tuesday', time: '11:30 AM – 3:00 PM, 5:00 – 10:00 PM' },
+    { days: 'Wednesday', time: '11:30 AM – 3:00 PM, 5:00 – 10:00 PM' },
+    { days: 'Thursday', time: '11:30 AM – 3:00 PM, 5:00 – 10:00 PM' },
+    { days: 'Friday', time: '11:30 AM – 3:00 PM, 5:00 – 11:00 PM' },
+    { days: 'Saturday', time: '11:30 AM – 11:00 PM' },
+    { days: 'Sunday', time: '11:30 AM – 10:00 PM' },
+  ],
 };
 
 const placeAnchor = (key) => `[data-tour="place"][data-tour-for="${key}"]`;
@@ -90,10 +100,10 @@ export function describe(id, ctx) {
 
     case 'book': {
       if (place?.booking) {
-        return { title: 'Booked!', body: "Everyone in the collection is told, and you get reminders. Each person sees the time in their own time zone.", needsNext: true };
+        return { title: 'Booked!', body: "In your real account, the collection gets a notification, shown in each person's own time zone. This sample booking stays on your phone and nothing is sent.", needsNext: true };
       }
       if (isOpen(ctx, ctx.openPinId)) {
-        return { title: 'Check times, then book', body: "Check when it's open and pick a time that could work. We can't see the venue's tables, so book with them yourself, then tap Next to save the plan. Everyone in the collection is told.", hint: 'Follow the highlighted steps.', anchor: '[data-tour="plan"]' };
+        return { title: 'Find a time & book', body: "Choose a time to try, then book with the venue yourself. We can't see the venue's tables. Come back and confirm what you got.", hint: 'Follow the highlighted steps.', anchor: '[data-tour="plan"]' };
       }
       return { title: 'Book it', body: 'Ready to go? Tap your place to open it.', hint: 'Tap your place.', anchor: place ? placeAnchor(placeKey) : null };
     }

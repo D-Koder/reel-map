@@ -6122,3 +6122,128 @@ a.step-btn {
 .auth-legal { display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 13px; }
 .legal-links { display: flex; flex-direction: column; gap: 4px; }
 .legal-links a { display: block; padding: 10px 0; font-weight: 600; }
+
+/* ---------- BOOKED PLACE: status card, hours line, bottom bar ---------- */
+.booked-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+.booked-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.booked-when {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.booked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.booked-dock {
+  position: sticky;
+  bottom: calc(-1 * (var(--gutter) + var(--safe-bottom)));
+  z-index: 3;
+  display: grid;
+  gap: 8px;
+  margin: 12px calc(-1 * var(--gutter)) 0;
+  padding: 12px var(--gutter) calc(var(--gutter) + var(--safe-bottom));
+  background: linear-gradient(to top, var(--card) 82%, transparent);
+}
+.booked-actions,
+.booked-cal-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.booked-cal-menu { grid-template-columns: repeat(2, 1fr); }
+.booked-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted, var(--card));
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.booked-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  border: 2px solid var(--text);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+}
+.booked-done.locked,
+.booked-done:disabled {
+  background: var(--muted, var(--card));
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+}
+.booked-unlock {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hours-acc summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.hours-acc summary::-webkit-details-marker { display: none; }
+.hours-acc-line { display: inline-flex; align-items: center; gap: 8px; }
+.hours-acc-line .reel-open-dot.is-open { color: var(--success); }
+.hours-acc[open] summary .chevron { transform: rotate(180deg); }
+.hours-acc .hours-table { margin-top: 8px; }
+.book-icons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.step-btn.book-icon {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+.step-btn.book-icon svg { width: 24px; height: 24px; }
