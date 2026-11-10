@@ -1,0 +1,40 @@
+/* The first-run tour. A dim layer with a hole over what is being pointed at, and a card with the words.
+   Everything sits above the app's own sheets (which use z-index up to a few hundred). */
+.tour-layer { position: fixed; inset: 0; z-index: 10050; pointer-events: none; font-family: var(--font-body); }
+.tour-dim { position: fixed; background: rgba(5, 7, 18, 0.72); pointer-events: auto; }
+.tour-ring {
+  position: fixed; pointer-events: none; border: 3px solid #ffd23f; border-radius: 14px;
+  box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.25); animation: tour-glow 1.6s ease-in-out infinite;
+}
+.tour-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5, 7, 18, 0.78); pointer-events: auto; }
+.tour-tip {
+  position: fixed; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 20px));
+  background: #f6f3ec; color: #1a1a18; border: 2px solid #1a1a18; border-radius: 18px; padding: 12px 14px;
+  box-shadow: 4px 4px 0 #1a1a18; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; outline: none;
+}
+.tour-tip.bottom { bottom: max(12px, env(safe-area-inset-bottom)); }
+.tour-tip.top { top: max(12px, env(safe-area-inset-top)); }
+.tour-tip.center { position: static; transform: none; width: 100%; max-width: 420px; align-items: center; text-align: center; padding: 18px; }
+.tour-head { display: flex; align-items: center; gap: 10px; }
+.tour-lantern { flex: none; animation: tour-bob 2.4s ease-in-out infinite; }
+.tour-title { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 18px; line-height: 1.1; color: #1a1a18; }
+.tour-body { margin: 0; font-size: 14px; line-height: 1.4; color: #3d3b36; }
+.tour-hint { font-size: 12px; font-weight: 700; color: #b5361a; }
+.tour-dots { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.tour-dots i { width: 8px; height: 8px; border-radius: 50%; background: #cfc8b8; }
+.tour-dots i.on { background: #d4421d; width: 20px; border-radius: 999px; }
+.tour-dots i.done { background: #1a1a18; }
+.tour-bar { display: flex; align-items: center; gap: 4px; }
+.tour-grow { flex: 1; }
+.tour-btn { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 2px solid #1a1a18; background: #fff; color: #1a1a18; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.tour-btn.go { background: #d4421d; color: #fff; }
+.tour-link { min-height: 44px; padding: 0 8px; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 700; color: #66645d; text-decoration: underline; cursor: pointer; }
+.tour-link.back { text-decoration: none; padding-left: 0; }
+.tour-extra { align-self: flex-start; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px dashed #1a1a18; background: transparent; color: #1a1a18; font: inherit; font-weight: 700; font-size: 13px; cursor: pointer; }
+.tour-tip button:focus-visible { outline: 3px solid #1a1a18; outline-offset: 2px; }
+@keyframes tour-glow { 50% { box-shadow: 0 0 0 9px rgba(255, 210, 63, 0.1); } }
+@keyframes tour-bob { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .tour-lantern, .tour-ring { animation: none; } }
+
+/* Sizes include padding and border, whatever the page around it says. */
+.tour-layer, .tour-layer * { box-sizing: border-box; }

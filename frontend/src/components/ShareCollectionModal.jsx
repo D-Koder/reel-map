@@ -7,6 +7,7 @@ import { exportCollection } from '../lib/collectionFile';
 import { canEditCollection } from '../lib/roles';
 import EmojiPicker from './EmojiPicker';
 import ConfirmDialog from './ConfirmDialog';
+import { emitTour } from '../tour/events';
 
 async function copy(text, label, showToast) {
   try {
@@ -71,6 +72,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       setLoading(false);
     }
     if (!current) return;
+    emitTour('invite-sent');
     const text = `Join "${collection.name}" on Waylit Maps. Tap the link, or use code ${formatInviteCode(current.code)}.`;
     try {
       if (navigator.share) {
@@ -152,7 +154,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               </div>
             ) : !shown ? (
               <>
-                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                <button type="button" className="step-btn primary full-width" data-tour="invite" onClick={sendInvite}>
                   <Send className="ico" aria-hidden="true" /> Send invite to my partner
                 </button>
                 <button type="button" className="step-btn secondary full-width" onClick={showInvite}>Show invite code</button>
@@ -163,7 +165,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               <>
                 <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
                 <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 7 days.</div>
-                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                <button type="button" className="step-btn primary full-width" data-tour="invite" onClick={sendInvite}>
                   <Send className="ico" aria-hidden="true" /> Send invite to my partner
                 </button>
                 <div className="invite-actions">

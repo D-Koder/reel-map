@@ -20,7 +20,7 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
   const all = picked.size === places.length;
 
   return (
-    <div className="inbox-card confirm-list" role="group" aria-label={`This post lists ${places.length} places`}>
+    <div className="inbox-card confirm-list" data-tour="confirm" role="group" aria-label={`This post lists ${places.length} places`}>
       <div className="lc-head">
         <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
         <div className="inbox-info">
@@ -75,7 +75,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         const finish = item.status === 'needs-place';
         const confirming = item.status === 'confirm';
         return (
-          <div key={item.id} className={`inbox-card ${item.status}`} role="status">
+          <div key={item.id} className={`inbox-card ${item.status}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
             <span className="inbox-thumb" aria-hidden="true">
               <Film aria-hidden="true" />
             </span>

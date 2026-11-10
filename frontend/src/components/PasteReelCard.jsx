@@ -33,7 +33,7 @@ export default function PasteReelCard({ onSave, showToast }) {
 
   return (
     <div className="paste-card">
-      <button type="button" className="paste-btn" onClick={paste}>
+      <button type="button" className="paste-btn" data-tour="paste" onClick={paste}>
         <ClipboardPaste className="ico" aria-hidden="true" /> Paste a reel link
       </button>
       {manual && (

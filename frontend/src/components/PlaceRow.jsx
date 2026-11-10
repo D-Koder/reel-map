@@ -97,6 +97,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   return (
     // Tap the card to open it. Drag the handle on the right to move it.
     <div
+      data-tour="place"
+      data-tour-for={`${pin.collection_id}:${pin.id}`}
       className={`pin-item ${vibe.consensus} ${showDoneLook ? 'done' : ''} ${eventOver ? 'ended' : ''} ${floating ? 'floating' : ''} ${dimmed ? 'dimmed' : ''} ${selectable ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       onClick={onClick}
       onKeyDown={onKeyDown}

@@ -9,7 +9,7 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
   return (
     <>
       <div className={`overlay-bg ${open ? 'open' : ''}`} onClick={onClose} />
-      <div ref={panelRef} className={`notification-panel ${open ? 'open' : ''}`} aria-hidden={!open}>
+      <div ref={panelRef} className={`notification-panel ${open ? 'open' : ''}`} data-tour={open ? 'notes' : undefined} aria-hidden={!open}>
         <div className="notification-header">
           <span>Notifications</span>
           <button className="notification-close" onClick={onClose} aria-label="Close notifications">

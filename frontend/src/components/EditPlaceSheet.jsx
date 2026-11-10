@@ -323,6 +323,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
           <button
             type="button"
             className="edit-place-collections"
+            data-tour="move-open"
             aria-expanded={showCollections}
             onClick={() => setShowCollections((v) => !v)}
           >
@@ -350,7 +351,7 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
                 </div>
               )}
               {canMove && moveOptions.length > 0 && (
-                <div className="field-row">
+                <div className="field-row" data-tour="move-form">
                   <select className="step-input" aria-label="Move to another collection" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} disabled={!!busyAction}>
                     <option value="">Move to…</option>
                     {moveOptions.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>)}

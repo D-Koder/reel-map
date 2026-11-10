@@ -7,6 +7,7 @@ import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
+import { emitTour } from '../tour/events';
 
 // On/off switch for push notifications: reminders, votes, new places and the weekly pick. It is a setting on
 // the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
@@ -305,6 +306,8 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
       <div className="collection-icons">
         <button
           className="collection-icon"
+          data-tour="share"
+          data-tour-for={collection.id}
           onClick={() => onShare(collection)}
           title={isOwner ? 'Edit, share and manage' : 'Share'}
           aria-label={isOwner ? 'Edit, share and manage' : 'Share'}
@@ -721,8 +724,12 @@ export default function SettingsDrawer({
 
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
-          {userId && <NotificationsToggle userId={userId} />}
-          {userId && <WeeklyPickDay userId={userId} />}
+          {userId && (
+            <div data-tour="notify">
+              <NotificationsToggle userId={userId} />
+              <WeeklyPickDay userId={userId} />
+            </div>
+          )}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
@@ -748,7 +755,7 @@ export default function SettingsDrawer({
                 onShare={onShare}
               />
             ))}
-            <form className="inline-form" onSubmit={addCollection}>
+            <form className="inline-form" data-tour="new-collection" onSubmit={addCollection}>
               <input
                 className="step-input"
                 placeholder="New collection name"
@@ -766,6 +773,7 @@ export default function SettingsDrawer({
           <div className="settings-section">
             <div className="settings-section-title"><Info className="ico" aria-hidden="true" /> Help and legal</div>
             <div className="legal-links">
+              <button type="button" className="settings-link-btn" onClick={() => { onClose(); emitTour('replay'); }}>Replay tour</button>
               <a href="/support" target="_blank" rel="noreferrer">Help and support</a>
               <a href="mailto:hello@waylitmaps.com">Email us</a>
               <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>

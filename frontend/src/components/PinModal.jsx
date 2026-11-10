@@ -83,7 +83,7 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   );
 
   return (
-    <div className="modal-section vote-board">
+    <div className="modal-section vote-board" data-tour="vote-board">
       <div className={`my-vote ${myVote ? 'voted' : ''}`}>
         <div className="my-vote-label">
           {myVote ? 'Your vote' : everyoneElseIn ? 'Your vote? Everyone else is in.' : 'Your vote?'}
@@ -389,7 +389,7 @@ export default function PinModal({
             >
               <TriangleAlert aria-hidden="true" />
             </button>
-            <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
+            <button className="modal-close" data-tour="edit" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
               <Pencil aria-hidden="true" />
             </button>
             {canDelete && (
@@ -602,7 +602,7 @@ export default function PinModal({
         ) : (
           <>
             {step === 1 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(1)}
                 {hasRuns ? (
                   <>
@@ -653,7 +653,7 @@ export default function PinModal({
             )}
 
             {step === 2 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(2)}
                 <div className="step-title">Book it</div>
                 {timeChosen ? (
@@ -705,7 +705,7 @@ export default function PinModal({
             )}
 
             {step === 3 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(3)}
                 <div className="step-saved">
                   <span className="step-saved-mark"><CircleCheck className="ico" aria-hidden="true" /></span>

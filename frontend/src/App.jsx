@@ -27,7 +27,8 @@ import { useOnline } from './hooks/useOnline';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
-import { forgetSharedPlace, pendingSharedPlace, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
+import { forgetInvite, forgetSharedPlace, pendingInvite, pendingSharedPlace, rememberInvite, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
+import TourHost from './tour/TourHost';
 import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
@@ -280,19 +281,27 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     setOpenPinId(null);
   };
 
-  // Handle invite codes from URL
+  // Handle invite codes from the URL, or kept from before the person had an account (the email confirmation link
+  // brings them back to the home page without the code). Tried once; the tour waits for it so it can tell a person
+  // who joined a shared collection from someone starting their own.
+  const [joinedByInvite, setJoinedByInvite] = useState(false);
+  const [waitingForInvite, setWaitingForInvite] = useState(() => Boolean(new URLSearchParams(window.location.search).get('invite') || pendingInvite()));
+  const inviteTried = useRef(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite');
-    if (inviteCode) {
-      acceptInvite(inviteCode).then((success) => {
-        if (success) {
-          data.refresh();
-          // Remove the invite parameter from URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      });
-    }
+    if (inviteTried.current) return;
+    inviteTried.current = true;
+    const inviteCode = new URLSearchParams(window.location.search).get('invite') || pendingInvite();
+    if (!inviteCode) { setWaitingForInvite(false); return; }
+    acceptInvite(inviteCode).then((success) => {
+      forgetInvite();
+      if (success) {
+        setJoinedByInvite(true);
+        data.refresh();
+        // Remove the invite parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      setWaitingForInvite(false);
+    });
   }, [acceptInvite, data]);
 
   // Reel links shared to the installed app arrive as ?url=, ?text= or ?title= (see manifest share_target).
@@ -456,6 +465,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         <div className="header-buttons">
           <button
             className="header-btn"
+            data-tour="bell"
             onClick={() => { setNotificationsOpen(true); markAllRead(); }}
             aria-label="Notifications"
           >
@@ -466,7 +476,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
               </span>
             )}
           </button>
-          <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+          <button className="header-btn" data-tour="gear" onClick={() => setSettingsOpen(true)} aria-label="Settings">
             <SlidersHorizontal aria-hidden="true" />
           </button>
         </div>
@@ -573,6 +583,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           ) : (
             <button
               key={tab.id}
+              data-tour={tab.id === 'map' ? 'map-tab' : undefined}
               className={`nav-tab ${screen === tab.id ? 'active' : ''}`}
               onClick={() => setScreen(tab.id)}
               aria-current={screen === tab.id ? 'page' : undefined}
@@ -772,6 +783,37 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           showToast={showToast}
         />
       )}
+
+      <TourHost
+        userId={userId}
+        name={data.profile?.display_name}
+        loading={data.loading}
+        blocked={Boolean(sharedPlaceId) || adding}
+        waitingForInvite={waitingForInvite}
+        joinedByInvite={joinedByInvite}
+        places={places}
+        collections={collections}
+        inboxItems={inbox.items}
+        isWide={isWide}
+        screen={screen}
+        openPinId={openPinId}
+        editPinId={editPinId}
+        settingsOpen={settingsOpen}
+        shareOpen={Boolean(shareModal)}
+        notificationsOpen={notificationsOpen}
+        actions={{
+          setScreen,
+          closePin,
+          closeEdit: () => setEditPinId(null),
+          closeSettings: () => setSettingsOpen(false),
+          closeShare: () => setShareModal(null),
+          closeNotifications: () => setNotificationsOpen(false),
+          addSampleReel: inbox.addSample,
+          dismissInbox: inbox.dismiss,
+          deletePlace: data.deletePlace,
+          showToast,
+        }}
+      />
     </div>
   );
 }
@@ -787,6 +829,11 @@ function App() {
     setSharedPlaceId(null);
   }, []);
   const toastTimer = useRef(null);
+  // An invite link opened while signed out: remembered, so it still works after sign-up and email confirmation.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('invite');
+    if (code) rememberInvite(code);
+  }, []);
 
   const showToast = useCallback((message, action, duration) => {
     clearTimeout(toastTimer.current);
