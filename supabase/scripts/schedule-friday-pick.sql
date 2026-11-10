@@ -1,13 +1,14 @@
 -- Run once in the Supabase SQL editor, after the send-friday-pick function is deployed and its secrets are set.
 -- Replace <FRIDAY_PICK_SECRET> with the same value you set as the FRIDAY_PICK_SECRET function secret.
--- pg_cron runs in UTC. '0 9 * * 5' is 9:00 UTC every Friday (7pm Friday in Melbourne, AEST).
+-- Runs every hour (pg_cron uses UTC). The function itself sends only to people for whom it is 7pm on the day
+-- they chose in Settings, in their own time zone.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 select cron.schedule(
   'friday-pick',
-  '0 9 * * 5',
+  '0 * * * *',
   $$
   select net.http_post(
     url := 'https://bxkiuaapyiflnmqhodgm.supabase.co/functions/v1/send-friday-pick',

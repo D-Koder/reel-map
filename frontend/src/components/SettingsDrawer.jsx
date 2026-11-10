@@ -8,7 +8,7 @@ import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 
-// On/off switch for push notifications: reminders, votes, new places and the weekly Friday pick. It is a setting on
+// On/off switch for push notifications: reminders, votes, new places and the weekly pick. It is a setting on
 // the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
 // needs its own one-time browser permission, which turning the switch on asks for when this device has none yet.
 // Until the database has the column, the switch falls back to this device only.
@@ -78,10 +78,58 @@ function NotificationsToggle({ userId }) {
         <Bell className="ico" aria-hidden="true" /> Notifications
       </label>
       <div className="toggle-hint">
-        Reminders, votes, new places and Friday picks.
+        Reminders, votes, new places and your weekly pick.
         {accountWide ? ' This switch covers all your devices.' : ' Turn this on in each device you use.'}
       </div>
       {!supported && <div className="toggle-hint">This device can only show notifications once the app is on your home screen.</div>}
+      {error && <div className="toggle-hint">{error}</div>}
+    </div>
+  );
+}
+
+// The day the weekly pick arrives (7pm, your time), or off. Saved on the account (profiles.weekly_pick_day).
+// Hidden until the database has the column.
+const PICK_DAYS = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [0, 'Sunday']];
+function WeeklyPickDay({ userId }) {
+  // undefined while loading, null = off, 0-6 = day, 'missing' when the database has no such column yet.
+  const [day, setDay] = useState(undefined);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('profiles').select('weekly_pick_day').eq('id', userId).maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (!cancelled) setDay(readError ? 'missing' : data?.weekly_pick_day ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  if (day === 'missing' || day === undefined) return null;
+
+  const change = async (event) => {
+    const next = event.target.value === 'off' ? null : Number(event.target.value);
+    const before = day;
+    setDay(next);
+    setError('');
+    const { error: saveError } = await supabase.from('profiles').update({ weekly_pick_day: next }).eq('id', userId);
+    if (saveError) {
+      setDay(before);
+      setError("Couldn't save that. Try again.");
+    }
+  };
+
+  return (
+    <div className="settings-field">
+      <label className="input-label" htmlFor="weekly-pick-day">Weekly pick</label>
+      <select id="weekly-pick-day" value={day === null ? 'off' : String(day)} onChange={change}>
+        <option value="off">Off</option>
+        {PICK_DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+      <div className="toggle-hint">
+        {day === null
+          ? 'No weekly pick. Turn it on to get a place suggestion each week.'
+          : 'One place you haven\'t planned yet, at 7pm your time. It needs notifications on.'}
+      </div>
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );
@@ -674,6 +722,7 @@ export default function SettingsDrawer({
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <NotificationsToggle userId={userId} />}
+          {userId && <WeeklyPickDay userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
