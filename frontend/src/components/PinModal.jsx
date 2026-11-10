@@ -352,7 +352,7 @@ export default function PinModal({
 
   const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
-  const stepNames = { 1: hasRuns ? 'Check times' : 'Pick a time', 2: 'Book', 3: 'Calendar' };
+  const stepNames = { 1: 'Check times', 2: 'Book', 3: 'Calendar' };
   // Going back only changes the step shown: a saved plan stays.
   const prevStep = (n) => steps[steps.indexOf(n) - 1];
   const stepHead = (n) => (
@@ -615,8 +615,9 @@ export default function PinModal({
                   </>
                 ) : (
                   <>
-                    <div className="step-title">Pick a time</div>
+                    <div className="step-title">Check times</div>
                     <div className="step-description">{hoursSummary}</div>
+                    <div className="step-note">We can't see the venue's bookings, so we don't know which tables are free. Pick a time that could work, then check with the venue.</div>
                     {/* Needs a tap: the button goes right under the text, not below the whole picker. */}
                     {hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
                     {hours.length > 0 ? (
@@ -642,7 +643,7 @@ export default function PinModal({
                           disabled={!reservationDate}
                           onClick={() => { setTimeChosen(true); completeStep(1); }}
                         >
-                          Pick this time
+                          Use this time
                         </button>
                       </>
                     )}

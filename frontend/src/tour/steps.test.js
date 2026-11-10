@@ -174,3 +174,10 @@ test('after Wrong place the tour asks for the right place instead of saying it i
   assert.equal(d.title, 'Pick the right place');
   assert.equal(d.fallbackTo, undefined);
 });
+
+test('the plan step says we cannot see the venue\'s bookings, so people check with the venue', () => {
+  const d = describe('book', withPlace({ openPinId: 'p1' }));
+  assert.match(d.title, /Check times/);
+  assert.match(d.body, /can't see the venue's tables/);
+  assert.doesNotMatch(`${d.title} ${d.body}`, /Pick a time/);
+});

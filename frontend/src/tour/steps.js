@@ -93,7 +93,7 @@ export function describe(id, ctx) {
         return { title: 'Booked!', body: "Everyone in the collection is told, and you get reminders. Each person sees the time in their own time zone.", needsNext: true };
       }
       if (isOpen(ctx, ctx.openPinId)) {
-        return { title: 'Make it a plan', body: 'Pick a time, then tap Next to save it. Everyone in the collection is told.', hint: 'Follow the highlighted steps.', anchor: '[data-tour="plan"]' };
+        return { title: 'Check times, then book', body: "Check when it's open and pick a time that could work. We can't see the venue's tables, so book with them yourself, then tap Next to save the plan. Everyone in the collection is told.", hint: 'Follow the highlighted steps.', anchor: '[data-tour="plan"]' };
       }
       return { title: 'Book it', body: 'Ready to go? Tap your place to open it.', hint: 'Tap your place.', anchor: place ? placeAnchor(placeKey) : null };
     }
