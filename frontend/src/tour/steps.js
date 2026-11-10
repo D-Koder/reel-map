@@ -69,6 +69,9 @@ export function describe(id, ctx) {
       if (ctx.has('[data-tour="confirm"]')) {
         return { title: 'Is this the spot?', body: "We found a place. Check it's right, then tap Save. Wrong one? Tap Wrong place to pick another.", hint: 'Tap Save.', anchor: '[data-tour="confirm"]', done: Boolean(place) };
       }
+      if (!place && ctx.inboxItems.some((i) => i.status === 'needs-place')) {
+        return { title: 'Pick the right place', body: 'Choose the correct place from the list, then save it. The tour carries on from there.', done: false };
+      }
       return {
         title: place ? 'Saved!' : 'Finding your place…',
         body: place ? 'Nice. It is in your collection.' : 'This takes a few seconds. Then we will ask you to check it.',
