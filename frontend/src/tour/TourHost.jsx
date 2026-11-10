@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { onTour } from './events';
+import { enableFridayPick, isPushSupported } from '../lib/push';
 import { SAMPLE_PREFIX, TOUR_MARK, describe, enter, hasDot, keepTrue, needsPlace, stepsFor } from './steps';
 import Lantern from './Lantern';
 import './tour.css';
@@ -167,6 +168,7 @@ export default function TourHost({
   const votablePlace = useMemo(() => places.find((p) => p.added_by !== userId) ?? places[0] ?? null, [places, userId]);
   const ctx = useMemo(() => t && ({
     variant: t.variant, name, userId, isWide, isIos: isIosDevice(), standalone: isStandalone(),
+    pushState: isPushSupported() ? Notification.permission : 'unsupported',
     place, placeKey: place ? `${place.collection_id}:${place.id}` : null,
     hasVotablePlace: Boolean(votablePlace), votablePlace,
     collections, startCollections: t.startCollections, placeCollectionAtStart: t.placeCollectionAtStart,
@@ -262,7 +264,12 @@ export default function TourHost({
       onNext={next}
       onSkipTour={() => end(true)}
       onSkipStep={next}
-      onExtra={(action) => { if (action === 'sample') actionsRef.current.addSampleReel(); }}
+      onExtra={(action) => {
+        if (action === 'sample') actionsRef.current.addSampleReel();
+        if (action === 'allow-push') {
+          enableFridayPick(userId).then(() => actionsRef.current.showToast('Notifications are on for this phone.')).catch((e) => actionsRef.current.showToast(e.message));
+        }
+      }}
       onFinish={() => end(false)}
     />
   );

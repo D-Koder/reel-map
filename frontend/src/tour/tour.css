@@ -1,12 +1,12 @@
 /* The first-run tour. A dim layer with a hole over what is being pointed at, and a card with the words.
    Everything sits above the app's own sheets (which use z-index up to a few hundred). */
 .tour-layer { position: fixed; inset: 0; z-index: 10050; pointer-events: none; font-family: var(--font-body); }
-.tour-dim { position: fixed; background: rgba(5, 7, 18, 0.72); pointer-events: auto; }
+.tour-dim { position: fixed; background: rgba(5, 7, 18, 0.5); pointer-events: auto; }
 .tour-ring {
   position: fixed; pointer-events: none; border: 3px solid #ffd23f; border-radius: 14px;
   box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.25); animation: tour-glow 1.6s ease-in-out infinite;
 }
-.tour-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5, 7, 18, 0.78); pointer-events: auto; }
+.tour-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(5, 7, 18, 0.6); pointer-events: auto; }
 .tour-tip {
   position: fixed; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 20px));
   background: #f6f3ec; color: #1a1a18; border: 2px solid #1a1a18; border-radius: 18px; padding: 12px 14px;
@@ -30,7 +30,9 @@
 .tour-btn.go { background: #d4421d; color: #fff; }
 .tour-link { min-height: 44px; padding: 0 8px; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 700; color: #66645d; text-decoration: underline; cursor: pointer; }
 .tour-link.back { text-decoration: none; padding-left: 0; }
-.tour-extra { align-self: flex-start; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px dashed #1a1a18; background: transparent; color: #1a1a18; font: inherit; font-weight: 700; font-size: 13px; cursor: pointer; }
+/* A real button: filled, with an arrow, so it reads as something to tap. */
+.tour-extra { align-self: flex-start; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 2px solid #1a1a18; background: #ffd23f; color: #1a1a18; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 2px 2px 0 #1a1a18; }
+.tour-extra::after { content: ' \203A'; font-size: 16px; }
 .tour-tip button:focus-visible { outline: 3px solid #1a1a18; outline-offset: 2px; }
 @keyframes tour-glow { 50% { box-shadow: 0 0 0 9px rgba(255, 210, 63, 0.1); } }
 @keyframes tour-bob { 50% { transform: translateY(-3px); } }

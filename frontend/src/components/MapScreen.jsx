@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
 import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory } from '../lib/mapboxSearch';
 import { addressAtSpot, nearbyPlaces, retrievePlace, searchSuggestions } from '../lib/placeSearch';
+import { onTour } from '../tour/events';
 
 const LONG_PRESS_MS = 1000;
 
@@ -151,6 +152,12 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Tracking what is hidden means a collection created later shows by default.
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
   const [hiddenCollections, setHiddenCollections] = useState(() => new Set());
+  // The tour asks for every pin to show, so a new person's first place isn't hidden by the empty starting filters.
+  useEffect(() => onTour((type) => {
+    if (type !== 'map-show-all') return;
+    setHiddenCategories(new Set());
+    setHiddenCollections(new Set());
+  }), []);
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
   const [placesListOpen, setPlacesListOpen] = useState(false);

@@ -1,7 +1,7 @@
 // What the first-run tour says and points at. Nothing here touches the screen: every step is described from a
 // plain `ctx` object (the app's current state), so it can be tested on its own.
 //
-// ctx: { shareCollectionId, variant, name, isWide, isIos, standalone, place, placeKey, hasVotablePlace, votablePlace, userId,
+// ctx: { pushState ('granted' | 'default' | 'denied' | 'unsupported'), shareCollectionId, variant, name, isWide, isIos, standalone, place, placeKey, hasVotablePlace, votablePlace, userId,
 //        collections, startCollections, placeCollectionAtStart, openPinId, editPinId, settingsOpen, shareOpen,
 //        notificationsOpen, screen, inboxItems, inviteSent, has(selector) }
 
@@ -59,10 +59,10 @@ export function describe(id, ctx) {
       return {
         title: 'Save a reel',
         body: 'Copied a reel link? Tap Paste a reel link. You can also share from Instagram, use the iPhone Shortcut, or add one by hand with the + button.',
-        hint: 'Tap the highlighted button, or try a sample.',
+        hint: 'Tap the highlighted button, or try a sample place.',
         anchor: '[data-tour="paste"]',
         done: ctx.inboxItems.length > 0 || Boolean(place),
-        extra: ctx.inboxItems.length === 0 && !place ? { label: 'Use a sample reel', action: 'sample' } : null,
+        extra: ctx.inboxItems.length === 0 && !place ? { label: 'Try a sample place', action: 'sample' } : null,
       };
 
     case 'confirm': {
@@ -106,8 +106,8 @@ export function describe(id, ctx) {
       if (moved) return { title: 'Moved!', body: 'Your place now lives in your new collection.', done: true };
       if (!created) {
         return ctx.settingsOpen
-          ? { title: 'Name it', body: 'Type a name, like Date ideas, then tap the add button.', hint: 'Add your collection.', anchor: '[data-tour="new-collection"]' }
-          : { title: 'Make a new collection', body: 'Collections keep places together, like Date ideas. Open Settings to make one.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]' };
+          ? { title: 'Name it', body: 'Type a name, like Weekend eats, then tap the add button.', hint: 'Add your collection.', anchor: '[data-tour="new-collection"]' }
+          : { title: 'Make a new collection', body: 'Collections keep places together, like Weekend eats. Open Settings to make one.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]' };
       }
       const note = 'Only the person who saved a place can move it.';
       if (isOpen(ctx, ctx.editPinId)) {
@@ -133,16 +133,28 @@ export function describe(id, ctx) {
 
     case 'notes':
       return ctx.notificationsOpen
-        ? { title: 'Your notifications', body: 'Everyone in a collection hears about bookings, votes and new people. Tap one to jump to it, or swipe left to clear it.', anchor: '[data-tour="notes"]', needsNext: true }
+        ? { title: 'Your notifications', body: 'This is your newest one. Everyone in a collection hears about bookings, votes and new people. Tap one to jump to it, or swipe left to clear it.', anchor: ctx.has('[data-tour="note-first"]') ? '[data-tour="note-first"]' : '[data-tour="notes"]', needsNext: true }
         : { title: 'Stay in the loop', body: 'Everyone in a collection gets told when someone votes, books or joins. Tap the bell.', hint: 'Tap the bell.', anchor: '[data-tour="bell"]' };
 
     case 'install':
       return { title: 'Add Waylit to your Home Screen', body: 'On iPhone, notifications only work from the Home Screen. In Safari tap the Share button, then Add to Home Screen, and open Waylit from there.', needsNext: true };
 
-    case 'notify':
-      return ctx.settingsOpen
-        ? { title: 'Turn on notifications', body: 'Get reminders and votes on your phone, and pick a day for your weekly pick.', hint: 'Switch notifications on, then tap Next.', anchor: '[data-tour="notify"]', needsNext: true, skipLabel: 'Do this later' }
-        : { title: 'Never miss it', body: 'Open Settings to turn on phone notifications and pick a day for your weekly pick.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]', skipLabel: 'Do this later' };
+    case 'notify': {
+      if (!ctx.settingsOpen) {
+        return { title: 'Never miss it', body: 'Notifications are on by default. Open Settings to choose a day for your weekly pick.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]', skipLabel: 'Do this later' };
+      }
+      const anchor = '[data-tour="notify"]';
+      if (ctx.pushState === 'default') {
+        return { title: 'Allow notifications', body: 'They are on for your account. Allow them on this phone to get reminders, votes and booking updates. You can also choose a day for your weekly pick, or turn it off.', anchor, needsNext: true, extra: { label: 'Allow on this phone', action: 'allow-push' } };
+      }
+      if (ctx.pushState === 'denied') {
+        return { title: 'Notifications are blocked', body: 'This phone is blocking them. You can allow Waylit in your browser settings. Your weekly pick day is here too.', anchor, needsNext: true };
+      }
+      if (ctx.pushState === 'unsupported') {
+        return { title: 'Notifications on your phone', body: 'They work once Waylit is on your Home Screen. Your weekly pick day is here too, and you can turn it off.', anchor, needsNext: true };
+      }
+      return { title: 'Your notifications are on', body: "You'll get reminders, votes and booking updates. Choose a day for your weekly pick, or turn it off.", anchor, needsNext: true };
+    }
 
     case 'vote': {
       const vp = ctx.votablePlace;
@@ -170,6 +182,7 @@ export function closeAll(actions) {
 
 // What to do once, as a step starts.
 export function enter(id, ctx, actions) {
+  if (id === 'map') actions.showAllOnMap?.();
   if (['keen', 'book', 'coll', 'share', 'notify', 'vote'].includes(id)) actions.setScreen('home');
   if (id !== 'paste' && id !== 'confirm' && id !== 'welcome') closeAll(actions);
 }

@@ -26,7 +26,7 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
           ) : (
             <>
               <div className="notification-list">
-                {notifications.map((notif) => {
+                {notifications.map((notif, index) => {
                   const body = (
                     <>
                       <notif.icon className="notification-icon" aria-hidden="true" />
@@ -40,12 +40,13 @@ export default function NotificationPanel({ open, onClose, notifications, onClea
                     <button
                       type="button"
                       className={`notification-item notification-${notif.type} notification-link`}
+                      data-tour={index === 0 ? 'note-first' : undefined}
                       onClick={() => onOpen(notif)}
                     >
                       {body}
                     </button>
                   ) : (
-                    <div className={`notification-item notification-${notif.type}`}>{body}</div>
+                    <div className={`notification-item notification-${notif.type}`} data-tour={index === 0 ? 'note-first' : undefined}>{body}</div>
                   );
                   return (
                     <SwipeRow key={notif.id} onRemove={() => onRemove(notif.id)}>

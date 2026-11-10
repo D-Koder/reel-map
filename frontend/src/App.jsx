@@ -29,6 +29,7 @@ import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
 import { forgetInvite, forgetSharedPlace, pendingInvite, pendingSharedPlace, rememberInvite, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
 import TourHost from './tour/TourHost';
+import { emitTour } from './tour/events';
 import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
@@ -808,6 +809,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           closeSettings: () => setSettingsOpen(false),
           closeShare: () => setShareModal(null),
           closeNotifications: () => setNotificationsOpen(false),
+          showAllOnMap: () => emitTour('map-show-all'),
           addSampleReel: inbox.addSample,
           dismissInbox: inbox.dismiss,
           deletePlace: data.deletePlace,

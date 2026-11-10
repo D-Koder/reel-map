@@ -41,8 +41,9 @@ test('every step has a title and body, and anchors are CSS selectors or empty', 
   }
 });
 
-test('paste offers a sample reel until something is saved or on its way', () => {
+test('paste offers a sample place until something is saved or on its way', () => {
   assert.equal(describe('paste', base).extra.action, 'sample');
+  assert.equal(describe('paste', base).extra.label, 'Try a sample place');
   assert.equal(describe('paste', { ...base, inboxItems: [{}] }).extra, null);
   assert.equal(describe('paste', { ...base, inboxItems: [{}] }).done, true);
 });
@@ -138,4 +139,32 @@ test('share stays done after the Share window closes itself', () => {
     assert.equal(describe('share', withPlace({ ...extra, inviteSent: true })).done, true);
     assert.ok(!describe('share', withPlace({ ...extra })).done);
   }
+});
+
+test('the example collection name is not a couples name', () => {
+  const texts = ['coll'].flatMap((id) => [describe(id, withPlace({ placeCollectionAtStart: 'c1' })), describe(id, withPlace({ placeCollectionAtStart: 'c1', settingsOpen: true }))]).map((d) => `${d.title} ${d.body}`).join(' ');
+  assert.match(texts, /Weekend eats/);
+  assert.doesNotMatch(texts, /Date ideas/);
+});
+
+test('notifications are described as on by default, with no "switch it on" instruction', () => {
+  for (const pushState of ['granted', 'default', 'denied', 'unsupported']) {
+    const d = describe('notify', withPlace({ settingsOpen: true, pushState }));
+    assert.doesNotMatch(`${d.title} ${d.body} ${d.hint ?? ''}`, /switch .* on|turn on notifications/i, pushState);
+  }
+  assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'granted' })).title, 'Your notifications are on');
+  assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'default' })).extra.action, 'allow-push');
+  assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'granted' })).extra, undefined);
+});
+
+test('the notifications step points at the newest notification, so the card never covers it', () => {
+  assert.equal(describe('notes', withPlace({ notificationsOpen: true, has: (s) => s === '[data-tour="note-first"]' })).anchor, '[data-tour="note-first"]');
+  assert.equal(describe('notes', withPlace({ notificationsOpen: true })).anchor, '[data-tour="notes"]');
+});
+
+test('the map step asks for every pin to show', async () => {
+  const { enter } = await import('./steps.js');
+  let asked = 0;
+  enter('map', base, { showAllOnMap: () => { asked += 1; }, setScreen() {}, closePin() {}, closeEdit() {}, closeSettings() {}, closeShare() {}, closeNotifications() {} });
+  assert.equal(asked, 1);
 });
