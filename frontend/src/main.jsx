@@ -3,6 +3,8 @@ import './lib/wipeOnce';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { showComingSoon } from './lib/comingSoon';
+import { attachSentry } from './lib/sentry';
+import ErrorBoundary from './components/ErrorBoundary';
 import './components/ComingSoon.css';
 import { keepFocusedFieldVisible, trackVisibleViewport } from './lib/viewport';
 
@@ -21,7 +23,34 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
   window.addEventListener('load', () => {
     import('@sentry/browser')
-      .then((Sentry) => Sentry.init({ dsn: sentryDsn, environment: import.meta.env.MODE, release: __APP_VERSION__.commit }))
+      .then((Sentry) => {
+        Sentry.init({
+          dsn: sentryDsn,
+          // VITE_SENTRY_ENV names where this build runs (production, staging), so reports can be told apart.
+          environment: import.meta.env.VITE_SENTRY_ENV || import.meta.env.MODE,
+          release: __APP_VERSION__.commit,
+          sendDefaultPii: false,
+          tracesSampleRate: 0,
+          // Everyday noise that isn't a bug in the app: a flaky connection, a cancelled request, browser quirks.
+          ignoreErrors: [
+            'ResizeObserver loop',
+            'Non-Error promise rejection captured',
+            'Failed to fetch',
+            'NetworkError',
+            'Load failed',
+            'AbortError',
+            'The operation was aborted',
+          ],
+          denyUrls: [/^chrome-extension:/i, /^safari-extension:/i, /^moz-extension:/i],
+          beforeSend(event) {
+            // Keep page addresses free of invite codes and shared links, and never send an email or IP address.
+            if (event.request?.url) event.request.url = event.request.url.split('?')[0];
+            if (event.user) event.user = { id: event.user.id };
+            return event;
+          },
+        });
+        attachSentry(Sentry);
+      })
       .catch(() => {});
   });
 }
@@ -31,7 +60,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 function show(Screen) {
   root.render(
     <React.StrictMode>
-      <Screen />
+      <ErrorBoundary>
+        <Screen />
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }

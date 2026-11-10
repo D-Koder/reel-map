@@ -31,6 +31,7 @@ import { forgetSharedPlace, pendingSharedPlace, rememberSharedPlace, takeSharedP
 import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
+import { setSentryUser } from './lib/sentry';
 import './App.css';
 
 function Toast({ toast, onDismiss }) {
@@ -60,6 +61,11 @@ const UNDO_MS = 5000;
 
 function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const data = useAppData(userId, showToast);
+  // Error reports carry this id (never an email or name) so a bug can be traced to one account.
+  useEffect(() => {
+    setSentryUser(userId);
+    return () => setSentryUser(null);
+  }, [userId]);
   const online = useOnline();
   const { acceptInvite, joinWithCode } = useInvites(userId, showToast);
   const [screen, setScreen] = useState('home');
@@ -396,8 +402,23 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     return false;
   };
 
+  // Photos and files this person uploaded are removed from storage first: deleting the account doesn't remove them.
+  const removeMyFiles = async () => {
+    try {
+      const { data: files } = await supabase.rpc('my_files');
+      const byBucket = {};
+      for (const file of files ?? []) (byBucket[file.bucket] ??= []).push(file.name);
+      for (const [bucket, names] of Object.entries(byBucket)) {
+        for (let i = 0; i < names.length; i += 100) await supabase.storage.from(bucket).remove(names.slice(i, i + 100));
+      }
+    } catch {
+      // The account is still deleted; any file left behind is cleared by hand on request.
+    }
+  };
+
   const handleDeleteUser = async (cascadeDelete = false) => {
     setIsDeleting(true);
+    await removeMyFiles();
     if (await data.deleteUser(cascadeDelete)) {
       clearUserStorage(userId);
       showToast('Account deleted');

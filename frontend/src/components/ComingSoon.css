@@ -91,3 +91,6 @@
   border: 2px solid var(--ink);
   border-radius: 12px;
 }
+
+.soon-legal { margin: 0; font-size: 13px; text-align: center; color: var(--text-muted); }
+.soon-legal a { color: inherit; }

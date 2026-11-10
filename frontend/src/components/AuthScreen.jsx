@@ -18,6 +18,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [avatar, setAvatar] = useState(AVATARS[0]);
   const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ageOk, setAgeOk] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
 
   const switchMode = (next) => {
@@ -133,9 +134,19 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={6}
+              minLength={8}
               required
             />
+          </label>
+        )}
+
+        {mode === 'signup' && (
+          <label className="auth-agree">
+            <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} required />
+            <span>
+              I'm 13 or older and agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and{' '}
+              <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+            </span>
           </label>
         )}
 
@@ -163,6 +174,11 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
               Already have an account? <strong>Log in</strong>
             </button>
           )}
+        </div>
+        <div className="auth-legal">
+          <a href="/privacy" target="_blank" rel="noreferrer">Privacy</a>
+          <a href="/terms" target="_blank" rel="noreferrer">Terms</a>
+          <a href="/support" target="_blank" rel="noreferrer">Help</a>
         </div>
       </form>
     </div>

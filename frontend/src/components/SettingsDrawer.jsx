@@ -762,6 +762,16 @@ export default function SettingsDrawer({
             </form>
             {onImportCollection && <ImportCollection onImport={onImportCollection} showToast={showToast} />}
           </div>
+
+          <div className="settings-section">
+            <div className="settings-section-title"><Info className="ico" aria-hidden="true" /> Help and legal</div>
+            <div className="legal-links">
+              <a href="/support" target="_blank" rel="noreferrer">Help and support</a>
+              <a href="mailto:hello@waylitmaps.com">Email us</a>
+              <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
+              <a href="/terms" target="_blank" rel="noreferrer">Terms of Use</a>
+            </div>
+          </div>
         </div>
       </div>
     </>

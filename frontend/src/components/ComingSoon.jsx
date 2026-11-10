@@ -73,6 +73,9 @@ export default function ComingSoon() {
         </ul>
         <WaitlistForm />
         <p className="soon-foot">Not open yet. We'll only email you about the launch.</p>
+        <p className="soon-legal">
+          <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a>
+        </p>
       </div>
     </main>
   );
