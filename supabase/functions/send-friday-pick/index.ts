@@ -2,8 +2,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
 // Sends each subscribed user one random place from their collections that isn't booked yet, on the day they chose
-// (profiles.weekly_pick_day) at 7pm in their own time zone. Called every hour by pg_cron (see
-// supabase/scripts/schedule-friday-pick.sql); it only sends to people for whom it is 7pm on their day.
+// (profiles.weekly_pick_day) at the hour they chose (profiles.weekly_pick_hour, 7pm by default) in their own time
+// zone. Called every hour by pg_cron (see supabase/scripts/schedule-friday-pick.sql); it only sends to people for
+// whom it is their chosen hour on their chosen day.
 // Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto: address), FRIDAY_PICK_SECRET.
 
 const supabase = createClient(
@@ -90,18 +91,25 @@ Deno.serve(async (req) => {
     .select('id, user_id, endpoint, p256dh, auth');
   if (error) return json({ error: error.message }, 500);
 
-  // Who is due now: their chosen day (null = off), at 7pm in their own time zone, once a day.
-  // This runs every hour; the 7pm and 8pm hours both count, so one missed run doesn't skip a week.
+  // Who is due now: their chosen day (null = off), at their chosen hour in their own time zone, once a day.
+  // This runs every hour; the chosen hour and the one after it both count (so one missed run doesn't skip a week).
   const userIds = [...new Set((subscriptions ?? []).map((sub: Subscription) => sub.user_id))];
-  const { data: profiles, error: profileError } = userIds.length
-    ? await supabase.from('profiles').select('id, notifications_enabled, weekly_pick_day, last_pick_on, timezone').in('id', userIds)
-    : { data: [], error: null };
+  const columns = 'id, notifications_enabled, weekly_pick_day, last_pick_on, timezone';
+  const loadProfiles = (select: string) => supabase.from('profiles').select(select).in('id', userIds);
+  let profiles: Record<string, any>[] | null = [];
+  let profileError: { message: string } | null = null;
+  if (userIds.length) {
+    ({ data: profiles, error: profileError } = await loadProfiles(`${columns}, weekly_pick_hour`));
+    // Before the weekly_pick_hour migration has run there is no hour column: everyone is sent at 7pm, as before.
+    if (profileError) ({ data: profiles, error: profileError } = await loadProfiles(columns));
+  }
   if (profileError) return json({ error: profileError.message }, 500);
   const due = new Map<string, { day: number; date: string }>();
   for (const profile of profiles ?? []) {
     if (profile.notifications_enabled === false || profile.weekly_pick_day === null) continue;
     const local = localParts(profile.timezone || 'UTC');
-    if (!local || local.day !== profile.weekly_pick_day || ![19, 20].includes(local.hour)) continue;
+    const hour = profile.weekly_pick_hour ?? 19;
+    if (!local || local.day !== profile.weekly_pick_day || (local.hour !== hour && local.hour !== hour + 1)) continue;
     if (profile.last_pick_on === local.date) continue;
     due.set(profile.id, { day: local.day, date: local.date });
   }

@@ -6115,6 +6115,43 @@ a.step-btn {
   border-radius: var(--radius-sm);
 }
 
+/* The weekly pick's day and time side by side, and a small "i" note beside a label. */
+.settings-field .pick-row { display: flex; gap: 8px; }
+.settings-field .pick-row select { flex: 1; min-width: 0; }
+.label-row { position: relative; display: flex; align-items: center; gap: 6px; }
+.label-row .input-label { margin: 0; }
+.info-hint { display: inline-flex; }
+.info-hint-btn {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font: italic 700 13px Georgia, serif;
+  line-height: 1;
+  cursor: pointer;
+}
+.info-hint-btn::after { content: ''; position: absolute; inset: -11px; }
+.info-hint-btn[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.info-hint-bubble {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 2px solid var(--text);
+  border-radius: var(--radius-sm);
+  box-shadow: 3px 3px 0 var(--text);
+}
+
 /* Sign-up age and terms tick box, and the legal links. */
 .auth-agree { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: var(--text); }
 .auth-agree input { flex: none; width: 20px; height: 20px; margin-top: 1px; }

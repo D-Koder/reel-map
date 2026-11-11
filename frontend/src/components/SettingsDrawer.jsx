@@ -8,6 +8,7 @@ import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 import { emitTour } from '../tour/events';
+import InfoHint from './InfoHint';
 
 // On/off switch for push notifications: reminders, votes, new places and the weekly pick. It is a setting on
 // the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
@@ -88,12 +89,19 @@ function NotificationsToggle({ userId }) {
   );
 }
 
-// The day the weekly pick arrives (7pm, your time), or off. Saved on the account (profiles.weekly_pick_day).
-// Hidden until the database has the column.
+// The day and the time the weekly pick arrives (in your own time zone), or off. Saved on the account
+// (profiles.weekly_pick_day and profiles.weekly_pick_hour). Each part stays hidden until the database has its column,
+// so before the hour column exists the day still works and the time is 7pm, as it always was.
 const PICK_DAYS = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [0, 'Sunday']];
+const PICK_HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8am to 10pm
+const DEFAULT_PICK_HOUR = 19;
+const hourLabel = (hour) => new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
 function WeeklyPickDay({ userId }) {
   // undefined while loading, null = off, 0-6 = day, 'missing' when the database has no such column yet.
   const [day, setDay] = useState(undefined);
+  // undefined while loading, 0-23 = hour, 'missing' when the database has no hour column yet.
+  const [hour, setHour] = useState(undefined);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -101,6 +109,10 @@ function WeeklyPickDay({ userId }) {
     supabase.from('profiles').select('weekly_pick_day').eq('id', userId).maybeSingle()
       .then(({ data, error: readError }) => {
         if (!cancelled) setDay(readError ? 'missing' : data?.weekly_pick_day ?? null);
+      });
+    supabase.from('profiles').select('weekly_pick_hour').eq('id', userId).maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (!cancelled) setHour(readError ? 'missing' : data?.weekly_pick_hour ?? DEFAULT_PICK_HOUR);
       });
     return () => { cancelled = true; };
   }, [userId]);
@@ -119,17 +131,44 @@ function WeeklyPickDay({ userId }) {
     }
   };
 
+  const changeHour = async (event) => {
+    const next = Number(event.target.value);
+    const before = hour;
+    setHour(next);
+    setError('');
+    const { error: saveError } = await supabase.from('profiles').update({ weekly_pick_hour: next }).eq('id', userId);
+    if (saveError) {
+      setHour(before);
+      setError("Couldn't save that. Try again.");
+    }
+  };
+
+  const canChooseTime = day !== null && typeof hour === 'number';
+  const timeText = typeof hour === 'number' ? hourLabel(hour) : '7pm';
+
   return (
     <div className="settings-field">
-      <label className="input-label" htmlFor="weekly-pick-day">Weekly pick</label>
-      <select id="weekly-pick-day" value={day === null ? 'off' : String(day)} onChange={change}>
-        <option value="off">Off</option>
-        {PICK_DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
+      <div className="label-row">
+        <label className="input-label" htmlFor="weekly-pick-day">Weekly pick</label>
+        <InfoHint label="About the weekly pick">
+          Once a week we suggest one saved place you haven't planned yet, as a notification. Pick the day and the time that suit you, or turn it off.
+        </InfoHint>
+      </div>
+      <div className="pick-row">
+        <select id="weekly-pick-day" aria-label="Day" value={day === null ? 'off' : String(day)} onChange={change}>
+          <option value="off">Off</option>
+          {PICK_DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        {canChooseTime && (
+          <select id="weekly-pick-hour" aria-label="Time" value={String(hour)} onChange={changeHour}>
+            {PICK_HOURS.map((value) => <option key={value} value={value}>{hourLabel(value)}</option>)}
+          </select>
+        )}
+      </div>
       <div className="toggle-hint">
         {day === null
           ? 'No weekly pick. Turn it on to get a place suggestion each week.'
-          : 'One place you haven\'t planned yet, at 7pm your time. It needs notifications on.'}
+          : `One place you haven't planned yet, at ${timeText} your time. It needs notifications on.`}
       </div>
       {error && <div className="toggle-hint">{error}</div>}
     </div>

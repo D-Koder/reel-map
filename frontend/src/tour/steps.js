@@ -154,19 +154,19 @@ export function describe(id, ctx) {
 
     case 'notify': {
       if (!ctx.settingsOpen) {
-        return { title: 'Never miss it', body: 'Notifications are on by default. Open Settings to choose a day for your weekly pick.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]', skipLabel: 'Do this later' };
+        return { title: 'Never miss it', body: 'Notifications are on by default. Open Settings to choose a day and time for your weekly pick.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]', skipLabel: 'Do this later' };
       }
       const anchor = '[data-tour="notify"]';
       if (ctx.pushState === 'default') {
-        return { title: 'Allow notifications', body: 'They are on for your account. Allow them on this phone to get reminders, votes and booking updates. You can also choose a day for your weekly pick, or turn it off.', anchor, needsNext: true, extra: { label: 'Allow on this phone', action: 'allow-push' } };
+        return { title: 'Allow notifications', body: 'They are on for your account. Allow them on this phone to get reminders, votes and booking updates. You can also choose a day and time for your weekly pick, or turn it off.', anchor, needsNext: true, extra: { label: 'Allow on this phone', action: 'allow-push' } };
       }
       if (ctx.pushState === 'denied') {
-        return { title: 'Notifications are blocked', body: 'This phone is blocking them. You can allow Waylit in your browser settings. Your weekly pick day is here too.', anchor, needsNext: true };
+        return { title: 'Notifications are blocked', body: 'This phone is blocking them. You can allow Waylit in your browser settings. Your weekly pick day and time are here too.', anchor, needsNext: true };
       }
       if (ctx.pushState === 'unsupported') {
-        return { title: 'Notifications on your phone', body: 'They work once Waylit is on your Home Screen. Your weekly pick day is here too, and you can turn it off.', anchor, needsNext: true };
+        return { title: 'Notifications on your phone', body: 'They work once Waylit is on your Home Screen. Your weekly pick day and time are here too, and you can turn it off.', anchor, needsNext: true };
       }
-      return { title: 'Your notifications are on', body: "You'll get reminders, votes and booking updates. Choose a day for your weekly pick, or turn it off.", anchor, needsNext: true };
+      return { title: 'Your notifications are on', body: "You'll get reminders, votes and booking updates. Choose a day and time for your weekly pick, or turn it off.", anchor, needsNext: true };
     }
 
     case 'vote': {
