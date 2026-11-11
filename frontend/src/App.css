@@ -6155,40 +6155,6 @@ a.step-btn {
   gap: 6px;
   font-size: 13px;
 }
-.booked-dock {
-  position: sticky;
-  bottom: calc(-1 * (var(--gutter) + var(--safe-bottom)));
-  z-index: 3;
-  display: grid;
-  gap: 8px;
-  margin: 12px calc(-1 * var(--gutter)) 0;
-  padding: 12px var(--gutter) calc(var(--gutter) + var(--safe-bottom));
-  background: linear-gradient(to top, var(--card) 82%, transparent);
-}
-.booked-actions,
-.booked-cal-menu {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.booked-cal-menu { grid-template-columns: repeat(2, 1fr); }
-.booked-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 56px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--muted, var(--card));
-  color: var(--text);
-  font: inherit;
-  font-weight: 700;
-  font-size: 14px;
-  text-decoration: none;
-  cursor: pointer;
-}
 .booked-done {
   display: flex;
   align-items: center;
@@ -6250,7 +6216,6 @@ a.step-btn {
 
 /* Organised place sheet: booking first, then details in matching rows. */
 .booked-card { margin: 4px 0 12px; }
-.booked-action.share-booking { margin-top: 0; }
 .detail-row {
   display: flex;
   align-items: center;
@@ -6268,4 +6233,27 @@ a.step-btn {
 .detail-row .detail-go { color: var(--text-muted); flex: none; }
 .hours-acc { margin-top: 8px; }
 .hours-acc + .modal-section, .detail-row + .modal-section { margin-top: 8px; }
-.booked-dock { margin-top: 16px; padding-top: 16px; }
+
+/* Calendar panel inside the booked card; Mark as Done is plain, at the end. */
+.calendar-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+}
+.calendar-panel-title { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.calendar-panel-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.calendar-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 48px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--muted, var(--card)); color: var(--text); font: inherit; font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer;
+}
+.calendar-panel-links { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.calendar-panel-links button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: 0; padding: 0 6px;
+  border: 0; background: none; color: var(--text); font: inherit; font-weight: 600; font-size: 14px; text-decoration: underline; cursor: pointer;
+}
+.booked-done-wrap { display: grid; gap: 8px; margin-top: 16px; }

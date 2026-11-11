@@ -215,7 +215,6 @@ export default function PinModal({
   const [mapsLink, setMapsLink] = useState(() => googleMapsLink(place));
   // The tour's sample place never calls out: no map lookup, no stored files.
   const isSample = place.custom_info === TOUR_MARK;
-  const [calendarMenu, setCalendarMenu] = useState(false);
   useEffect(() => {
     if (isSample) return undefined;
     const controller = new AbortController();
@@ -376,35 +375,9 @@ export default function PinModal({
     </>
   );
 
-  // Everything you tap sits in a bar at the bottom of the sheet, where a thumb reaches.
+  // Mark as Done sits at the end of the sheet, in the normal flow (not stuck to the bottom).
   const bookedDock = booking && !isDone && canEdit ? (
-    <div className="booked-dock">
-      <div className="booked-actions">
-        {googleConnected ? (
-          <button type="button" className="booked-action" onClick={() => putInCalendar(bookingEvent())}>
-            <CalendarPlus className="ico" aria-hidden="true" /> Calendar
-          </button>
-        ) : (
-          <button type="button" className="booked-action" aria-expanded={calendarMenu} onClick={() => setCalendarMenu((open) => !open)}>
-            <CalendarPlus className="ico" aria-hidden="true" /> Calendar
-          </button>
-        )}
-        {/* For the people in this collection: the link's card shows the date and time. */}
-        <button type="button" className="booked-action share-booking" onClick={() => shareBooking(place, showToast)}>
-          <Share2 className="ico" aria-hidden="true" /> Share
-        </button>
-        <button type="button" className="booked-action edit-booking-btn" data-tour="edit-booking" onClick={() => setEditingBooking(true)}>
-          <Pencil className="ico" aria-hidden="true" /> Edit
-        </button>
-      </div>
-      {calendarMenu && !googleConnected && (
-        <div className="booked-cal-menu">
-          <a className="booked-action" href={googleCalendarUrl(bookingEvent())} target="_blank" rel="noopener noreferrer">Google Calendar</a>
-          <button type="button" className="booked-action" onClick={() => { addToCalendar(bookingEvent()); showToast(`Added "${place.name}" to calendar`); }}>
-            <Download className="ico" aria-hidden="true" /> Other (.ics file)
-          </button>
-        </div>
-      )}
+    <div className="booked-done-wrap">
       <button type="button" className={`booked-done${doneLocked ? ' locked' : ''}`} data-tour="mark-done" disabled={doneLocked} onClick={markDone}>
         {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
       </button>
@@ -477,6 +450,23 @@ export default function PinModal({
             <div className="booked-label"><CircleCheck className="ico" aria-hidden="true" /> Booked</div>
             <div className="booked-when">{formatDateTime(booking.planned_at)}</div>
             <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> {isSample ? 'Sample booking: nothing is sent' : 'Notification sent to the collection'}</div>
+            <div className="calendar-panel" data-tour="calendar-panel">
+              <div className="calendar-panel-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to calendar</div>
+              <div className="calendar-panel-buttons">
+                {googleConnected ? (
+                  <button type="button" className="calendar-btn" onClick={() => putInCalendar(bookingEvent())}>Google Calendar</button>
+                ) : (
+                  <a className="calendar-btn" href={googleCalendarUrl(bookingEvent())} target="_blank" rel="noopener noreferrer">Google Calendar</a>
+                )}
+                <button type="button" className="calendar-btn" onClick={() => { addToCalendar(bookingEvent()); showToast(`Added "${place.name}" to calendar`); }}>
+                  <Download className="ico" aria-hidden="true" /> Apple or other (.ics)
+                </button>
+              </div>
+              <div className="calendar-panel-links">
+                <button type="button" className="share-booking" onClick={() => shareBooking(place, showToast)}><Share2 className="ico" aria-hidden="true" /> Share booking</button>
+                {canEdit && <button type="button" className="edit-booking-btn" data-tour="edit-booking" onClick={() => setEditingBooking(true)}><Pencil className="ico" aria-hidden="true" /> Edit booking</button>}
+              </div>
+            </div>
             {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
             {!canEdit && !isSample && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
           </div>
