@@ -95,8 +95,11 @@ Deno.serve(async (req) => {
   // This runs every hour; the chosen hour and the one after it both count (so one missed run doesn't skip a week).
   const userIds = [...new Set((subscriptions ?? []).map((sub: Subscription) => sub.user_id))];
   const columns = 'id, notifications_enabled, weekly_pick_day, last_pick_on, timezone';
-  const loadProfiles = (select: string) => supabase.from('profiles').select(select).in('id', userIds);
-  let profiles: Record<string, any>[] | null = [];
+  const loadProfiles = async (select: string) => {
+    const { data, error: loadError } = await supabase.from('profiles').select(select).in('id', userIds);
+    return { data: (data ?? []) as unknown as Record<string, any>[], error: loadError };
+  };
+  let profiles: Record<string, any>[] = [];
   let profileError: { message: string } | null = null;
   if (userIds.length) {
     ({ data: profiles, error: profileError } = await loadProfiles(`${columns}, weekly_pick_hour`));
