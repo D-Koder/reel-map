@@ -472,6 +472,16 @@ export default function PinModal({
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
         {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
 
+        {booking && !isDone && (
+          <div className="modal-section booked-card" data-tour="booked">
+            <div className="booked-label"><CircleCheck className="ico" aria-hidden="true" /> Booked</div>
+            <div className="booked-when">{formatDateTime(booking.planned_at)}</div>
+            <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> {isSample ? 'Sample booking: nothing is sent' : 'Notification sent to the collection'}</div>
+            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
+            {!canEdit && !isSample && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
+          </div>
+        )}
+
         <div className={`reel-context${reelEmbed(place.reel_url) ? ' has-embed' : ''}`}>
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
             {/* Instagram and TikTok reels show the platform's own embed, shrunk to fit; anything else shows the saved cover. */}
@@ -541,35 +551,10 @@ export default function PinModal({
           />
         )}
 
-        {booking && !isDone && (
-          <div className="modal-section booked-card" data-tour="booked">
-            <div className="booked-label"><CircleCheck className="ico" aria-hidden="true" /> Booked</div>
-            <div className="booked-when">{formatDateTime(booking.planned_at)}</div>
-            <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> {isSample ? 'Sample booking: nothing is sent' : 'Notification sent to the collection'}</div>
-            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
-            {!canEdit && !isSample && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
-          </div>
-        )}
-
         {(place?.note || place?.custom_info) && (
           <div className="modal-section">
             <div className="modal-label"><StickyNote className="ico" aria-hidden="true" /> Notes</div>
             <p className="place-note-text">{place.note || place.custom_info}</p>
-          </div>
-        )}
-
-        {place?.address && (
-          <div className="modal-section">
-            <div className="modal-label">Address</div>
-            <a
-              className="venue-address"
-              href={mapsLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Open ${place.address} in Google Maps`}
-            >
-              {place.address}
-            </a>
           </div>
         )}
 
@@ -583,6 +568,20 @@ export default function PinModal({
         )}
 
         {place?.category === 'event' && <EventSchedule place={place} />}
+
+        {place?.address && (
+          <a
+            className="detail-row"
+            href={mapsLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${place.address} in Google Maps`}
+          >
+            <MapPin className="ico" aria-hidden="true" />
+            <span>{place.address}</span>
+            <Navigation className="ico detail-go" aria-hidden="true" />
+          </a>
+        )}
 
         {!hasRuns && hours.length > 0 && (
           <div className="modal-section">

@@ -6247,3 +6247,25 @@ a.step-btn {
   min-height: 56px;
 }
 .step-btn.book-icon svg { width: 24px; height: 24px; }
+
+/* Organised place sheet: booking first, then details in matching rows. */
+.booked-card { margin: 4px 0 12px; }
+.booked-action.share-booking { margin-top: 0; }
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+}
+.detail-row span { flex: 1; min-width: 0; }
+.detail-row .detail-go { color: var(--text-muted); flex: none; }
+.hours-acc { margin-top: 8px; }
+.hours-acc + .modal-section, .detail-row + .modal-section { margin-top: 8px; }
+.booked-dock { margin-top: 16px; padding-top: 16px; }
