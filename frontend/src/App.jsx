@@ -19,6 +19,7 @@ import WelcomeSteps from './components/WelcomeSteps';
 import Celebration from './components/Celebration';
 import BadgeCelebration from './components/BadgeCelebration';
 import useAchievements from './hooks/useAchievements';
+import usePinColours from './hooks/usePinColours';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
@@ -188,6 +189,10 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   );
 
   const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
+
+  const pinColours = usePinColours(userId);
+  // Pin colours belong to the Explorer badge: until it is earned, pins keep their group colour.
+  const pinColoursOn = achievements.earnedIds.has('explorer');
 
   const inbox = useReelInbox({
     userId,
@@ -553,7 +558,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
           <Suspense fallback={<div className="mapbox-map map-loading">Loading map…</div>}>
-            <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+            <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} pinColours={pinColoursOn ? pinColours.map : null} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
           </Suspense>
         </section>
       </main>
@@ -594,6 +599,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         userId={userId}
         profile={data.profile}
         achievements={achievements}
+        pinColours={pinColoursOn ? pinColours : null}
         collections={collections}
         onCreateCollection={data.createCollection}
         onSetPrivacy={data.setCollectionPrivate}

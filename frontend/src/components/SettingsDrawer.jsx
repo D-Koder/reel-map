@@ -4,6 +4,7 @@ import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRi
 import { supabase } from '../lib/supabase';
 import AchievementsSection from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
+import { PIN_COLOURS } from '../hooks/usePinColours';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
@@ -281,7 +282,7 @@ function ShortcutSetup({ showToast }) {
 }
 
 // isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare }) {
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pinColour, onPinColour }) {
   const owner = collection.members.find((m) => m.role === 'owner');
 
   return (
@@ -324,6 +325,15 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           </button>
         )}
       </div>
+      {onPinColour && (
+        <div className="pin-colours" role="group" aria-label={`Pin colour for ${collection.name}`}>
+          <span className="pin-colours-label">Pins</span>
+          <button type="button" className="pin-swatch pin-swatch-none" aria-pressed={!pinColour} aria-label="Group colours (default)" title="Group colours (default)" onClick={() => onPinColour(null)} />
+          {PIN_COLOURS.map((c) => (
+            <button key={c.id} type="button" className="pin-swatch" style={{ background: c.hex }} aria-pressed={pinColour === c.hex} aria-label={c.name} title={c.name} onClick={() => onPinColour(c.hex)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -676,6 +686,7 @@ export default function SettingsDrawer({
   userId,
   profile,
   achievements,
+  pinColours,
   collections,
   onCreateCollection,
   onSetPrivacy,
@@ -753,6 +764,8 @@ export default function SettingsDrawer({
                 }}
                 onTogglePrivacy={toggleLock}
                 onShare={onShare}
+                pinColour={pinColours?.map[c.id]}
+                onPinColour={pinColours && c.id !== inboxId ? (hex) => pinColours.setColour(c.id, hex) : undefined}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>

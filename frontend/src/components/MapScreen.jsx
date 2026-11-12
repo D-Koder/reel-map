@@ -100,7 +100,7 @@ function showPressRing(map, point) {
 
 // One marker per location. Entries at the same spot share it, and the count shows how many.
 // Tapping opens the entry, or a list of entries when there is more than one.
-function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
+function createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue }) {
   const place = group[0];
   const members = membersOf[place.collection_id] ?? [];
   const vibe = getVibe(members.map((member) => member.id), place.reactions);
@@ -134,6 +134,17 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
   markerContent.append(label);
   button.append(markerContent);
 
+  // A collection with its own colour wears it, and a small dot keeps showing how keen the group is.
+  const custom = pinColours?.[place.collection_id];
+  if (custom) {
+    markerContent.classList.add('pin-custom');
+    markerContent.style.setProperty('--pin-colour', custom);
+    const dot = document.createElement('span');
+    dot.className = `pin-vibe-dot ${vibe.consensus}`;
+    dot.title = vibe.label;
+    button.append(dot);
+  }
+
   if (group.length > 1) {
     const count = document.createElement('span');
     count.className = 'map-pin-count';
@@ -146,7 +157,7 @@ function createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue }) {
     .addTo(map);
 }
 
-const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, showMyLocation = true, onScreen = true, onOpenPin, onAddAt, showToast }, ref) {
+const MapScreen = forwardRef(function MapScreen({ places, collections = [], membersOf, pinColours = null, showMyLocation = true, onScreen = true, onOpenPin, onAddAt, showToast }, ref) {
   // Ids unchecked in the chip rows. Empty means everything shows; unchecking every chip shows nothing.
   // Tracking what is hidden means a collection created later shows by default.
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
@@ -324,7 +335,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   markersRef.current.forEach((marker) => marker.remove());
   markerElsRef.current = new Map();
   markersRef.current = venueGroups.map((group) => {
-    const marker = createVenueMarker(map, group, { membersOf, onOpenPin, onPickVenue: setVenuePicker });
+    const marker = createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue: setVenuePicker });
     group.forEach((place) => markerElsRef.current.set(place.id, marker.getElement()));
     return marker;
   });
@@ -349,7 +360,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
   };
-}, [visible, venueGroups, membersOf, onOpenPin, mapReady]);
+}, [visible, venueGroups, membersOf, pinColours, onOpenPin, mapReady]);
 
   // A focus asked for while the map was loading runs once it is ready.
   useEffect(() => {
