@@ -2,7 +2,7 @@
 // plain `ctx` object (the app's current state), so it can be tested on its own.
 //
 // ctx: { pushState ('granted' | 'default' | 'denied' | 'unsupported'), shareCollectionId, variant, name, isWide, isIos, standalone, place, placeKey, hasVotablePlace, votablePlace, userId,
-//        collections, startCollections, placeCollectionAtStart, openPinId, editPinId, settingsOpen, shareOpen,
+//        collections, collName, startCollections, placeCollectionAtStart, openPinId, editPinId, settingsOpen, shareOpen,
 //        notificationsOpen, screen, inboxItems, inviteSent, has(selector) }
 
 // A sample place made for the tour carries this note, so it can always be found and removed again.
@@ -29,6 +29,10 @@ const placeAnchor = (key) => `[data-tour="place"][data-tour-for="${key}"]`;
 
 // The steps for one run of the tour, in order, left out when they don't apply to this phone or screen.
 export function stepsFor(variant, ctx) {
+  // Someone who tried the no-login demo already knows how to save and book, so only the rest is shown.
+  if (variant === 'demo') {
+    return ['welcome', 'share', ...(ctx.isIos && !ctx.standalone ? ['install'] : []), 'notify', 'done'];
+  }
   if (variant === 'partner') {
     return [
       'welcome',
@@ -61,9 +65,12 @@ export function describe(id, ctx) {
   const nm = ctx.name ? `, ${ctx.name}` : '';
   switch (id) {
     case 'welcome':
+      if (ctx.variant === 'demo') {
+        return { title: `Welcome${nm}!`, body: `Your ${ctx.collName || 'new'} collection is ready. You already know how to save and book, so there are just two things left to show you. You can skip any time.` };
+      }
       return ctx.variant === 'partner'
-        ? { title: `Welcome${nm}!`, body: "You've joined a shared collection. Here's a quick look at how to vote, stay in the loop and plan together. About a minute, and you can skip any time." }
-        : { title: `Hey${ctx.name ? ` ${ctx.name}` : ''}, welcome to Waylit!`, body: "Let's turn a reel into a plan. It takes about a minute, and you can skip any time." };
+        ? { title: `Welcome${nm}!`, body: "You've joined a shared collection. Here's a quick look at how to vote, stay in the loop and plan together. You can skip any time." }
+        : { title: `Hey${ctx.name ? ` ${ctx.name}` : ''}, welcome to Waylit!`, body: "Let's turn a reel into a plan. A few quick steps, and you can skip any time." };
 
     case 'paste':
       return {

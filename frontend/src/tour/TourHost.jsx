@@ -3,41 +3,16 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { onTour } from './events';
 import { enableFridayPick, isPushSupported } from '../lib/push';
+import { clearDemoHandoff, readDemoHandoff } from '../lib/demoHandoff';
+import { startPlan } from './startPlan';
 import { SAMPLE_PREFIX, TOUR_MARK, describe, enter, hasDot, keepTrue, needsPlace, stepsFor } from './steps';
 import Lantern from './Lantern';
+import useAnchorRect from './useAnchorRect';
 import './tour.css';
 
 const isIosDevice = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
-const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const has = (selector) => Boolean(document.querySelector(selector));
-
-// Follows an element on screen (it can move: sheets slide in, the page scrolls) and scrolls it into view once.
-function useAnchorRect(selector) {
-  const [rect, setRect] = useState(null);
-  useEffect(() => {
-    if (!selector) { setRect(null); return undefined; }
-    let frame = 0;
-    let last = '';
-    let scrolledTo = '';
-    const tick = () => {
-      const el = document.querySelector(selector);
-      const r = el?.getBoundingClientRect();
-      if (r && r.width > 0 && r.height > 0) {
-        if (scrolledTo !== selector) {
-          scrolledTo = selector;
-          el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
-        }
-        const key = `${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}`;
-        if (key !== last) { last = key; setRect({ left: r.left, top: r.top, width: r.width, height: r.height }); }
-      } else if (last) { last = ''; setRect(null); }
-      frame = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(frame);
-  }, [selector]);
-  return rect;
-}
 
 function Overlay({ stepId, desc, dot, dotCount, canBack, onBack, onNext, onSkipTour, onSkipStep, onExtra, onFinish }) {
   const rect = useAnchorRect(desc.anchor);
@@ -129,6 +104,7 @@ export default function TourHost({
   const [tick, setTick] = useState(0);
   const actionsRef = useRef(actions);
   const removing = useRef(new Set());
+  const creatingDemoCollection = useRef(false);
   actionsRef.current = actions;
 
   useEffect(() => {
@@ -138,17 +114,28 @@ export default function TourHost({
     return () => { off = true; };
   }, [userId]);
 
+  // An account that already has a tour state is not new, so a leftover demo hand-off on this device is not for it.
+  useEffect(() => { if (saved && saved !== 'missing') clearDemoHandoff(); }, [saved]);
+
   const persist = useCallback((value) => { supabase.from('profiles').update({ tour: value }).eq('id', userId).then(() => {}, () => {}); }, [userId]);
 
-  const start = useCallback((variant) => {
-    setT({ variant, step: 'welcome', history: [], startPlaceIds: places.map((p) => p.id), startCollections: collections.length, placeCollectionAtStart: null, placeId: null, inviteSent: false });
+  const start = useCallback((variant, collName = null) => {
+    setT({ variant, step: 'welcome', history: [], startPlaceIds: places.map((p) => p.id), startCollections: collections.length, placeCollectionAtStart: null, placeId: null, inviteSent: false, collName });
   }, [places, collections]);
 
   // New accounts start on their own. A tour left half-done carries on where it was.
   useEffect(() => {
     if (t || saved === undefined || saved === 'missing' || loading || blocked || waitingForInvite) return;
-    if (saved === null) start(joinedByInvite ? 'partner' : 'main');
-    else if (saved && !saved.done && saved.step) setT({ history: [], inviteSent: false, startPlaceIds: [], startCollections: collections.length, placeCollectionAtStart: null, placeId: null, ...saved });
+    if (saved === null) {
+      // A new account that tried the no-login demo first: make the collection they chose, and show only what is left.
+      const plan = startPlan({ joinedByInvite, handoff: readDemoHandoff(), collections, userId, creating: creatingDemoCollection.current });
+      if (plan.create) {
+        creatingDemoCollection.current = true;
+        const handoff = readDemoHandoff();
+        Promise.resolve(actionsRef.current.createCollection(handoff.collName, handoff.collEmoji)).catch(() => {}).finally(() => clearDemoHandoff());
+      } else if (plan.clear) clearDemoHandoff();
+      start(plan.variant, plan.collName);
+    } else if (saved && !saved.done && saved.step) setT({ history: [], inviteSent: false, startPlaceIds: [], startCollections: collections.length, placeCollectionAtStart: null, placeId: null, ...saved });
   }, [t, saved, loading, blocked, waitingForInvite, joinedByInvite, start, collections.length]);
 
   useEffect(() => onTour((type) => {
@@ -172,7 +159,10 @@ export default function TourHost({
     place, placeKey: place ? `${place.collection_id}:${place.id}` : null,
     hasVotablePlace: Boolean(votablePlace), votablePlace,
     collections, startCollections: t.startCollections, placeCollectionAtStart: t.placeCollectionAtStart,
-    shareCollectionId: place?.collection_id ?? collections[0]?.id ?? null,
+    collName: t.collName,
+    shareCollectionId: t.variant === 'demo'
+      ? collections.find((c) => c.name === t.collName && c.ownerId === userId)?.id ?? null
+      : place?.collection_id ?? collections[0]?.id ?? null,
     openPinId, editPinId, settingsOpen, shareOpen, notificationsOpen, screen, inboxItems, inviteSent: t.inviteSent, has,
   }), [t, name, userId, isWide, place, votablePlace, collections, openPinId, editPinId, settingsOpen, shareOpen, notificationsOpen, screen, inboxItems, tick]);
 
@@ -184,7 +174,7 @@ export default function TourHost({
     setT((s) => {
       if (!s) return s;
       const next = { ...s, step, history: back ? s.history.slice(0, -1) : [...s.history, s.step] };
-      persist({ v: 1, done: false, variant: next.variant, step, placeId: next.placeId, startPlaceIds: next.startPlaceIds, startCollections: next.startCollections, placeCollectionAtStart: next.placeCollectionAtStart, inviteSent: next.inviteSent });
+      persist({ v: 1, done: false, variant: next.variant, collName: next.collName ?? null, step, placeId: next.placeId, startPlaceIds: next.startPlaceIds, startCollections: next.startCollections, placeCollectionAtStart: next.placeCollectionAtStart, inviteSent: next.inviteSent });
       return next;
     });
   }, [persist]);

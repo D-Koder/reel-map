@@ -8,6 +8,8 @@ import SettingsDrawer from './components/SettingsDrawer';
 import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
+import LoggedOut from './components/LoggedOut';
+import { rememberAccountHere } from './lib/demoHandoff';
 import ShareCollectionModal from './components/ShareCollectionModal';
 
 // The map and Mapbox (most of the app's code) load in their own file, so Home shows without waiting for them.
@@ -63,6 +65,8 @@ const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
 function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
+  // Next time this device opens the main page signed out, it goes straight to Log in.
+  useEffect(() => { rememberAccountHere(); }, []);
   const data = useAppData(userId, showToast);
   // Error reports carry this id (never an email or name) so a bug can be traced to one account.
   useEffect(() => {
@@ -835,6 +839,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           showAllOnMap: () => emitTour('map-show-all'),
           addSampleReel: inbox.addSample,
           dismissInbox: inbox.dismiss,
+          createCollection: data.createCollection,
           deletePlace: data.deletePlace,
           showToast,
         }}
@@ -888,7 +893,7 @@ function App() {
   } else if (!session) {
     body = (
       <>
-        <AuthScreen />
+        <LoggedOut sharedPlace={Boolean(sharedPlaceId)} />
         {sharedPlaceId && !signingInToSave && (
           <SharedPlaceSheet
             placeId={sharedPlaceId}

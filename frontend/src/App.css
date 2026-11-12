@@ -6294,3 +6294,6 @@ a.step-btn {
   border: 0; background: none; color: var(--text); font: inherit; font-weight: 600; font-size: 14px; text-decoration: underline; cursor: pointer;
 }
 .booked-done-wrap { display: grid; gap: 8px; margin-top: 16px; }
+
+/* A small way back from sign-up or log-in to the main page. */
+.auth-back { align-self: flex-start; min-height: 44px; margin: -8px 0 0 -6px; padding: 0 6px; font-weight: 700; }

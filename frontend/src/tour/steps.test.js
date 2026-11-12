@@ -181,3 +181,31 @@ test('the plan step says we cannot see the venue\'s bookings, so people check wi
   assert.match(d.body, /can't see the venue's tables/);
   assert.doesNotMatch(`${d.title} ${d.body}`, /Pick a time/);
 });
+
+test('the demo tour is short: welcome, share, notifications, done', () => {
+  assert.deepEqual(stepsFor('demo', base), ['welcome', 'share', 'notify', 'done']);
+  assert.deepEqual(stepsFor('demo', { ...base, isIos: true }), ['welcome', 'share', 'install', 'notify', 'done']);
+  assert.deepEqual(stepsFor('demo', { ...base, isIos: true, standalone: true }), ['welcome', 'share', 'notify', 'done']);
+});
+
+test('the demo tour never asks for a place, because the demo already covered saving and booking', () => {
+  for (const id of stepsFor('demo', { ...base, isIos: true })) assert.equal(needsPlace(id), false, id);
+  for (const skipped of ['paste', 'confirm', 'keen', 'book', 'map', 'coll']) assert.ok(!stepsFor('demo', base).includes(skipped), skipped);
+});
+
+test('the demo welcome names the collection they chose and says what was skipped', () => {
+  const d = describe('welcome', { ...base, variant: 'demo', collName: 'Date night' });
+  assert.match(d.title, /Welcome, Alex!/);
+  assert.match(d.body, /Date night collection is ready/);
+  assert.match(d.body, /already know how to save and book/);
+  assert.doesNotMatch(JSON.stringify(d), /minute/i);
+});
+
+test('the demo tour points the share step at the collection that was made', () => {
+  const d = describe('share', { ...base, variant: 'demo', collName: 'Date night', shareCollectionId: 'c9', settingsOpen: true });
+  assert.match(d.anchor, /data-tour-for="c9"/);
+});
+
+test('no welcome text promises how long the tour takes', () => {
+  for (const variant of ['main', 'partner', 'demo']) assert.doesNotMatch(JSON.stringify(describe('welcome', { ...base, variant, collName: 'x' })), /minute/i, variant);
+});

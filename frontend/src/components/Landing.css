@@ -1,0 +1,19 @@
+/* The main page for someone who is not signed in. Uses the app's colours, so it follows light and dark. */
+.landing { min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow-y: auto; }
+.landing-col { max-width: 480px; margin: 0 auto; padding: 0 20px max(28px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 22px; min-height: 100%; }
+.landing-top { display: flex; align-items: center; justify-content: space-between; padding-top: max(16px, env(safe-area-inset-top)); }
+.landing-brand { font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+.landing-brand i { color: var(--accent); font-style: normal; }
+.landing-login { min-height: 44px; padding: 0 14px; background: none; border: 0; font: inherit; font-weight: 700; font-size: 15px; color: var(--text); text-decoration: underline; cursor: pointer; }
+.landing-hero { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+.landing-hero h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 38px; line-height: 1.05; letter-spacing: -0.8px; text-wrap: balance; }
+.landing-hero p { margin: 0; font-size: 16px; line-height: 1.45; color: var(--text-muted); max-width: 34ch; }
+.landing-benefits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.landing-benefits li { display: flex; gap: 12px; align-items: flex-start; }
+.landing-benefits li div { display: flex; flex-direction: column; min-width: 0; }
+.landing-benefits span:not(.landing-icon) { color: var(--text-muted); font-size: 14px; }
+.landing-icon { flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--surface-muted); display: grid; place-items: center; color: var(--accent-text, var(--accent)); }
+.landing-icon svg { width: 22px; height: 22px; }
+.landing-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.landing-foot { margin-top: auto; display: flex; justify-content: center; gap: 18px; padding-top: 8px; font-size: 13px; }
+.landing-foot a { color: var(--text-muted); }

@@ -10,7 +10,7 @@ const TITLES = {
   reset: 'Choose a new password',
 };
 
-export default function AuthScreen({ mode: initialMode = 'login', onPasswordReset }) {
+export default function AuthScreen({ mode: initialMode = 'login', onPasswordReset, onBack }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,6 +61,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={submit}>
+        {onBack && <button type="button" className="link-btn auth-back" onClick={onBack}>‹ Back</button>}
         <div className="auth-logo"><MapPin aria-hidden="true" /></div>
         <h1 className="auth-title">{TITLES[mode]}</h1>
         <p className="auth-subtitle">Save places from reels and plan them together.</p>
