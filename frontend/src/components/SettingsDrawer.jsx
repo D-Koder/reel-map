@@ -9,6 +9,7 @@ import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupport
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
 import { emitTour } from '../tour/events';
 import InfoHint from './InfoHint';
+import FriendsSection from './FriendsSection';
 
 // On/off switch for push notifications: reminders, votes, new places and the weekly pick. It is a setting on
 // the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
@@ -772,6 +773,8 @@ export default function SettingsDrawer({
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
           {userId && <ShortcutSetup showToast={showToast} />}
+
+          {userId && <FriendsSection userId={userId} collections={collections} showToast={showToast} />}
 
           {onJoinWithCode && <JoinCollection onJoin={onJoinWithCode} showToast={showToast} />}
 

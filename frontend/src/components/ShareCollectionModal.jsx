@@ -8,6 +8,9 @@ import { canEditCollection } from '../lib/roles';
 import EmojiPicker from './EmojiPicker';
 import ConfirmDialog from './ConfirmDialog';
 import { emitTour } from '../tour/events';
+import { useFriends } from '../hooks/useFriends';
+import { addableFriends } from '../lib/friends';
+import Avatar from './Avatar';
 
 async function copy(text, label, showToast) {
   try {
@@ -22,6 +25,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
+  const friends = useFriends(userId, showToast);
+  const [addingFriend, setAddingFriend] = useState(null);
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -183,6 +188,29 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             )}
             {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
+
+          {isOwner && !collection.isPrivate && addableFriends(friends.rows, collection).length > 0 && (
+            <div className="share-section" data-tour="add-friend">
+              <div className="share-section-title"><Users className="ico" aria-hidden="true" /> Add a friend</div>
+              <div className="share-members">
+                {addableFriends(friends.rows, collection).map((friend) => (
+                  <div className="share-member" key={friend.id}>
+                    <Avatar person={friend} className="share-member-avatar" />
+                    <span className="share-member-name">{friend.display_name}</span>
+                    <button
+                      type="button"
+                      className="step-btn secondary"
+                      disabled={addingFriend === friend.id}
+                      onClick={async () => { setAddingFriend(friend.id); await friends.addToCollection(collection, friend); setAddingFriend(null); }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="toggle-hint">They join as viewers and get a notification.</p>
+            </div>
+          )}
 
           {canExport && (
           <div className="share-section">

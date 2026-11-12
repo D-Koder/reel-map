@@ -12,6 +12,7 @@ import AuthScreen from './components/AuthScreen';
 import LoggedOut from './components/LoggedOut';
 import { rememberAccountHere } from './lib/demoHandoff';
 import ShareCollectionModal from './components/ShareCollectionModal';
+import { useFriendLink } from './hooks/useFriends';
 
 // The map and Mapbox (most of the app's code) load in their own file, so Home shows without waiting for them.
 const MapScreen = lazy(() => import('./components/MapScreen'));
@@ -822,6 +823,8 @@ function App() {
     setToast({ message, action, key: Date.now() });
     toastTimer.current = setTimeout(() => setToast(null), duration ?? (action ? 4000 : 2500));
   }, []);
+  // A friend link opened from a message: kept while signed out, used once the person is in.
+  useFriendLink(session?.user?.id, showToast);
 
   let body;
   if (configError) {

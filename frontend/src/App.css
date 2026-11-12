@@ -6297,3 +6297,7 @@ a.step-btn {
 
 /* A small way back from sign-up or log-in to the main page. */
 .auth-back { align-self: flex-start; min-height: 44px; margin: -8px 0 0 -6px; padding: 0 6px; font-weight: 700; }
+
+/* Friends */
+.friend-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.friend-note { color: var(--text-muted); font-weight: 400; }
