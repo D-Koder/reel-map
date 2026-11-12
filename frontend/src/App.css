@@ -6274,3 +6274,13 @@ a.step-btn {
 .pin-locked { font-size: 12px; color: var(--text-muted); }
 .pin-locked svg { width: 13px; height: 13px; }
 .pin-colours { flex-wrap: wrap; }
+
+/* Title ladders */
+.ach-note { margin: -4px 0 4px; font-size: 12px; color: var(--text-muted); }
+.ach-ladder { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); }
+.ach-ladder-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.ach-ladder-head small { color: var(--text-muted); font-size: 12px; }
+.ach-next { margin: 0; font-size: 12px; color: var(--text-muted); }
+.ach-chip.locked { display: inline-flex; align-items: center; gap: 4px; border-style: dashed; color: var(--text-muted); font-weight: 500; cursor: default; }
+.ach-chip.locked svg { width: 11px; height: 11px; }
+.ach-chip.locked small { font-size: 11px; opacity: 0.8; }

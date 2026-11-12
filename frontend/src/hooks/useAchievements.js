@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BASE_TITLE, badgeStatus, earnedTitles, frameById, frameUnlocked } from '../lib/achievements';
+import { BASE_TITLE, badgeStatus, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const prefsKey = (userId) => `reelmap:achievements:${userId}`;
@@ -10,9 +10,13 @@ const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 export default function useAchievements({ userId, ready, places, collections, profile, saveFlair }) {
   const [prefs, setPrefs] = useState(() => readJSON(prefsKey(userId), {}));
 
-  const badges = useMemo(
-    () => (ready ? badgeStatus({ places, collections, profile, userId }) : []),
+  const counts = useMemo(
+    () => (ready ? computeProgress({ places, collections, profile, userId }) : {}),
     [ready, places, collections, profile, userId]
+  );
+  const badges = useMemo(
+    () => (ready ? badgeStatus({ places, collections, profile, userId }, counts) : []),
+    [ready, places, collections, profile, userId, counts]
   );
   const earnedIds = useMemo(() => new Set(badges.filter((b) => b.earned).map((b) => b.id)), [badges]);
 
@@ -37,7 +41,9 @@ export default function useAchievements({ userId, ready, places, collections, pr
   const storedFrame = synced ? profile.frame : prefs.frame;
   const storedTitle = synced ? profile.title : prefs.title;
   const frame = storedFrame && frameById(storedFrame) && frameUnlocked(frameById(storedFrame), earnedIds) ? storedFrame : null;
-  const titles = useMemo(() => earnedTitles(earnedIds), [earnedIds]);
+  const titles = useMemo(() => earnedTitles(earnedIds, counts), [earnedIds, counts]);
+  const ladders = useMemo(() => titleLadders(counts), [counts]);
+  const fun = useMemo(() => funTitles(counts), [counts]);
   const title = titles.includes(storedTitle) ? storedTitle : BASE_TITLE;
 
   // Choices made on this device before the profile could hold them move across once.
@@ -47,14 +53,16 @@ export default function useAchievements({ userId, ready, places, collections, pr
     moved.current = true;
     const patch = {};
     if (!profile.frame && prefs.frame && frameUnlocked(frameById(prefs.frame) ?? {}, earnedIds)) patch.frame = prefs.frame;
-    if (!profile.title && prefs.title && earnedTitles(earnedIds).includes(prefs.title)) patch.title = prefs.title;
+    if (!profile.title && prefs.title && titles.includes(prefs.title)) patch.title = prefs.title;
     if (Object.keys(patch).length) saveFlair?.(patch);
-  }, [ready, synced, profile, prefs.frame, prefs.title, earnedIds, saveFlair]);
+  }, [ready, synced, profile, prefs.frame, prefs.title, earnedIds, titles, saveFlair]);
 
   return {
     badges,
     earnedIds,
     titles,
+    ladders,
+    fun,
     frame,
     title,
     pending,

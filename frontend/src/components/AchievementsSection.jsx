@@ -17,7 +17,10 @@ function Swatch({ frame }) {
 // Settings: the badges earned, the frame and title being worn, and what is still to do.
 export default function AchievementsSection({ achievements }) {
   const [open, setOpen] = useState(false);
-  const { badges, earnedIds, titles, frame, title, setFrame, setTitle } = achievements;
+  const { badges, earnedIds, titles, ladders, fun, frame, title, setFrame, setTitle } = achievements;
+  // Titles that come with a badge and are not part of a ladder or a fun one.
+  const ladderNames = new Set([...ladders.flatMap((l) => l.tiers.map((t) => t.title)), ...fun.map((f) => f.title)]);
+  const badgeTitles = titles.filter((t) => !ladderNames.has(t));
   const earned = badges.filter((b) => b.earned).length;
   if (!badges.length) return null;
 
@@ -50,11 +53,43 @@ export default function AchievementsSection({ achievements }) {
           </div>
 
           <h3 className="ach-heading">Title</h3>
-          <div className="ach-titles">
-            {titles.map((t) => (
-              <button key={t} type="button" className="ach-chip" aria-pressed={title === t} onClick={() => setTitle(t)}>{t}</button>
-            ))}
+          <p className="ach-note">Shows under your name. Tap one you have earned.</p>
+          {ladders.map((l) => (
+            <div key={l.id} className="ach-ladder">
+              <div className="ach-ladder-head">
+                <strong>{l.name}</strong>
+                <small>{l.soon ? 'Coming soon' : `${l.count} ${l.unit}`}</small>
+              </div>
+              <div className="ach-titles">
+                {l.tiers.map((t) => (t.earned
+                  ? <button key={t.title} type="button" className="ach-chip" aria-pressed={title === t.title} onClick={() => setTitle(t.title)}>{t.title}</button>
+                  : <span key={t.title} className="ach-chip locked" title={l.soon ? 'Coming soon' : `${t.at} ${l.unit}`}><Lock aria-hidden="true" /> {t.title} <small>{t.at}</small></span>
+                ))}
+              </div>
+              {!l.soon && l.next && (
+                <p className="ach-next">{l.next.at - l.count} more to reach {l.next.title}</p>
+              )}
+            </div>
+          ))}
+          <div className="ach-ladder">
+            <div className="ach-ladder-head"><strong>Fun titles</strong></div>
+            <div className="ach-titles">
+              {fun.map((f) => (f.earned
+                ? <button key={f.title} type="button" className="ach-chip" aria-pressed={title === f.title} onClick={() => setTitle(f.title)}>{f.title}</button>
+                : <span key={f.title} className="ach-chip locked" title={f.soon ? 'Coming soon' : f.how}><Lock aria-hidden="true" /> {f.title}</span>
+              ))}
+            </div>
           </div>
+          {badgeTitles.length > 0 && (
+            <div className="ach-ladder">
+              <div className="ach-ladder-head"><strong>From badges</strong></div>
+              <div className="ach-titles">
+                {badgeTitles.map((t) => (
+                  <button key={t} type="button" className="ach-chip" aria-pressed={title === t} onClick={() => setTitle(t)}>{t}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <h3 className="ach-heading">Badges</h3>
           <ul className="ach-badges">

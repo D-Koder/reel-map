@@ -1,7 +1,7 @@
 // Run with: node --test frontend/src/lib/achievements.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BADGES, FRAMES, badgeStatus, earnedTitles, frameUnlocked, inSeason, frameById } from './achievements.js';
+import { BADGES, FRAMES, FUN_TITLES, TITLE_LADDERS, badgeStatus, computeProgress, earnedTitles, frameUnlocked, funTitles, inSeason, frameById, titleLadders } from './achievements.js';
 
 const day = (n) => new Date(Date.UTC(2026, 10, 12) - n * 86400000).toISOString();
 const collections = [{ id: 'c1', members: [{ id: 'me' }, { id: 'sam' }] }, { id: 'c2', members: [{ id: 'me' }] }];
@@ -73,7 +73,43 @@ test('seasonal frames follow the date, including Sep to Feb wrapping the new yea
   assert.equal(frameUnlocked(frameById('bronze'), new Set(['explorer'])), true);
 });
 
-test('titles start with Wanderer and add one per earned badge', () => {
+const allTitles = () => [
+  ...TITLE_LADDERS.flatMap((l) => l.tiers.map(([t]) => t)),
+  ...FUN_TITLES.map((f) => f.title),
+  ...BADGES.map((b) => b.title).filter(Boolean),
+];
+
+test('no title can be earned two ways', () => {
+  const titles = allTitles();
+  assert.equal(new Set(titles).size, titles.length);
+  assert.ok(!TITLE_LADDERS.find((l) => l.id === 'couple').tiers.some(([t]) => t === 'Dream Team'));
+});
+
+test('titles start with Wanderer; badges and ladders add more', () => {
   assert.deepEqual(earnedTitles(new Set()), ['Wanderer']);
-  assert.deepEqual(earnedTitles(new Set(['explorer', 'streak'])), ['Wanderer', 'Explorer', 'Dream Team']);
+  assert.deepEqual(earnedTitles(new Set(['explorer', 'streak'])), ['Wanderer', 'Dream Team']);
+  const titles = earnedTitles(new Set(), { placesDone: 15, foodDone: 5, togetherDone: 1 });
+  for (const t of ['Wanderer', 'Explorer', 'Trailblazer', 'Foodie', 'Snacker', 'Plus-One']) assert.ok(titles.includes(t), t);
+  assert.ok(!titles.includes('Pathfinder') && !titles.includes('Gourmet'));
+});
+
+test('ladders report the next rung and skip ones that are coming soon', () => {
+  const explorer = titleLadders({ placesDone: 7 }).find((l) => l.id === 'explorer');
+  assert.deepEqual(explorer.tiers.filter((t) => t.earned).map((t) => t.title), ['Wanderer', 'Explorer']);
+  assert.equal(explorer.next.title, 'Trailblazer');
+  const city = titleLadders({ cityBest: 99 }).find((l) => l.id === 'city');
+  assert.equal(city.tiers.some((t) => t.earned), false);
+  assert.equal(funTitles({ brunch: 9 }).find((f) => f.title === 'Brunch Boss').earned, false);
+});
+
+test('ladders count each place once, and night owl / early bird use the hour it was done', () => {
+  const at = (h) => new Date(2026, 5, 10, h, 30).toISOString();
+  const mk = (id, h, extra = {}) => ({ id, collection_id: 'c1', category: 'food', added_at: at(1), reactions: {}, reviews: [], booking: { done_at: at(h) }, ...extra });
+  const places = [mk(1, 22), mk(1, 22, { collection_id: 'c2' }), mk(2, 7), mk(3, 13, { category: 'fun' })];
+  const c = computeProgress({ places, collections, profile: {}, userId: 'me', now });
+  assert.equal(c.placesDone, 3);
+  assert.equal(c.foodDone, 2);
+  assert.equal(c.nightOwl, 1);
+  assert.equal(c.earlyBird, 1);
+  assert.equal(c.togetherDone, 3);
 });
