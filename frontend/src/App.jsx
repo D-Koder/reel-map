@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
+import { Plus, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
+import { AppHeader, BottomNav } from './components/AppChrome';
 import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
 import AddPlaceSheet from './components/AddPlaceSheet';
@@ -488,27 +489,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
 
   return (
     <div className="app">
-      <header className="header">
-        <span className="header-title">waylit maps<span className="wordmark-dot" aria-hidden="true">.</span></span>
-        <div className="header-buttons">
-          <button
-            className="header-btn"
-            data-tour="bell"
-            onClick={() => { setNotificationsOpen(true); markAllRead(); }}
-            aria-label="Notifications"
-          >
-            <Bell aria-hidden="true" />
-            {unreadCount > 0 && (
-              <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 5px' }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          <button className="header-btn" data-tour="gear" onClick={() => setSettingsOpen(true)} aria-label="Settings">
-            <SlidersHorizontal aria-hidden="true" />
-          </button>
-        </div>
-      </header>
+      <AppHeader unreadCount={unreadCount} onBell={() => { setNotificationsOpen(true); markAllRead(); }} onGear={() => setSettingsOpen(true)} />
 
       {!online && (
         <div className="offline-banner" role="status">
@@ -592,36 +573,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         </section>
       </main>
 
-      <nav className="bottom-nav">
-        {[
-          { id: 'home', Icon: House, label: 'Home' },
-          { id: 'add' },
-          { id: 'map', Icon: MapIcon, label: 'Map' },
-        ].map((tab) =>
-          tab.id === 'add' ? (
-            <button
-              key="add"
-              className="fab fab-nav"
-              onClick={() => openAddAt(null)}
-              disabled={collections.length === 0}
-              aria-label="Add a place"
-            >
-              <Plus aria-hidden="true" strokeWidth={2.5} />
-            </button>
-          ) : (
-            <button
-              key={tab.id}
-              data-tour={tab.id === 'map' ? 'map-tab' : undefined}
-              className={`nav-tab ${screen === tab.id ? 'active' : ''}`}
-              onClick={() => setScreen(tab.id)}
-              aria-current={screen === tab.id ? 'page' : undefined}
-            >
-              <tab.Icon className="nav-icon" aria-hidden="true" strokeWidth={screen === tab.id ? 2.4 : 1.8} />
-              <span className="nav-label">{tab.label}</span>
-            </button>
-          )
-        )}
-      </nav>
+      <BottomNav screen={screen} onScreen={setScreen} onAdd={() => openAddAt(null)} addDisabled={collections.length === 0} />
 
       <SettingsDrawer
         open={settingsOpen}

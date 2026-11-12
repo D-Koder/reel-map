@@ -7,6 +7,7 @@ import { eventDatesText, eventStatus, runsOf } from '../lib/eventRuns';
 import Avatar from './Avatar';
 import PlaceThumb from './PlaceThumb';
 import ReelEmbedThumb, { reelEmbed } from './ReelEmbedThumb';
+import { shownInfo } from '../tour/steps';
 
 // "16 Timothy Ln, Melbourne VIC 3000, Australia" -> "16 Timothy Ln, Melbourne": street and suburb only.
 function shortAddress(address) {
@@ -138,7 +139,7 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
           )}
           {pin.note
             ? <div className="pin-custom-info pin-note" title={pin.note}><StickyNote aria-hidden="true" /><span>{pin.note}</span></div>
-            : pin.custom_info && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
+            : shownInfo(pin) && <div className="pin-custom-info" title={pin.custom_info}>{pin.custom_info}</div>}
           {showDoneLook ? (
             <div className="pin-rating pin-done"><CircleCheck aria-hidden="true" /> Done</div>
           ) : shared ? (

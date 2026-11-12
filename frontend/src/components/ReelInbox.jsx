@@ -56,7 +56,7 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
         <button type="button" className="inbox-action secondary" onClick={() => setPicked(all ? new Set() : new Set(places.map((p) => p.line)))}>
           {all ? 'Clear all' : 'Select all'}
         </button>
-        <button type="button" className="inbox-action secondary" onClick={() => { onReject(item); onFinish?.({ ...item, status: 'needs-place', rejected: true }); }}>Wrong place</button>
+        <button type="button" className="inbox-action secondary" onClick={() => { onReject(item); onFinish?.({ ...item, status: 'needs-place', rejected: true }); }}>Verify place</button>
       </div>
     </div>
   );
@@ -74,7 +74,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';
         const confirming = item.status === 'confirm';
-        // "Wrong place" was tapped: the app did guess, so don't say it couldn't tell.
+        // "Verify place" was tapped: the app did guess, so don't say it couldn't tell.
         const rejected = finish && item.rejected;
         return (
           <div key={item.id} className={`inbox-card ${item.status}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
@@ -91,7 +91,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
             {confirming && (
               <div className="inbox-confirm">
                 <button type="button" className="inbox-action" onClick={() => onConfirm(item)}>Save</button>
-                <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Wrong place</button>
+                <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Verify place</button>
               </div>
             )}
             {finish && (

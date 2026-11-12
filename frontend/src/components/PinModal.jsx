@@ -21,7 +21,7 @@ import TimePicker from './TimePicker';
 import { eventDatesText, eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
 import CalendarConnect from './CalendarConnect';
-import { TOUR_MARK } from '../tour/steps';
+import { TOUR_MARK, shownInfo } from '../tour/steps';
 
 // Mark as Done opens this long after the booking time.
 const DONE_UNLOCK_MS = 10 * 60 * 1000;
@@ -443,13 +443,13 @@ export default function PinModal({
         )}
 
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
-        {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
+        {shownInfo(place) && <div className="venue-subtitle">{place.custom_info}</div>}
 
         {booking && !isDone && (
           <div className="modal-section booked-card" data-tour="booked">
             <div className="booked-label"><CircleCheck className="ico" aria-hidden="true" /> Booked</div>
             <div className="booked-when">{formatDateTime(booking.planned_at)}</div>
-            <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> {isSample ? 'Sample booking: nothing is sent' : 'Notification sent to the collection'}</div>
+            <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> Notification sent to the collection</div>
             <div className="calendar-panel" data-tour="calendar-panel">
               <div className="calendar-panel-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to calendar</div>
               <div className="calendar-panel-buttons">
@@ -541,10 +541,10 @@ export default function PinModal({
           />
         )}
 
-        {(place?.note || place?.custom_info) && (
+        {(place?.note || shownInfo(place)) && (
           <div className="modal-section">
             <div className="modal-label"><StickyNote className="ico" aria-hidden="true" /> Notes</div>
-            <p className="place-note-text">{place.note || place.custom_info}</p>
+            <p className="place-note-text">{place.note || shownInfo(place)}</p>
           </div>
         )}
 
@@ -651,7 +651,7 @@ export default function PinModal({
                       </div>
                     )}
                     {/* Needs a tap: the button goes right under the text, not below the whole picker. */}
-                    {hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
+                    {!isSample && hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
                     {hours.length > 0 ? (
                       <TimePicker
                         hours={hours}
@@ -681,7 +681,7 @@ export default function PinModal({
                       </>
                     )}
                     <button type="button" className="step-link" onClick={() => { setTimeChosen(true); completeStep(1); }}>Plan it without booking</button>
-                    {hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
+                    {!isSample && hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
                   </>
                 )}
               </div>
@@ -707,7 +707,7 @@ export default function PinModal({
                 >
                   {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Confirm booking'}
                 </button>
-                <div className="step-note">{isSample ? 'Sample booking: nothing is saved or sent.' : 'Confirming sends a notification to the collection.'}</div>
+                <div className="step-note">Confirming sends a notification to the collection.</div>
                 <button type="button" className="step-link" onClick={() => setStep(1)}>Not yet, take me back</button>
               </div>
             )}
@@ -719,7 +719,7 @@ export default function PinModal({
                   <span className="step-saved-mark"><CircleCheck className="ico" aria-hidden="true" /></span>
                   <div className="step-title">Booked for {planDay(booking?.planned_at ?? new Date(reservationDate).toISOString())}</div>
                   <div className="step-description">
-                    {formatDateTime(booking?.planned_at ?? new Date(reservationDate).toISOString())}. {isSample ? 'Nothing was sent.' : 'The collection has been notified.'}
+                    {formatDateTime(booking?.planned_at ?? new Date(reservationDate).toISOString())}. The collection has been notified.
                   </div>
                 </div>
                 <input

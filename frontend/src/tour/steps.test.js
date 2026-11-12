@@ -169,7 +169,7 @@ test('the map step asks for every pin to show', async () => {
   assert.equal(asked, 1);
 });
 
-test('after Wrong place the tour asks for the right place instead of saying it is still looking', () => {
+test('after Verify place the tour asks for the right place instead of saying it is still looking', () => {
   const d = describe('confirm', { ...base, inboxItems: [{ status: 'needs-place' }] });
   assert.equal(d.title, 'Pick the right place');
   assert.equal(d.fallbackTo, undefined);

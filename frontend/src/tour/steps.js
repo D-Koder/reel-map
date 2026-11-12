@@ -7,6 +7,8 @@
 
 // A sample place made for the tour carries this note, so it can always be found and removed again.
 export const TOUR_MARK = 'Sample for the tour. It is removed when the tour ends.';
+// The note to show for a place: the tour's sample carries a marker instead of a real note, so it shows none.
+export const shownInfo = (place) => (place?.custom_info === TOUR_MARK ? '' : place?.custom_info);
 export const SAMPLE_PREFIX = 'tour-sample:';
 export const SAMPLE_DETAILS = {
   name: 'Sample Noodle Bar',
@@ -84,7 +86,7 @@ export function describe(id, ctx) {
 
     case 'confirm': {
       if (ctx.has('[data-tour="confirm"]')) {
-        return { title: 'Is this the spot?', body: "We found a place. Check it's right, then tap Save. Wrong one? Tap Wrong place to pick another.", hint: 'Tap Save.', anchor: '[data-tour="confirm"]', done: Boolean(place) };
+        return { title: 'Is this the spot?', body: "We found a place. Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", hint: 'Tap Save.', anchor: '[data-tour="confirm"]', done: Boolean(place) };
       }
       if (!place && ctx.inboxItems.some((i) => i.status === 'needs-place')) {
         return { title: 'Pick the right place', body: 'Choose the correct place from the list, then save it. The tour carries on from there.', done: false };

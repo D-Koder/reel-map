@@ -1,29 +1,23 @@
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, CalendarDays, CircleCheck, ClipboardPaste, MapPin } from 'lucide-react';
+import { Award } from 'lucide-react';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
+import HomeScreen from '../components/HomeScreen';
+import PinModal from '../components/PinModal';
+import ReelInbox from '../components/ReelInbox';
+import PasteReelCard from '../components/PasteReelCard';
+import WelcomeSteps from '../components/WelcomeSteps';
+import { AppHeader, BottomNav } from '../components/AppChrome';
+import { SAMPLE_DETAILS, TOUR_MARK } from '../tour/steps';
 import { saveDemoHandoff } from '../lib/demoHandoff';
 import '../tour/tour.css';
 import './demo.css';
-import { PLANS, SAMPLE, canGoBack, demoReducer, describeDemo, handoffFrom, initialState, suggestedTimes, timeLabel } from './demoFlow';
+import { PLANS, SAMPLE, canGoBack, demoReducer, describeDemo, handoffFrom, initialState, timeLabel } from './demoFlow';
 
-// A small picture of a map, drawn with shapes, so the demo never loads a real map.
-function FakeMap() {
-  return (
-    <div className="demo-map" role="img" aria-label={`Map showing ${SAMPLE.name}`}>
-      <span className="dm-park" /><span className="dm-road r1" /><span className="dm-road r2" /><span className="dm-road r3" /><span className="dm-river" />
-      <span className="dm-pin" /><span className="dm-label">{SAMPLE.address}</span>
-    </div>
-  );
-}
-
-const Board = ({ emoji, name, children }) => (
-  <section className="demo-board">
-    <h2>{emoji} {name}</h2>
-    {children}
-  </section>
-);
+const ME = 'demo-user';
+const noop = () => {};
+const me = { id: ME, display_name: 'You', avatar: '🙂', role: 'owner' };
 
 function Confetti() {
   const colors = ['#ffd23f', '#e5502a', '#4cc380', '#cdbfff'];
@@ -36,7 +30,7 @@ function Confetti() {
 
 // The card that talks. Points at one thing (a hole in the dim layer), or sits in the middle for the first and last words.
 function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
-  const rect = useAnchorRect(d.target ? `[data-demo-t="${d.target}"]` : null);
+  const rect = useAnchorRect(d.target);
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
@@ -145,13 +139,44 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   );
 }
 
-// The no-login demo: a pretend Home screen and place sheet, drawn with the app's own colours, and a short guided
-// walk through saving a reel and booking it. It makes no network calls and saves nothing but the hand-off at the end.
+// What the real place sheet is showing, read off the screen: the demo doesn't own that sheet's inner steps.
+function useSheetProbe(active) {
+  const [dom, setDom] = useState({ wizard: null, timePicked: false });
+  useEffect(() => {
+    if (!active) { setDom({ wizard: null, timePicked: false }); return undefined; }
+    const read = () => {
+      const title = document.querySelector('.checklist-step .step-title')?.textContent ?? '';
+      const wizard = /^Did you book/.test(title) ? 'confirm' : document.querySelector('.step-saved') ? 'booked' : title ? 'time' : null;
+      const timePicked = Boolean(document.querySelector('.time-picker .step-btn.primary'));
+      setDom((now) => (now.wizard === wizard && now.timePicked === timePicked ? now : { wizard, timePicked }));
+    };
+    read();
+    const id = setInterval(read, 150);
+    return () => clearInterval(id);
+  }, [active]);
+  return dom;
+}
+
+// The no-login demo. It draws the app's own Home, inbox card, place sheet, header and tab bar (the same components),
+// fed with a pretend collection and place that live only in this tab. It makes no network calls of its own and
+// saves nothing but the hand-off at the end.
 export default function Demo({ onExit, onSignUp, onLogin }) {
   const [s, dispatch] = useReducer(demoReducer, undefined, initialState);
-  const d = describeDemo(s);
-  const times = useMemo(() => suggestedTimes(), []);
   const [confetti, setConfetti] = useState(false);
+  const [toast, setToast] = useState(null);
+  const dom = useSheetProbe(s.placeOpen);
+  const d = describeDemo(s, dom);
+
+  const showToast = useCallback((message) => {
+    // "Step 1 complete" would sit on top of the button the tip points at.
+    if (/^Step \d complete/.test(message)) return;
+    setToast({ message, key: Date.now() });
+  }, []);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   // A tip that finishes itself moves on after a moment, unless the skip question is open.
   useEffect(() => {
@@ -167,81 +192,104 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
     return () => clearTimeout(id);
   }, [s.booked, s.step]);
 
-  const waiting = s.step === 'book' && !s.placeOpen;
-  const collection = s.collName ? { emoji: s.collEmoji, name: s.collName } : null;
-  const place = (
-    <button type="button" className="demo-place" data-demo-t="place" onClick={() => waiting && dispatch({ type: 'open' })}>
-      <span className="demo-thumb"><MapPin aria-hidden="true" /></span>
-      <span className="demo-place-text"><b>{SAMPLE.name}</b><small>Food · {SAMPLE.address}</small></span>
-      <span className="demo-pills" aria-hidden="true">🔥{s.booked && <CalendarDays />}</span>
-    </button>
+  const collections = useMemo(() => {
+    const list = [{ id: 'demo-tbd', name: 'TBD', emoji: '📥', isPrivate: false, ownerId: ME, isInbox: true, members: [me] }];
+    if (s.collName) list.push({ id: 'demo-coll', name: s.collName, emoji: s.collEmoji, isPrivate: false, ownerId: ME, members: [me] });
+    return list;
+  }, [s.collName, s.collEmoji]);
+  const membersOf = useMemo(() => Object.fromEntries(collections.map((c) => [c.id, c.members])), [collections]);
+
+  const places = useMemo(() => (s.saved ? [{
+    id: 'demo-place',
+    name: SAMPLE_DETAILS.name,
+    address: SAMPLE_DETAILS.address,
+    lat: SAMPLE_DETAILS.latitude,
+    lng: SAMPLE_DETAILS.longitude,
+    hours: SAMPLE_DETAILS.hours,
+    category: 'food',
+    custom_info: TOUR_MARK,
+    collection_id: 'demo-coll',
+    collectionIds: ['demo-coll'],
+    added_by: ME,
+    added_at: new Date().toISOString(),
+    reactions: {},
+    reviews: [],
+    booking: s.booked ? { id: 'demo-booking', planned_at: s.booked, booked_by: ME, done_at: null } : null,
+  }] : []), [s.saved, s.booked]);
+  const openPin = s.placeOpen ? places[0] : null;
+
+  const inboxItems = useMemo(() => {
+    if (s.paste === 'finding') return [{ id: 'demo-reel', url: 'demo', status: 'saving' }];
+    if (s.paste === 'confirm') return [{ id: 'demo-reel', url: 'demo', status: 'confirm', name: SAMPLE.name, address: SAMPLE.address }];
+    return [];
+  }, [s.paste]);
+
+  const banner = (
+    <>
+      <WelcomeSteps userId={ME} places={places} collections={collections} onInvite={noop} />
+      <PasteReelCard onSave={noop} showToast={showToast} onPaste={() => s.step === 'paste' && s.paste === 'idle' && dispatch({ type: 'paste' })} />
+      <ReelInbox
+        items={inboxItems}
+        onFinish={noop}
+        onRetry={noop}
+        onDismiss={noop}
+        onConfirm={() => dispatch({ type: 'save' })}
+        onReject={() => dispatch({ type: 'verify' })}
+        onSaveListed={noop}
+      />
+    </>
   );
 
   return (
-    <div className="demo">
-      <div className="demo-col">
-        <header className="demo-head">
-          <span className="demo-brand">waylit maps<i>.</i></span>
-        </header>
-        <main className="demo-main">
-          <div className="paste-card">
-            <button type="button" className="paste-btn" data-demo-t="paste" aria-disabled={s.step !== 'paste' || s.paste !== 'idle'} onClick={() => s.step === 'paste' && s.paste === 'idle' && dispatch({ type: 'paste' })}>
-              <ClipboardPaste className="ico" aria-hidden="true" /> Paste a reel link
-            </button>
-          </div>
-          {s.paste === 'finding' && (
-            <div className="demo-card demo-finding" data-demo-t="finding" role="status">
-              <span className="demo-thumb">🎞️</span><b>Finding the place in this reel…</b><span className="spinner" aria-hidden="true" />
-            </div>
-          )}
-          <Board emoji="📥" name="TBD"><p className="demo-empty">Nothing here yet. Saved places land here.</p></Board>
-          {collection && <Board emoji={collection.emoji} name={collection.name}>{s.saved ? place : <p className="demo-empty">Nothing here yet.</p>}</Board>}
-        </main>
-        <nav className="demo-nav" aria-hidden="true"><span>Home</span><span className="demo-plus">+</span><span>Map</span></nav>
-      </div>
+    <div className="app demo-app">
+      <AppHeader />
+      <main className="content">
+        <section className="panel panel-home active">
+          <HomeScreen
+            userId={ME}
+            places={places}
+            collections={collections}
+            banner={banner}
+            membersOf={membersOf}
+            streak={0}
+            onOpenPin={() => s.step === 'book' && dispatch({ type: 'open' })}
+            onReorder={noop}
+            onAddPlace={noop}
+            showToast={showToast}
+            onCreateCollection={noop}
+            canEdit={() => true}
+            onCopyPlaces={noop}
+            onDeletePlaces={noop}
+            onMovePlaces={noop}
+            onCreateSample={noop}
+            onOpenSettings={noop}
+          />
+        </section>
+      </main>
+      <BottomNav screen="home" onScreen={noop} onAdd={noop} addDisabled={!s.collName} />
 
-      {s.placeOpen && (
-        <div className="demo-sheet" role="dialog" aria-label={SAMPLE.name}>
-          <div className="demo-sheet-head">
-            <span className="demo-thumb"><MapPin aria-hidden="true" /></span>
-            <div><b>{SAMPLE.name}</b><small>{SAMPLE.address}</small></div>
-          </div>
-          {s.booked && (
-            <div className="booked-card">
-              <div className="booked-label"><CircleCheck aria-hidden="true" /> Booked</div>
-              <div className="booked-when">{timeLabel(new Date(s.booked))}</div>
-              <div className="booked-note">Notification sent to the collection</div>
-            </div>
-          )}
-          <FakeMap />
-          {!s.booked && s.bstep === 0 && (
-            <button type="button" className="step-btn primary full-width" data-demo-t="plan" onClick={() => dispatch({ type: 'wizard' })}>Find a time &amp; book</button>
-          )}
-          {!s.booked && s.bstep === 1 && (
-            <div className="demo-card">
-              <b>Find a time &amp; book</b>
-              <p className="demo-note">We can't see the venue's tables. Pick a time to try, book with the venue yourself, then tell us what you got.</p>
-              <div className="tp-slots" data-demo-t="times">
-                {times.map((t) => <button key={t.iso} type="button" className="tp-slot" aria-pressed={s.picked === t.iso} onClick={() => dispatch({ type: 'pick', iso: t.iso })}>{t.label}</button>)}
-              </div>
-              {s.picked && (
-                <button type="button" className="step-btn primary full-width" data-demo-t="continue" onClick={() => dispatch({ type: 'continue' })}>
-                  Continue with {timeLabel(new Date(s.picked))}
-                </button>
-              )}
-            </div>
-          )}
-          {!s.booked && s.bstep === 2 && (
-            <div className="demo-card">
-              <b>Did you book it?</b>
-              <div className="demo-when">{timeLabel(new Date(s.picked))}</div>
-              <button type="button" className="step-btn primary full-width" data-demo-t="confirm" onClick={() => dispatch({ type: 'confirm' })}>Confirm booking</button>
-              <p className="demo-note">Confirming sends a notification to the collection.</p>
-            </div>
-          )}
-        </div>
+      {openPin && (
+        <PinModal
+          key={openPin.id}
+          place={openPin}
+          userId={ME}
+          members={[me]}
+          onSetVibe={noop}
+          onBook={async (plannedAt) => { dispatch({ type: 'booked', iso: new Date(plannedAt).toISOString() }); return true; }}
+          onMarkDone={noop}
+          onCancelBooking={async () => false}
+          onSaveReview={noop}
+          onDeleteReview={noop}
+          onReportReview={noop}
+          onEdit={noop}
+          onDelete={noop}
+          canEdit
+          onClose={() => dispatch({ type: 'close' })}
+          showToast={showToast}
+        />
       )}
 
+      {toast && <div key={toast.key} className="toast" role="status"><span>{toast.message}</span></div>}
       {confetti && <Confetti />}
       <DemoTip s={s} d={d} dispatch={dispatch} onExit={onExit} onSignUp={onSignUp} onLogin={onLogin} />
     </div>

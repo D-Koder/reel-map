@@ -5,7 +5,8 @@ import { reelLinkFrom } from '../lib/reelLink';
 // One tap saves the reel link you just copied. Reading the clipboard needs a tap (iPhone also asks
 // "Allow Paste"), so this is a button, not something that runs on its own. If the phone won't let the app
 // read it, a box appears to paste into.
-export default function PasteReelCard({ onSave, showToast }) {
+// onPaste: the no-login demo's own action for the button, so it never reads the clipboard.
+export default function PasteReelCard({ onSave, showToast, onPaste }) {
   const [manual, setManual] = useState(false);
   const [text, setText] = useState('');
 
@@ -33,7 +34,7 @@ export default function PasteReelCard({ onSave, showToast }) {
 
   return (
     <div className="paste-card">
-      <button type="button" className="paste-btn" data-tour="paste" onClick={paste}>
+      <button type="button" className="paste-btn" data-tour="paste" onClick={onPaste ?? paste}>
         <ClipboardPaste className="ico" aria-hidden="true" /> Paste a reel link
       </button>
       {manual && (

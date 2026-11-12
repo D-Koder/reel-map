@@ -241,7 +241,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     }
   }, [inboxCollectionId, remove]);
 
-  // "Wrong place": the user picks the right one in the Finish sheet instead.
+  // "Verify place": the user picks the right one in the Finish sheet instead.
   const reject = useCallback((item) => {
     update(item.id, { status: 'needs-place', confirm: false, rejected: true });
     prefetchListedPlaces(item.url, item.reelData);

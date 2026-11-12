@@ -7,18 +7,17 @@ export const PLANS = [
   { emoji: '🍜', name: 'Food crawl' },
   { emoji: '🎉', name: 'Friends hangout' },
 ];
-export const SAMPLE = { name: 'Sample Noodle Bar', address: '1 Example St, Melbourne VIC' };
+export const SAMPLE = { name: 'Sample Noodle Bar', address: '1 Example St, Melbourne VIC 3000' };
 
 export function initialState() {
   return {
     step: 'welcome', // welcome, planq, paste, saved, book, done
     collName: '',
     collEmoji: '📌',
-    paste: 'idle', // idle, finding
+    paste: 'idle', // idle, finding, confirm
+    verifying: false, // "Verify place" was tapped
     saved: false,
     placeOpen: false,
-    bstep: 0, // 0 = the Find a time button, 1 = pick a time, 2 = did you book it
-    picked: null, // an ISO time
     booked: null, // an ISO time
     confirmSkip: false,
   };
@@ -50,20 +49,15 @@ export function demoReducer(s, a) {
     case 'start': return { ...s, step: 'planq' };
     case 'plan': return { ...s, step: 'paste', collName: a.name, collEmoji: a.emoji };
     case 'paste': return { ...s, paste: 'finding' };
-    case 'found': return { ...s, paste: 'idle', saved: true, step: 'saved' };
+    case 'found': return s.paste === 'finding' ? { ...s, paste: 'confirm' } : s;
+    case 'verify': return { ...s, verifying: true };
+    case 'save': return s.paste === 'confirm' ? { ...s, paste: 'idle', verifying: false, saved: true, step: 'saved' } : s;
     case 'saved-done': return { ...s, step: 'book' };
     case 'open': return { ...s, placeOpen: true };
-    case 'close': return { ...s, placeOpen: false, bstep: 0, picked: null };
-    case 'wizard': return { ...s, bstep: 1 };
-    case 'pick': return { ...s, picked: a.iso };
-    case 'continue': return s.picked ? { ...s, bstep: 2 } : s;
-    case 'confirm': return s.picked ? { ...s, booked: s.picked, bstep: 0 } : s;
+    case 'close': return { ...s, placeOpen: false };
+    case 'booked': return { ...s, booked: a.iso };
     case 'booked-next': return { ...s, step: 'done', placeOpen: false };
-    case 'back':
-      if (s.bstep === 2) return { ...s, bstep: 1 };
-      if (s.bstep === 1) return { ...s, bstep: 0, picked: null };
-      if (s.placeOpen && !s.booked) return { ...s, placeOpen: false };
-      return s;
+    case 'back': return s.placeOpen && !s.booked ? { ...s, placeOpen: false } : s;
     case 'ask-skip': return { ...s, confirmSkip: true };
     case 'keep': return { ...s, confirmSkip: false };
     case 'skip': return { ...s, confirmSkip: false, step: 'done', placeOpen: false, paste: 'idle' };
@@ -72,7 +66,7 @@ export function demoReducer(s, a) {
   }
 }
 
-export const canGoBack = (s) => s.step === 'book' && !s.booked && (s.placeOpen || s.bstep > 0);
+export const canGoBack = (s) => s.step === 'book' && !s.booked && s.placeOpen;
 
 // How long a tip stays up before the demo moves on by itself: at least a second and a half, a little longer for more words.
 export const tipMs = (title, body) => Math.min(3000, 1500 + (title.length + body.length) * 15);
@@ -87,25 +81,29 @@ export function doneSummary(s) {
 }
 
 // The words, the pose and what to point at for the current moment.
-//   target: which element to spotlight (matched to data-demo-t on the screen), or null
+//   dom: what the real place sheet is showing right now, read from the screen: { wizard: 'time' | 'confirm' | 'booked' | null, timePicked }
+//   target: a CSS selector for the element to spotlight, or null
 //   auto: { ms, action }  the demo moves on by itself after ms
 //   next: a Next button is shown, with this action
-export function describeDemo(s) {
+export function describeDemo(s, dom = {}) {
   const tip = (title, body, pose, extra = {}) => ({ title, body, pose, target: null, center: false, ...extra });
   let d;
   if (s.step === 'welcome') d = tip('Try Waylit. No account needed.', 'Turn a reel into a plan in a few taps.', 'hello', { center: true });
   else if (s.step === 'planq') d = tip('What are you planning?', 'Pick one to start your first collection.', 'thinking', { center: true });
   else if (s.step === 'paste') {
-    d = s.paste === 'finding'
-      ? tip('Finding your spot…', 'Just a moment.', 'looking', { target: 'finding' })
-      : tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: 'paste' });
+    if (s.paste === 'finding') d = tip('Finding your spot…', 'Just a moment.', 'looking', { target: '.inbox-card' });
+    else if (s.paste === 'confirm') {
+      d = s.verifying
+        ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]' })
+        : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]' });
+    } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]' });
   } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {
     if (s.booked) d = tip('Booked! 🎉', 'Your group gets a ping.', 'celebrate', { next: 'booked-next' });
-    else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: 'place' });
-    else if (s.bstep === 0) d = tip('Find a time', 'Pick a time, then book with the venue.', 'pointing', { target: 'plan' });
-    else if (s.bstep === 1) d = s.picked ? tip('Nice', 'Tap Continue.', 'pointing', { target: 'continue' }) : tip('Pick a time', 'Any time works here.', 'thinking', { target: 'times' });
-    else d = tip('Did you get it?', 'Tap Confirm to say you booked.', 'pointing', { target: 'confirm' });
+    else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: '[data-tour="place"]' });
+    else if (dom.wizard === 'confirm') d = tip('Did you get it?', 'Tap Confirm to say you booked.', 'pointing', { target: '.checklist-step .step-btn.primary' });
+    else if (dom.timePicked) d = tip('Nice', 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary' });
+    else d = tip('Find a time', 'Pick a day and a time, then book with the venue.', 'thinking', { target: '[data-tour="plan"]' });
   } else {
     const { title, body } = doneSummary(s);
     d = tip(title, body, 'celebrate', { center: true });

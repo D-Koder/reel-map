@@ -8,7 +8,7 @@ const memory = () => { const m = new Map(); return { getItem: (k) => m.get(k) ??
 
 test('the demo runs from welcome to done, booking a time on the way', () => {
   const t = suggestedTimes(new Date(2026, 10, 11, 12, 0))[0].iso; // a Wednesday
-  let s = run(['start', { type: 'plan', name: 'Date night', emoji: '🍷' }, 'paste', 'found', 'saved-done', 'open', 'wizard', { type: 'pick', iso: t }, 'continue', 'confirm', 'booked-next']);
+  const s = run(['start', { type: 'plan', name: 'Date night', emoji: '🍷' }, 'paste', 'found', 'save', 'saved-done', 'open', { type: 'booked', iso: t }, 'booked-next']);
   assert.equal(s.step, 'done');
   assert.equal(s.collName, 'Date night');
   assert.equal(s.booked, t);
@@ -17,37 +17,38 @@ test('the demo runs from welcome to done, booking a time on the way', () => {
 
 test('tips point at the right thing at each moment', () => {
   let s = run(['start', { type: 'plan', name: 'Food crawl', emoji: '🍜' }]);
-  assert.equal(describeDemo(s).target, 'paste');
+  assert.equal(describeDemo(s).target, '[data-tour="paste"]');
   s = run(['paste'], s);
-  assert.equal(describeDemo(s).target, 'finding');
+  assert.equal(describeDemo(s).target, '.inbox-card');
   assert.equal(describeDemo(s).auto.action, 'found');
   s = run(['found'], s);
+  assert.equal(describeDemo(s).title, 'Is this the spot?');
+  assert.equal(describeDemo(s).target, '[data-tour="confirm"]');
+  s = run(['save'], s);
   assert.equal(describeDemo(s).title, 'Saved! 🎉');
   assert.equal(describeDemo(s).auto.action, 'saved-done');
   s = run(['saved-done'], s);
-  assert.equal(describeDemo(s).target, 'place');
+  assert.equal(describeDemo(s).target, '[data-tour="place"]');
   s = run(['open'], s);
-  assert.equal(describeDemo(s).target, 'plan');
-  s = run(['wizard'], s);
-  assert.equal(describeDemo(s).target, 'times');
-  s = run([{ type: 'pick', iso: '2026-11-13T19:00:00.000Z' }], s);
-  assert.equal(describeDemo(s).target, 'continue');
-  s = run(['continue'], s);
-  assert.equal(describeDemo(s).target, 'confirm');
+  assert.equal(describeDemo(s, { wizard: 'time' }).target, '[data-tour="plan"]');
+  assert.equal(describeDemo(s, { wizard: 'time', timePicked: true }).target, '.time-picker .step-btn.primary');
+  assert.equal(describeDemo(s, { wizard: 'confirm' }).target, '.checklist-step .step-btn.primary');
 });
 
-test('Continue and Confirm do nothing until a time is picked', () => {
-  const s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'found', 'saved-done', 'open', 'wizard']);
-  assert.equal(demoReducer(s, { type: 'continue' }).bstep, 1);
-  assert.equal(demoReducer(s, { type: 'confirm' }).booked, null);
+test('Save only works once the place is found, and Verify place explains itself instead of leaving', () => {
+  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste']);
+  assert.equal(demoReducer(s, { type: 'save' }).saved, false);
+  s = run(['found', 'verify'], s);
+  assert.equal(s.paste, 'confirm');
+  assert.match(describeDemo(s).title, /Verify place/);
+  assert.equal(run(['save'], s).saved, true);
 });
 
-test('Back undoes the last small step only', () => {
-  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'found', 'saved-done', 'open', 'wizard', { type: 'pick', iso: 'a' }, 'continue']);
+test('Back closes the place sheet until it is booked', () => {
+  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'saved-done', 'open']);
   assert.equal(canGoBack(s), true);
-  s = run(['back'], s); assert.equal(s.bstep, 1); assert.equal(s.picked, 'a');
-  s = run(['back'], s); assert.equal(s.bstep, 0); assert.equal(s.picked, null);
-  s = run(['back'], s); assert.equal(s.placeOpen, false);
+  s = run(['back'], s);
+  assert.equal(s.placeOpen, false);
   assert.equal(canGoBack(s), false);
 });
 
@@ -59,7 +60,7 @@ test('skipping goes to the end card and says only what was done', () => {
 });
 
 test('the end card lists exactly what happened, with no time claims', () => {
-  const saved = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'found', 'skip']);
+  const saved = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'skip']);
   assert.equal(doneSummary(saved).body, 'You saved a reel. Save your own reels and plan with a partner.');
   const booked = { ...saved, booked: '2026-11-13T19:00:00.000Z' };
   assert.equal(doneSummary(booked).body, 'You saved a reel and booked a time. Make it yours and plan with a partner.');
@@ -90,7 +91,7 @@ test('the four plans are the ones in the design', () => {
 
 test('the hand-off keeps the collection and what was done, and nothing else', () => {
   const store = memory();
-  const s = { ...run(['start', { type: 'plan', name: 'Date night', emoji: '🍷' }, 'found']), booked: 'x' };
+  const s = { ...run(['start', { type: 'plan', name: 'Date night', emoji: '🍷' }, 'paste', 'found', 'save']), booked: 'x' };
   assert.equal(saveDemoHandoff(handoffFrom(s), store, 1000), true);
   assert.deepEqual(readDemoHandoff(store, 2000), { v: 1, collName: 'Date night', collEmoji: '🍷', did: { saved: true, booked: true }, at: 1000 });
   clearDemoHandoff(store);
