@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import AchievementsSection from './AchievementsSection';
+import FramedAvatar from './FramedAvatar';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
@@ -429,7 +431,7 @@ function ImportCollection({ onImport, showToast }) {
   );
 }
 
-function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteClick }) {
+function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProfile, onDeleteClick }) {
   const [editMode, setEditMode] = useState(false);
   // Closing Settings closes Edit profile too.
   useEffect(() => {
@@ -495,11 +497,14 @@ function ProfileSection({ profile, email, drawerOpen, onUpdateProfile, onDeleteC
 
       {/* The card opens Edit profile as its own panel, over Settings. */}
       <button type="button" className="profile-display-card profile-open" onClick={() => setEditMode(true)} aria-label="Edit profile">
-        <span className="profile-avatar">
-          <AvatarComponent />
-        </span>
+        <FramedAvatar frame={achievements?.frame}>
+          <span className="profile-avatar">
+            <AvatarComponent />
+          </span>
+        </FramedAvatar>
         <span className="profile-info">
           <span className="profile-name">{profile.display_name}</span>
+          {achievements?.title && <span className="profile-title">{achievements.title}</span>}
           <span className="profile-email">{email}</span>
         </span>
         <ChevronRight className="profile-open-chevron" aria-hidden="true" />
@@ -670,6 +675,7 @@ export default function SettingsDrawer({
   onClose,
   userId,
   profile,
+  achievements,
   collections,
   onCreateCollection,
   onSetPrivacy,
@@ -720,8 +726,9 @@ export default function SettingsDrawer({
         </div>
 
         <div className="settings-content">
-          {profile && <ProfileSection key={profile.id} profile={profile} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
+          {profile && <ProfileSection key={profile.id} profile={profile} achievements={achievements} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <NotificationsToggle userId={userId} />}
+          {achievements && <AchievementsSection achievements={achievements} />}
           {userId && <WeeklyPickDay userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}

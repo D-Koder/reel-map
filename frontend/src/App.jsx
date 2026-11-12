@@ -17,6 +17,8 @@ import FridayPickCard from './components/FridayPickCard';
 import PasteReelCard from './components/PasteReelCard';
 import WelcomeSteps from './components/WelcomeSteps';
 import Celebration from './components/Celebration';
+import BadgeCelebration from './components/BadgeCelebration';
+import useAchievements from './hooks/useAchievements';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
@@ -184,6 +186,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     () => data.places.filter((p) => !hiddenKeys.has(`collection:${p.collection_id}`) && !hiddenKeys.has(`place:${p.collection_id}:${p.id}`)),
     [data.places, hiddenKeys]
   );
+
+  const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile });
 
   const inbox = useReelInbox({
     userId,
@@ -589,6 +593,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         onClose={() => setSettingsOpen(false)}
         userId={userId}
         profile={data.profile}
+        achievements={achievements}
         collections={collections}
         onCreateCollection={data.createCollection}
         onSetPrivacy={data.setCollectionPrivate}
@@ -739,6 +744,19 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
 
       {celebrating && (
         <Celebration placeName={celebrating.name} streak={streak} maxPhotos={Math.max(0, 5 - (celebrating.place?.reviews?.find((r) => r.user_id === userId)?.photos?.length ?? 0))} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
+      )}
+
+      {!celebrating && achievements.pending[0] && (
+        <BadgeCelebration
+          key={achievements.pending[0].id}
+          badge={achievements.pending[0]}
+          onClose={() => achievements.dismiss(achievements.pending[0].id)}
+          onWear={(badge) => {
+            achievements.setFrame(badge.frame);
+            if (badge.title) achievements.setTitle(badge.title);
+            achievements.dismiss(badge.id);
+          }}
+        />
       )}
 
       {sharedPlaceId && !sharedIsMine && (

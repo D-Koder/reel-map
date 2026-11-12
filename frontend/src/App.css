@@ -6122,3 +6122,116 @@ a.step-btn {
 .auth-legal { display: flex; justify-content: center; gap: 16px; margin-top: 12px; font-size: 13px; }
 .legal-links { display: flex; flex-direction: column; gap: 4px; }
 .legal-links a { display: block; padding: 10px 0; font-weight: 600; }
+
+/* ---------- Achievements: profile frames, badges and titles ---------- */
+
+/* A frame is a ring drawn around any round picture. The ring is a mask over a gradient, so the picture stays untouched. */
+.framed {
+  --ring: 5px;
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: var(--ring);
+}
+.framed::before,
+.framed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - var(--ring)), #000 calc(100% - var(--ring) + 0.5px));
+  mask: radial-gradient(circle closest-side, transparent calc(100% - var(--ring)), #000 calc(100% - var(--ring) + 0.5px));
+}
+.frame-glyph {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+.frame-bronze::before { background: conic-gradient(from 20deg, #b87333, #ebb27a, #8a531f, #d79b5e, #b87333); }
+.frame-bronze::after { background: repeating-conic-gradient(rgba(60, 30, 5, 0.45) 0 1.6deg, transparent 1.6deg 15deg); }
+.frame-silver::before { background: conic-gradient(#c9ced8, #f5f7fa, #9aa1af, #e6e9ef, #c9ced8); }
+.frame-silver::after { background: repeating-conic-gradient(rgba(40, 50, 70, 0.4) 0 5deg, transparent 5deg 22.5deg); }
+.frame-pin::before { background: #e8590c; }
+.frame-pin::after { background: repeating-conic-gradient(#fff 0 7deg, transparent 7deg 30deg); }
+.frame-gold::before { background: conic-gradient(from 40deg, #c9961a, #ffe08a, #a8780c, #f4cb57, #c9961a); }
+.frame-gold::after { background: repeating-conic-gradient(rgba(90, 55, 0, 0.5) 0 3deg, transparent 3deg 9deg); }
+.frame-couple::before { background: conic-gradient(#ff7aa2 0 180deg, #6aa8ff 180deg 360deg); }
+.frame-hearts::before { background: conic-gradient(#ff5c8a, #ff9eb8, #e0336a, #ff8fb0, #ff5c8a); }
+.frame-hearts .frame-glyph { animation: frameBeat 1.6s ease-in-out infinite; }
+.frame-rainbow::before { background: conic-gradient(#ff5c5c, #ffb347, #ffe94d, #5ccf6e, #4db8ff, #9b6bff, #ff5c5c); animation: frameSpin 6s linear infinite; }
+.frame-blossom::before { background: linear-gradient(135deg, #ffc2d6, #ffe3ec 50%, #f79bbb); }
+.frame-sunny::before { background: conic-gradient(#ffd23f, #ff9f1c, #ffe066, #ff9f1c, #ffd23f); }
+.frame-sunny::after { background: repeating-conic-gradient(rgba(255, 255, 255, 0.65) 0 4deg, transparent 4deg 15deg); }
+.frame-cosy::before { background: linear-gradient(160deg, #c2410c, #f59e0b 55%, #7c2d12); }
+@keyframes frameSpin { to { transform: rotate(360deg); } }
+@keyframes frameBeat { 50% { transform: translate(-50%, -50%) scale(1.25); } }
+@media (prefers-reduced-motion: reduce) {
+  .frame-rainbow::before, .frame-hearts .frame-glyph { animation: none; }
+}
+
+.profile-title {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.ach-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ach { display: grid; gap: 10px; padding-top: 6px; }
+.ach-heading { margin: 8px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.ach-frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.ach-frame {
+  display: grid; justify-items: center; gap: 4px; padding: 10px 4px 8px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--card);
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--text); text-align: center; cursor: pointer; min-width: 0;
+}
+.ach-frame[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-softer); }
+.ach-frame.locked { opacity: 0.6; cursor: default; }
+.ach-frame small { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--text-muted); }
+.ach-frame small svg { width: 11px; height: 11px; }
+.ach-frame:focus-visible, .ach-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.frame-swatch { display: block; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ffb38a, #e8590c); box-shadow: 0 0 0 2px var(--card); }
+.ach-titles { display: flex; flex-wrap: wrap; gap: 8px; }
+.ach-chip { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--card); font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.ach-chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ach-badges { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ach-badge { display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); }
+.ach-badge-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-muted); color: var(--text-muted); border: 1.5px dashed var(--border); }
+.ach-badge.earned .ach-badge-icon { background: var(--accent); color: #fff; border: 0; }
+.ach-badge-icon svg { width: 20px; height: 20px; }
+.ach-badge-text { display: grid; gap: 2px; flex: 1; min-width: 0; font-size: 13px; }
+.ach-badge-text small { color: var(--text-muted); font-size: 12px; }
+.ach-badge-state { flex: none; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ach-badge.earned .ach-badge-state { color: var(--accent-text); }
+.ach-bar { display: block; height: 5px; margin-top: 4px; border-radius: 9px; background: var(--border); overflow: hidden; }
+.ach-bar i { display: block; height: 100%; background: var(--accent); }
+
+.badge-celebrate .badge-card { display: grid; gap: 8px; justify-items: center; }
+.badge-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.badge-big { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--accent); color: #fff; animation: celebratePop 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.badge-big svg { width: 42px; height: 42px; }
+.badge-unlocks { list-style: none; margin: 4px 0 0; padding: 10px 12px; width: 100%; display: grid; gap: 6px; text-align: left; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.badge-unlocks li { display: flex; align-items: center; gap: 8px; }
+.badge-unlocks svg { width: 15px; height: 15px; flex: none; color: var(--accent-text); }
+.badge-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.badge-celebrate.bolt { background: rgba(6, 8, 18, 0.9); }
+.badge-celebrate.bolt .badge-card { background: #0b0d16; color: #fff; }
+.badge-celebrate.bolt .badge-eyebrow, .badge-celebrate.bolt .celebrate-text { color: rgba(255, 255, 255, 0.75); }
+.badge-celebrate.bolt .badge-big { background: #ffe14d; color: #0b0d16; box-shadow: 0 0 28px #ffe14d; }
+.badge-celebrate.bolt .badge-unlocks { border-color: rgba(255, 255, 255, 0.2); }
+.badge-celebrate.bolt .badge-unlocks svg { color: #ffe14d; }
+.badge-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: badgeFlash 0.9s ease-out both; }
+@keyframes badgeFlash { from { opacity: 0.9; } to { opacity: 0; } }
+.badge-celebrate.years { background: rgba(58, 36, 23, 0.82); }
+.badge-celebrate.years .badge-card { background: linear-gradient(170deg, #5a3820, #b57a45); color: #fff4e6; }
+.badge-celebrate.years .badge-eyebrow, .badge-celebrate.years .celebrate-text { color: rgba(255, 244, 230, 0.85); }
+.badge-celebrate.years .badge-big { background: #fff4e6; color: #3a2417; }
+.badge-celebrate.years .badge-unlocks { border-color: rgba(255, 244, 230, 0.3); }
+.badge-celebrate.years .badge-unlocks svg { color: #ffe2bf; }
+@media (prefers-reduced-motion: reduce) { .badge-flash, .badge-big { animation: none; } }
