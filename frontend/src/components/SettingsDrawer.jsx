@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import AchievementsSection from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
 import { PIN_COLOURS } from '../hooks/usePinColours';
+import { PIN_PATTERNS, patternTile } from '../lib/pinPatterns';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
@@ -282,7 +283,7 @@ function ShortcutSetup({ showToast }) {
 }
 
 // isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pinColour, onPinColour }) {
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pin, onPin, patternsUnlocked }) {
   const owner = collection.members.find((m) => m.role === 'owner');
 
   return (
@@ -325,14 +326,26 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           </button>
         )}
       </div>
-      {onPinColour && (
+      {onPin && (
         <div className="pin-colours" role="group" aria-label={`Pin colour for ${collection.name}`}>
           <span className="pin-colours-label">Pins</span>
-          <button type="button" className="pin-swatch pin-swatch-none" aria-pressed={!pinColour} aria-label="Group colours (default)" title="Group colours (default)" onClick={() => onPinColour(null)} />
+          <button type="button" className="pin-swatch pin-swatch-none" aria-pressed={!pin?.c} aria-label="Group colours (default)" title="Group colours (default)" onClick={() => onPin({ c: null })} />
           {PIN_COLOURS.map((c) => (
-            <button key={c.id} type="button" className="pin-swatch" style={{ background: c.hex }} aria-pressed={pinColour === c.hex} aria-label={c.name} title={c.name} onClick={() => onPinColour(c.hex)} />
+            <button key={c.id} type="button" className="pin-swatch" style={{ background: c.hex }} aria-pressed={pin?.c === c.hex} aria-label={c.name} title={c.name} onClick={() => onPin({ c: c.hex })} />
           ))}
         </div>
+      )}
+      {onPin && patternsUnlocked && (
+        <div className="pin-colours" role="group" aria-label={`Pin pattern for ${collection.name}`}>
+          <span className="pin-colours-label">Pattern</span>
+          <button type="button" className="pin-swatch pin-pattern" style={{ background: pin?.c ?? 'var(--surface-hover)' }} aria-pressed={!pin?.p} aria-label="No pattern" title="No pattern" onClick={() => onPin({ p: null })} />
+          {PIN_PATTERNS.map((p) => (
+            <button key={p.id} type="button" className="pin-swatch pin-pattern" style={{ background: pin?.c ?? '#d4421d', backgroundImage: `${patternTile(p.id)}, ${patternTile(p.id)}` }} aria-pressed={pin?.p === p.id} aria-label={p.name} title={p.name} onClick={() => onPin({ p: p.id })} />
+          ))}
+        </div>
+      )}
+      {onPin && !patternsUnlocked && (
+        <div className="pin-colours pin-locked"><Lock aria-hidden="true" /> Patterns for your pins unlock with the Explorer badge</div>
       )}
     </div>
   );
@@ -764,8 +777,9 @@ export default function SettingsDrawer({
                 }}
                 onTogglePrivacy={toggleLock}
                 onShare={onShare}
-                pinColour={pinColours?.map[c.id]}
-                onPinColour={pinColours && c.id !== inboxId ? (hex) => pinColours.setColour(c.id, hex) : undefined}
+                pin={pinColours?.map[c.id]}
+                onPin={pinColours && c.id !== inboxId ? (patch) => pinColours.setPin(c.id, patch) : undefined}
+                patternsUnlocked={pinColours?.patternsUnlocked}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>

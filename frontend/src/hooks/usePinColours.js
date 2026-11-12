@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { readJSON, writeJSON } from '../lib/storage';
+import { patternById } from '../lib/pinPatterns';
 
-// The colours a collection's pins can wear. Each is dark enough for the white icon on top of it.
+// The colours a collection's pins can wear. Free for everyone. Each is dark enough for the white letter on top.
 export const PIN_COLOURS = [
   { id: 'tomato', name: 'Tomato', hex: '#d4421d' },
   { id: 'pink', name: 'Pink', hex: '#e0336a' },
@@ -13,19 +14,31 @@ export const PIN_COLOURS = [
 
 const key = (userId) => `reelmap:pin-colours:${userId}`;
 
-// One colour per collection, chosen by me and kept on this device. { "<collection id>": "#hex" }.
-export default function usePinColours(userId) {
-  const [map, setMap] = useState(() => readJSON(key(userId), {}));
+// Older saves held just a colour string per collection. Everything becomes { c: colour, p: pattern id or null }.
+function tidy(saved) {
+  const out = {};
+  for (const [id, value] of Object.entries(saved ?? {})) {
+    const entry = typeof value === 'string' ? { c: value, p: null } : value;
+    if (entry?.c) out[id] = { c: entry.c, p: patternById(entry.p) ? entry.p : null };
+  }
+  return out;
+}
 
-  const setColour = useCallback((collectionId, hex) => {
+// One colour (and, with Explorer, one pattern) per collection, chosen by me and kept on this device.
+export default function usePinColours(userId) {
+  const [map, setMap] = useState(() => tidy(readJSON(key(userId), {})));
+
+  // patch is { c } and/or { p }. A pattern with no colour yet starts from the first colour. { c: null } clears both.
+  const setPin = useCallback((collectionId, patch) => {
     setMap((current) => {
       const next = { ...current };
-      if (hex) next[collectionId] = hex;
-      else delete next[collectionId];
+      const before = next[collectionId];
+      if (patch.c === null) delete next[collectionId];
+      else next[collectionId] = { c: patch.c ?? before?.c ?? PIN_COLOURS[0].hex, p: 'p' in patch ? patch.p : before?.p ?? null };
       writeJSON(key(userId), next);
       return next;
     });
   }, [userId]);
 
-  return { map, setColour };
+  return { map, setPin };
 }

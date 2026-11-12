@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Coffee, LocateFixed, MapPin, PartyPopper, UtensilsCrossed, X } from 'lucide-react';
+import { patternTile } from '../lib/pinPatterns';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
@@ -134,11 +135,18 @@ function createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPic
   markerContent.append(label);
   button.append(markerContent);
 
-  // A collection with its own colour wears it, and a small dot keeps showing how keen the group is.
+  // A collection with its own colour wears it (and its pattern, if it has one). A small dot keeps showing how keen the group is.
   const custom = pinColours?.[place.collection_id];
-  if (custom) {
+  if (custom?.c) {
     markerContent.classList.add('pin-custom');
-    markerContent.style.setProperty('--pin-colour', custom);
+    markerContent.style.setProperty('--pin-colour', custom.c);
+    const tile = custom.p ? patternTile(custom.p) : null;
+    if (tile) {
+      const texture = document.createElement('span');
+      texture.className = 'pin-texture';
+      texture.style.backgroundImage = tile;
+      markerContent.prepend(texture);
+    }
     const dot = document.createElement('span');
     dot.className = `pin-vibe-dot ${vibe.consensus}`;
     dot.title = vibe.label;

@@ -191,8 +191,12 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const pinColours = usePinColours(userId);
-  // Pin colours belong to the Explorer badge: until it is earned, pins keep their group colour.
-  const pinColoursOn = achievements.earnedIds.has('explorer');
+  // Plain pin colours are for everyone. Patterns inside them belong to the Explorer badge.
+  const patternsOn = achievements.earnedIds.has('explorer');
+  const mapPins = useMemo(
+    () => Object.fromEntries(Object.entries(pinColours.map).map(([id, pin]) => [id, patternsOn ? pin : { ...pin, p: null }])),
+    [pinColours.map, patternsOn]
+  );
 
   const inbox = useReelInbox({
     userId,
@@ -558,7 +562,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         </section>
         <section className={`panel panel-map ${screen === 'map' ? 'active' : ''}`}>
           <Suspense fallback={<div className="mapbox-map map-loading">Loading map…</div>}>
-            <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} pinColours={pinColoursOn ? pinColours.map : null} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
+            <MapScreen ref={mapScreenRef} places={places} collections={collections} membersOf={membersOf} pinColours={mapPins} showMyLocation={showMyLocation} onScreen={screen === 'map' || isWide} onOpenPin={setOpenPinId} onAddAt={openAddAt} showToast={showToast} />
           </Suspense>
         </section>
       </main>
@@ -599,7 +603,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         userId={userId}
         profile={data.profile}
         achievements={achievements}
-        pinColours={pinColoursOn ? pinColours : null}
+        pinColours={{ map: pinColours.map, setPin: pinColours.setPin, patternsUnlocked: patternsOn }}
         collections={collections}
         onCreateCollection={data.createCollection}
         onSetPrivacy={data.setCollectionPrivate}

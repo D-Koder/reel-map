@@ -10,7 +10,7 @@ const FOOD = new Set(['food', 'cafe']);
 // `reward` is what the badge unlocks besides its frame and title. `rewardBuilt` is false until that feature exists,
 // so the app never promises something it cannot give.
 export const BADGES = [
-  { id: 'explorer', name: 'Explorer', icon: 'Compass', target: 5, how: 'Mark places as done', reward: 'Custom pin colours', rewardBuilt: true, frame: 'bronze', title: 'Explorer' },
+  { id: 'explorer', name: 'Explorer', icon: 'Compass', target: 5, how: 'Mark places as done', reward: 'Pin patterns', rewardBuilt: true, frame: 'bronze', title: 'Explorer' },
   { id: 'local', name: 'Local', icon: 'Building2', target: 10, how: 'Visit places in one city', reward: 'Shareable city card', rewardBuilt: false, frame: 'silver', title: 'Local', soon: true },
   { id: 'curator', name: 'Curator', icon: 'MapPin', target: 25, how: 'Save places', reward: 'Surprise me filters', rewardBuilt: false, frame: 'pin', title: 'Curator' },
   { id: 'globetrotter', name: 'Globetrotter', icon: 'Globe', target: 3, how: 'Visit places in different cities', reward: 'Map stamps on your profile', rewardBuilt: false, frame: 'gold', title: 'Pathfinder', soon: true },
