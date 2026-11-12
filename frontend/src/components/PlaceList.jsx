@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
@@ -22,6 +22,14 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
   const duplicates = useMemo(() => duplicateIds(pins), [pins]);
   const activePin = pins.find((p) => p.id === activeId);
 
+  // Rows rise in one after another the first time the list shows. After that, a row that arrives (a partner adds
+  // a place, or you do) rises in and flashes. Rows already here stay still.
+  const seenRef = useRef(null);
+  const isFirst = seenRef.current === null;
+  useEffect(() => {
+    seenRef.current = new Set(pins.map((p) => p.id));
+  }, [pins]);
+
   const handleDragEnd = ({ active, over }) => {
     setActiveId(null);
     if (!over || active.id === over.id) return;
@@ -42,9 +50,10 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
     >
       <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
         <div className="pin-list">
-          {pins.map((pin) => (
+          {pins.map((pin, index) => (
             <PlaceRow
               key={pin.id}
+              enter={isFirst ? { delay: Math.min(index, 8) * 40, fresh: false } : seenRef.current.has(pin.id) ? null : { delay: 0, fresh: true }}
               pin={pin}
               members={members}
               userId={userId}

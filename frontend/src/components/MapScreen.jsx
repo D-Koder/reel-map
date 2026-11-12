@@ -101,7 +101,8 @@ function showPressRing(map, point) {
 
 // One marker per location. Entries at the same spot share it, and the count shows how many.
 // Tapping opens the entry, or a list of entries when there is more than one.
-function createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue }) {
+// dropDelay: null for a pin that was already on the map, or the wait in ms before it drops in.
+function createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue, dropDelay = null }) {
   const place = group[0];
   const members = membersOf[place.collection_id] ?? [];
   const vibe = getVibe(members.map((member) => member.id), place.reactions);
@@ -115,6 +116,10 @@ function createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPic
   // The category icon (or the place's own emoji) and the first letter of its name.
   const markerContent = document.createElement('span');
   markerContent.className = `pin-marker ${vibe.consensus}`;
+  if (dropDelay !== null) {
+    markerContent.classList.add('pin-drop');
+    markerContent.style.animationDelay = `${dropDelay}ms`;
+  }
   const label = document.createElement('span');
   label.className = 'pin-marker-label';
   if (place.emoji) {
@@ -180,6 +185,8 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   const isClosingModal = useRef(false);
   // Marker element for each place id, so a focused place's pin can be highlighted.
   const markerElsRef = useRef(new Map());
+  // Ids of the places whose pins have already dropped in. null until the first draw.
+  const droppedRef = useRef(null);
   // The entry ("collection:place") picked from the list or a notification: its pin bounces and a label pops up.
   const [focusedKey, setFocusedKey] = useState(null);
   // A focus asked for before the map finished loading.
@@ -342,11 +349,19 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // below had already removed them, so the pins disappeared.
   markersRef.current.forEach((marker) => marker.remove());
   markerElsRef.current = new Map();
+  // Pins drop in one after another the first time. Later redraws only drop the pins that are new.
+  const firstDraw = droppedRef.current === null;
+  const alreadyShown = droppedRef.current ?? new Set();
+  let dropped = 0;
   markersRef.current = venueGroups.map((group) => {
-    const marker = createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue: setVenuePicker });
+    const isNew = group.some((place) => !alreadyShown.has(place.id));
+    const dropDelay = isNew ? (firstDraw ? Math.min(dropped++, 14) * 45 : 0) : null;
+    const marker = createVenueMarker(map, group, { membersOf, pinColours, onOpenPin, onPickVenue: setVenuePicker, dropDelay });
     group.forEach((place) => markerElsRef.current.set(place.id, marker.getElement()));
     return marker;
   });
+
+  droppedRef.current = new Set([...alreadyShown, ...venueGroups.flat().map((place) => place.id)]);
 
   // Don't refit the map when we're just closing a modal.
   if (!isClosingModal.current) {

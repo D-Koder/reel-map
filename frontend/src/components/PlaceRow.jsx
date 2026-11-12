@@ -181,7 +181,8 @@ export function PlaceCard({ pin, members, userId, onClick, onKeyDown, handleProp
   );
 }
 
-export default function PlaceRow({ pin, members, userId, onOpen, selectable = false, selected = false, onToggle, duplicate = false }) {
+// enter: null, or { delay, fresh }. The row rises in; a fresh one (it just arrived) also flashes so it is easy to spot.
+export default function PlaceRow({ pin, members, userId, onOpen, selectable = false, selected = false, onToggle, duplicate = false, enter = null }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: pin.id,
     // No dragging while selecting: a tap ticks the card instead.
@@ -198,8 +199,8 @@ export default function PlaceRow({ pin, members, userId, onOpen, selectable = fa
   return (
     <div
       ref={setNodeRef}
-      className="place-row"
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`place-row ${enter ? `row-in ${enter.fresh ? 'row-fresh' : ''}` : ''}`}
+      style={{ transform: CSS.Translate.toString(transform), transition, ...(enter ? { '--row-delay': `${enter.delay}ms` } : {}) }}
     >
       {selectable ? (
         <PlaceCard

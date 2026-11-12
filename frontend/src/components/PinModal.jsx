@@ -53,6 +53,8 @@ function defaultReservation() {
 // and the people who haven't voted yet with a Nudge that shares a message to the group chat.
 function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe, showToast }) {
   const myVote = reactions[userId];
+  // The vote just tapped, so only it pops. A vote already there when the sheet opens stays still.
+  const [popped, setPopped] = useState(null);
   const others = members.filter((m) => m.id !== userId);
   const waiting = others.filter((m) => !reactions[m.id]);
   const everyoneElseIn = others.length > 0 && waiting.length === 0;
@@ -95,8 +97,11 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
               key={f.id}
               role="radio"
               aria-checked={myVote === f.id}
-              className={`vote-button ${myVote === f.id ? 'selected' : ''}`}
-              onClick={() => onSetVibe(f.id)}
+              className={`vote-button ${myVote === f.id ? 'selected' : ''} ${popped === f.id && myVote === f.id ? 'popped' : ''}`}
+              onClick={() => {
+                setPopped(f.id);
+                onSetVibe(f.id);
+              }}
             >
               <span aria-hidden="true">{f.emoji}</span> {f.label}
             </button>
