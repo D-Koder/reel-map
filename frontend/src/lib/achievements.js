@@ -4,33 +4,35 @@
 // A badge with `soon: true` needs data the app does not load yet (cities, repeat visits, how a place
 // was saved). It shows as "Coming soon" and never earns until its progress function is filled in.
 
+import { PRIZES, prizeToken } from './levels.js';
+
 const DAY = 24 * 60 * 60 * 1000;
 const FOOD = new Set(['food', 'cafe']);
 
 // `reward` is what the badge unlocks besides its frame and title. `rewardBuilt` is false until that feature exists,
 // so the app never promises something it cannot give.
 export const BADGES = [
-  { id: 'explorer', name: 'Explorer', icon: 'Compass', target: 5, how: 'Mark places as done', reward: 'Pin patterns', rewardBuilt: true, frame: 'bronze' },
-  { id: 'local', name: 'Local', icon: 'Building2', target: 10, how: 'Visit places in one city', reward: 'Shareable city card', rewardBuilt: false, frame: 'silver', soon: true },
-  { id: 'curator', name: 'Curator', icon: 'MapPin', target: 25, how: 'Save places', reward: 'Surprise me filters', rewardBuilt: false, frame: 'pin', title: 'Curator' },
-  { id: 'globetrotter', name: 'Globetrotter', icon: 'Globe', target: 3, how: 'Visit places in different cities', reward: 'Map stamps on your profile', rewardBuilt: false, frame: 'gold', title: 'Jetsetter', soon: true },
-  { id: 'planner', name: 'Planner', icon: 'Link', target: 3, how: 'Book places', reward: 'Shared collection theme', rewardBuilt: false, frame: 'couple' },
-  { id: 'insync', name: 'In Sync', icon: 'Heart', target: 5, how: 'Places you both voted Keen', reward: 'Matches list', rewardBuilt: false, frame: 'hearts', title: 'Perfect Match' },
-  { id: 'reelmaster', name: 'Reel Master', icon: 'PlayCircle', target: 100, how: 'Save places from reels', reward: 'Year-in-review recap', rewardBuilt: false, frame: 'rainbow', title: 'Reel Deal', soon: true },
-  { id: 'regular', name: 'Regular', icon: 'Repeat', target: 3, how: 'Go to the same place again', reward: 'Favourite star on the map', rewardBuilt: false, title: 'Regular', soon: true },
-  { id: 'foodie', name: 'Foodie', icon: 'UtensilsCrossed', target: 10, how: 'Visit food places', reward: 'Food-only Surprise me', rewardBuilt: false },
-  { id: 'streak', name: 'Date Night Streak', icon: 'Flame', target: 4, how: 'Weeks in a row with a visit', reward: 'Streak flame by your avatar', rewardBuilt: false, title: 'Dream Team' },
-  { id: 'first', name: 'First Date Night', icon: 'Calendar', target: 1, how: 'Your first done place together', reward: 'Dated memory in your timeline', rewardBuilt: false },
-  { id: 'year', name: 'One Year Ago', icon: 'Clock', target: 1, how: 'A place you visited a year ago', reward: 'One-year-ago memory card', rewardBuilt: false },
-  { id: 'gem', name: 'Hidden Gem Hunter', icon: 'Gem', target: 3, how: 'Visit places few people have saved', reward: 'Hidden gem tag', rewardBuilt: false, title: 'Gem Hunter', soon: true },
-  { id: 'spontaneous', name: 'Spontaneous', icon: 'Zap', target: 3, how: 'Visit within 24 hours of saving', reward: 'Special lightning celebration', rewardBuilt: true, title: 'Spontaneous' },
-  { id: 'finally', name: 'Finally!', icon: 'Hourglass', target: 1, how: 'Visit a place saved 6+ months ago', reward: 'Special "years in the making" celebration', rewardBuilt: true },
-  { id: 'seasons', name: 'Four Seasons', icon: 'Leaf', target: 4, how: 'Visit places in different seasons', reward: 'Seasonal stamp collection', rewardBuilt: false, title: 'Seasoned' },
-  { id: 'photographer', name: 'Photographer', icon: 'Camera', target: 10, how: 'Add photos to places', reward: 'Photo collage on your profile', rewardBuilt: false, title: 'Photographer' },
-  { id: 'reviewer', name: 'Reviewer', icon: 'MessageSquare', target: 5, how: 'Write reviews', reward: 'Reviews highlighted to your partner', rewardBuilt: false, title: 'Critic' },
+  { id: 'explorer', cat: 'Explore', name: 'Explorer', icon: 'Compass', target: 5, how: 'Mark places as done', reward: 'Pin patterns', rewardBuilt: true, frame: 'bronze' },
+  { id: 'local', cat: 'Explore', name: 'Local', icon: 'Building2', target: 10, how: 'Visit places in one city', reward: 'Shareable city card', rewardBuilt: false, frame: 'silver', soon: true },
+  { id: 'curator', cat: 'Explore', name: 'Curator', icon: 'MapPin', target: 25, how: 'Save places', reward: 'Surprise me filters', rewardBuilt: false, frame: 'pin', title: 'Curator' },
+  { id: 'globetrotter', cat: 'Explore', name: 'Globetrotter', icon: 'Globe', target: 3, how: 'Visit places in different cities', reward: 'Map stamps on your profile', rewardBuilt: false, frame: 'gold', title: 'Jetsetter', soon: true },
+  { id: 'planner', cat: 'Together', name: 'Planner', icon: 'Link', target: 3, how: 'Book places', reward: 'Shared collection theme', rewardBuilt: false, frame: 'couple' },
+  { id: 'insync', cat: 'Together', name: 'In Sync', icon: 'Heart', target: 5, how: 'Places you both voted Keen', reward: 'Matches list', rewardBuilt: false, frame: 'hearts', title: 'Perfect Match' },
+  { id: 'reelmaster', cat: 'Create', name: 'Reel Master', icon: 'PlayCircle', target: 100, how: 'Save places from reels', reward: 'Year-in-review recap', rewardBuilt: false, frame: 'rainbow', title: 'Reel Deal', soon: true },
+  { id: 'regular', cat: 'Explore', name: 'Regular', icon: 'Repeat', target: 3, how: 'Go to the same place again', reward: 'Favourite star on the map', rewardBuilt: false, title: 'Regular', soon: true },
+  { id: 'foodie', cat: 'Explore', name: 'Foodie', icon: 'UtensilsCrossed', target: 10, how: 'Visit food places', reward: 'Food-only Surprise me', rewardBuilt: false },
+  { id: 'streak', cat: 'Together', name: 'Date Night Streak', icon: 'Flame', target: 4, how: 'Weeks in a row with a visit', reward: 'Streak flame by your avatar', rewardBuilt: false, title: 'Dream Team' },
+  { id: 'first', cat: 'Together', name: 'First Date Night', icon: 'Calendar', target: 1, how: 'Your first done place together', reward: 'Dated memory in your timeline', rewardBuilt: false },
+  { id: 'year', cat: 'Moments', name: 'One Year Ago', icon: 'Clock', target: 1, how: 'A place you visited a year ago', reward: 'One-year-ago memory card', rewardBuilt: false },
+  { id: 'gem', cat: 'Explore', name: 'Hidden Gem Hunter', icon: 'Gem', target: 3, how: 'Visit places few people have saved', reward: 'Hidden gem tag', rewardBuilt: false, title: 'Gem Hunter', soon: true },
+  { id: 'spontaneous', cat: 'Moments', name: 'Spontaneous', icon: 'Zap', target: 3, how: 'Visit within 24 hours of saving', reward: 'Special lightning celebration', rewardBuilt: true, title: 'Spontaneous' },
+  { id: 'finally', cat: 'Moments', name: 'Finally!', icon: 'Hourglass', target: 1, how: 'Visit a place saved 6+ months ago', reward: 'Special "years in the making" celebration', rewardBuilt: true },
+  { id: 'seasons', cat: 'Moments', name: 'Four Seasons', icon: 'Leaf', target: 4, how: 'Visit places in different seasons', reward: 'Seasonal stamp collection', rewardBuilt: false, title: 'Seasoned' },
+  { id: 'photographer', cat: 'Create', name: 'Photographer', icon: 'Camera', target: 10, how: 'Add photos to places', reward: 'Photo collage on your profile', rewardBuilt: false, title: 'Photographer' },
+  { id: 'reviewer', cat: 'Create', name: 'Reviewer', icon: 'MessageSquare', target: 5, how: 'Write reviews', reward: 'Reviews highlighted to your partner', rewardBuilt: false, title: 'Critic' },
 ];
 
-// Ten frames: seven earned with a badge, three seasonal ones free for everyone in season.
+// Eleven frames: seven earned with a badge, three seasonal ones free for everyone in season, and one level prize.
 // `months` is [first, last], 1 to 12; a range that wraps the new year (Sep to Feb) has first > last.
 export const FRAMES = [
   { id: 'bronze', name: 'Bronze Compass', badge: 'explorer' },
@@ -43,6 +45,8 @@ export const FRAMES = [
   { id: 'blossom', name: 'Blossom', months: [3, 5], season: 'Mar to May', glyph: ['✿', [0, 72, 144, 216, 288]] },
   { id: 'sunny', name: 'Sunny', months: [6, 8], season: 'Jun to Aug', glyph: ['☀', [45, 225]] },
   { id: 'cosy', name: 'Cosy', months: [9, 2], season: 'Sep to Feb', glyph: ['❄', [315, 135, 225]] },
+  // The one frame no badge gives: the Level 25 prize.
+  { id: 'laurel', name: 'Gold Laurel', prize: 25, glyph: ['✦', [0, 90, 180, 270]] },
 ];
 
 export const BASE_TITLE = 'Wanderer';
@@ -60,6 +64,7 @@ export function inSeason(frame, date = new Date()) {
 // A frame can be worn when its badge is earned, or when it is a seasonal frame and the season is on.
 export function frameUnlocked(frame, earnedIds, date = new Date()) {
   if (frame.months) return inSeason(frame, date);
+  if (frame.prize) return earnedIds.has(prizeToken(frame.prize));
   return earnedIds.has(frame.badge);
 }
 
@@ -99,6 +104,8 @@ export function earnedTitles(earnedIds, counts = {}) {
   titleLadders(counts).forEach((l) => l.tiers.filter((t) => t.earned).forEach((t) => add(t.title)));
   funTitles(counts).filter((f) => f.earned).forEach((f) => add(f.title));
   BADGES.filter((b) => earnedIds.has(b.id)).forEach((b) => add(b.title));
+  // Level prizes that give a title. `earnedIds` holds a "prize:N" entry for each prize claimed.
+  PRIZES.filter((p) => earnedIds.has(prizeToken(p.level))).forEach((p) => p.titles?.forEach(add));
   return titles;
 }
 

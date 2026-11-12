@@ -17,9 +17,11 @@ import FridayPickCard from './components/FridayPickCard';
 import PasteReelCard from './components/PasteReelCard';
 import WelcomeSteps from './components/WelcomeSteps';
 import Celebration from './components/Celebration';
-import BadgeCelebration from './components/BadgeCelebration';
+import RewardCelebration from './components/RewardCelebration';
+import AchievementsScreen from './components/AchievementsScreen';
 import useAchievements from './hooks/useAchievements';
 import usePinColours from './hooks/usePinColours';
+import { patternById, patternUnlocked } from './lib/pinPatterns';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
@@ -82,6 +84,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     return () => query.removeEventListener('change', update);
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
   // Show my location on the map. Kept on this device only; the location itself is never saved.
   const [showMyLocation, setShowMyLocation] = useState(() => readJSON(SHOW_LOCATION_KEY, true));
   const toggleMyLocation = (on) => {
@@ -191,11 +194,11 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const pinColours = usePinColours(userId);
-  // Plain pin colours are for everyone. Patterns inside them belong to the Explorer badge.
-  const patternsOn = achievements.earnedIds.has('explorer');
+  // Plain pin colours are for everyone. Each texture needs its badge (Explorer) or its level prize.
+  const unlocked = achievements.earnedIds;
   const mapPins = useMemo(
-    () => Object.fromEntries(Object.entries(pinColours.map).map(([id, pin]) => [id, patternsOn ? pin : { ...pin, p: null }])),
-    [pinColours.map, patternsOn]
+    () => Object.fromEntries(Object.entries(pinColours.map).map(([id, pin]) => [id, pin.p && !(patternById(pin.p) && patternUnlocked(patternById(pin.p), unlocked)) ? { ...pin, p: null } : pin])),
+    [pinColours.map, unlocked]
   );
 
   const inbox = useReelInbox({
@@ -603,7 +606,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         userId={userId}
         profile={data.profile}
         achievements={achievements}
-        pinColours={{ map: pinColours.map, setPin: pinColours.setPin, patternsUnlocked: patternsOn }}
+        pinColours={{ map: pinColours.map, setPin: pinColours.setPin, unlocked }}
+        onOpenAchievements={() => { setSettingsOpen(false); setAchievementsOpen(true); }}
         collections={collections}
         onCreateCollection={data.createCollection}
         onSetPrivacy={data.setCollectionPrivate}
@@ -756,15 +760,23 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         <Celebration placeName={celebrating.name} streak={streak} maxPhotos={Math.max(0, 5 - (celebrating.place?.reviews?.find((r) => r.user_id === userId)?.photos?.length ?? 0))} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
       )}
 
-      {!celebrating && achievements.pending[0] && (
-        <BadgeCelebration
-          key={achievements.pending[0].id}
-          badge={achievements.pending[0]}
-          onClose={() => achievements.dismiss(achievements.pending[0].id)}
-          onWear={(badge) => {
-            achievements.setFrame(badge.frame);
-            if (badge.title) achievements.setTitle(badge.title);
-            achievements.dismiss(badge.id);
+      {achievementsOpen && <AchievementsScreen achievements={achievements} onClose={() => setAchievementsOpen(false)} />}
+
+      {!celebrating && (achievements.reward || achievements.levelUp) && (
+        <RewardCelebration
+          key={achievements.reward ? `${achievements.reward.kind}:${achievements.reward.badge?.id ?? achievements.reward.prize?.level}` : `level:${achievements.levelUp.to}`}
+          reward={achievements.reward}
+          levelUp={achievements.levelUp}
+          onClose={() => {
+            // A claim that also moved you up a level shows both in one celebration.
+            if (achievements.reward) achievements.dismissReward();
+            if (achievements.levelUp) achievements.dismissLevelUp();
+          }}
+          onWear={(frame, title) => {
+            if (frame) achievements.setFrame(frame);
+            if (title) achievements.setTitle(title);
+            achievements.dismissReward();
+            if (achievements.levelUp) achievements.dismissLevelUp();
           }}
         />
       )}

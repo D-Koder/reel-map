@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import AchievementsSection from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
 import { PIN_COLOURS } from '../hooks/usePinColours';
-import { PIN_PATTERNS, patternTile } from '../lib/pinPatterns';
+import { PIN_PATTERNS, patternTile, patternUnlocked } from '../lib/pinPatterns';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
@@ -283,7 +283,7 @@ function ShortcutSetup({ showToast }) {
 }
 
 // isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pin, onPin, patternsUnlocked }) {
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pin, onPin, unlocked }) {
   const owner = collection.members.find((m) => m.role === 'owner');
 
   return (
@@ -335,17 +335,19 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           ))}
         </div>
       )}
-      {onPin && patternsUnlocked && (
+      {onPin && (
         <div className="pin-colours" role="group" aria-label={`Pin pattern for ${collection.name}`}>
           <span className="pin-colours-label">Pattern</span>
           <button type="button" className="pin-swatch pin-pattern" style={{ background: pin?.c ?? 'var(--surface-hover)' }} aria-pressed={!pin?.p} aria-label="No pattern" title="No pattern" onClick={() => onPin({ p: null })} />
-          {PIN_PATTERNS.map((p) => (
-            <button key={p.id} type="button" className="pin-swatch pin-pattern" style={{ background: pin?.c ?? '#d4421d', backgroundImage: `${patternTile(p.id)}, ${patternTile(p.id)}` }} aria-pressed={pin?.p === p.id} aria-label={p.name} title={p.name} onClick={() => onPin({ p: p.id })} />
-          ))}
+          {PIN_PATTERNS.map((p) => {
+            const open = unlocked ? patternUnlocked(p, unlocked) : false;
+            return (
+              <button key={p.id} type="button" className={`pin-swatch pin-pattern${open ? '' : ' pin-pattern-locked'}`} style={{ background: pin?.c ?? '#d4421d', backgroundImage: `${patternTile(p.id)}, ${patternTile(p.id)}` }} aria-pressed={pin?.p === p.id} aria-label={open ? p.name : `${p.name}, locked`} disabled={!open} title={open ? p.name : `${p.name}: ${p.unlock.badge ? 'earn the Explorer badge' : `reach Level ${p.unlock.prize} and claim the prize`}`} onClick={() => onPin({ p: p.id })}>
+                {!open && <Lock aria-hidden="true" />}
+              </button>
+            );
+          })}
         </div>
-      )}
-      {onPin && !patternsUnlocked && (
-        <div className="pin-colours pin-locked"><Lock aria-hidden="true" /> Patterns for your pins unlock with the Explorer badge</div>
       )}
     </div>
   );
@@ -527,7 +529,7 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
         </FramedAvatar>
         <span className="profile-info">
           <span className="profile-name">{profile.display_name}</span>
-          {achievements?.title && <span className="profile-title">{achievements.title}</span>}
+          {achievements?.title && <span className="profile-title">{achievements.title}{achievements.levelChip ? <span className="level-chip">Lv {achievements.levelChip}</span> : null}</span>}
           <span className="profile-email">{email}</span>
         </span>
         <ChevronRight className="profile-open-chevron" aria-hidden="true" />
@@ -700,6 +702,7 @@ export default function SettingsDrawer({
   profile,
   achievements,
   pinColours,
+  onOpenAchievements,
   collections,
   onCreateCollection,
   onSetPrivacy,
@@ -752,7 +755,7 @@ export default function SettingsDrawer({
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} achievements={achievements} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
           {userId && <NotificationsToggle userId={userId} />}
-          {achievements && <AchievementsSection achievements={achievements} />}
+          {achievements && <AchievementsSection achievements={achievements} onOpenAchievements={onOpenAchievements} />}
           {userId && <WeeklyPickDay userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
@@ -779,7 +782,7 @@ export default function SettingsDrawer({
                 onShare={onShare}
                 pin={pinColours?.map[c.id]}
                 onPin={pinColours && c.id !== inboxId ? (patch) => pinColours.setPin(c.id, patch) : undefined}
-                patternsUnlocked={pinColours?.patternsUnlocked}
+                unlocked={pinColours?.unlocked}
               />
             ))}
             <form className="inline-form" onSubmit={addCollection}>

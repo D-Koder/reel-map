@@ -9,9 +9,9 @@ const place = (id, extra = {}) => ({ id, collection_id: 'c1', category: 'food', 
 const now = new Date(Date.UTC(2026, 10, 12));
 const status = (places, profile = {}) => Object.fromEntries(badgeStatus({ places, collections, profile, userId: 'me', now }).map((b) => [b.id, b]));
 
-test('there are 18 badges and 10 frames, as designed', () => {
+test('there are 18 badges and 11 frames, as designed', () => {
   assert.equal(BADGES.length, 18);
-  assert.equal(FRAMES.length, 10);
+  assert.equal(FRAMES.length, 11);
   assert.equal(FRAMES.filter((f) => f.months).length, 3);
 });
 

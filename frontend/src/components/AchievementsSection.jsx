@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, UtensilsCrossed, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, UtensilsCrossed, Zap, ChevronDown, ChevronRight, ChevronUp, Frame } from 'lucide-react';
 import FramedAvatar from './FramedAvatar';
 import { FRAMES, frameUnlocked, badgeById } from '../lib/achievements';
 
@@ -15,7 +15,7 @@ function Swatch({ frame }) {
 }
 
 // Settings: the badges earned, the frame and title being worn, and what is still to do.
-export default function AchievementsSection({ achievements }) {
+export default function AchievementsSection({ achievements, onOpenAchievements }) {
   const [open, setOpen] = useState(false);
   const { badges, earnedIds, titles, ladders, fun, frame, title, setFrame, setTitle } = achievements;
   // Titles that come with a badge and are not part of a ladder or a fun one.
@@ -26,9 +26,16 @@ export default function AchievementsSection({ achievements }) {
 
   return (
     <div className="settings-section">
+      {onOpenAchievements && (
+        <button type="button" className="settings-section-title settings-section-toggle ach-open" onClick={onOpenAchievements}>
+          <Medal className="ico" aria-hidden="true" /> Achievements
+          <span className="ach-count">Level {achievements.level.level}{achievements.readyBadges.length + achievements.prizes.filter((p) => p.state === 'ready').length > 0 ? ' · rewards ready!' : ''}</span>
+          <ChevronRight className="ico" aria-hidden="true" />
+        </button>
+      )}
       <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <Medal className="ico" aria-hidden="true" /> Achievements
-        <span className="ach-count">{earned} of {badges.length}</span>
+        <Frame className="ico" aria-hidden="true" /> Customise profile
+        <span className="ach-count">{earned} of {badges.length} badges</span>
         {open ? <ChevronUp className="ico" aria-hidden="true" /> : <ChevronDown className="ico" aria-hidden="true" />}
       </button>
 
@@ -90,28 +97,6 @@ export default function AchievementsSection({ achievements }) {
               </div>
             </div>
           )}
-
-          <h3 className="ach-heading">Badges</h3>
-          <ul className="ach-badges">
-            {badges.map((b) => {
-              const Icon = BADGE_ICONS[b.icon] ?? Medal;
-              return (
-                <li key={b.id} className={`ach-badge${b.earned ? ' earned' : ''}`}>
-                  <span className="ach-badge-icon"><Icon aria-hidden="true" /></span>
-                  <span className="ach-badge-text">
-                    <strong>{b.name}</strong>
-                    <small>{b.how}</small>
-                    {!b.earned && !b.soon && (
-                      <span className="ach-bar" role="progressbar" aria-valuemin={0} aria-valuemax={b.target} aria-valuenow={b.count} aria-label={`${b.name} progress`}>
-                        <i style={{ width: `${(b.count / b.target) * 100}%` }} />
-                      </span>
-                    )}
-                  </span>
-                  <span className="ach-badge-state">{b.earned ? 'Earned' : b.soon ? 'Coming soon' : `${b.count} of ${b.target}`}</span>
-                </li>
-              );
-            })}
-          </ul>
         </div>
       )}
     </div>

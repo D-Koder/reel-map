@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_TITLE, badgeStatus, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
+import { PRIZES, levelInfo, prizeToken, prizesBetween, totalXp } from '../lib/levels';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 
-// Badges earned, the frame and title this person wears, and the badges they have not been told about yet.
+// Badges earned, XP and level, level prizes, and the frame and title this person wears.
+// A badge is earned when its goal is met and collected (+100 XP) when it is claimed; a level prize is claimed for +50 XP.
+// Claims are kept on this device. XP from visits, reviews and saves is worked out from the data, so it follows the person.
 // The frame and title are saved to the profile, so the people you share with see them. Until the database has those
 // columns (profile.flairReady is false) they are kept on this device only.
 export default function useAchievements({ userId, ready, places, collections, profile, saveFlair }) {
@@ -18,7 +21,7 @@ export default function useAchievements({ userId, ready, places, collections, pr
     () => (ready ? badgeStatus({ places, collections, profile, userId }, counts) : []),
     [ready, places, collections, profile, userId, counts]
   );
-  const earnedIds = useMemo(() => new Set(badges.filter((b) => b.earned).map((b) => b.id)), [badges]);
+  const earnedBadgeIds = useMemo(() => new Set(badges.filter((b) => b.earned).map((b) => b.id)), [badges]);
 
   const save = useCallback((patch) => {
     setPrefs((current) => {
@@ -28,14 +31,46 @@ export default function useAchievements({ userId, ready, places, collections, pr
     });
   }, [userId]);
 
-  // The first time this runs, badges already earned are marked as seen. Only badges earned after that celebrate.
-  const pending = useMemo(
-    () => (prefs.seen ? badges.filter((b) => b.earned && !prefs.seen.includes(b.id)) : []),
-    [badges, prefs.seen]
+  // Badges celebrated before claiming existed count as claimed ("seen" was their old name).
+  const claimedBadges = useMemo(() => new Set(prefs.claimed ?? prefs.seen ?? []), [prefs.claimed, prefs.seen]);
+  const claimedPrizes = useMemo(() => new Set(prefs.prizes ?? []), [prefs.prizes]);
+  const claimedBadgeCount = badges.filter((b) => b.earned && claimedBadges.has(b.id)).length;
+
+  // Badge perks (frames, titles, a texture) are yours as soon as the badge is earned. Level prizes need a claim.
+  // `earnedIds` holds both: badge ids and a "prize:N" entry for each prize claimed.
+  const earnedIds = useMemo(
+    () => new Set([...earnedBadgeIds, ...[...claimedPrizes].map(prizeToken)]),
+    [earnedBadgeIds, claimedPrizes]
   );
+
+  const xp = useMemo(
+    () => (ready ? totalXp({ places, collections, userId }, claimedBadgeCount, claimedPrizes.size) : 0),
+    [ready, places, collections, userId, claimedBadgeCount, claimedPrizes]
+  );
+  const level = useMemo(() => levelInfo(xp), [xp]);
+  const readyBadges = useMemo(() => badges.filter((b) => b.earned && !claimedBadges.has(b.id)), [badges, claimedBadges]);
+  const prizes = useMemo(() => {
+    const next = PRIZES.find((p) => p.level > level.level);
+    return PRIZES.map((p) => ({
+      ...p,
+      state: claimedPrizes.has(p.level) ? 'got' : p.level <= level.level ? 'ready' : p === next ? 'next' : 'locked',
+    }));
+  }, [level.level, claimedPrizes]);
+
+  // Moving up a level celebrates once. The first time this runs the current level is taken as already seen.
+  const levelSeen = prefs.levelSeen;
   useEffect(() => {
-    if (ready && !prefs.seen) save({ seen: [...earnedIds] });
-  }, [ready, prefs.seen, earnedIds, save]);
+    if (ready && levelSeen === undefined) save({ levelSeen: level.level });
+  }, [ready, levelSeen, level.level, save]);
+  const levelUp = useMemo(
+    () => (ready && levelSeen !== undefined && level.level > levelSeen
+      ? { from: levelSeen, to: level.level, prizes: prizesBetween(levelSeen, level.level) }
+      : null),
+    [ready, levelSeen, level.level]
+  );
+
+  // What was just claimed, to celebrate. Not kept between visits.
+  const [reward, setReward] = useState(null);
 
   const synced = Boolean(profile?.flairReady);
   const storedFrame = synced ? profile.frame : prefs.frame;
@@ -65,7 +100,29 @@ export default function useAchievements({ userId, ready, places, collections, pr
     fun,
     frame,
     title,
-    pending,
+    xp,
+    level,
+    prizes,
+    readyBadges,
+    claimedBadges,
+    // The level shown on the profile once the Level 1 prize is claimed.
+    levelChip: claimedPrizes.has(1) ? level.level : null,
+    reward,
+    levelUp,
+    claimBadge: (id) => {
+      const badge = badges.find((b) => b.id === id);
+      if (!badge?.earned || claimedBadges.has(id)) return;
+      save({ claimed: [...claimedBadges, id] });
+      setReward({ kind: 'badge', badge });
+    },
+    claimPrize: (levelNumber) => {
+      const prize = PRIZES.find((p) => p.level === levelNumber);
+      if (!prize || levelNumber > level.level || claimedPrizes.has(levelNumber)) return;
+      save({ prizes: [...claimedPrizes, levelNumber] });
+      setReward({ kind: 'prize', prize });
+    },
+    dismissReward: () => setReward(null),
+    dismissLevelUp: () => save({ levelSeen: level.level }),
     setFrame: (id) => {
       save({ frame: id });
       if (synced) saveFlair?.({ frame: id });
@@ -74,6 +131,5 @@ export default function useAchievements({ userId, ready, places, collections, pr
       save({ title: name });
       if (synced) saveFlair?.({ title: name });
     },
-    dismiss: (id) => save({ seen: [...new Set([...(prefs.seen ?? []), id])] }),
   };
 }
