@@ -3,8 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PIN_PATTERNS, patternById, patternTile } from './pinPatterns.js';
 
-test('the eight chosen patterns are here, in three groups', () => {
-  assert.deepEqual(PIN_PATTERNS.map((p) => p.id), ['cat', 'paw', 'heart', 'flower', 'star', 'leaf', 'wave', 'checks']);
+test('the six chosen patterns are here, in three groups', () => {
+  assert.deepEqual(PIN_PATTERNS.map((p) => p.id), ['cat', 'heart', 'flower', 'star', 'leaf', 'wave']);
   assert.deepEqual([...new Set(PIN_PATTERNS.map((p) => p.group))], ['Cute', 'Cool', 'Neutral']);
 });
 
@@ -17,7 +17,7 @@ test('every pattern makes a faded white tile', () => {
   }
 });
 
-test('unknown ids give nothing', () => {
-  assert.equal(patternById('nope'), null);
+test('unknown ids, including the removed paw and checks, give nothing', () => {
+  for (const id of ['nope', 'paw', 'checks']) assert.equal(patternById(id), null);
   assert.equal(patternTile('nope'), null);
 });
