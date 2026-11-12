@@ -3,6 +3,9 @@ import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AVATARS } from '../lib/constants';
 
+// Shown only once Google is switched on in Supabase (Authentication > Providers) and VITE_GOOGLE_SIGNIN=1 is set.
+const GOOGLE_SIGNIN = import.meta.env.VITE_GOOGLE_SIGNIN === '1';
+
 const TITLES = {
   login: 'Welcome back',
   signup: 'Create your account',
@@ -24,6 +27,17 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const switchMode = (next) => {
     setMode(next);
     setMessage(null);
+  };
+
+  const signInWithGoogle = async () => {
+    setBusy(true);
+    setMessage(null);
+    // Comes back to this exact address, so an invite link (?invite=) still joins the collection.
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      setBusy(false);
+    }
   };
 
   const submit = async (e) => {
@@ -157,6 +171,16 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
             ? <><span className="spinner" aria-hidden="true" />Please wait…</>
             : { login: 'Log in', signup: 'Create account', forgot: 'Send reset link', reset: 'Save password' }[mode]}
         </button>
+
+        {GOOGLE_SIGNIN && (mode === 'login' || mode === 'signup') && (
+          <>
+            <div className="auth-or" aria-hidden="true">or</div>
+            <button type="button" className="step-btn secondary full-width" onClick={signInWithGoogle} disabled={busy}>
+              Continue with Google
+            </button>
+            <p className="toggle-hint">By continuing you confirm you're 13 or older and agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</p>
+          </>
+        )}
 
         <div className="auth-links">
           {mode === 'login' && (
