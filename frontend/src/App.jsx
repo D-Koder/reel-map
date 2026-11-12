@@ -187,7 +187,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     [data.places, hiddenKeys]
   );
 
-  const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile });
+  const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const inbox = useReelInbox({
     userId,

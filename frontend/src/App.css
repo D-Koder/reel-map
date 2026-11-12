@@ -6235,3 +6235,6 @@ a.step-btn {
 .badge-celebrate.years .badge-unlocks { border-color: rgba(255, 244, 230, 0.3); }
 .badge-celebrate.years .badge-unlocks svg { color: #ffe2bf; }
 @media (prefers-reduced-motion: reduce) { .badge-flash, .badge-big { animation: none; } }
+
+/* Small faces beside votes and reviews: a thin ring that sits on top of the layout, so nothing shifts. */
+.framed-sm { --ring: 2.5px; margin: -2.5px; padding: 2.5px; }

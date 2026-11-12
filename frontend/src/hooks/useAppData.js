@@ -225,7 +225,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, flairRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -239,6 +239,8 @@ export function useAppData(userId, showToast) {
       supabase.from('collections').select('id').eq('owner_id', userId).eq('is_inbox', true).limit(1),
       readReactions(),
       readNotes(),
+      // Frame and title for me and the people I share with. Read on its own, so the app still loads before the columns exist.
+      supabase.from('profiles').select('id, frame, title'),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
     const votes = {};
@@ -299,13 +301,22 @@ export function useAppData(userId, showToast) {
       }),
     }));
 
+    const flair = flairRes.error
+      ? {}
+      : Object.fromEntries((flairRes.data ?? []).map((r) => [r.id, { frame: r.frame ?? null, title: r.title ?? null }]));
     const next = {
       profile: {
         ...profileRes.data,
+        flairReady: !flairRes.error,
+        frame: flair[userId]?.frame ?? null,
+        title: flair[userId]?.title ?? null,
         current_streak: streakRes.data?.[0]?.current_streak ?? 0,
         best_streak: streakRes.data?.[0]?.best_streak ?? 0,
       },
-      collections: collectionsRes.data.map(normaliseCollection),
+      collections: collectionsRes.data.map(normaliseCollection).map((c) => ({
+        ...c,
+        members: c.members.map((m) => ({ ...m, frame: flair[m.id]?.frame ?? null, title: flair[m.id]?.title ?? null })),
+      })),
       places: places.flatMap(normalisePlace),
     };
     setState({ loading: false, error: null, ...next });
