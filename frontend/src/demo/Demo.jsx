@@ -36,8 +36,22 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
 
   const pad = 6;
-  const hole = rect && !d.center ? { left: Math.max(0, rect.left - pad), top: Math.max(0, rect.top - pad), width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
-  const dock = hole && hole.top + hole.height / 2 > window.innerHeight / 2 ? 'top' : 'bottom';
+  const real = rect && !d.center ? { left: Math.max(0, rect.left - pad), top: Math.max(0, rect.top - pad), width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
+  // When a new thing is pointed at, the dim starts open (the whole screen) and closes in on it.
+  const spot = real ? d.target : null;
+  const [settled, setSettled] = useState(null); // the target the dim has finished closing on
+  const [glided, setGlided] = useState(null); // the target whose glide has run its course
+  useEffect(() => {
+    if (!spot) { setSettled(null); setGlided(null); return undefined; }
+    let raf2;
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setSettled(spot)); });
+    const done = setTimeout(() => setGlided(spot), 750);
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); clearTimeout(done); };
+  }, [spot]);
+  const opening = Boolean(spot) && settled !== spot;
+  const closing = Boolean(spot) && glided !== spot;
+  const hole = real && opening ? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight } : real;
+  const dock = real && real.top + real.height / 2 > window.innerHeight / 2 ? 'top' : 'bottom';
   const dot = s.step === 'paste' || s.step === 'saved' ? 1 : s.step === 'book' ? 2 : 0;
   const dots = dot > 0 && (
     <div className="demo-dots" aria-label={`Step ${dot} of 2`}>
@@ -123,14 +137,14 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   }
 
   return createPortal(
-    <div className="tour-layer" data-tour-ui>
+    <div className={`tour-layer${closing ? ' closing' : ''}`} data-tour-ui>
       {hole && (
         <>
           <div className="tour-dim" style={{ left: 0, top: 0, right: 0, height: hole.top }} />
           <div className="tour-dim" style={{ left: 0, top: hole.top + hole.height, right: 0, bottom: 0 }} />
           <div className="tour-dim" style={{ left: 0, top: hole.top, width: hole.left, height: hole.height }} />
           <div className="tour-dim" style={{ left: hole.left + hole.width, top: hole.top, right: 0, height: hole.height }} />
-          <div className="tour-ring" style={hole} />
+          <div className="tour-ring" style={{ ...hole, opacity: opening ? 0 : 1 }} />
         </>
       )}
       {d.center || s.confirmSkip && !hole ? <div className="tour-backdrop">{tip}</div> : tip}
@@ -208,6 +222,9 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
     hours: SAMPLE_DETAILS.hours,
     category: 'food',
     custom_info: TOUR_MARK,
+    // Pretend contact details so the call and website icons show. They go nowhere in the demo.
+    phone: '(03) 5550 0123',
+    website_url: 'https://example.com',
     collection_id: 'demo-coll',
     collectionIds: ['demo-coll'],
     added_by: ME,

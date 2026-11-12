@@ -77,7 +77,7 @@ export function doneSummary(s) {
   if (!s.booked) {
     return { title: 'Ready when you are', body: did.length ? `You ${did.join(' and ')}. Save your own reels and plan with a partner.` : 'Save your own reels and plan with a partner.' };
   }
-  return { title: 'You planned your first date! 🎉', body: `You ${did.join(' and ')}. Make it yours and plan with a partner.` };
+  return { title: 'You planned your first date! 🎉', body: `You ${did.join(' and ')} faster than I could say Waylit Maps. Make it yours and plan with a partner.` };
 }
 
 // The words, the pose and what to point at for the current moment.
@@ -99,11 +99,11 @@ export function describeDemo(s, dom = {}) {
     } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]' });
   } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {
-    if (s.booked) d = tip('Booked! 🎉', 'Your group gets a ping.', 'celebrate', { next: 'booked-next' });
+    if (s.booked) d = tip('Booked! 🎉', 'Your group gets a ping.', 'celebrate', { next: 'booked-next', target: '.checklist-step' });
     else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: '[data-tour="place"]' });
-    else if (dom.wizard === 'confirm') d = tip('Did you get it?', 'Tap Confirm to say you booked.', 'pointing', { target: '.checklist-step .step-btn.primary' });
+    else if (dom.wizard === 'confirm') d = tip('Set the time you got', 'Change it to the time you booked, then tap Confirm.', 'pointing', { target: '.checklist-step .step-btn.primary' });
     else if (dom.timePicked) d = tip('Nice', 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary' });
-    else d = tip('Find a time', 'Pick a day and a time, then book with the venue.', 'thinking', { target: '[data-tour="plan"]' });
+    else d = tip('Find a time', "Pick a day and a time. In your account you'd then tap Call or Website to reserve.", 'thinking', { target: '[data-tour="plan"]' });
   } else {
     const { title, body } = doneSummary(s);
     d = tip(title, body, 'celebrate', { center: true });

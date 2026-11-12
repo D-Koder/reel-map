@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { AVATARS } from '../lib/constants';
 
 const TITLES = {
   login: 'Welcome back',
@@ -15,7 +14,8 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [avatar, setAvatar] = useState(AVATARS[0]);
+  // Everyone starts with the Waylit lantern (the plain 🙂 draws as the lantern).
+  const avatar = '🙂';
   const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
   const [ageOk, setAgeOk] = useState(false);
@@ -80,23 +80,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
                 required
               />
             </label>
-            <div className="field">
-              <span className="modal-label">Avatar</span>
-              <div className="avatar-grid" role="radiogroup" aria-label="Avatar">
-                {AVATARS.map((a) => (
-                  <button
-                    type="button"
-                    key={a}
-                    role="radio"
-                    aria-checked={avatar === a}
-                    className={`avatar-option ${avatar === a ? 'selected' : ''}`}
-                    onClick={() => setAvatar(a)}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
             <label className="field">
               <span className="modal-label">Country (optional)</span>
               <input

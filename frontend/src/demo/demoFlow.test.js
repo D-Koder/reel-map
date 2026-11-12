@@ -33,6 +33,9 @@ test('tips point at the right thing at each moment', () => {
   assert.equal(describeDemo(s, { wizard: 'time' }).target, '[data-tour="plan"]');
   assert.equal(describeDemo(s, { wizard: 'time', timePicked: true }).target, '.time-picker .step-btn.primary');
   assert.equal(describeDemo(s, { wizard: 'confirm' }).target, '.checklist-step .step-btn.primary');
+  assert.match(describeDemo(s, { wizard: 'confirm' }).body, /time you booked/);
+  assert.match(describeDemo(s, { wizard: 'time' }).body, /Call or Website/);
+  assert.equal(describeDemo(run([{ type: 'booked', iso: 'x' }], s)).target, '.checklist-step');
 });
 
 test('Save only works once the place is found, and Verify place explains itself instead of leaving', () => {
@@ -63,7 +66,7 @@ test('the end card lists exactly what happened, with no time claims', () => {
   const saved = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'skip']);
   assert.equal(doneSummary(saved).body, 'You saved a reel. Save your own reels and plan with a partner.');
   const booked = { ...saved, booked: '2026-11-13T19:00:00.000Z' };
-  assert.equal(doneSummary(booked).body, 'You saved a reel and booked a time. Make it yours and plan with a partner.');
+  assert.equal(doneSummary(booked).body, 'You saved a reel and booked a time faster than I could say Waylit Maps. Make it yours and plan with a partner.');
   for (const s of [saved, booked, initialState()]) assert.doesNotMatch(JSON.stringify(describeDemo(s)), /minute|second/i);
 });
 

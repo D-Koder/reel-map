@@ -327,6 +327,8 @@ export default function PinModal({
   const eventNow = hasRuns ? eventStatus(runs) : null;
   const status = hasRuns ? (eventNow && { open: eventNow.kind === 'open', text: eventNow.text }) : openStatus(hours);
   const suburb = suburbOf(place?.address);
+  // The demo's sample place shows its call and website icons, but they go nowhere.
+  const linkProps = (href) => (isSample ? { 'aria-disabled': true, onClick: (e) => e.preventDefault() } : { href, target: href.startsWith('tel:') ? undefined : '_blank', rel: 'noopener noreferrer' });
   const quickActions = [
     place?.address && mapsLink && { label: 'Directions', href: mapsLink, Icon: Navigation },
     place?.phone && { label: `Call ${place.phone}`, href: `tel:${place.phone.replace(/[^\d+]/g, '')}`, Icon: Phone },
@@ -495,9 +497,7 @@ export default function PinModal({
                   <a
                     key={label}
                     className="quick-action"
-                    href={href}
-                    target={href.startsWith('tel:') ? undefined : '_blank'}
-                    rel="noopener noreferrer"
+                    {...linkProps(href)}
                     aria-label={label}
                     title={label}
                   >
@@ -630,7 +630,7 @@ export default function PinModal({
                 ) : (
                   <>
                     <div className="step-title">Find a time &amp; book</div>
-                    <div className="step-description">{hoursSummary}</div>
+                    {!isSample && <div className="step-description">{hoursSummary}</div>}
                     <div className="step-note">We can't see the venue's tables. Pick a time to try, book with the venue yourself, then tell us what you got.</div>
                     {/* The venue's own ways to book, as icons. */}
                     {bookingActions.length > 0 && (
@@ -639,9 +639,7 @@ export default function PinModal({
                           <a
                             key={label}
                             className="step-btn secondary book-icon"
-                            href={href}
-                            target={href.startsWith('tel:') ? undefined : '_blank'}
-                            rel="noopener noreferrer"
+                            {...linkProps(href)}
                             aria-label={label}
                             title={label}
                           >
@@ -680,7 +678,7 @@ export default function PinModal({
                         </button>
                       </>
                     )}
-                    <button type="button" className="step-link" onClick={() => { setTimeChosen(true); completeStep(1); }}>Plan it without booking</button>
+                    {!isSample && <button type="button" className="step-link" onClick={() => { setTimeChosen(true); completeStep(1); }}>Plan it without booking</button>}
                     {!isSample && hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
                   </>
                 )}
