@@ -6542,3 +6542,86 @@ a.step-btn {
 .ax-ring.s-ready .ax-prg { stroke: var(--ax-gold); }
 .ax-ring.s-ready .ax-in { background: var(--ax-gold); color: #3a2a00; }
 .ax-ring.s-done .ax-in { background: var(--accent); color: #fff; }
+
+
+/* MOTION, part 2: the hub rises in, the bell wobbles, the selected pin lifts and pulses, saves tick, places shrink away,
+   toasts slide out, and every button squishes when pressed. */
+.home-screen > * {
+  animation: row-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+}
+.home-screen > *:nth-child(2) { animation-delay: 60ms; }
+.home-screen > *:nth-child(3) { animation-delay: 120ms; }
+.home-screen > *:nth-child(4) { animation-delay: 180ms; }
+.home-screen > *:nth-child(5) { animation-delay: 240ms; }
+.home-screen > *:nth-child(6) { animation-delay: 300ms; }
+.home-screen > *:nth-child(7) { animation-delay: 360ms; }
+.home-screen > *:nth-child(n + 8) { animation-delay: 420ms; }
+
+.header-btn.bell-ringing svg {
+  transform-origin: 50% 12%;
+  animation: bell-ring 1.2s ease-in-out;
+}
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0); }
+  10% { transform: rotate(18deg); }
+  25% { transform: rotate(-16deg); }
+  40% { transform: rotate(12deg); }
+  55% { transform: rotate(-9deg); }
+  70% { transform: rotate(5deg); }
+  85% { transform: rotate(-2deg); }
+}
+.bell-count {
+  display: inline-block;
+  animation: ax-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+/* The selected pin stays lifted and pulses a ring, after its three bounces. */
+.map-pin-focused .pin-marker {
+  scale: 1.15;
+  animation: pin-focus-bounce 0.9s ease-in-out 3, pin-pulse 1.6s ease-out infinite;
+}
+@keyframes pin-pulse {
+  0% { box-shadow: 0 0 0 4px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(212, 66, 29, 0.55); }
+  100% { box-shadow: 0 0 0 4px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 22px rgba(212, 66, 29, 0); }
+}
+
+.step-btn.save-done { background: var(--success); border-color: var(--success); color: #fff; opacity: 1; }
+.save-tick circle { transform-box: fill-box; transform-origin: center; animation: tick-ring 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+.save-tick path { stroke-dasharray: 12; stroke-dashoffset: 12; animation: tick-draw 0.35s ease-out 0.2s forwards; }
+
+.place-row.row-leave {
+  overflow: hidden;
+  pointer-events: none;
+  animation: row-leave 0.4s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+@keyframes row-leave {
+  0% { height: var(--leave-h); opacity: 1; scale: 1; margin-bottom: 0; }
+  55% { opacity: 0; scale: 0.9; }
+  100% { height: 0; opacity: 0; scale: 0.9; margin-bottom: -8px; }
+}
+
+.toast.toast-leaving { animation: toast-out 0.22s ease-in forwards; }
+@keyframes toast-out {
+  to { transform: translateX(-50%) translateY(140%); opacity: 0; }
+}
+
+/* Press squish for every button, using the scale property so it never fights a button's own transform. */
+button:not(:disabled):not(.pin-swatch):active,
+[role='button']:not([aria-disabled='true']):active {
+  scale: 0.97;
+}
+button { transition: scale 0.12s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-screen > * { animation: motion-fade 0.35s ease-out backwards; }
+  .header-btn.bell-ringing svg { animation: none; }
+  .place-row.row-leave { animation: row-leave-soft 0.3s ease-in forwards; }
+  .toast.toast-leaving { animation: motion-fade-out 0.2s ease-in forwards; }
+}
+@keyframes row-leave-soft {
+  0% { height: var(--leave-h); opacity: 1; }
+  100% { height: 0; opacity: 0; margin-bottom: -8px; }
+}
+@keyframes motion-fade-out {
+  to { opacity: 0; }
+}

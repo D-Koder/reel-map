@@ -40,19 +40,32 @@ import { setSentryUser } from './lib/sentry';
 import './App.css';
 
 function Toast({ toast, onDismiss }) {
-  if (!toast) return null;
+  // The last toast stays on screen for a moment after it is dismissed, so it can slide away.
+  const [shown, setShown] = useState(toast);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (toast) {
+      setShown(toast);
+      setLeaving(false);
+      return undefined;
+    }
+    setLeaving(true);
+    const timer = setTimeout(() => { setShown(null); setLeaving(false); }, 220);
+    return () => clearTimeout(timer);
+  }, [toast]);
+  if (!shown) return null;
   return (
-    <div key={toast.key} className="toast" role="status">
-      <span>{toast.message}</span>
-      {toast.action && (
+    <div key={shown.key} className={`toast${leaving ? ' toast-leaving' : ''}`} role="status">
+      <span>{shown.message}</span>
+      {shown.action && !leaving && (
         <button
           className="toast-action"
           onClick={() => {
-            toast.action.onClick();
+            shown.action.onClick();
             onDismiss();
           }}
         >
-          {toast.action.label}
+          {shown.action.label}
         </button>
       )}
     </div>
@@ -85,6 +98,8 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  // The bell wobbles when something new arrives.
+  const [bellRinging, setBellRinging] = useState(false);
   // Show my location on the map. Kept on this device only; the location itself is never saved.
   const [showMyLocation, setShowMyLocation] = useState(() => readJSON(SHOW_LOCATION_KEY, true));
   const toggleMyLocation = (on) => {
@@ -190,6 +205,17 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     () => data.places.filter((p) => !hiddenKeys.has(`collection:${p.collection_id}`) && !hiddenKeys.has(`place:${p.collection_id}:${p.id}`)),
     [data.places, hiddenKeys]
   );
+
+  const lastUnread = useRef(null);
+  useEffect(() => {
+    if (!notificationsLoaded) return undefined;
+    const rose = lastUnread.current !== null && unreadCount > lastUnread.current;
+    lastUnread.current = unreadCount;
+    if (!rose) return undefined;
+    setBellRinging(true);
+    const timer = setTimeout(() => setBellRinging(false), 1400);
+    return () => clearTimeout(timer);
+  }, [unreadCount, notificationsLoaded]);
 
   const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
@@ -471,13 +497,13 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         <span className="header-title">waylit maps<span className="wordmark-dot" aria-hidden="true">.</span></span>
         <div className="header-buttons">
           <button
-            className="header-btn"
+            className={`header-btn${bellRinging ? ' bell-ringing' : ''}`}
             onClick={() => { setNotificationsOpen(true); markAllRead(); }}
             aria-label="Notifications"
           >
             <Bell aria-hidden="true" />
             {unreadCount > 0 && (
-              <span style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 5px' }}>
+              <span key={unreadCount} className="bell-count" style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 5px' }}>
                 {unreadCount}
               </span>
             )}
@@ -700,8 +726,11 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           onSave={async (patch) => {
             if (await data.updatePlace(editPin, patch)) {
               showToast(`Saved "${patch.name}"`);
-              setEditPinId(null);
+              // The sheet shows a tick on its Save button for a moment before it closes.
+              setTimeout(() => setEditPinId(null), 650);
+              return true;
             }
+            return false;
           }}
           onClose={() => setEditPinId(null)}
         />

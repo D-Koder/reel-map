@@ -199,6 +199,7 @@ export default function PlaceRow({ pin, members, userId, onOpen, selectable = fa
   return (
     <div
       ref={setNodeRef}
+      data-pin-id={pin.id}
       className={`place-row ${enter ? `row-in ${enter.fresh ? 'row-fresh' : ''}` : ''}`}
       style={{ transform: CSS.Translate.toString(transform), transition, ...(enter ? { '--row-delay': `${enter.delay}ms` } : {}) }}
     >

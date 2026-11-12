@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
@@ -30,6 +30,36 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
     seenRef.current = new Set(pins.map((p) => p.id));
   }, [pins]);
 
+  // A place that leaves the list (deleted, or moved to another collection) shrinks away instead of vanishing.
+  // The row's last height is kept so a copy of it can collapse from that size.
+  const listRef = useRef(null);
+  const heightsRef = useRef(new Map());
+  const prevPinsRef = useRef(pins);
+  const [leaving, setLeaving] = useState([]);
+  const leaveTimer = useRef(null);
+  useLayoutEffect(() => {
+    listRef.current?.querySelectorAll('[data-pin-id]').forEach((el) => heightsRef.current.set(el.dataset.pinId, el.offsetHeight));
+  });
+  useLayoutEffect(() => {
+    const now = new Set(pins.map((p) => p.id));
+    const gone = prevPinsRef.current
+      .map((pin, index) => ({ pin, index, height: heightsRef.current.get(pin.id) }))
+      .filter((g) => !now.has(g.pin.id) && g.height);
+    prevPinsRef.current = pins;
+    if (!gone.length) return;
+    setLeaving(gone);
+    clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => setLeaving([]), 420);
+  }, [pins]);
+  useEffect(() => () => clearTimeout(leaveTimer.current), []);
+
+  // The shrinking copy of a place that just left.
+  const ghost = (g) => (
+    <div key={`leaving-${g.pin.id}`} className="place-row row-leave" aria-hidden="true" style={{ '--leave-h': `${g.height}px` }}>
+      <PlaceCard pin={g.pin} members={members} userId={userId} dimmed />
+    </div>
+  );
+
   const handleDragEnd = ({ active, over }) => {
     setActiveId(null);
     if (!over || active.id === over.id) return;
@@ -49,21 +79,24 @@ export default function PlaceList({ pins, members, userId, onOpen, onReorder, on
       onDragCancel={() => setActiveId(null)}
     >
       <SortableContext items={pins.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-        <div className="pin-list">
+        <div className="pin-list" ref={listRef}>
           {pins.map((pin, index) => (
-            <PlaceRow
-              key={pin.id}
-              enter={isFirst ? { delay: Math.min(index, 8) * 40, fresh: false } : seenRef.current.has(pin.id) ? null : { delay: 0, fresh: true }}
-              pin={pin}
-              members={members}
-              userId={userId}
-              onOpen={() => onOpen(`${pin.collection_id}:${pin.id}`)}
-              duplicate={duplicates.has(pin.id)}
-              selectable={selecting}
-              selected={selecting && picked?.has(pin.id)}
-              onToggle={() => onToggle?.(pin)}
-            />
+            <React.Fragment key={pin.id}>
+              {leaving.filter((g) => g.index === index).map(ghost)}
+              <PlaceRow
+                pin={pin}
+                members={members}
+                userId={userId}
+                enter={isFirst ? { delay: Math.min(index, 8) * 40, fresh: false } : seenRef.current.has(pin.id) ? null : { delay: 0, fresh: true }}
+                onOpen={() => onOpen(`${pin.collection_id}:${pin.id}`)}
+                duplicate={duplicates.has(pin.id)}
+                selectable={selecting}
+                selected={selecting && picked?.has(pin.id)}
+                onToggle={() => onToggle?.(pin)}
+              />
+            </React.Fragment>
           ))}
+          {leaving.filter((g) => g.index >= pins.length).map(ghost)}
         </div>
       </SortableContext>
       <DragOverlay>

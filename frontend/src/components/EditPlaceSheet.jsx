@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, X } from 'lucide-react';
+import { ChevronRight, CircleCheck, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { categories, categoryIcon } from '../lib/constants';
 import { entriesAtSpot } from '../lib/places';
@@ -25,6 +25,8 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
   const [eventPrice, setEventPrice] = useState(place.event_price ?? '');
   const [eventContact, setEventContact] = useState(place.event_contact ?? '');
   const [saving, setSaving] = useState(false);
+  // After a successful save the button shows a tick until the sheet closes.
+  const [saved, setSaved] = useState(false);
   const [copyTarget, setCopyTarget] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
   const [busyAction, setBusyAction] = useState(null); // 'copy' | 'move' | null
@@ -173,8 +175,9 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
       }
     }
     setSaving(true);
-    await onSave({ name: name.trim(), emoji: emoji.trim(), note: note.trim(), category, eventRuns: cleanRuns(eventRuns), eventPrice, eventContact, location: newSpot });
+    const ok = await onSave({ name: name.trim(), emoji: emoji.trim(), note: note.trim(), category, eventRuns: cleanRuns(eventRuns), eventPrice, eventContact, location: newSpot });
     setSaving(false);
+    if (ok === true) setSaved(true);
   };
 
   return (
@@ -410,8 +413,8 @@ export default function EditPlaceSheet({ place, collections = [], places = [], u
 
         {isAdder && (
           <div className="sheet-footer">
-            <button type="submit" className="step-btn primary full-width" disabled={saving || !dirty}>
-              {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
+            <button type="submit" className={`step-btn primary full-width${saved ? ' save-done' : ''}`} disabled={saving || saved || !dirty}>
+              {saved ? <><CircleCheck className="ico save-tick" aria-hidden="true" />Saved</> : saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Save changes'}
             </button>
           </div>
         )}
