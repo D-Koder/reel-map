@@ -92,6 +92,9 @@ export default function CalendarConnect({ userId, connection, needsTap, onChange
           <CalendarDays className="ico" aria-hidden="true" /> Connect Google Calendar
         </button>
       )}
+      {googleCalendarEnabled && (
+        <p className="calendar-hint">We only see <b>when you're busy or free</b>. We never see event names, guests or places. Nothing is saved on our servers, and you can disconnect any time.</p>
+      )}
       {error && <div className="calendar-error">{error}</div>}
       {googleCalendarEnabled && !linkOpen && (
         <button type="button" className="calendar-link-btn" onClick={() => setLinkOpen(true)}>Apple or another calendar? Use a link</button>

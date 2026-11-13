@@ -22,6 +22,8 @@ import PasteReelCard from './components/PasteReelCard';
 import WelcomeSteps from './components/WelcomeSteps';
 import Celebration from './components/Celebration';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
+import InvitePreview from './components/InvitePreview';
+import { inviteIdFromLink } from './hooks/useInvites';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
@@ -807,6 +809,9 @@ function App() {
   // A place opened from a share link. Kept on this device while signing in, so it opens afterwards.
   const [sharedPlaceId, setSharedPlaceId] = useState(() => takeSharedPlaceFromUrl() ?? pendingSharedPlace());
   const [signingInToSave, setSigningInToSave] = useState(false);
+  // An invite link opened while signed out: show what's inside first. The ?invite= stays in the address, so
+  // the collection is joined (MainApp) right after signing in.
+  const [invitePeek, setInvitePeek] = useState(() => new URLSearchParams(window.location.search).get('invite'));
   const sharedPlaceDone = useCallback(() => {
     forgetSharedPlace();
     setSharedPlaceId(null);
@@ -849,7 +854,10 @@ function App() {
     body = (
       <>
         <LoggedOut sharedPlace={Boolean(sharedPlaceId)} />
-        {sharedPlaceId && !signingInToSave && (
+        {invitePeek && inviteIdFromLink(`${window.location.origin}?invite=${invitePeek}`) && (
+          <InvitePreview inviteId={invitePeek} onJoin={() => setInvitePeek(null)} onClose={() => setInvitePeek(null)} />
+        )}
+        {!invitePeek && sharedPlaceId && !signingInToSave && (
           <SharedPlaceSheet
             placeId={sharedPlaceId}
             signedIn={false}

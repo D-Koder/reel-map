@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { detectPlatform, isInstalled } from '../lib/platform';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
@@ -71,7 +72,13 @@ function NotificationsToggle({ userId }) {
   };
 
   if (!supported && !accountWide) {
-    return <div className="toggle-hint">Notifications need the app installed to your home screen.</div>;
+    const platform = detectPlatform();
+    const how = platform === 'ios'
+      ? 'In Safari tap Share, then "Add to Home Screen". Open it from there.'
+      : platform === 'android'
+        ? 'In Chrome tap the ⋮ menu, then "Install app". Open it from there.'
+        : 'In Chrome or Edge click the install icon in the address bar. Open the app from there.';
+    return <div className="toggle-hint">Notifications need the app installed. {how}</div>;
   }
 
   return (
@@ -198,6 +205,32 @@ const SHORTCUT_NAME = import.meta.env.VITE_SHORTCUT_NAME || 'Save to Reel Map';
 function connectShortcut(key) {
   const params = new URLSearchParams({ name: SHORTCUT_NAME, input: 'text', text: `reelmap-key:${key}` });
   window.location.href = `shortcuts://run-shortcut?${params.toString().replace(/\+/g, '%20')}`;
+}
+
+// Android and desktop have no Shortcut. Installing the app gives them the same thing: Share from Instagram
+// lists Reel Map (Android), and notifications work. Desktop just pastes links.
+function InstallSetup({ platform }) {
+  const [open, setOpen] = useState(false);
+  const installed = isInstalled();
+  const steps = platform === 'android'
+    ? ['In Chrome tap the ⋮ menu, then "Install app".', 'In Instagram tap Share on a reel, then pick Reel Map.', 'The place shows up in your inbox.']
+    : ['Click the install icon in the address bar (Chrome or Edge).', 'Copy a reel link, then use "Paste a reel link" in the app.', 'Turn on Notifications above once it is installed.'];
+  return (
+    <div className="settings-section">
+      <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Smartphone className="ico" aria-hidden="true" /> {platform === 'android' ? 'Save reels from Instagram' : 'Install the app'} {open ? <ChevronDown className="ico" aria-hidden="true" /> : <ChevronRight className="ico" aria-hidden="true" />}
+      </button>
+      {open && (
+        <div className="shortcut-setup">
+          {installed
+            ? <div className="shortcut-connected" role="status"><strong><CircleCheck className="ico" aria-hidden="true" /> App installed</strong></div>
+            : <p className="toggle-hint">Install the app for notifications{platform === 'android' ? ' and one-tap saving from Instagram' : ''}.</p>}
+          <ol className="toggle-hint">{steps.map((t) => <li key={t}>{t}</li>)}</ol>
+          <p className="toggle-hint">The iPhone Shortcut is only for iPhones.</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
@@ -772,7 +805,9 @@ export default function SettingsDrawer({
           )}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
-          {userId && <ShortcutSetup showToast={showToast} />}
+          {userId && (detectPlatform() === 'ios'
+            ? <ShortcutSetup showToast={showToast} />
+            : <InstallSetup platform={detectPlatform()} />)}
 
           {userId && <FriendsSection userId={userId} collections={collections} showToast={showToast} />}
 
