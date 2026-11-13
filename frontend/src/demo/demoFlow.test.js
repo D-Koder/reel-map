@@ -161,3 +161,17 @@ test('the finished-demo memory is set once, read, and cleared', async () => {
   assert.doesNotThrow(() => { markDemoDone(broken); clearDemoDone(broken); });
   assert.equal(demoDoneHere(broken), false);
 });
+
+test('the 13+ and Terms tick on the first screen goes to the new account, so sign-up does not ask again', () => {
+  const s = run([{ type: 'start', name: 'Sam', agreed: true }, { type: 'plan', name: 'Date night', emoji: '🍷' }, 'paste', 'found', 'save']);
+  assert.equal(s.agreed, true);
+  const store = new Map();
+  const mem = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  saveDemoHandoff(handoffFrom(s), mem, 1000);
+  assert.equal(readDemoHandoff(mem, 2000).agreed, true);
+  // Skipping the first screen's tick (or the demo) stores nothing, so sign-up still asks.
+  const skipped = run(['start', { type: 'plan', name: 'x', emoji: 'y' }]);
+  assert.equal(skipped.agreed, false);
+  saveDemoHandoff(handoffFrom(skipped), mem, 1000);
+  assert.equal('agreed' in readDemoHandoff(mem, 2000), false);
+});

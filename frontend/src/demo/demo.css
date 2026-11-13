@@ -140,3 +140,32 @@
   .chest-stage.open .chest-prize { transform: translateY(-6px); }
   .chest-lid { transition: none; }
 }
+
+/* First screen: name + the 13+ and Terms box. */
+.demo-start { flex-direction: column; align-items: stretch; gap: 10px; }
+.demo-agree { display: flex; gap: 10px; align-items: flex-start; text-align: left; font-size: 13px; line-height: 1.4; color: #3b3a36; }
+.demo-agree input { flex: none; width: 22px; height: 22px; margin-top: 1px; accent-color: #d9431c; }
+.demo-agree a { color: #d9431c; font-weight: 600; }
+.demo-agree-err { color: #b3261e; font-size: 13px; font-weight: 600; text-align: left; }
+
+/* After the chest opens: what the badge is worth, and the next one to chase. */
+.demo-after { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; animation: demo-fade-up 0.5s ease 1.4s both; }
+.demo-lvl { background: #fff; border: 2px solid #1a1a18; border-radius: 14px; padding: 8px 12px; }
+.demo-lvl-top { display: flex; justify-content: space-between; font-weight: 800; font-size: 14px; }
+.demo-lvl-bar { height: 10px; border-radius: 99px; background: #e4e0d4; overflow: hidden; margin: 6px 0 4px; }
+.demo-lvl-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #ffd23f, #d9431c); animation: demo-bar-fill 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 1.7s both; }
+.demo-lvl small, .demo-nextbadge small { display: block; font-size: 12px; color: #5d5b54; }
+.demo-nextbadge { display: flex; gap: 10px; align-items: center; border: 2px dashed #8b887e; border-radius: 14px; padding: 8px 12px; }
+.demo-nextbadge b { font-size: 14px; }
+.demo-nextbadge-ic { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #e4e0d4; display: grid; place-items: center; font-size: 16px; }
+.demo-links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+@keyframes demo-bar-fill { to { width: 100%; } }
+
+/* The main end-card button shines now and then; the chest glows while it waits. */
+.demo-tip.center .demo-foot.center .demo-btn.go { position: relative; overflow: hidden; }
+.demo-tip.center .demo-foot.center .demo-btn.go:not(:disabled)::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; left: -50%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent); animation: demo-sheen 2.6s ease-in-out 1s infinite; }
+@keyframes demo-sheen { 60%, 100% { left: 130%; } }
+.chest-stage::before { content: ''; position: absolute; left: 50%; top: 40%; width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 210, 63, 0.35), transparent 65%); animation: demo-breathe 2.4s ease-in-out infinite; pointer-events: none; }
+.chest-stage.open::before { display: none; }
+@keyframes demo-breathe { 50% { transform: scale(1.25); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .demo-after, .demo-lvl-bar i, .demo-tip.center .demo-foot.center .demo-btn.go::after, .chest-stage::before { animation: none !important; } .demo-lvl-bar i { width: 100%; } }

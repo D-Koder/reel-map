@@ -4,10 +4,10 @@
 const KEY = 'waylit:demo';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function saveDemoHandoff({ name, collName, collEmoji, saved, booked }, storage = globalThis.localStorage, now = Date.now()) {
+export function saveDemoHandoff({ name, agreed, collName, collEmoji, saved, booked }, storage = globalThis.localStorage, now = Date.now()) {
   if (!collName) return false;
   try {
-    storage.setItem(KEY, JSON.stringify({ v: 1, ...(name ? { name: String(name).trim().slice(0, 30) } : {}), collName: String(collName).slice(0, 40), collEmoji: collEmoji || '📌', did: { saved: Boolean(saved), booked: Boolean(booked) }, at: now }));
+    storage.setItem(KEY, JSON.stringify({ v: 1, ...(name ? { name: String(name).trim().slice(0, 30) } : {}), ...(agreed ? { agreed: true } : {}), collName: String(collName).slice(0, 40), collEmoji: collEmoji || '📌', did: { saved: Boolean(saved), booked: Boolean(booked) }, at: now }));
     return true;
   } catch {
     return false; // private mode or storage full: the demo still worked, the account just starts from scratch

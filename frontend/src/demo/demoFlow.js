@@ -14,6 +14,7 @@ export const SAMPLE = { name: 'Sample Noodle Bar', address: '1 Example St, Melbo
 export function initialState() {
   return {
     step: 'welcome', // welcome, planq, paste, saved, book, done
+    agreed: false, // the 13+ and Terms box on the first screen
     name: '', // what to call the person, asked on the first screen (optional)
     collName: '',
     collEmoji: '📌',
@@ -49,7 +50,7 @@ export function suggestedTimes(now = new Date()) {
 
 export function demoReducer(s, a) {
   switch (a.type) {
-    case 'start': return { ...s, step: 'planq', name: String(a.name || '').trim().slice(0, 30) };
+    case 'start': return { ...s, step: 'planq', name: String(a.name || '').trim().slice(0, 30), agreed: Boolean(a.agreed) };
     case 'plan': return { ...s, step: 'paste', collName: a.name, collEmoji: a.emoji };
     case 'paste': return { ...s, paste: 'finding' };
     case 'found': return s.paste === 'finding' ? { ...s, paste: 'confirm' } : s;
@@ -117,5 +118,5 @@ export function describeDemo(s, dom = {}) {
 }
 
 // What gets remembered for the account the person makes next.
-export const handoffFrom = (s) => ({ name: s.name, collName: s.collName, collEmoji: s.collEmoji, saved: s.saved, booked: Boolean(s.booked) });
+export const handoffFrom = (s) => ({ name: s.name, agreed: s.agreed, collName: s.collName, collEmoji: s.collEmoji, saved: s.saved, booked: Boolean(s.booked) });
 

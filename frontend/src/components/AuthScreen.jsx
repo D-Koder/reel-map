@@ -23,7 +23,11 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const avatar = '🙂';
   const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
-  const [ageOk, setAgeOk] = useState(false);
+  // Someone who ticked the 13+ and Terms box at the start of the demo is not asked again.
+  const demoAgreed = initialMode === 'signup' && Boolean(readDemoHandoff()?.agreed);
+  const demoName = initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : '';
+  const [ageOk, setAgeOk] = useState(demoAgreed);
+  const [confirm, setConfirm] = useState('');
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
 
   const switchMode = (next) => {
@@ -44,6 +48,10 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
 
   const submit = async (e) => {
     e.preventDefault();
+    if ((mode === 'signup' || mode === 'reset') && password !== confirm) {
+      setMessage({ type: 'error', text: 'The passwords do not match.' });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     let error = null;
@@ -92,6 +100,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
 
         {mode === 'signup' && (
           <>
+            {!demoName && (
             <label className="field">
               <span className="modal-label">Your name</span>
               <input
@@ -104,6 +113,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
                 required
               />
             </label>
+            )}
             <label className="field">
               <span className="modal-label">Country (optional)</span>
               <input
@@ -148,7 +158,22 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
           </label>
         )}
 
-        {mode === 'signup' && (
+        {(mode === 'signup' || mode === 'reset') && (
+          <label className="field">
+            <span className="modal-label">Confirm password</span>
+            <input
+              className="step-input"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              minLength={8}
+              required
+            />
+          </label>
+        )}
+
+        {mode === 'signup' && !demoAgreed && (
           <label className="auth-agree">
             <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} required />
             <span>

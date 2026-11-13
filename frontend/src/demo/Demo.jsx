@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock, Rocket } from 'lucide-react';
+import { BADGES, FRAMES, badgeById } from '../lib/achievements';
+import { PRIZES, XP, levelInfo } from '../lib/levels';
+import { setSound, sfx, soundOn } from './sfx';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
@@ -35,12 +38,25 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
   const [who, setWho] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [agreeErr, setAgreeErr] = useState(false);
+  const [sound, setSoundState] = useState(soundOn());
+  const begin = () => {
+    if (!agreed) { setAgreeErr(true); return; }
+    dispatch({ type: 'start', name: who, agreed: true });
+  };
+  // What the badge is worth, read from the same data as the Achievements screen, so the numbers never drift.
+  const afterLevel = levelInfo(XP.badge).level;
+  const afterPrizes = PRIZES.filter((p) => p.level <= afterLevel).map((p) => p.name);
+  const nextBadge = badgeById('explorer');
+  const nextFrame = FRAMES.find((f) => f.id === nextBadge.frame)?.name ?? 'new';
   const [chest, setChest] = useState('closed'); // closed, shaking, open. The badge inside is only kept once there is an account
   const openChest = () => {
     if (chest !== 'closed') return;
-    if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setChest('open'); return; }
+    if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setChest('open'); sfx.open(); return; }
     setChest('shaking');
-    setTimeout(() => setChest('open'), 650);
+    sfx.rumble();
+    setTimeout(() => { setChest('open'); sfx.open(); }, 650);
   };
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
 
@@ -122,7 +138,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                 <span className="chest-prize" aria-hidden="true"><Rocket /></span>
                 {chest === 'open' ? (
                   <span className="chest-reveal">
-                    <span className="chest-new">New badge</span>
+                    <span className="chest-new">New badge · 1 of {BADGES.length}</span>
                     <span className="chest-name">Test Driver</span>
                     <span className="chest-xp"><span>+100 XP</span><span>New title</span></span>
                     <span className="chest-lock"><Lock className="demo-lock" aria-hidden="true" /> Sign up to claim it</span>
@@ -135,25 +151,46 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                 )}
               </button>
             )}
+            {booked && chest === 'open' && (
+              <div className="demo-after">
+                <div className="demo-lvl">
+                  <div className="demo-lvl-top"><span>Level 1 → Level {afterLevel}</span><span>+{XP.badge} XP</span></div>
+                  <div className="demo-lvl-bar"><i /></div>
+                  <small>🎁 Ready to claim: {afterPrizes.join(' + ')}</small>
+                </div>
+                <div className="demo-nextbadge">
+                  <span className="demo-nextbadge-ic" aria-hidden="true">🔒</span>
+                  <div><b>Next badge: {nextBadge.name}</b><small>{nextBadge.how}: 0 of {nextBadge.target}. Earns a {nextFrame} frame.</small></div>
+                </div>
+              </div>
+            )}
             <div className="demo-foot center">
               <button type="button" className="demo-btn" onClick={() => { setChest('closed'); dispatch({ type: 'restart' }); }}>Replay</button>
               {booked && chest !== 'open'
                 ? <button type="button" className="demo-btn go" onClick={openChest} disabled={chest === 'shaking'}>Open chest</button>
                 : <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to claim' : 'Sign up'}</button>}
             </div>
-            <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
+            <div className="demo-links">
+              <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
+              <button type="button" className="demo-link soft" aria-pressed={sound} onClick={() => { setSound(!sound); setSoundState(!sound); }}>Sound: {sound ? 'on' : 'off'}</button>
+            </div>
           </>
         )}
         {s.step === 'welcome' && (
           <>
-            <form className="demo-own" onSubmit={(e) => { e.preventDefault(); dispatch({ type: 'start', name: who }); }}>
+            <form className="demo-own demo-start" onSubmit={(e) => { e.preventDefault(); begin(); }}>
               <input className="demo-input" value={who} maxLength={30} placeholder="Your name (optional)" aria-label="Your name" autoComplete="given-name" enterKeyHint="go" onChange={(e) => setWho(e.target.value)} />
+              <label className="demo-agree">
+                <input type="checkbox" checked={agreed} onChange={(e) => { setAgreed(e.target.checked); setAgreeErr(false); }} />
+                <span>I'm 13 or older and agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
+              </label>
+              {agreeErr && <div className="demo-agree-err" role="alert">Tick the box to confirm you're 13 or older and agree to the Terms and Privacy Policy.</div>}
             </form>
             <div className="demo-foot">
               <button type="button" className="demo-link soft" onClick={onExit}>‹ Back</button>
               <button type="button" className="demo-link" onClick={() => dispatch({ type: 'ask-skip' })}>Skip demo</button>
               <span className="grow" />
-              <button type="button" className="demo-btn go" onClick={() => dispatch({ type: 'start', name: who })}>Let's go</button>
+              <button type="button" className="demo-btn go" onClick={begin}>Let's go</button>
             </div>
           </>
         )}
