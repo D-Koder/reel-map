@@ -34,7 +34,13 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const hintRect = useAnchorRect(d.hintTarget || null); // a smaller thing inside the spotlight that the Tap hint sits on
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
-  const [claimed, setClaimed] = useState(false); // the badge was tapped open; it is only kept once there is an account
+  const [chest, setChest] = useState('closed'); // closed, shaking, open. The badge inside is only kept once there is an account
+  const openChest = () => {
+    if (chest !== 'closed') return;
+    if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setChest('open'); return; }
+    setChest('shaking');
+    setTimeout(() => setChest('open'), 650);
+  };
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
 
   const pad = 6;
@@ -98,22 +104,41 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
         {s.step === 'done' && (
           <>
             {booked && (
-              <button type="button" className={`demo-prize big ${claimed ? 'claimed' : ''}`} onClick={() => setClaimed(true)} disabled={claimed} aria-label={claimed ? 'Test Driver badge unlocked. Sign up to keep it.' : 'Tap to claim your Test Driver badge'}>
-                {claimed && <span className="demo-spark" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <i key={i} style={{ '--a': `${i * 30}deg` }} />)}</span>}
-                <span className="demo-prize-ic"><Rocket aria-hidden="true" /></span>
-                <small className="demo-prize-eyebrow">{claimed ? 'Unlocked!' : 'First plan unlocked · reward ready'}</small>
-                <b>Test Driver</b>
-                <small className="demo-prize-plan">{timeLabel(booked)} · {SAMPLE.name} · {s.collEmoji} {s.collName}</small>
-                {claimed
-                  ? <small className="demo-prize-cta"><Lock className="demo-lock" aria-hidden="true" /> Sign up to keep it. +100 XP and a new title.</small>
-                  : <small className="demo-prize-cta">Tap to claim your badge</small>}
+              <button type="button" className={`chest-stage ${chest === 'open' ? 'open' : chest === 'shaking' ? 'shaking' : 'closed'}`} onClick={openChest} disabled={chest === 'open'} aria-label={chest === 'open' ? 'Test Driver badge unlocked. Sign up to claim it.' : 'Tap to open your reward chest'}>
+                <span className="chest-rays" aria-hidden="true" />
+                <span className="chest-box" aria-hidden="true">
+                  {chest !== 'open' && <><i className="chest-glint a" /><i className="chest-glint b" /><i className="chest-glint c" /></>}
+                  <svg className="chest-svg" viewBox="0 0 150 118">
+                    <rect x="10" y="52" width="130" height="62" rx="10" fill="#8a4b16" stroke="#1a1a18" strokeWidth="4" />
+                    <rect x="62" y="52" width="26" height="62" fill="#ffd23f" stroke="#1a1a18" strokeWidth="4" />
+                    <rect x="66" y="68" width="18" height="18" rx="4" fill="#fff3c4" stroke="#1a1a18" strokeWidth="3" />
+                    <g className="chest-lid">
+                      <path d="M10 54 V40 a30 30 0 0 1 30 -30 h70 a30 30 0 0 1 30 30 V54 Z" fill="#b5651d" stroke="#1a1a18" strokeWidth="4" strokeLinejoin="round" />
+                      <rect x="62" y="10" width="26" height="44" fill="#ffd23f" stroke="#1a1a18" strokeWidth="4" />
+                    </g>
+                  </svg>
+                </span>
+                <span className="chest-prize" aria-hidden="true"><Rocket /></span>
+                {chest === 'open' ? (
+                  <span className="chest-reveal">
+                    <span className="chest-new">New badge</span>
+                    <span className="chest-name">Test Driver</span>
+                    <span className="chest-xp"><span>+100 XP</span><span>New title</span></span>
+                    <span className="chest-lock"><Lock className="demo-lock" aria-hidden="true" /> Sign up to claim it</span>
+                  </span>
+                ) : (
+                  <>
+                    <span className="chest-hint">Tap to open your reward!</span>
+                    <span className="chest-plan">{timeLabel(booked)} · {SAMPLE.name} · {s.collEmoji} {s.collName}</span>
+                  </>
+                )}
               </button>
             )}
             <div className="demo-foot center">
-              <button type="button" className="demo-btn" onClick={() => { setClaimed(false); dispatch({ type: 'restart' }); }}>Replay</button>
-              {booked && !claimed
-                ? <button type="button" className="demo-btn go" onClick={() => setClaimed(true)}>Claim reward</button>
-                : <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to keep it' : 'Sign up'}</button>}
+              <button type="button" className="demo-btn" onClick={() => { setChest('closed'); dispatch({ type: 'restart' }); }}>Replay</button>
+              {booked && chest !== 'open'
+                ? <button type="button" className="demo-btn go" onClick={openChest} disabled={chest === 'shaking'}>Open chest</button>
+                : <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to claim' : 'Sign up'}</button>}
             </div>
             <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
           </>
