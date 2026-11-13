@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { readDemoHandoff } from '../lib/demoHandoff';
+import { demoDoneHere, readDemoHandoff } from '../lib/demoHandoff';
 
 // Shown only once Google is switched on in Supabase (Authentication > Providers) and VITE_GOOGLE_SIGNIN=1 is set.
 const GOOGLE_SIGNIN = import.meta.env.VITE_GOOGLE_SIGNIN === '1';
@@ -54,9 +54,17 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
       const res = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { display_name: displayName.trim(), avatar, country: country.trim() } },
+        options: { data: { display_name: displayName.trim(), avatar, country: country.trim(), ...(demoDoneHere() ? { demo_done: true } : {}) } },
       });
       error = res.error;
+      // An email that already has an account comes back with no identities (no error, so nobody can probe for emails).
+      // Send them to Log in: the Test Driver badge is only for new accounts.
+      if (!error && res.data.user && (res.data.user.identities ?? []).length === 0) {
+        setMessage({ type: 'info', text: 'That email already has an account. Log in instead.' });
+        setMode('login');
+        setBusy(false);
+        return;
+      }
       // With "Confirm email" switched on, there is no session until the link is clicked.
       if (!error && !res.data.session) {
         setMessage({ type: 'info', text: 'Check your email to confirm your account, then log in.' });

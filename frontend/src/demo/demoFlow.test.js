@@ -147,3 +147,17 @@ test('the name asked on the first screen shows on the end card and goes to the n
   assert.equal(run(['start']).name, '');
   assert.doesNotMatch(doneSummary({ ...s, name: '' }).title, /,/);
 });
+
+test('the finished-demo memory is set once, read, and cleared', async () => {
+  const { clearDemoDone, demoDoneHere, markDemoDone } = await import('../lib/demoHandoff.js');
+  const store = new Map();
+  const mem = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  assert.equal(demoDoneHere(mem), false);
+  markDemoDone(mem);
+  assert.equal(demoDoneHere(mem), true);
+  clearDemoDone(mem);
+  assert.equal(demoDoneHere(mem), false);
+  const broken = { getItem: () => { throw new Error('private'); }, setItem: () => { throw new Error('private'); }, removeItem: () => { throw new Error('private'); } };
+  assert.doesNotThrow(() => { markDemoDone(broken); clearDemoDone(broken); });
+  assert.equal(demoDoneHere(broken), false);
+});

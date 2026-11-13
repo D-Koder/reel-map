@@ -34,6 +34,9 @@ const DONE_KEY = 'waylit:demo-done';
 export function markDemoDone(storage = globalThis.localStorage) {
   try { storage.setItem(DONE_KEY, '1'); } catch { /* private mode: no badge, the demo still worked */ }
 }
+export function clearDemoDone(storage = globalThis.localStorage) {
+  try { storage.removeItem(DONE_KEY); } catch { /* nothing to clear */ }
+}
 export function demoDoneHere(storage = globalThis.localStorage) {
   try { return storage.getItem(DONE_KEY) === '1'; } catch { return false; }
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_TITLE, badgeStatus, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
 import { PRIZES, levelInfo, prizeToken, prizesBetween, totalXp } from '../lib/levels';
-import { demoDoneHere } from '../lib/demoHandoff';
+import { clearDemoDone, demoDoneHere } from '../lib/demoHandoff';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const prefsKey = (userId) => `reelmap:achievements:${userId}`;
@@ -11,10 +11,13 @@ const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 // Claims are kept on this device. XP from visits, reviews and saves is worked out from the data, so it follows the person.
 // The frame and title are saved to the profile, so the people you share with see them. Until the database has those
 // columns (profile.flairReady is false) they are kept on this device only.
-export default function useAchievements({ userId, ready, places, collections, profile, saveFlair }) {
+export default function useAchievements({ userId, accountCreatedAt, ready, places, collections, profile, saveFlair }) {
   const [prefs, setPrefs] = useState(() => readJSON(prefsKey(userId), {}));
 
-  const demoDone = Boolean(prefs.demo);
+  // Test Driver (finish the no-login demo, then sign up). Once the database has profiles.demo_badge it belongs to the
+  // account: it follows the person to any device and its celebration plays once. Until then it stays on this device.
+  const accountBadge = Boolean(profile?.demoReady);
+  const demoDone = accountBadge ? profile.demoBadge != null : Boolean(prefs.demo);
   const counts = useMemo(
     () => (ready ? computeProgress({ places, collections, profile, userId, demoDone }) : {}),
     [ready, places, collections, profile, userId, demoDone]
@@ -33,13 +36,28 @@ export default function useAchievements({ userId, ready, places, collections, pr
     });
   }, [userId]);
 
-  // The no-login demo, finished on this device, is remembered in this account's prefs so the badge stays.
+  // Device fallback (no database column yet): the demo, finished on this device, is kept in this account's prefs.
   useEffect(() => {
-    if (ready && !prefs.demo && demoDoneHere()) save({ demo: true });
-  }, [ready, prefs.demo, save]);
+    if (ready && !accountBadge && !prefs.demo && demoDoneHere()) save({ demo: true });
+  }, [ready, accountBadge, prefs.demo, save]);
+
+  // Signing in with Google cannot carry the demo with it, so a brand-new account (made in the last hour) on the
+  // device that finished the demo is marked here instead. An account that already existed is never marked.
+  useEffect(() => {
+    if (!ready || !accountBadge || !demoDoneHere()) return;
+    // The account now carries the badge (or is not new enough to earn it): this device's memory has done its job.
+    if (profile.demoBadge != null) { clearDemoDone(); return; }
+    const age = Date.now() - new Date(accountCreatedAt ?? 0).getTime();
+    if (age >= 0 && age < 60 * 60 * 1000) saveFlair?.({ demo_badge: 'earned' });
+    clearDemoDone();
+  }, [ready, accountBadge, profile?.demoBadge, accountCreatedAt, saveFlair]);
 
   // Badges celebrated before claiming existed count as claimed ("seen" was their old name).
-  const claimedBadges = useMemo(() => new Set(prefs.claimed ?? prefs.seen ?? []), [prefs.claimed, prefs.seen]);
+  const claimedBadges = useMemo(() => {
+    const set = new Set(prefs.claimed ?? prefs.seen ?? []);
+    if (accountBadge) { if (profile.demoBadge === 'claimed') set.add('demo'); else set.delete('demo'); }
+    return set;
+  }, [prefs.claimed, prefs.seen, accountBadge, profile?.demoBadge]);
   const claimedPrizes = useMemo(() => new Set(prefs.prizes ?? []), [prefs.prizes]);
   const claimedBadgeCount = badges.filter((b) => b.earned && claimedBadges.has(b.id)).length;
 
@@ -99,6 +117,25 @@ export default function useAchievements({ userId, ready, places, collections, pr
     if (Object.keys(patch).length) saveFlair?.(patch);
   }, [ready, synced, profile, prefs.frame, prefs.title, earnedIds, titles, saveFlair]);
 
+  const claimBadge = (id) => {
+    const badge = badges.find((b) => b.id === id);
+    if (!badge?.earned || claimedBadges.has(id)) return;
+    save({ claimed: [...claimedBadges, id] });
+    if (id === 'demo' && accountBadge) saveFlair?.({ demo_badge: 'claimed' });
+    setReward({ kind: 'badge', badge });
+  };
+
+  // Test Driver celebrates by itself the first time the account is open, then never again: it is marked
+  // claimed on the account, so a second device stays quiet. Held for a moment so the app can settle first.
+  const autoCelebrated = useRef(false);
+  const demoReady = readyBadges.some((b) => b.id === 'demo');
+  useEffect(() => {
+    if (!ready || !demoReady || autoCelebrated.current) return undefined;
+    const timer = setTimeout(() => { autoCelebrated.current = true; claimBadge('demo'); }, 1200);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, demoReady]);
+
   return {
     badges,
     earnedIds,
@@ -116,12 +153,7 @@ export default function useAchievements({ userId, ready, places, collections, pr
     levelChip: claimedPrizes.has(1) ? level.level : null,
     reward,
     levelUp,
-    claimBadge: (id) => {
-      const badge = badges.find((b) => b.id === id);
-      if (!badge?.earned || claimedBadges.has(id)) return;
-      save({ claimed: [...claimedBadges, id] });
-      setReward({ kind: 'badge', badge });
-    },
+    claimBadge,
     claimPrize: (levelNumber) => {
       const prize = PRIZES.find((p) => p.level === levelNumber);
       if (!prize || levelNumber > level.level || claimedPrizes.has(levelNumber)) return;

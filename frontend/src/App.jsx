@@ -86,7 +86,7 @@ const SHOW_LOCATION_KEY = 'reelmap:show-my-location';
 const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
-function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
+function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedPlaceDone }) {
   // Next time this device opens the main page signed out, it goes straight to Log in.
   useEffect(() => { rememberAccountHere(); }, []);
   const data = useAppData(userId, showToast);
@@ -244,7 +244,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     return () => clearTimeout(timer);
   }, [unreadCount, notificationsLoaded]);
 
-  const achievements = useAchievements({ userId, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
+  const achievements = useAchievements({ userId, accountCreatedAt, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const pinColours = usePinColours(userId);
   // Plain pin colours are for everyone. Each texture needs its badge (Explorer) or its level prize.
@@ -944,6 +944,7 @@ function App() {
       <MainApp
         key={session.user.id}
         userId={session.user.id}
+        accountCreatedAt={session.user.created_at}
         showToast={showToast}
         sharedPlaceId={sharedPlaceId}
         onSharedPlaceDone={sharedPlaceDone}
