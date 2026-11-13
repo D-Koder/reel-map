@@ -148,7 +148,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
         </>
       )}
       {d.hint && real && !opening && !s.confirmSkip && (
-        <div className="demo-hint" style={{ left: real.left + real.width / 2, top: real.top + real.height - 6 }} aria-hidden="true">👆</div>
+        <div className="demo-hint" style={{ left: real.left + real.width / 2, top: real.top + real.height - 6 }} aria-hidden="true"><i /><i /><span>Tap</span></div>
       )}
       {d.center || s.confirmSkip && !hole ? <div className="tour-backdrop">{tip}</div> : tip}
     </div>,
