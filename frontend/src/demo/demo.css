@@ -57,12 +57,6 @@
 @keyframes demo-pop { from { opacity: 0; transform: translateY(14px) scale(0.94); } to { opacity: 1; transform: none; } }
 @keyframes demo-pop-edge { from { opacity: 0; transform: translate(-50%, 14px) scale(0.94); } to { opacity: 1; transform: translateX(-50%); } }
 
-/* The lantern is a toy: tap it. */
-.demo-buddy { flex: none; display: inline-flex; padding: 0; margin: 0; background: none; border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.demo-buddy.poked { animation: demo-wiggle 0.6s ease; }
-.demo-buddy:active { transform: scale(0.92); }
-@keyframes demo-wiggle { 0% { transform: rotate(0) scale(1); } 20% { transform: rotate(-14deg) scale(1.15); } 45% { transform: rotate(12deg) scale(1.15); } 70% { transform: rotate(-6deg); } 100% { transform: rotate(0) scale(1); } }
-
 /* A bobbing finger under the thing you are meant to tap. */
 .demo-hint { position: fixed; z-index: 10051; margin-left: -14px; font-size: 30px; line-height: 1; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45)); animation: demo-bob 0.9s ease-in-out infinite; }
 @keyframes demo-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }

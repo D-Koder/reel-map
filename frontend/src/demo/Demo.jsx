@@ -28,23 +28,6 @@ function Confetti() {
   );
 }
 
-// The lantern, as a toy: tap it and it wiggles and changes face for a moment.
-const TAP_POSES = ['wink', 'love', 'celebrate', 'oops'];
-function Buddy({ size, pose }) {
-  const [poked, setPoked] = useState({ n: 0, pose: null });
-  useEffect(() => {
-    if (!poked.pose) return undefined;
-    const id = setTimeout(() => setPoked((p) => ({ ...p, pose: null })), 1400);
-    return () => clearTimeout(id);
-  }, [poked.n]); // eslint-disable-line react-hooks/exhaustive-deps
-  const poke = () => setPoked((p) => ({ n: p.n + 1, pose: TAP_POSES[p.n % TAP_POSES.length] }));
-  return (
-    <button type="button" className={`demo-buddy${poked.pose ? ' poked' : ''}`} key={poked.n} onClick={poke} aria-label="Tap the lantern">
-      <Lantern size={size} pose={poked.pose || pose} />
-    </button>
-  );
-}
-
 // The card that talks. Points at one thing (a hole in the dim layer), or sits in the middle for the first and last words.
 function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const rect = useAnchorRect(d.target);
@@ -95,7 +78,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
     const booked = s.booked ? new Date(s.booked) : null;
     tip = (
       <div className="demo-tip center" role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1} key={d.title}>
-        <Buddy size={64} pose={d.pose} />
+        <Lantern size={64} pose={d.pose} />
         <h3>{d.title}</h3>
         <p>{d.body}</p>
         {s.step === 'planq' && (
@@ -139,7 +122,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
     tip = (
       <div className={`demo-tip ${dock}`} role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1} key={d.title}>
         <div className="demo-tip-head">
-          <Buddy size={40} pose={d.pose} />
+          <Lantern size={40} pose={d.pose} />
           {dots}
           <span className="grow" />
           {canGoBack(s) && <button type="button" className="demo-link soft" onClick={() => dispatch({ type: 'back' })}>‹ Back</button>}
@@ -203,7 +186,8 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
   const d = describeDemo(s, dom);
 
   const showToast = useCallback((message) => {
-    // "Step 1 complete" would sit on top of the button the tip points at.
+    // Tapping Done on the booked sheet is the last step: move on. Other "Step n complete" toasts would sit on the button the tip points at.
+    if (message === 'Step 3 complete') { dispatch({ type: 'booked-next' }); return; }
     if (/^Step \d complete/.test(message)) return;
     setToast({ message, key: Date.now() });
   }, []);
