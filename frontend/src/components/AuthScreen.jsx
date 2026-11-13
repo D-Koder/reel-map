@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { readDemoHandoff } from '../lib/demoHandoff';
 
 // Shown only once Google is switched on in Supabase (Authentication > Providers) and VITE_GOOGLE_SIGNIN=1 is set.
 const GOOGLE_SIGNIN = import.meta.env.VITE_GOOGLE_SIGNIN === '1';
@@ -16,7 +17,8 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  // Someone who tried the demo already gave their name there.
+  const [displayName, setDisplayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
   // Everyone starts with the Waylit lantern (the plain 🙂 draws as the lantern).
   const avatar = '🙂';
   const [country, setCountry] = useState('');

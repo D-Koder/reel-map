@@ -34,6 +34,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const hintRect = useAnchorRect(d.hintTarget || null); // a smaller thing inside the spotlight that the Tap hint sits on
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
+  const [who, setWho] = useState('');
   const [chest, setChest] = useState('closed'); // closed, shaking, open. The badge inside is only kept once there is an account
   const openChest = () => {
     if (chest !== 'closed') return;
@@ -144,12 +145,17 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
           </>
         )}
         {s.step === 'welcome' && (
-          <div className="demo-foot">
-            <button type="button" className="demo-link soft" onClick={onExit}>‹ Back</button>
-            <button type="button" className="demo-link" onClick={() => dispatch({ type: 'ask-skip' })}>Skip demo</button>
-            <span className="grow" />
-            <button type="button" className="demo-btn go" onClick={() => dispatch({ type: 'start' })}>Let's go</button>
-          </div>
+          <>
+            <form className="demo-own" onSubmit={(e) => { e.preventDefault(); dispatch({ type: 'start', name: who }); }}>
+              <input className="demo-input" value={who} maxLength={30} placeholder="Your name (optional)" aria-label="Your name" autoComplete="given-name" enterKeyHint="go" onChange={(e) => setWho(e.target.value)} />
+            </form>
+            <div className="demo-foot">
+              <button type="button" className="demo-link soft" onClick={onExit}>‹ Back</button>
+              <button type="button" className="demo-link" onClick={() => dispatch({ type: 'ask-skip' })}>Skip demo</button>
+              <span className="grow" />
+              <button type="button" className="demo-btn go" onClick={() => dispatch({ type: 'start', name: who })}>Let's go</button>
+            </div>
+          </>
         )}
       </div>
     );

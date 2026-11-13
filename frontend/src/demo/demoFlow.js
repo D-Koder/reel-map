@@ -14,6 +14,7 @@ export const SAMPLE = { name: 'Sample Noodle Bar', address: '1 Example St, Melbo
 export function initialState() {
   return {
     step: 'welcome', // welcome, planq, paste, saved, book, done
+    name: '', // what to call the person, asked on the first screen (optional)
     collName: '',
     collEmoji: '📌',
     paste: 'idle', // idle, finding, confirm
@@ -48,7 +49,7 @@ export function suggestedTimes(now = new Date()) {
 
 export function demoReducer(s, a) {
   switch (a.type) {
-    case 'start': return { ...s, step: 'planq' };
+    case 'start': return { ...s, step: 'planq', name: String(a.name || '').trim().slice(0, 30) };
     case 'plan': return { ...s, step: 'paste', collName: a.name, collEmoji: a.emoji };
     case 'paste': return { ...s, paste: 'finding' };
     case 'found': return s.paste === 'finding' ? { ...s, paste: 'confirm' } : s;
@@ -79,7 +80,7 @@ export function doneSummary(s) {
   if (!s.booked) {
     return { title: 'Ready when you are', body: did.length ? `You ${did.join(' and ')}. Save your own reels and plan with a partner.` : 'Save your own reels and plan with a partner.' };
   }
-  return { title: 'You planned your first date! 🎉', body: `You ${did.join(' and ')} faster than I could say Waylit Maps. Make it yours and plan with a partner.` };
+  return { title: `You planned your first date${s.name ? `, ${s.name}` : ''}! 🎉`, body: `You ${did.join(' and ')} faster than I could say Waylit Maps. Make it yours and plan with a partner.` };
 }
 
 // The words, the pose and what to point at for the current moment.
@@ -116,5 +117,5 @@ export function describeDemo(s, dom = {}) {
 }
 
 // What gets remembered for the account the person makes next.
-export const handoffFrom = (s) => ({ collName: s.collName, collEmoji: s.collEmoji, saved: s.saved, booked: Boolean(s.booked) });
+export const handoffFrom = (s) => ({ name: s.name, collName: s.collName, collEmoji: s.collEmoji, saved: s.saved, booked: Boolean(s.booked) });
 

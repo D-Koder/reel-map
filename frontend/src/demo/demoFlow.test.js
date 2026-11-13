@@ -134,3 +134,16 @@ test('a device that has signed in before is remembered', () => {
   rememberAccountHere(store);
   assert.equal(hasAccountHere(store), true);
 });
+
+test('the name asked on the first screen shows on the end card and goes to the new account', () => {
+  const s = run([{ type: 'start', name: '  Sam  ' }, { type: 'plan', name: 'Date night', emoji: '🍷' }, 'paste', 'found', 'save', 'saved-done', 'open', { type: 'booked', iso: 'x' }, 'booked-next']);
+  assert.equal(s.name, 'Sam');
+  assert.match(doneSummary(s).title, /first date, Sam!/);
+  const store = new Map();
+  const mem = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  saveDemoHandoff(handoffFrom(s), mem, 1000);
+  assert.equal(readDemoHandoff(mem, 2000).name, 'Sam');
+  // No name given: nothing extra is stored and the title stays as before.
+  assert.equal(run(['start']).name, '');
+  assert.doesNotMatch(doneSummary({ ...s, name: '' }).title, /,/);
+});
