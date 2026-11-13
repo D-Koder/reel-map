@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, Lock, Rocket } from 'lucide-react';
+import { Lock, Rocket } from 'lucide-react';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
@@ -98,22 +98,15 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
         {s.step === 'done' && (
           <>
             {booked && (
-              <div className="demo-reward">
-                <Award className="demo-medal" aria-hidden="true" />
-                <div><b>First plan unlocked</b><small>{timeLabel(booked)} · {SAMPLE.name}</small><small>In {s.collEmoji} {s.collName}</small></div>
-              </div>
-            )}
-            {booked && (
-              <button type="button" className={`demo-prize ${claimed ? 'claimed' : ''}`} onClick={() => setClaimed(true)} disabled={claimed} aria-label={claimed ? 'Test Driver badge unlocked. Sign up to keep it.' : 'Tap to claim your Test Driver badge'}>
-                {claimed && <span className="demo-spark" aria-hidden="true">{Array.from({ length: 10 }, (_, i) => <i key={i} style={{ '--a': `${i * 36}deg` }} />)}</span>}
+              <button type="button" className={`demo-prize big ${claimed ? 'claimed' : ''}`} onClick={() => setClaimed(true)} disabled={claimed} aria-label={claimed ? 'Test Driver badge unlocked. Sign up to keep it.' : 'Tap to claim your Test Driver badge'}>
+                {claimed && <span className="demo-spark" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <i key={i} style={{ '--a': `${i * 30}deg` }} />)}</span>}
                 <span className="demo-prize-ic"><Rocket aria-hidden="true" /></span>
-                <div>
-                  <small className="demo-prize-eyebrow">{claimed ? 'Unlocked!' : 'Reward ready'}</small>
-                  <b>Test Driver</b>
-                  {claimed
-                    ? <small><Lock className="demo-lock" aria-hidden="true" /> Sign up to keep it. +100 XP and a new title.</small>
-                    : <small>Tap to claim your badge</small>}
-                </div>
+                <small className="demo-prize-eyebrow">{claimed ? 'Unlocked!' : 'First plan unlocked · reward ready'}</small>
+                <b>Test Driver</b>
+                <small className="demo-prize-plan">{timeLabel(booked)} · {SAMPLE.name} · {s.collEmoji} {s.collName}</small>
+                {claimed
+                  ? <small className="demo-prize-cta"><Lock className="demo-lock" aria-hidden="true" /> Sign up to keep it. +100 XP and a new title.</small>
+                  : <small className="demo-prize-cta">Tap to claim your badge</small>}
               </button>
             )}
             <div className="demo-foot center">

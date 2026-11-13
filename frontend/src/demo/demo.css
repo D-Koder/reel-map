@@ -118,3 +118,14 @@
 @keyframes demo-claim { 0% { transform: scale(0.94); } 100% { transform: none; } }
 @keyframes demo-spark { to { transform: rotate(var(--a)) translateX(46px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .demo-prize .demo-prize-ic, .demo-prize.claimed, .demo-spark i { animation: none; } .demo-spark { display: none; } }
+
+/* One big panel: the badge, the plan that earned it, and the claim. */
+.demo-prize.big { flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 16px 14px; background: linear-gradient(160deg, #1a1a18, #3a2a12); }
+.demo-prize.big .demo-prize-ic { width: 72px; height: 72px; margin-bottom: 4px; }
+.demo-prize.big .demo-prize-ic svg { width: 38px; height: 38px; }
+.demo-prize.big b { font-size: 22px; }
+.demo-prize.big .demo-prize-plan { color: #d8d5cb; }
+.demo-prize.big .demo-prize-cta { margin-top: 4px; color: #ffd23f; font-weight: 700; font-size: 13px; }
+.demo-prize.big .demo-spark { left: 50%; top: 52px; }
+.demo-prize.big.claimed .demo-spark i { animation-name: demo-spark-big; }
+@keyframes demo-spark-big { to { transform: rotate(var(--a)) translateX(70px); opacity: 0; } }
