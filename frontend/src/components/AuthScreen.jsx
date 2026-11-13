@@ -16,10 +16,12 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // Someone who tried the demo already gave their name there.
-  const [displayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
+  const [displayName, setDisplayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
   const [busy, setBusy] = useState(false);
   // Someone who ticked the 13+ and Terms box at the start of the demo is not asked again.
   const demoAgreed = initialMode === 'signup' && Boolean(readDemoHandoff()?.agreed);
+  // Coming from the no-login demo, the name was already asked there (or is taken from the email), so it is not asked again.
+  const fromDemo = initialMode === 'signup' && Boolean(readDemoHandoff());
   const [ageOk, setAgeOk] = useState(demoAgreed);
   const [showPw, setShowPw] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
@@ -79,6 +81,21 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
         <div className="auth-logo"><MapPin aria-hidden="true" /></div>
         <h1 className="auth-title">{TITLES[mode]}</h1>
         <p className="auth-subtitle">Save places from reels and plan them together.</p>
+
+        {mode === 'signup' && !fromDemo && (
+          <label className="field">
+            <span className="modal-label">Your name</span>
+            <input
+              className="step-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="What friends call you"
+              autoComplete="nickname"
+              maxLength={40}
+              required
+            />
+          </label>
+        )}
 
         {mode !== 'reset' && (
           <label className="field">
