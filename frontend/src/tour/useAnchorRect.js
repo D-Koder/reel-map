@@ -3,19 +3,21 @@ import { useEffect, useState } from 'react';
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // Follows an element on screen (it can move: sheets slide in, the page scrolls) and scrolls it into view once.
-export default function useAnchorRect(selector) {
+// `again` is any value that changes when the same element should be scrolled to once more (a new tip for the same box).
+export default function useAnchorRect(selector, again = '') {
   const [rect, setRect] = useState(null);
   useEffect(() => {
     if (!selector) { setRect(null); return undefined; }
     let frame = 0;
     let last = '';
     let scrolledTo = '';
+    const scrollKey = `${selector}|${again}`;
     const tick = () => {
       const el = document.querySelector(selector);
       const r = el?.getBoundingClientRect();
       if (r && r.width > 0 && r.height > 0) {
-        if (scrolledTo !== selector) {
-          scrolledTo = selector;
+        if (scrolledTo !== scrollKey) {
+          scrolledTo = scrollKey;
           el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
         }
         const key = `${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}`;
@@ -25,6 +27,6 @@ export default function useAnchorRect(selector) {
     };
     tick();
     return () => cancelAnimationFrame(frame);
-  }, [selector]);
+  }, [selector, again]);
   return rect;
 }

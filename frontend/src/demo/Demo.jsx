@@ -30,7 +30,7 @@ function Confetti() {
 
 // The card that talks. Points at one thing (a hole in the dim layer), or sits in the middle for the first and last words.
 function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
-  const rect = useAnchorRect(d.target);
+  const rect = useAnchorRect(d.target, d.title);
   const hintRect = useAnchorRect(d.hintTarget || null); // a smaller thing inside the spotlight that the Tap hint sits on
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
