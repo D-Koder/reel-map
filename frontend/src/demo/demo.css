@@ -169,3 +169,9 @@
 .chest-stage.open::before { display: none; }
 @keyframes demo-breathe { 50% { transform: scale(1.25); opacity: 0.6; } }
 @media (prefers-reduced-motion: reduce) { .demo-after, .demo-lvl-bar i, .demo-tip.center .demo-foot.center .demo-btn.go::after, .chest-stage::before { animation: none !important; } .demo-lvl-bar i { width: 100%; } }
+
+/* The end card can be taller than a phone screen once the chest opens: the backdrop scrolls, the card stays centred when it
+   fits, and the main button sticks to the bottom so it is always reachable. */
+.demo-layer .tour-backdrop { display: flex; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 10px; }
+.demo-layer .tour-backdrop > .demo-tip.center { margin: auto; flex: none; }
+.demo-tip.center .demo-foot.center { position: sticky; bottom: 0; z-index: 2; background: #f6f3ec; padding: 8px 0 4px; width: 100%; }
