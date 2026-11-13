@@ -175,3 +175,14 @@
 .demo-layer .tour-backdrop { display: flex; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 10px; }
 .demo-layer .tour-backdrop > .demo-tip.center { margin: auto; flex: none; }
 .demo-tip.center .demo-foot.center { position: sticky; bottom: 0; z-index: 2; background: #f6f3ec; padding: 8px 0 4px; width: 100%; }
+
+/* The inline sign-up form on the end card. */
+.dsu { display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: 100%; text-align: center; animation: demo-fade-up 0.4s ease both; }
+.dsu-title { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.dsu-google { background: #fff; width: 100%; }
+.dsu-or { display: flex; align-items: center; gap: 10px; color: #66645d; font-size: 12px; }
+.dsu-or::before, .dsu-or::after { content: ''; flex: 1; height: 1px; background: #c9c5b8; }
+.dsu-msg { font-size: 13px; font-weight: 600; text-align: left; color: #b3261e; }
+.dsu-msg.info { color: #3b3a36; }
+.dsu-msg .demo-link { margin-left: 8px; }
+.dsu-submit { width: 100%; }

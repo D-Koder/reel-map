@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { demoDoneHere, readDemoHandoff } from '../lib/demoHandoff';
-
-// Shown only once Google is switched on in Supabase (Authentication > Providers) and VITE_GOOGLE_SIGNIN=1 is set.
-const GOOGLE_SIGNIN = import.meta.env.VITE_GOOGLE_SIGNIN === '1';
+import { readDemoHandoff } from '../lib/demoHandoff';
+import { GOOGLE_SIGNIN, signInWithGoogle as startGoogle, signUpAccount } from '../lib/signUp';
 
 const TITLES = {
   login: 'Welcome back',
@@ -19,9 +17,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [password, setPassword] = useState('');
   // Someone who tried the demo already gave their name there.
   const [displayName, setDisplayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
-  // Everyone starts with the Waylit lantern (the plain 🙂 draws as the lantern).
-  const avatar = '🙂';
-  const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
   // Someone who ticked the 13+ and Terms box at the start of the demo is not asked again.
   const demoAgreed = initialMode === 'signup' && Boolean(readDemoHandoff()?.agreed);
@@ -38,8 +33,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const signInWithGoogle = async () => {
     setBusy(true);
     setMessage(null);
-    // Comes back to this exact address, so an invite link (?invite=) still joins the collection.
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    const { error } = await startGoogle();
     if (error) {
       setMessage({ type: 'error', text: error.message });
       setBusy(false);
@@ -59,22 +53,15 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
     if (mode === 'login') {
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     } else if (mode === 'signup') {
-      const res = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { display_name: displayName.trim(), avatar, country: country.trim(), ...(demoDoneHere() ? { demo_done: true } : {}) } },
-      });
-      error = res.error;
-      // An email that already has an account comes back with no identities (no error, so nobody can probe for emails).
-      // Send them to Log in: the Test Driver badge is only for new accounts.
-      if (!error && res.data.user && (res.data.user.identities ?? []).length === 0) {
+      const res = await signUpAccount({ email, password, displayName });
+      error = res.error ?? null;
+      if (res.exists) {
         setMessage({ type: 'info', text: 'That email already has an account. Log in instead.' });
         setMode('login');
         setBusy(false);
         return;
       }
-      // With "Confirm email" switched on, there is no session until the link is clicked.
-      if (!error && !res.data.session) {
+      if (res.confirmEmail) {
         setMessage({ type: 'info', text: 'Check your email to confirm your account, then log in.' });
         setMode('login');
       }
@@ -114,17 +101,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
               />
             </label>
             )}
-            <label className="field">
-              <span className="modal-label">Country (optional)</span>
-              <input
-                className="step-input"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="e.g. Australia"
-                autoComplete="country-name"
-                maxLength={60}
-              />
-            </label>
           </>
         )}
 

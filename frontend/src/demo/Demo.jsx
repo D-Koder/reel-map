@@ -4,6 +4,7 @@ import { Lock, Rocket } from 'lucide-react';
 import { BADGES, FRAMES, badgeById } from '../lib/achievements';
 import { PRIZES, XP, levelInfo } from '../lib/levels';
 import { setSound, sfx, soundOn } from './sfx';
+import DemoSignUp from './DemoSignUp';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
@@ -50,6 +51,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const afterPrizes = PRIZES.filter((p) => p.level <= afterLevel).map((p) => p.name);
   const nextBadge = badgeById('explorer');
   const nextFrame = FRAMES.find((f) => f.id === nextBadge.frame)?.name ?? 'new';
+  const [signing, setSigning] = useState(false); // the inline sign-up form is open
   const [chest, setChest] = useState('closed'); // closed, shaking, open. The badge inside is only kept once there is an account
   const openChest = () => {
     if (chest !== 'closed') return;
@@ -151,7 +153,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                 )}
               </button>
             )}
-            {booked && chest === 'open' && (
+            {booked && chest === 'open' && !signing && (
               <div className="demo-after">
                 <div className="demo-lvl">
                   <div className="demo-lvl-top"><span>Level 1 → Level {afterLevel}</span><span>+{XP.badge} XP</span></div>
@@ -164,16 +166,22 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                 </div>
               </div>
             )}
+            {signing ? (
+              <DemoSignUp name={s.name} onBack={() => setSigning(false)} onLogin={onLogin} beforeSubmit={() => saveDemoHandoff(handoffFrom(s))} />
+            ) : (
+              <>
             <div className="demo-foot center">
-              <button type="button" className="demo-btn" onClick={() => { setChest('closed'); dispatch({ type: 'restart' }); }}>Replay</button>
+              <button type="button" className="demo-btn" onClick={() => { setChest('closed'); setSigning(false); dispatch({ type: 'restart' }); }}>Replay</button>
               {booked && chest !== 'open'
                 ? <button type="button" className="demo-btn go" onClick={openChest} disabled={chest === 'shaking'}>Open chest</button>
-                : <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to claim' : 'Sign up'}</button>}
+                : <button type="button" className="demo-btn go" onClick={() => { if (booked) { setSigning(true); return; } saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to claim' : 'Sign up'}</button>}
             </div>
             <div className="demo-links">
               <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
               <button type="button" className="demo-link soft" aria-pressed={sound} onClick={() => { setSound(!sound); setSoundState(!sound); }}>Sound: {sound ? 'on' : 'off'}</button>
             </div>
+              </>
+            )}
           </>
         )}
         {s.step === 'welcome' && (

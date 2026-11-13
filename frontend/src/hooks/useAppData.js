@@ -4,6 +4,7 @@ import { cleanRuns, runDays } from '../lib/eventRuns';
 import { readJSON, writeJSON } from '../lib/storage';
 import { INBOX_COLLECTION } from './useReelInbox';
 import { detailsForImport } from '../lib/collectionFile';
+import { deviceCountry } from '../lib/country';
 
 const REALTIME_TABLES = ['collections', 'collection_members', 'places', 'reactions', 'bookings', 'collection_places', 'place_order', 'place_reviews'];
 
@@ -207,6 +208,9 @@ export function useAppData(userId, showToast) {
       return;
     }
     if (zone) supabase.from('profiles').update({ timezone: zone }).eq('id', userId).neq('timezone', zone).then(() => {}, () => {});
+    // Signing in with Google gives no country, so an empty one is filled from the phone's region (never overwritten).
+    const country = deviceCountry();
+    if (country) supabase.from('profiles').update({ country }).eq('id', userId).is('country', null).then(() => {}, () => {});
   }, [userId]);
   // False until the database has the event_date column (see 20261013090000_event_dates.sql).
   const [eventDatesReady, setEventDatesReady] = useState(false);
