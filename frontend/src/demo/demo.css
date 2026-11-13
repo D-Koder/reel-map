@@ -89,5 +89,8 @@
 .demo-confetti span:nth-child(3n) { width: 6px; height: 10px; animation-duration: 2.2s; }
 .demo-confetti span:nth-child(4n) { border-radius: 50%; width: 9px; height: 9px; }
 
-/* Only the endless looping is switched off for people who asked for less motion. The celebration still plays. */
-@media (prefers-reduced-motion: reduce) { .demo-hint i, .demo-hint span { animation: none; } }
+/* The demo keeps its motion even when the phone asks for less: the tap hint, the spotlight glow and the lantern's bob are the point of it. */
+@media (prefers-reduced-motion: reduce) {
+  .demo-layer .tour-ring { animation: tour-glow 1.6s ease-in-out infinite; }
+  .demo-layer .tour-lantern { animation: tour-bob 2.4s ease-in-out infinite; }
+}

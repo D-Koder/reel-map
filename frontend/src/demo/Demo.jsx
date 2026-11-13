@@ -138,7 +138,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   }
 
   return createPortal(
-    <div className={`tour-layer${closing ? ' closing' : ''}`} data-tour-ui>
+    <div className={`tour-layer demo-layer${closing ? ' closing' : ''}`} data-tour-ui>
       {hole && (
         <>
           <div className="tour-dim" style={{ left: 0, top: 0, right: 0, height: hole.top }} />
