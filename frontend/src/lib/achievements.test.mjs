@@ -10,7 +10,7 @@ const now = new Date(Date.UTC(2026, 10, 12));
 const status = (places, profile = {}) => Object.fromEntries(badgeStatus({ places, collections, profile, userId: 'me', now }).map((b) => [b.id, b]));
 
 test('there are 18 badges and 11 frames, as designed', () => {
-  assert.equal(BADGES.length, 18);
+  assert.equal(BADGES.length, 19);
   assert.equal(FRAMES.length, 11);
   assert.equal(FRAMES.filter((f) => f.months).length, 3);
 });
@@ -112,4 +112,10 @@ test('ladders count each place once, and night owl / early bird use the hour it 
   assert.equal(c.nightOwl, 1);
   assert.equal(c.earlyBird, 1);
   assert.equal(c.togetherDone, 3);
+});
+
+test('finishing the demo earns Test Driver and its title', () => {
+  assert.equal(badgeStatus({ demoDone: false }).find((b) => b.id === 'demo').earned, false);
+  assert.equal(badgeStatus({ demoDone: true }).find((b) => b.id === 'demo').earned, true);
+  assert.ok(earnedTitles(new Set(['demo'])).includes('Test Driver'));
 });

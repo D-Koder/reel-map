@@ -29,6 +29,7 @@ export const BADGES = [
   { id: 'finally', cat: 'Moments', name: 'Finally!', icon: 'Hourglass', target: 1, how: 'Visit a place saved 6+ months ago', reward: 'Special "years in the making" celebration', rewardBuilt: true },
   { id: 'seasons', cat: 'Moments', name: 'Four Seasons', icon: 'Leaf', target: 4, how: 'Visit places in different seasons', reward: 'Seasonal stamp collection', rewardBuilt: false, title: 'Seasoned' },
   { id: 'photographer', cat: 'Create', name: 'Photographer', icon: 'Camera', target: 10, how: 'Add photos to places', reward: 'Photo collage on your profile', rewardBuilt: false, title: 'Photographer' },
+  { id: 'demo', cat: 'Moments', name: 'Test Driver', icon: 'Rocket', target: 1, how: 'Finish the no-login demo and book a time', reward: 'A badge for trying Waylit first', rewardBuilt: true, title: 'Test Driver' },
   { id: 'reviewer', cat: 'Create', name: 'Reviewer', icon: 'MessageSquare', target: 5, how: 'Write reviews', reward: 'Reviews highlighted to your partner', rewardBuilt: false, title: 'Critic' },
 ];
 
@@ -118,7 +119,7 @@ function seasonOf(date) {
 }
 
 // Counts for every badge that can be worked out today. `places` has one entry per collection a place is in.
-export function computeProgress({ places = [], collections = [], profile = null, userId = null, now = new Date() }) {
+export function computeProgress({ places = [], collections = [], profile = null, userId = null, now = new Date(), demoDone = false }) {
   const membersOf = new Map(collections.map((c) => [c.id, c.members ?? []]));
   const done = places.filter((p) => p.booking?.done_at);
   const withGap = (p) => new Date(p.booking.done_at) - new Date(p.added_at ?? p.booking.done_at);
@@ -160,6 +161,7 @@ export function computeProgress({ places = [], collections = [], profile = null,
     spontaneous: done.filter((p) => p.added_at && withGap(p) <= DAY).length,
     finally: done.some((p) => p.added_at && withGap(p) >= 182 * DAY) ? 1 : 0,
     seasons: seasons.size,
+    demo: demoDone ? 1 : 0,
     photographer: reviews.reduce((sum, r) => sum + (r.photos?.length ?? 0), 0),
     reviewer: reviews.filter((r) => r.body?.trim()).length,
   };

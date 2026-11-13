@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, UtensilsCrossed, Zap, ChevronDown, ChevronRight, ChevronUp, Frame } from 'lucide-react';
+import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, Rocket, UtensilsCrossed, Zap, ChevronDown, ChevronRight, ChevronUp, Frame } from 'lucide-react';
 import FramedAvatar from './FramedAvatar';
 import { FRAMES, frameUnlocked, badgeById } from '../lib/achievements';
 
-export const BADGE_ICONS = { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, MapPin, MessageSquare, PlayCircle, Repeat, UtensilsCrossed, Zap };
+export const BADGE_ICONS = { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, MapPin, MessageSquare, PlayCircle, Repeat, Rocket, UtensilsCrossed, Zap };
 
 // A stand-in picture so every frame can be previewed, even before it is earned.
 function Swatch({ frame }) {

@@ -28,6 +28,16 @@ export function clearDemoHandoff(storage = globalThis.localStorage) {
   try { storage.removeItem(KEY); } catch { /* nothing to clear */ }
 }
 
+// Set when the demo is finished with a booked time. It outlives the hand-off above (which is cleared once used), so the
+// "Test Driver" badge can be earned by the account made next. Device only; nothing is sent anywhere.
+const DONE_KEY = 'waylit:demo-done';
+export function markDemoDone(storage = globalThis.localStorage) {
+  try { storage.setItem(DONE_KEY, '1'); } catch { /* private mode: no badge, the demo still worked */ }
+}
+export function demoDoneHere(storage = globalThis.localStorage) {
+  try { return storage.getItem(DONE_KEY) === '1'; } catch { return false; }
+}
+
 // Set once someone has signed in on this device, so the main page can send them straight to Log in next time.
 const ACCOUNT_KEY = 'waylit:has-account';
 export function rememberAccountHere(storage = globalThis.localStorage) {

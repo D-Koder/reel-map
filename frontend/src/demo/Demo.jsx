@@ -10,7 +10,7 @@ import PasteReelCard from '../components/PasteReelCard';
 import WelcomeSteps from '../components/WelcomeSteps';
 import { AppHeader, BottomNav } from '../components/AppChrome';
 import { SAMPLE_DETAILS, TOUR_MARK } from '../tour/steps';
-import { saveDemoHandoff } from '../lib/demoHandoff';
+import { markDemoDone, saveDemoHandoff } from '../lib/demoHandoff';
 import '../tour/tour.css';
 import './demo.css';
 import { PLANS, SAMPLE, canGoBack, demoReducer, describeDemo, handoffFrom, initialState, timeLabel } from './demoFlow';
@@ -99,7 +99,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
             {booked && (
               <div className="demo-reward">
                 <Award className="demo-medal" aria-hidden="true" />
-                <div><b>First plan unlocked</b><small>{timeLabel(booked)} · {SAMPLE.name}</small><small>In {s.collEmoji} {s.collName}</small></div>
+                <div><b>First plan unlocked</b><small>Sign up to claim your Test Driver badge</small><small>{timeLabel(booked)} · {SAMPLE.name}</small><small>In {s.collEmoji} {s.collName}</small></div>
               </div>
             )}
             <div className="demo-foot center">
@@ -187,6 +187,9 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
   const [toast, setToast] = useState(null);
   const dom = useSheetProbe(s.placeOpen);
   const d = describeDemo(s, dom);
+
+  // Finishing the demo with a booked time wins the Test Driver badge, once there is an account to hold it.
+  useEffect(() => { if (s.step === 'done' && s.booked) markDemoDone(); }, [s.step, s.booked]);
 
   const showToast = useCallback((message) => {
     // Tapping Done on the booked sheet is the last step: move on. Other "Step n complete" toasts would sit on the button the tip points at.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_TITLE, badgeStatus, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
 import { PRIZES, levelInfo, prizeToken, prizesBetween, totalXp } from '../lib/levels';
+import { demoDoneHere } from '../lib/demoHandoff';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const prefsKey = (userId) => `reelmap:achievements:${userId}`;
@@ -13,9 +14,10 @@ const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 export default function useAchievements({ userId, ready, places, collections, profile, saveFlair }) {
   const [prefs, setPrefs] = useState(() => readJSON(prefsKey(userId), {}));
 
+  const demoDone = Boolean(prefs.demo);
   const counts = useMemo(
-    () => (ready ? computeProgress({ places, collections, profile, userId }) : {}),
-    [ready, places, collections, profile, userId]
+    () => (ready ? computeProgress({ places, collections, profile, userId, demoDone }) : {}),
+    [ready, places, collections, profile, userId, demoDone]
   );
   const badges = useMemo(
     () => (ready ? badgeStatus({ places, collections, profile, userId }, counts) : []),
@@ -30,6 +32,11 @@ export default function useAchievements({ userId, ready, places, collections, pr
       return next;
     });
   }, [userId]);
+
+  // The no-login demo, finished on this device, is remembered in this account's prefs so the badge stays.
+  useEffect(() => {
+    if (ready && !prefs.demo && demoDoneHere()) save({ demo: true });
+  }, [ready, prefs.demo, save]);
 
   // Badges celebrated before claiming existed count as claimed ("seen" was their old name).
   const claimedBadges = useMemo(() => new Set(prefs.claimed ?? prefs.seen ?? []), [prefs.claimed, prefs.seen]);
