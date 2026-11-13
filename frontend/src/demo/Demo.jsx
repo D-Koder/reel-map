@@ -13,7 +13,7 @@ import { SAMPLE_DETAILS, TOUR_MARK } from '../tour/steps';
 import { saveDemoHandoff } from '../lib/demoHandoff';
 import '../tour/tour.css';
 import './demo.css';
-import { PLANS, SAMPLE, demoReducer, describeDemo, handoffFrom, initialState, nextAutoMove, timeLabel } from './demoFlow';
+import { PLANS, SAMPLE, canGoBack, demoReducer, describeDemo, handoffFrom, initialState, timeLabel } from './demoFlow';
 
 const ME = 'demo-user';
 const noop = () => {};
@@ -42,45 +42,6 @@ function Buddy({ size, pose }) {
     <button type="button" className={`demo-buddy${poked.pose ? ' poked' : ''}`} key={poked.n} onClick={poke} aria-label="Tap the lantern">
       <Lantern size={size} pose={poked.pose || pose} />
     </button>
-  );
-}
-
-// A pretend finger that glides to what the demo is about to tap, presses it, then taps it for real.
-function useAutopilot(move, paused, dispatch) {
-  const [finger, setFinger] = useState(null); // { x, y, press }
-  const key = move ? `${move.target}|${move.action || ''}` : '';
-  useEffect(() => {
-    if (!move || paused) { if (!move) setFinger(null); return undefined; }
-    let dead = false;
-    const timers = [];
-    const later = (fn, ms) => timers.push(setTimeout(() => !dead && fn(), ms));
-    const find = (tries) => {
-      const el = document.querySelector(move.target);
-      if (!el) { if (tries > 0) later(() => find(tries - 1), 120); return; }
-      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-      later(() => {
-        const r = el.getBoundingClientRect();
-        // The first time, the finger starts below the screen and glides up to the spot.
-        setFinger((f) => f || { x: window.innerWidth / 2, y: window.innerHeight + 40, press: false });
-        later(() => setFinger({ x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 28), press: false }), 60);
-        later(() => setFinger((f) => f && { ...f, press: true }), 860);
-        later(() => {
-          if (move.action) dispatch({ type: move.action }); else el.click();
-          setFinger((f) => f && { ...f, press: false });
-        }, 1110);
-      }, 250);
-    };
-    later(() => find(25), 700);
-    return () => { dead = true; timers.forEach(clearTimeout); };
-  }, [key, paused]); // eslint-disable-line react-hooks/exhaustive-deps
-  return finger;
-}
-
-function Finger({ at }) {
-  if (!at) return null;
-  return createPortal(
-    <div className={`demo-finger${at.press ? ' press' : ''}`} style={{ transform: `translate(${at.x}px, ${at.y}px)` }} aria-hidden="true"><i /><b>👆</b></div>,
-    document.body
   );
 }
 
@@ -181,6 +142,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
           <Buddy size={40} pose={d.pose} />
           {dots}
           <span className="grow" />
+          {canGoBack(s) && <button type="button" className="demo-link soft" onClick={() => dispatch({ type: 'back' })}>‹ Back</button>}
           <button type="button" className="demo-link soft" onClick={() => dispatch({ type: 'ask-skip' })}>Skip demo</button>
         </div>
         <h3>{d.title}</h3>
@@ -202,7 +164,6 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
           <div className="tour-ring" style={{ ...hole, opacity: opening ? 0 : 1 }} />
         </>
       )}
-      {d.autoplay && !s.confirmSkip && <div className="demo-shield" />}
       {d.hint && real && !opening && !s.confirmSkip && (
         <div className="demo-hint" style={{ left: real.left + real.width / 2, top: real.top + real.height - 6 }} aria-hidden="true">👆</div>
       )}
@@ -240,7 +201,6 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
   const [toast, setToast] = useState(null);
   const dom = useSheetProbe(s.placeOpen);
   const d = describeDemo(s, dom);
-  const finger = useAutopilot(nextAutoMove(s, dom), s.confirmSkip, dispatch);
 
   const showToast = useCallback((message) => {
     // "Step 1 complete" would sit on top of the button the tip points at.
@@ -263,7 +223,7 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
   useEffect(() => {
     if (!s.booked && s.step !== 'saved') return undefined;
     setConfetti(true);
-    const id = setTimeout(() => setConfetti(false), 2000);
+    const id = setTimeout(() => setConfetti(false), 2600);
     return () => clearTimeout(id);
   }, [s.booked, s.step]);
 
@@ -369,7 +329,6 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
 
       {toast && <div key={toast.key} className="toast" role="status"><span>{toast.message}</span></div>}
       {confetti && <Confetti />}
-      <Finger at={finger} />
       <DemoTip s={s} d={d} dispatch={dispatch} onExit={onExit} onSignUp={onSignUp} onLogin={onLogin} />
     </div>
   );

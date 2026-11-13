@@ -41,7 +41,6 @@
 .demo-confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 10060; }
 .demo-confetti span { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: demo-fall 1.8s ease-in forwards; }
 @keyframes demo-fall { to { transform: translateY(105vh) rotate(540deg); opacity: 0.9; } }
-@media (prefers-reduced-motion: reduce) { .demo-confetti { display: none; } }
 
 /* The real app's screens inside the demo: no extra wrapper styling. */
 .demo-app { position: fixed; inset: 0; z-index: 1; }
@@ -63,17 +62,6 @@
 .demo-buddy.poked { animation: demo-wiggle 0.6s ease; }
 .demo-buddy:active { transform: scale(0.92); }
 @keyframes demo-wiggle { 0% { transform: rotate(0) scale(1); } 20% { transform: rotate(-14deg) scale(1.15); } 45% { transform: rotate(12deg) scale(1.15); } 70% { transform: rotate(-6deg); } 100% { transform: rotate(0) scale(1); } }
-
-/* Blocks stray taps while the demo taps for you. */
-.demo-shield { position: fixed; inset: 0; pointer-events: auto; background: transparent; }
-
-/* The finger that does the tapping while you watch. */
-.demo-finger { position: fixed; left: 0; top: 0; z-index: 10055; pointer-events: none; transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); will-change: transform; }
-.demo-finger b { position: absolute; left: -12px; top: -6px; font-size: 34px; line-height: 1; font-weight: 400; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.4)); transition: transform 0.15s ease; transform-origin: 40% 10%; }
-.demo-finger i { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 210, 63, 0.55); border: 2px solid #ffd23f; opacity: 0; transform: scale(0.4); }
-.demo-finger.press b { transform: scale(0.82) translateY(3px); }
-.demo-finger.press i { animation: demo-ripple 0.5s ease-out; }
-@keyframes demo-ripple { 0% { opacity: 1; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.7); } }
 
 /* A bobbing finger under the thing you are meant to tap. */
 .demo-hint { position: fixed; z-index: 10051; margin-left: -14px; font-size: 30px; line-height: 1; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45)); animation: demo-bob 0.9s ease-in-out infinite; }
@@ -101,8 +89,5 @@
 .demo-confetti span:nth-child(3n) { width: 6px; height: 10px; animation-duration: 2.2s; }
 .demo-confetti span:nth-child(4n) { border-radius: 50%; width: 9px; height: 9px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .demo-tip, .demo-chip, .demo-reward, .demo-medal, .demo-tip.center .demo-foot.center { animation: none; }
-  .demo-reward::after, .demo-hint, .demo-buddy.poked { animation: none; }
-  .demo-finger { transition: none; }
-}
+/* Only the endless looping is switched off for people who asked for less motion. The celebration still plays. */
+@media (prefers-reduced-motion: reduce) { .demo-hint { animation: none; } }
