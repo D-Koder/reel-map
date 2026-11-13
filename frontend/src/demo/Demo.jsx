@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, Rocket } from 'lucide-react';
+import { Award, Lock, Rocket } from 'lucide-react';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
@@ -34,6 +34,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const hintRect = useAnchorRect(d.hintTarget || null); // a smaller thing inside the spotlight that the Tap hint sits on
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
+  const [claimed, setClaimed] = useState(false); // the badge was tapped open; it is only kept once there is an account
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
 
   const pad = 6;
@@ -103,14 +104,23 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
               </div>
             )}
             {booked && (
-              <div className="demo-prize" role="note">
+              <button type="button" className={`demo-prize ${claimed ? 'claimed' : ''}`} onClick={() => setClaimed(true)} disabled={claimed} aria-label={claimed ? 'Test Driver badge unlocked. Sign up to keep it.' : 'Tap to claim your Test Driver badge'}>
+                {claimed && <span className="demo-spark" aria-hidden="true">{Array.from({ length: 10 }, (_, i) => <i key={i} style={{ '--a': `${i * 36}deg` }} />)}</span>}
                 <span className="demo-prize-ic"><Rocket aria-hidden="true" /></span>
-                <div><small className="demo-prize-eyebrow">Badge waiting for you</small><b>Test Driver</b><small>New title + 100 XP. Free with your account.</small></div>
-              </div>
+                <div>
+                  <small className="demo-prize-eyebrow">{claimed ? 'Unlocked!' : 'Reward ready'}</small>
+                  <b>Test Driver</b>
+                  {claimed
+                    ? <small><Lock className="demo-lock" aria-hidden="true" /> Sign up to keep it. +100 XP and a new title.</small>
+                    : <small>Tap to claim your badge</small>}
+                </div>
+              </button>
             )}
             <div className="demo-foot center">
-              <button type="button" className="demo-btn" onClick={() => dispatch({ type: 'restart' })}>Replay</button>
-              <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Claim my badge' : 'Sign up'}</button>
+              <button type="button" className="demo-btn" onClick={() => { setClaimed(false); dispatch({ type: 'restart' }); }}>Replay</button>
+              {booked && !claimed
+                ? <button type="button" className="demo-btn go" onClick={() => setClaimed(true)}>Claim reward</button>
+                : <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Sign up to keep it' : 'Sign up'}</button>}
             </div>
             <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
           </>
