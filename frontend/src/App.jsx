@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal, TriangleAlert, WifiOff } from 'lucide-react';
+import { Plus, TriangleAlert, WifiOff } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
+import { AppHeader, BottomNav } from './components/AppChrome';
 import PinModal from './components/PinModal';
 import EditPlaceSheet from './components/EditPlaceSheet';
 import AddPlaceSheet from './components/AddPlaceSheet';
@@ -8,7 +9,10 @@ import SettingsDrawer from './components/SettingsDrawer';
 import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
+import LoggedOut from './components/LoggedOut';
+import { rememberAccountHere } from './lib/demoHandoff';
 import ShareCollectionModal from './components/ShareCollectionModal';
+import { useFriendLink } from './hooks/useFriends';
 
 // The map and Mapbox (most of the app's code) load in their own file, so Home shows without waiting for them.
 const MapScreen = lazy(() => import('./components/MapScreen'));
@@ -23,6 +27,8 @@ import useAchievements from './hooks/useAchievements';
 import usePinColours from './hooks/usePinColours';
 import { patternById, patternUnlocked } from './lib/pinPatterns';
 import SharedPlaceSheet from './components/SharedPlaceSheet';
+import InvitePreview from './components/InvitePreview';
+import { inviteIdFromLink } from './hooks/useInvites';
 import { useAuth } from './hooks/useAuth';
 import { useAppData } from './hooks/useAppData';
 import { useInvites } from './hooks/useInvites';
@@ -32,7 +38,10 @@ import { useOnline } from './hooks/useOnline';
 import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
-import { forgetSharedPlace, pendingSharedPlace, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
+import { forgetInvite, forgetSharedPlace, pendingInvite, pendingSharedPlace, rememberInvite, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
+import TourHost from './tour/TourHost';
+import { emitTour } from './tour/events';
+import { TOUR_MARK } from './tour/steps';
 import { canEditCollection } from './lib/roles';
 import { clearUserStorage, readJSON, writeJSON } from './lib/storage';
 import { configError, supabase } from './lib/supabase';
@@ -78,6 +87,8 @@ const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
 function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
+  // Next time this device opens the main page signed out, it goes straight to Log in.
+  useEffect(() => { rememberAccountHere(); }, []);
   const data = useAppData(userId, showToast);
   // Error reports carry this id (never an email or name) so a bug can be traced to one account.
   useEffect(() => {
@@ -201,10 +212,26 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     () => data.collections.filter((c) => !hiddenKeys.has(`collection:${c.id}`)),
     [data.collections, hiddenKeys]
   );
+  // The tour's sample place is booked on this phone only: nothing is saved to the server and nobody is notified.
+  const [tourBookings, setTourBookings] = useState({});
+  const isSample = (place) => place?.custom_info === TOUR_MARK;
+  const sampleKey = (place) => `${place.collection_id}:${place.id}`;
   const places = useMemo(
-    () => data.places.filter((p) => !hiddenKeys.has(`collection:${p.collection_id}`) && !hiddenKeys.has(`place:${p.collection_id}:${p.id}`)),
-    [data.places, hiddenKeys]
+    () => data.places
+      .filter((p) => !hiddenKeys.has(`collection:${p.collection_id}`) && !hiddenKeys.has(`place:${p.collection_id}:${p.id}`))
+      .map((p) => (p.custom_info === TOUR_MARK && tourBookings[`${p.collection_id}:${p.id}`] ? { ...p, booking: tourBookings[`${p.collection_id}:${p.id}`] } : p)),
+    [data.places, hiddenKeys, tourBookings]
   );
+  const bookPlace = (place, plannedAt) => {
+    if (!isSample(place)) return data.book(place, plannedAt);
+    setTourBookings((all) => ({ ...all, [sampleKey(place)]: { collection_id: place.collection_id, place_id: place.id, booked_by: userId, planned_at: new Date(plannedAt).toISOString(), done_at: null, marked_by: null } }));
+    return Promise.resolve(true);
+  };
+  const cancelPlaceBooking = (place) => {
+    if (!isSample(place)) return data.cancelBooking(place);
+    setTourBookings((all) => { const next = { ...all }; delete next[sampleKey(place)]; return next; });
+    return Promise.resolve(true);
+  };
 
   const lastUnread = useRef(null);
   useEffect(() => {
@@ -322,19 +349,27 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
     setOpenPinId(null);
   };
 
-  // Handle invite codes from URL
+  // Handle invite codes from the URL, or kept from before the person had an account (the email confirmation link
+  // brings them back to the home page without the code). Tried once; the tour waits for it so it can tell a person
+  // who joined a shared collection from someone starting their own.
+  const [joinedByInvite, setJoinedByInvite] = useState(false);
+  const [waitingForInvite, setWaitingForInvite] = useState(() => Boolean(new URLSearchParams(window.location.search).get('invite') || pendingInvite()));
+  const inviteTried = useRef(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite');
-    if (inviteCode) {
-      acceptInvite(inviteCode).then((success) => {
-        if (success) {
-          data.refresh();
-          // Remove the invite parameter from URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      });
-    }
+    if (inviteTried.current) return;
+    inviteTried.current = true;
+    const inviteCode = new URLSearchParams(window.location.search).get('invite') || pendingInvite();
+    if (!inviteCode) { setWaitingForInvite(false); return; }
+    acceptInvite(inviteCode).then((success) => {
+      forgetInvite();
+      if (success) {
+        setJoinedByInvite(true);
+        data.refresh();
+        // Remove the invite parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      setWaitingForInvite(false);
+    });
   }, [acceptInvite, data]);
 
   // Reel links shared to the installed app arrive as ?url=, ?text= or ?title= (see manifest share_target).
@@ -431,6 +466,12 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
   };
 
   const markDone = async (place) => {
+    if (isSample(place)) {
+      const now = new Date().toISOString();
+      setTourBookings((all) => ({ ...all, [sampleKey(place)]: { ...(all[sampleKey(place)] ?? { collection_id: place.collection_id, place_id: place.id, booked_by: userId, planned_at: now }), done_at: now, marked_by: userId } }));
+      showToast('Marked done. This is a sample, so nothing was saved.');
+      return;
+    }
     if (!(await data.markDone(place))) return;
     closePin();
     setCelebrating({ name: place.name, place });
@@ -493,26 +534,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
 
   return (
     <div className="app">
-      <header className="header">
-        <span className="header-title">waylit maps<span className="wordmark-dot" aria-hidden="true">.</span></span>
-        <div className="header-buttons">
-          <button
-            className={`header-btn${bellRinging ? ' bell-ringing' : ''}`}
-            onClick={() => { setNotificationsOpen(true); markAllRead(); }}
-            aria-label="Notifications"
-          >
-            <Bell aria-hidden="true" />
-            {unreadCount > 0 && (
-              <span key={unreadCount} className="bell-count" style={{ marginLeft: 2, fontSize: 12, fontWeight: 700, color: '#fff', background: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 5px' }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          <button className="header-btn" onClick={() => setSettingsOpen(true)} aria-label="Settings">
-            <SlidersHorizontal aria-hidden="true" />
-          </button>
-        </div>
-      </header>
+      <AppHeader unreadCount={unreadCount} bellRinging={bellRinging} onBell={() => { setNotificationsOpen(true); markAllRead(); }} onGear={() => setSettingsOpen(true)} />
 
       {!online && (
         <div className="offline-banner" role="status">
@@ -596,35 +618,7 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
         </section>
       </main>
 
-      <nav className="bottom-nav">
-        {[
-          { id: 'home', Icon: House, label: 'Home' },
-          { id: 'add' },
-          { id: 'map', Icon: MapIcon, label: 'Map' },
-        ].map((tab) =>
-          tab.id === 'add' ? (
-            <button
-              key="add"
-              className="fab fab-nav"
-              onClick={() => openAddAt(null)}
-              disabled={collections.length === 0}
-              aria-label="Add a place"
-            >
-              <Plus aria-hidden="true" strokeWidth={2.5} />
-            </button>
-          ) : (
-            <button
-              key={tab.id}
-              className={`nav-tab ${screen === tab.id ? 'active' : ''}`}
-              onClick={() => setScreen(tab.id)}
-              aria-current={screen === tab.id ? 'page' : undefined}
-            >
-              <tab.Icon className="nav-icon" aria-hidden="true" strokeWidth={screen === tab.id ? 2.4 : 1.8} />
-              <span className="nav-label">{tab.label}</span>
-            </button>
-          )
-        )}
-      </nav>
+      <BottomNav screen={screen} onScreen={setScreen} onAdd={() => openAddAt(null)} addDisabled={collections.length === 0} />
 
       <SettingsDrawer
         open={settingsOpen}
@@ -685,10 +679,10 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           userId={userId}
           members={membersOf[openPin.collection_id] ?? []}
           onSetVibe={(feeling) => data.setReaction(openPin, feeling)}
-          onBook={(plannedAt) => data.book(openPin, plannedAt)}
+          onBook={(plannedAt) => bookPlace(openPin, plannedAt)}
           onMarkDone={() => markDone(openPin)}
           onCancelBooking={async () => {
-            if (!(await data.cancelBooking(openPin))) return false;
+            if (!(await cancelPlaceBooking(openPin))) return false;
             closePin();
             showToast('Booking cancelled');
             return true;
@@ -841,6 +835,39 @@ function MainApp({ userId, showToast, sharedPlaceId, onSharedPlaceDone }) {
           showToast={showToast}
         />
       )}
+
+      <TourHost
+        userId={userId}
+        name={data.profile?.display_name}
+        loading={data.loading}
+        blocked={Boolean(sharedPlaceId) || adding}
+        waitingForInvite={waitingForInvite}
+        joinedByInvite={joinedByInvite}
+        places={places}
+        collections={collections}
+        inboxItems={inbox.items}
+        isWide={isWide}
+        screen={screen}
+        openPinId={openPinId}
+        editPinId={editPinId}
+        settingsOpen={settingsOpen}
+        shareOpen={Boolean(shareModal)}
+        notificationsOpen={notificationsOpen}
+        actions={{
+          setScreen,
+          closePin,
+          closeEdit: () => setEditPinId(null),
+          closeSettings: () => setSettingsOpen(false),
+          closeShare: () => setShareModal(null),
+          closeNotifications: () => setNotificationsOpen(false),
+          showAllOnMap: () => emitTour('map-show-all'),
+          addSampleReel: inbox.addSample,
+          dismissInbox: inbox.dismiss,
+          createCollection: data.createCollection,
+          deletePlace: data.deletePlace,
+          showToast,
+        }}
+      />
     </div>
   );
 }
@@ -851,17 +878,27 @@ function App() {
   // A place opened from a share link. Kept on this device while signing in, so it opens afterwards.
   const [sharedPlaceId, setSharedPlaceId] = useState(() => takeSharedPlaceFromUrl() ?? pendingSharedPlace());
   const [signingInToSave, setSigningInToSave] = useState(false);
+  // An invite link opened while signed out: show what's inside first. The ?invite= stays in the address, so
+  // the collection is joined (MainApp) right after signing in.
+  const [invitePeek, setInvitePeek] = useState(() => new URLSearchParams(window.location.search).get('invite'));
   const sharedPlaceDone = useCallback(() => {
     forgetSharedPlace();
     setSharedPlaceId(null);
   }, []);
   const toastTimer = useRef(null);
+  // An invite link opened while signed out: remembered, so it still works after sign-up and email confirmation.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('invite');
+    if (code) rememberInvite(code);
+  }, []);
 
   const showToast = useCallback((message, action, duration) => {
     clearTimeout(toastTimer.current);
     setToast({ message, action, key: Date.now() });
     toastTimer.current = setTimeout(() => setToast(null), duration ?? (action ? 4000 : 2500));
   }, []);
+  // A friend link opened from a message: kept while signed out, used once the person is in.
+  useFriendLink(session?.user?.id, showToast);
 
   let body;
   if (configError) {
@@ -885,8 +922,11 @@ function App() {
   } else if (!session) {
     body = (
       <>
-        <AuthScreen />
-        {sharedPlaceId && !signingInToSave && (
+        <LoggedOut sharedPlace={Boolean(sharedPlaceId)} />
+        {invitePeek && inviteIdFromLink(`${window.location.origin}?invite=${invitePeek}`) && (
+          <InvitePreview inviteId={invitePeek} onJoin={() => setInvitePeek(null)} onClose={() => setInvitePeek(null)} />
+        )}
+        {!invitePeek && sharedPlaceId && !signingInToSave && (
           <SharedPlaceSheet
             placeId={sharedPlaceId}
             signedIn={false}

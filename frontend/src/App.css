@@ -6115,6 +6115,43 @@ a.step-btn {
   border-radius: var(--radius-sm);
 }
 
+/* The weekly pick's day and time side by side, and a small "i" note beside a label. */
+.settings-field .pick-row { display: flex; gap: 8px; }
+.settings-field .pick-row select { flex: 1; min-width: 0; }
+.label-row { position: relative; display: flex; align-items: center; gap: 6px; }
+.label-row .input-label { margin: 0; }
+.info-hint { display: inline-flex; }
+.info-hint-btn {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font: italic 700 13px Georgia, serif;
+  line-height: 1;
+  cursor: pointer;
+}
+.info-hint-btn::after { content: ''; position: absolute; inset: -11px; }
+.info-hint-btn[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.info-hint-bubble {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 2px solid var(--text);
+  border-radius: var(--radius-sm);
+  box-shadow: 3px 3px 0 var(--text);
+}
+
 /* Sign-up age and terms tick box, and the legal links. */
 .auth-agree { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: var(--text); }
 .auth-agree input { flex: none; width: 20px; height: 20px; margin-top: 1px; }
@@ -6625,3 +6662,151 @@ button { transition: scale 0.12s ease; }
 @keyframes motion-fade-out {
   to { opacity: 0; }
 }
+
+/* ---------- BOOKED PLACE: status card, hours line, bottom bar ---------- */
+.booked-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+.booked-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.booked-when {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.booked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.booked-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  border: 2px solid var(--text);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+}
+.booked-done.locked,
+.booked-done:disabled {
+  background: var(--muted, var(--card));
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+}
+.booked-unlock {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hours-acc summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.hours-acc summary::-webkit-details-marker { display: none; }
+.hours-acc-line { display: inline-flex; align-items: center; gap: 8px; }
+.hours-acc-line .reel-open-dot.is-open { color: var(--success); }
+.hours-acc[open] summary .chevron { transform: rotate(180deg); }
+.hours-acc .hours-table { margin-top: 8px; }
+.book-icons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.step-btn.book-icon {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+.step-btn.book-icon svg { width: 24px; height: 24px; }
+
+/* Organised place sheet: booking first, then details in matching rows. */
+.booked-card { margin: 4px 0 12px; }
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+}
+.detail-row span { flex: 1; min-width: 0; }
+.detail-row .detail-go { color: var(--text-muted); flex: none; }
+.hours-acc { margin-top: 8px; }
+.hours-acc + .modal-section, .detail-row + .modal-section { margin-top: 8px; }
+
+/* Calendar panel inside the booked card; Mark as Done is plain, at the end. */
+.calendar-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+}
+.calendar-panel-title { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.calendar-panel-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.calendar-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 48px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--muted, var(--card)); color: var(--text); font: inherit; font-weight: 700; font-size: 14px; text-decoration: none; cursor: pointer;
+}
+.calendar-panel-links { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.calendar-panel-links button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: 0; padding: 0 6px;
+  border: 0; background: none; color: var(--text); font: inherit; font-weight: 600; font-size: 14px; text-decoration: underline; cursor: pointer;
+}
+.booked-done-wrap { display: grid; gap: 8px; margin-top: 16px; }
+
+/* A small way back from sign-up or log-in to the main page. */
+.auth-back { align-self: flex-start; min-height: 44px; margin: -8px 0 0 -6px; padding: 0 6px; font-weight: 700; }
+
+/* Friends */
+.friend-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.friend-note { color: var(--text-muted); font-weight: 400; }
+
+/* Peek into a shared collection before signing up */
+.invite-peek-list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; }
+.invite-peek-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2, rgba(0,0,0,.04)); }
+.auth-or { display: flex; align-items: center; gap: 10px; margin: 4px 0; color: var(--text-muted); font-size: 13px; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: .25; }

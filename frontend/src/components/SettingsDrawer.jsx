@@ -6,11 +6,15 @@ import AchievementsSection from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
 import { PIN_COLOURS } from '../hooks/usePinColours';
 import { PIN_PATTERNS, patternTile, patternUnlocked } from '../lib/pinPatterns';
+import { detectPlatform, isInstalled } from '../lib/platform';
 import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
 import { IMPORT_LIMIT, readCollectionFile } from '../lib/collectionFile';
+import { emitTour } from '../tour/events';
+import InfoHint from './InfoHint';
+import FriendsSection from './FriendsSection';
 
 // On/off switch for push notifications: reminders, votes, new places and the weekly pick. It is a setting on
 // the account (profiles.notifications_enabled), so turning it off silences every device at once. Each device still
@@ -72,7 +76,13 @@ function NotificationsToggle({ userId }) {
   };
 
   if (!supported && !accountWide) {
-    return <div className="toggle-hint">Notifications need the app installed to your home screen.</div>;
+    const platform = detectPlatform();
+    const how = platform === 'ios'
+      ? 'In Safari tap Share, then "Add to Home Screen". Open it from there.'
+      : platform === 'android'
+        ? 'In Chrome tap the ⋮ menu, then "Install app". Open it from there.'
+        : 'In Chrome or Edge click the install icon in the address bar. Open the app from there.';
+    return <div className="toggle-hint">Notifications need the app installed. {how}</div>;
   }
 
   return (
@@ -91,12 +101,19 @@ function NotificationsToggle({ userId }) {
   );
 }
 
-// The day the weekly pick arrives (7pm, your time), or off. Saved on the account (profiles.weekly_pick_day).
-// Hidden until the database has the column.
+// The day and the time the weekly pick arrives (in your own time zone), or off. Saved on the account
+// (profiles.weekly_pick_day and profiles.weekly_pick_hour). Each part stays hidden until the database has its column,
+// so before the hour column exists the day still works and the time is 7pm, as it always was.
 const PICK_DAYS = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [0, 'Sunday']];
+const PICK_HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8am to 10pm
+const DEFAULT_PICK_HOUR = 19;
+const hourLabel = (hour) => new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
 function WeeklyPickDay({ userId }) {
   // undefined while loading, null = off, 0-6 = day, 'missing' when the database has no such column yet.
   const [day, setDay] = useState(undefined);
+  // undefined while loading, 0-23 = hour, 'missing' when the database has no hour column yet.
+  const [hour, setHour] = useState(undefined);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -104,6 +121,10 @@ function WeeklyPickDay({ userId }) {
     supabase.from('profiles').select('weekly_pick_day').eq('id', userId).maybeSingle()
       .then(({ data, error: readError }) => {
         if (!cancelled) setDay(readError ? 'missing' : data?.weekly_pick_day ?? null);
+      });
+    supabase.from('profiles').select('weekly_pick_hour').eq('id', userId).maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (!cancelled) setHour(readError ? 'missing' : data?.weekly_pick_hour ?? DEFAULT_PICK_HOUR);
       });
     return () => { cancelled = true; };
   }, [userId]);
@@ -122,17 +143,44 @@ function WeeklyPickDay({ userId }) {
     }
   };
 
+  const changeHour = async (event) => {
+    const next = Number(event.target.value);
+    const before = hour;
+    setHour(next);
+    setError('');
+    const { error: saveError } = await supabase.from('profiles').update({ weekly_pick_hour: next }).eq('id', userId);
+    if (saveError) {
+      setHour(before);
+      setError("Couldn't save that. Try again.");
+    }
+  };
+
+  const canChooseTime = day !== null && typeof hour === 'number';
+  const timeText = typeof hour === 'number' ? hourLabel(hour) : '7pm';
+
   return (
     <div className="settings-field">
-      <label className="input-label" htmlFor="weekly-pick-day">Weekly pick</label>
-      <select id="weekly-pick-day" value={day === null ? 'off' : String(day)} onChange={change}>
-        <option value="off">Off</option>
-        {PICK_DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
+      <div className="label-row">
+        <label className="input-label" htmlFor="weekly-pick-day">Weekly pick</label>
+        <InfoHint label="About the weekly pick">
+          Once a week we suggest one saved place you haven't planned yet, as a notification. Pick the day and the time that suit you, or turn it off.
+        </InfoHint>
+      </div>
+      <div className="pick-row">
+        <select id="weekly-pick-day" aria-label="Day" value={day === null ? 'off' : String(day)} onChange={change}>
+          <option value="off">Off</option>
+          {PICK_DAYS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        {canChooseTime && (
+          <select id="weekly-pick-hour" aria-label="Time" value={String(hour)} onChange={changeHour}>
+            {PICK_HOURS.map((value) => <option key={value} value={value}>{hourLabel(value)}</option>)}
+          </select>
+        )}
+      </div>
       <div className="toggle-hint">
         {day === null
           ? 'No weekly pick. Turn it on to get a place suggestion each week.'
-          : 'One place you haven\'t planned yet, at 7pm your time. It needs notifications on.'}
+          : `One place you haven't planned yet, at ${timeText} your time. It needs notifications on.`}
       </div>
       {error && <div className="toggle-hint">{error}</div>}
     </div>
@@ -161,6 +209,32 @@ const SHORTCUT_NAME = import.meta.env.VITE_SHORTCUT_NAME || 'Save to Reel Map';
 function connectShortcut(key) {
   const params = new URLSearchParams({ name: SHORTCUT_NAME, input: 'text', text: `reelmap-key:${key}` });
   window.location.href = `shortcuts://run-shortcut?${params.toString().replace(/\+/g, '%20')}`;
+}
+
+// Android and desktop have no Shortcut. Installing the app gives them the same thing: Share from Instagram
+// lists Reel Map (Android), and notifications work. Desktop just pastes links.
+function InstallSetup({ platform }) {
+  const [open, setOpen] = useState(false);
+  const installed = isInstalled();
+  const steps = platform === 'android'
+    ? ['In Chrome tap the ⋮ menu, then "Install app".', 'In Instagram tap Share on a reel, then pick Reel Map.', 'The place shows up in your inbox.']
+    : ['Click the install icon in the address bar (Chrome or Edge).', 'Copy a reel link, then use "Paste a reel link" in the app.', 'Turn on Notifications above once it is installed.'];
+  return (
+    <div className="settings-section">
+      <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Smartphone className="ico" aria-hidden="true" /> {platform === 'android' ? 'Save reels from Instagram' : 'Install the app'} {open ? <ChevronDown className="ico" aria-hidden="true" /> : <ChevronRight className="ico" aria-hidden="true" />}
+      </button>
+      {open && (
+        <div className="shortcut-setup">
+          {installed
+            ? <div className="shortcut-connected" role="status"><strong><CircleCheck className="ico" aria-hidden="true" /> App installed</strong></div>
+            : <p className="toggle-hint">Install the app for notifications{platform === 'android' ? ' and one-tap saving from Instagram' : ''}.</p>}
+          <ol className="toggle-hint">{steps.map((t) => <li key={t}>{t}</li>)}</ol>
+          <p className="toggle-hint">The iPhone Shortcut is only for iPhones.</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Set-up for the iPhone Shortcut that saves a reel from the share sheet without leaving Instagram.
@@ -309,6 +383,8 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
       <div className="collection-icons">
         <button
           className="collection-icon"
+          data-tour="share"
+          data-tour-for={collection.id}
           onClick={() => onShare(collection)}
           title={isOwner ? 'Edit, share and manage' : 'Share'}
           aria-label={isOwner ? 'Edit, share and manage' : 'Share'}
@@ -754,12 +830,20 @@ export default function SettingsDrawer({
 
         <div className="settings-content">
           {profile && <ProfileSection key={profile.id} profile={profile} achievements={achievements} email={email} drawerOpen={open} onUpdateProfile={onUpdateProfile} onDeleteClick={onOpenDeleteModal} />}
-          {userId && <NotificationsToggle userId={userId} />}
+          {userId && (
+            <div data-tour="notify">
+              <NotificationsToggle userId={userId} />
+              <WeeklyPickDay userId={userId} />
+            </div>
+          )}
           {achievements && <AchievementsSection achievements={achievements} onOpenAchievements={onOpenAchievements} />}
-          {userId && <WeeklyPickDay userId={userId} />}
           {onToggleMyLocation && <LocationToggle on={showMyLocation} onChange={onToggleMyLocation} />}
           {onToggleNearAlerts && <NearAlertsToggle on={nearAlerts} onChange={onToggleNearAlerts} />}
-          {userId && <ShortcutSetup showToast={showToast} />}
+          {userId && (detectPlatform() === 'ios'
+            ? <ShortcutSetup showToast={showToast} />
+            : <InstallSetup platform={detectPlatform()} />)}
+
+          {userId && <FriendsSection userId={userId} collections={collections} showToast={showToast} />}
 
           {onJoinWithCode && <JoinCollection onJoin={onJoinWithCode} showToast={showToast} />}
 
@@ -785,7 +869,7 @@ export default function SettingsDrawer({
                 unlocked={pinColours?.unlocked}
               />
             ))}
-            <form className="inline-form" onSubmit={addCollection}>
+            <form className="inline-form" data-tour="new-collection" onSubmit={addCollection}>
               <input
                 className="step-input"
                 placeholder="New collection name"
@@ -803,6 +887,7 @@ export default function SettingsDrawer({
           <div className="settings-section">
             <div className="settings-section-title"><Info className="ico" aria-hidden="true" /> Help and legal</div>
             <div className="legal-links">
+              <button type="button" className="settings-link-btn" onClick={() => { onClose(); emitTour('replay'); }}>Replay tour</button>
               <a href="/support" target="_blank" rel="noreferrer">Help and support</a>
               <a href="mailto:hello@waylitmaps.com">Email us</a>
               <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>

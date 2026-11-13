@@ -1,0 +1,96 @@
+/* The no-login demo. It borrows the app's own colours, so it follows light and dark like the app does. */
+.demo { position: fixed; inset: 0; overflow-y: auto; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+
+
+/* The tip: lantern, dots and the two small links in one row, then a title and a line or two. A button row only when there is something to press. */
+.demo-tip { position: fixed; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 20px)); background: #f6f3ec; color: #1a1a18; border: 2px solid #1a1a18; border-radius: 18px; padding: 8px 14px 12px; box-shadow: 4px 4px 0 #1a1a18; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; outline: none; }
+.demo-tip.bottom { bottom: max(12px, env(safe-area-inset-bottom)); }
+.demo-tip.top { top: max(12px, env(safe-area-inset-top)); }
+.demo-tip.center { position: static; transform: none; width: 100%; max-width: 420px; align-items: center; text-align: center; padding: 18px; gap: 8px; }
+.demo-tip h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 18px; line-height: 1.15; }
+.demo-tip p { margin: 0; font-size: 14px; line-height: 1.4; color: #3d3b36; }
+.demo-tip-head { display: flex; align-items: center; gap: 10px; }
+.demo-dots { display: flex; gap: 5px; align-items: center; }
+.demo-dots i { width: 8px; height: 8px; border-radius: 50%; background: #cfc8b8; }
+.demo-dots i.on { background: #d4421d; width: 20px; border-radius: 999px; }
+.demo-dots i.done { background: #1a1a18; }
+.demo-tip .grow { flex: 1; }
+.demo-foot { display: flex; align-items: center; gap: 4px; width: 100%; }
+.demo-foot.center { justify-content: center; gap: 10px; }
+.demo-btn { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 2px solid #1a1a18; background: #fff; color: #1a1a18; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.demo-btn.go { background: #d4421d; color: #fff; }
+.demo-link { min-height: 44px; padding: 0 8px; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 700; color: #66645d; text-decoration: underline; cursor: pointer; }
+.demo-link.soft { min-height: 36px; font-size: 12.5px; font-weight: 600; color: #8a8579; text-decoration: none; padding: 0 4px; }
+.demo-tip button:focus-visible { outline: 3px solid #1a1a18; outline-offset: 2px; }
+.demo-bar { position: relative; height: 5px; margin-top: 6px; border-radius: 99px; background: #e3dccd; overflow: hidden; }
+.demo-bar i { display: block; width: 100%; height: 100%; background: #d4421d; border-radius: 99px; transform-origin: left; animation: demo-fill linear forwards; }
+@keyframes demo-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.demo-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.demo-chip { min-height: 46px; border-radius: 14px; border: 2px solid #1a1a18; background: #fff; color: #1a1a18; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; padding: 0 8px; }
+.demo-chip:active { background: #ffd23f; }
+.demo-own { display: flex; gap: 8px; width: 100%; }
+.demo-input { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; font: inherit; font-size: 16px; color: #1a1a18; background: #fff; border: 2px solid #1a1a18; border-radius: 10px; }
+.demo-input::placeholder { color: #8a8579; }
+.demo-reward { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff3c4; border: 2px solid #1a1a18; border-radius: 14px; padding: 8px 12px; }
+.demo-reward div { display: flex; flex-direction: column; }
+.demo-reward small { color: #66645d; font-size: 12px; }
+.demo-medal { flex: none; width: 30px; height: 30px; color: #b5361a; }
+
+.demo-confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 10060; }
+.demo-confetti span { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: demo-fall 1.8s ease-in forwards; }
+@keyframes demo-fall { to { transform: translateY(105vh) rotate(540deg); opacity: 0.9; } }
+
+/* The real app's screens inside the demo: no extra wrapper styling. */
+.demo-app { position: fixed; inset: 0; z-index: 1; }
+
+/* The dim closes in on what a tip points at: while it does, its four edges glide to the new spot. */
+.tour-layer.closing .tour-dim { transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), top 0.6s cubic-bezier(0.22, 1, 0.36, 1), width 0.6s cubic-bezier(0.22, 1, 0.36, 1), height 0.6s cubic-bezier(0.22, 1, 0.36, 1), right 0.6s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.tour-layer.closing .tour-ring { transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), top 0.6s cubic-bezier(0.22, 1, 0.36, 1), width 0.6s cubic-bezier(0.22, 1, 0.36, 1), height 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease 0.3s; }
+@media (prefers-reduced-motion: reduce) { .tour-layer.closing .tour-dim, .tour-layer.closing .tour-ring { transition: none; } }
+
+/* ---- Motion ---- */
+/* Each new message pops in. */
+.demo-tip { animation: demo-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.demo-tip.bottom, .demo-tip.top { animation-name: demo-pop-edge; }
+@keyframes demo-pop { from { opacity: 0; transform: translateY(14px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes demo-pop-edge { from { opacity: 0; transform: translate(-50%, 14px) scale(0.94); } to { opacity: 1; transform: translateX(-50%); } }
+
+/* A pulsing ripple and a small "Tap" label under the thing you are meant to tap. */
+.demo-hint { position: fixed; z-index: 10051; width: 0; height: 0; pointer-events: none; }
+.demo-hint i { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #ffd23f; background: rgba(255, 210, 63, 0.35); animation: demo-ripple-loop 1.5s ease-out infinite; }
+.demo-hint i + i { animation-delay: 0.75s; }
+.demo-hint span { position: absolute; left: 0; top: var(--below, 30px); transform: translateX(-50%); padding: 3px 12px; border-radius: 999px; background: #ffd23f; color: #1a1a18; border: 2px solid #1a1a18; box-shadow: 2px 2px 0 #1a1a18; font: 800 13px/1.2 var(--font-display, sans-serif); animation: demo-bob 1s ease-in-out infinite; }
+/* Over a button the ripple stays see-through so the word on it can still be read. */
+.demo-hint.on-button i { background: rgba(255, 210, 63, 0.15); }
+@keyframes demo-ripple-loop { 0% { opacity: 0.95; transform: scale(0.35); } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes demo-bob { 0%, 100% { margin-top: 0; } 50% { margin-top: 6px; } }
+
+/* The reward drops in, the medal spins into place and a shine sweeps across. */
+.demo-reward { position: relative; overflow: hidden; animation: demo-reward-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s both; }
+.demo-reward::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent); animation: demo-shine 1.1s ease 1.1s both; }
+.demo-medal { animation: demo-medal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both; }
+@keyframes demo-reward-in { from { opacity: 0; transform: translateY(18px) scale(0.85); } to { opacity: 1; transform: none; } }
+@keyframes demo-medal { from { transform: rotate(-200deg) scale(0); } to { transform: none; } }
+@keyframes demo-shine { to { left: 130%; } }
+
+/* The end-card buttons arrive after the reward. */
+.demo-tip.center .demo-foot.center { animation: demo-pop 0.4s ease 0.9s both; }
+
+/* Chips spring up one after another. */
+.demo-chip { animation: demo-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.demo-chip:nth-child(2) { animation-delay: 0.06s; }
+.demo-chip:nth-child(3) { animation-delay: 0.12s; }
+.demo-chip:nth-child(4) { animation-delay: 0.18s; }
+.demo-chip:active { transform: scale(0.95); }
+
+/* More confetti, with different sizes, flying down in a curve. */
+.demo-confetti span:nth-child(3n) { width: 6px; height: 10px; animation-duration: 2.2s; }
+.demo-confetti span:nth-child(4n) { border-radius: 50%; width: 9px; height: 9px; }
+
+/* The demo keeps its motion even when the phone asks for less: the tap hint, the spotlight glow and the lantern's bob are the point of it. */
+@media (prefers-reduced-motion: reduce) {
+  .demo-layer .tour-ring { animation: tour-glow 1.6s ease-in-out infinite; }
+  .demo-layer .tour-lantern { animation: tour-bob 2.4s ease-in-out infinite; }
+}

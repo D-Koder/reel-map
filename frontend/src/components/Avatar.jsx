@@ -1,12 +1,12 @@
 import React from 'react';
-import { DEFAULT_AVATAR_URL } from '../lib/constants';
+import Lantern from '../tour/Lantern';
 import FramedAvatar from './FramedAvatar';
 
-// A member's photo, their emoji avatar, or the default picture for the plain 🙂.
+// A member's photo, their emoji avatar, or the Waylit lantern for the plain 🙂 (everyone starts with it).
 export default function Avatar({ person, className = 'person-avatar' }) {
   let content = person?.avatar ?? '🙂';
   if (person?.avatar_url) content = <img src={person.avatar_url} alt="" />;
-  else if (content === '🙂') content = <img src={DEFAULT_AVATAR_URL} alt="" />;
+  else if (content === '🙂') content = <Lantern size={22} pose="hello" />;
   return (
     <FramedAvatar frame={person?.frame} small>
       <span className={className}>{content}</span>

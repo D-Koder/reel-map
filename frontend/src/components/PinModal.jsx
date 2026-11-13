@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BellRing, ChevronDown, Download, MessageSquareText, CalendarCheck, CalendarDays, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, PartyPopper, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
+import { BellRing, ChevronDown, Download, MessageSquareText, CalendarCheck, CalendarPlus, CircleCheck, Clock, Globe, Hourglass, Link, MapPin, Navigation, Pencil, Phone, Share2, StickyNote, Ticket, Trash2, TriangleAlert, UtensilsCrossed, X } from 'lucide-react';
 import ReviewsModal from './ReviewsModal';
 import useSheetDrag from '../lib/useSheetDrag';
 import { feelings, formatDate, formatDateTime, toLocalInputValue } from '../lib/constants';
@@ -21,6 +21,10 @@ import TimePicker from './TimePicker';
 import { eventDatesText, eventStatus, eventSummary, runsOf } from '../lib/eventRuns';
 import EventSchedule from './EventSchedule';
 import CalendarConnect from './CalendarConnect';
+import { TOUR_MARK, shownInfo } from '../tour/steps';
+
+// Mark as Done opens this long after the booking time.
+const DONE_UNLOCK_MS = 10 * 60 * 1000;
 
 function formatWait(ms) {
   const minutes = Math.ceil(ms / 60000);
@@ -85,7 +89,7 @@ function VoteBoard({ members, reactions, userId, sharedBy, placeName, onSetVibe,
   );
 
   return (
-    <div className="modal-section vote-board">
+    <div className="modal-section vote-board" data-tour="vote-board">
       <div className={`my-vote ${myVote ? 'voted' : ''}`}>
         <div className="my-vote-label">
           {myVote ? 'Your vote' : everyoneElseIn ? 'Your vote? Everyone else is in.' : 'Your vote?'}
@@ -214,7 +218,10 @@ export default function PinModal({
   const [reservationDate, setReservationDate] = useState(defaultReservation);
   // Worked out when the sheet opens, so tapping the address opens it straight away.
   const [mapsLink, setMapsLink] = useState(() => googleMapsLink(place));
+  // The tour's sample place never calls out: no map lookup, no stored files.
+  const isSample = place.custom_info === TOUR_MARK;
   useEffect(() => {
+    if (isSample) return undefined;
     const controller = new AbortController();
     checkedGoogleMapsLink(place, controller.signal).then((link) => {
       if (!controller.signal.aborted) setMapsLink(link);
@@ -325,6 +332,8 @@ export default function PinModal({
   const eventNow = hasRuns ? eventStatus(runs) : null;
   const status = hasRuns ? (eventNow && { open: eventNow.kind === 'open', text: eventNow.text }) : openStatus(hours);
   const suburb = suburbOf(place?.address);
+  // The demo's sample place shows its call and website icons, but they go nowhere.
+  const linkProps = (href) => (isSample ? { 'aria-disabled': true, onClick: (e) => e.preventDefault() } : { href, target: href.startsWith('tel:') ? undefined : '_blank', rel: 'noopener noreferrer' });
   const quickActions = [
     place?.address && mapsLink && { label: 'Directions', href: mapsLink, Icon: Navigation },
     place?.phone && { label: `Call ${place.phone}`, href: `tel:${place.phone.replace(/[^\d+]/g, '')}`, Icon: Phone },
@@ -355,9 +364,9 @@ export default function PinModal({
   ].filter(Boolean);
   const planDay = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + new Date(iso).getDate() + ' ' + new Date(iso).toLocaleDateString(undefined, { month: 'short' });
 
-  const unlockAt = booking ? new Date(booking.planned_at).getTime() + 60 * 60 * 1000 : null;
+  const unlockAt = booking ? new Date(booking.planned_at).getTime() + DONE_UNLOCK_MS : null;
   const doneLocked = unlockAt !== null && now < unlockAt;
-  const stepNames = { 1: hasRuns ? 'Check times' : 'Pick a time', 2: 'Book', 3: 'Calendar' };
+  const stepNames = { 1: 'Find a time & book', 2: 'Did you book it?', 3: 'Done' };
   // Going back only changes the step shown: a saved plan stays.
   const prevStep = (n) => steps[steps.indexOf(n) - 1];
   const stepHead = (n) => (
@@ -372,6 +381,16 @@ export default function PinModal({
       )}
     </>
   );
+
+  // Mark as Done sits at the end of the sheet, in the normal flow (not stuck to the bottom).
+  const bookedDock = booking && !isDone && canEdit ? (
+    <div className="booked-done-wrap">
+      <button type="button" className={`booked-done${doneLocked ? ' locked' : ''}`} data-tour="mark-done" disabled={doneLocked} onClick={markDone}>
+        {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
+      </button>
+      {doneLocked && <div className="booked-unlock">Unlocks 10 minutes after your booking time</div>}
+    </div>
+  ) : null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -394,7 +413,7 @@ export default function PinModal({
             >
               <TriangleAlert aria-hidden="true" />
             </button>
-            <button className="modal-close" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
+            <button className="modal-close" data-tour="edit" onClick={onEdit} aria-label="Edit place" title="Edit or copy">
               <Pencil aria-hidden="true" />
             </button>
             {canDelete && (
@@ -431,7 +450,34 @@ export default function PinModal({
         )}
 
         {place?.subtitle && <div className="venue-subtitle">{place.subtitle}</div>}
-        {place?.custom_info && <div className="venue-subtitle">{place.custom_info}</div>}
+        {shownInfo(place) && <div className="venue-subtitle">{place.custom_info}</div>}
+
+        {booking && !isDone && (
+          <div className="modal-section booked-card" data-tour="booked">
+            <div className="booked-label"><CircleCheck className="ico" aria-hidden="true" /> Booked</div>
+            <div className="booked-when">{formatDateTime(booking.planned_at)}</div>
+            <div className="booked-note"><BellRing className="ico" aria-hidden="true" /> Notification sent to the collection</div>
+            <div className="calendar-panel" data-tour="calendar-panel">
+              <div className="calendar-panel-title"><CalendarPlus className="ico" aria-hidden="true" /> Add to calendar</div>
+              <div className="calendar-panel-buttons">
+                {googleConnected ? (
+                  <button type="button" className="calendar-btn" onClick={() => putInCalendar(bookingEvent())}>Google Calendar</button>
+                ) : (
+                  <a className="calendar-btn" href={googleCalendarUrl(bookingEvent())} target="_blank" rel="noopener noreferrer">Google Calendar</a>
+                )}
+                <button type="button" className="calendar-btn" onClick={() => { addToCalendar(bookingEvent()); showToast(`Added "${place.name}" to calendar`); }}>
+                  <Download className="ico" aria-hidden="true" /> Apple or other (.ics)
+                </button>
+              </div>
+              <div className="calendar-panel-links">
+                <button type="button" className="share-booking" onClick={() => shareBooking(place, showToast)}><Share2 className="ico" aria-hidden="true" /> Share booking</button>
+                {canEdit && <button type="button" className="edit-booking-btn" data-tour="edit-booking" onClick={() => setEditingBooking(true)}><Pencil className="ico" aria-hidden="true" /> Edit booking</button>}
+              </div>
+            </div>
+            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
+            {!canEdit && !isSample && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
+          </div>
+        )}
 
         <div className={`reel-context${reelEmbed(place.reel_url) ? ' has-embed' : ''}`}>
           <button className="reel-thumb-btn" onClick={openReel} aria-label="View reel" disabled={!place.reel_url}>
@@ -456,9 +502,7 @@ export default function PinModal({
                   <a
                     key={label}
                     className="quick-action"
-                    href={href}
-                    target={href.startsWith('tel:') ? undefined : '_blank'}
-                    rel="noopener noreferrer"
+                    {...linkProps(href)}
                     aria-label={label}
                     title={label}
                   >
@@ -502,61 +546,10 @@ export default function PinModal({
           />
         )}
 
-        {booking && !isDone && (
-          <div className="modal-section">
-            <div className="modal-label"><CalendarDays className="ico" aria-hidden="true" /> Planned Date</div>
-            <button
-              type="button"
-              className="planned-date"
-              onClick={() => putInCalendar(bookingEvent())}
-            >
-              {formatDateTime(booking.planned_at)} · <CalendarPlus className="ico" aria-hidden="true" /> Add to calendar
-            </button>
-            {/* Opens Google Calendar with the event filled in; works without connecting Google in Check Hours.
-                Hidden when Google is connected, since the date above already adds to it. */}
-            {!googleConnected && (
-              <a
-                className="step-btn secondary full-width"
-                href={googleCalendarUrl(bookingEvent())}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <CalendarPlus className="ico" aria-hidden="true" /> Add to Google Calendar
-              </a>
-            )}
-            {/* For the people in this collection: the link's card shows the date and time. */}
-            <button type="button" className="step-btn secondary full-width share-booking" onClick={() => shareBooking(place, showToast)}>
-              <Share2 className="ico" aria-hidden="true" /> Share booking with the group
-            </button>
-            {canEdit && (
-              <button type="button" className="step-btn secondary full-width edit-booking-btn" onClick={() => setEditingBooking(true)}>
-                <Pencil className="ico" aria-hidden="true" /> Edit booking
-              </button>
-            )}
-            {/* Editors change the date and add confirmations in Edit booking; everyone else sees the confirmations here. */}
-            {!canEdit && <BookingFiles place={place} canUpload={false} showToast={showToast} />}
-          </div>
-        )}
-
-        {(place?.note || place?.custom_info) && (
+        {(place?.note || shownInfo(place)) && (
           <div className="modal-section">
             <div className="modal-label"><StickyNote className="ico" aria-hidden="true" /> Notes</div>
-            <p className="place-note-text">{place.note || place.custom_info}</p>
-          </div>
-        )}
-
-        {place?.address && (
-          <div className="modal-section">
-            <div className="modal-label">Address</div>
-            <a
-              className="venue-address"
-              href={mapsLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Open ${place.address} in Google Maps`}
-            >
-              {place.address}
-            </a>
+            <p className="place-note-text">{place.note || shownInfo(place)}</p>
           </div>
         )}
 
@@ -571,19 +564,42 @@ export default function PinModal({
 
         {place?.category === 'event' && <EventSchedule place={place} />}
 
+        {place?.address && (
+          <a
+            className="detail-row"
+            href={mapsLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${place.address} in Google Maps`}
+          >
+            <MapPin className="ico" aria-hidden="true" />
+            <span>{place.address}</span>
+            <Navigation className="ico detail-go" aria-hidden="true" />
+          </a>
+        )}
+
         {!hasRuns && hours.length > 0 && (
           <div className="modal-section">
-            <div className="modal-label">Business Hours</div>
-            <table className="hours-table">
-              <tbody>
-                {groupedHours(hours).map((h) => (
-                  <tr key={h.days}>
-                    <td>{h.days}</td>
-                    <td>{h.time}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* One line (open now, closes at…); tap for the full week. */}
+            <details className="hours-acc">
+              <summary>
+                <span className="hours-acc-line">
+                  {status && <span className={`reel-open-dot${status.open ? ' is-open' : ''}`} aria-hidden="true" />}
+                  {status ? status.text : 'Business hours'}
+                </span>
+                <ChevronDown className="ico chevron" aria-hidden="true" />
+              </summary>
+              <table className="hours-table">
+                <tbody>
+                  {groupedHours(hours).map((h) => (
+                    <tr key={h.days}>
+                      <td>{h.days}</td>
+                      <td>{h.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
           </div>
         )}
 
@@ -601,13 +617,11 @@ export default function PinModal({
             )}
           </>
         ) : wasBooked && !replanning ? (
-          <button className="step-btn primary full-width" disabled={doneLocked} onClick={markDone}>
-            {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Mark as Done in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
-          </button>
+          bookedDock
         ) : (
           <>
             {step === 1 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(1)}
                 {hasRuns ? (
                   <>
@@ -620,10 +634,27 @@ export default function PinModal({
                   </>
                 ) : (
                   <>
-                    <div className="step-title">Pick a time</div>
-                    <div className="step-description">{hoursSummary}</div>
+                    <div className="step-title">Find a time &amp; book</div>
+                    {!isSample && <div className="step-description">{hoursSummary}</div>}
+                    <div className="step-note">We can't see the venue's tables. Pick a time to try, book with the venue yourself, then tell us what you got.</div>
+                    {/* The venue's own ways to book, as icons. */}
+                    {bookingActions.length > 0 && (
+                      <div className="book-icons">
+                        {bookingActions.map(({ label, href, Icon }) => (
+                          <a
+                            key={label}
+                            className="step-btn secondary book-icon"
+                            {...linkProps(href)}
+                            aria-label={label}
+                            title={label}
+                          >
+                            <Icon aria-hidden="true" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     {/* Needs a tap: the button goes right under the text, not below the whole picker. */}
-                    {hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
+                    {!isSample && hours.length > 0 && freeTime.state === 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap onChange={setConnection} />}
                     {hours.length > 0 ? (
                       <TimePicker
                         hours={hours}
@@ -632,6 +663,7 @@ export default function PinModal({
                         minutes={planMinutes}
                         onMinutes={setPlanMinutes}
                         value={timeChosen && reservationDate ? new Date(reservationDate) : null}
+                        pickVerb="Continue with"
                         onPick={(start) => { setReservationDate(toLocalInputValue(start)); setTimeChosen(true); completeStep(1); }}
                       />
                     ) : (
@@ -647,76 +679,50 @@ export default function PinModal({
                           disabled={!reservationDate}
                           onClick={() => { setTimeChosen(true); completeStep(1); }}
                         >
-                          Pick this time
+                          Continue
                         </button>
                       </>
                     )}
-                    {hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
+                    {!isSample && <button type="button" className="step-link" onClick={() => { setTimeChosen(true); completeStep(1); }}>Plan it without booking</button>}
+                    {!isSample && hours.length > 0 && freeTime.state !== 'tap' && <CalendarConnect userId={userId} connection={connection} needsTap={false} onChange={setConnection} />}
                   </>
                 )}
               </div>
             )}
 
             {step === 2 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(2)}
-                <div className="step-title">Book it</div>
-                {timeChosen ? (
-                  <div className="picked-time">
-                    <div><small>Your time</small><strong>{formatDateTime(new Date(reservationDate).toISOString())}</strong></div>
-                    <button type="button" className="step-link" onClick={() => setStep(1)}>Change</button>
-                  </div>
-                ) : (
-                  <input
-                    type="datetime-local"
-                    className="step-input"
-                    value={reservationDate}
-                    onChange={(e) => setReservationDate(e.target.value)}
-                  />
-                )}
-                {bookingActions.length > 0 ? (
-                  <>
-                    <div className="step-description">Book with the venue yourself. We don't book for you.</div>
-                    <div className="book-actions">
-                      {bookingActions.map(({ label, href, Icon, primary }) => (
-                        <a
-                          key={label}
-                          className={`step-btn ${primary ? 'primary' : 'secondary'} book-link`}
-                          href={href}
-                          target={href.startsWith('tel:') ? undefined : '_blank'}
-                          rel="noopener noreferrer"
-                        >
-                          <Icon className="ico" aria-hidden="true" /> {label}
-                        </a>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="book-empty">
-                    <b>No way to book saved for this place</b>
-                    No phone number, booking link or reservation link. You can still plan the time and carry on.
-                  </div>
-                )}
+                <div className="step-title">Did you book it?</div>
+                <div className="step-description">What day and time did you get? That's what we save.</div>
+                <input
+                  type="datetime-local"
+                  className="step-input"
+                  aria-label="Booked day and time"
+                  value={reservationDate}
+                  onChange={(e) => setReservationDate(e.target.value)}
+                />
+                {!isSample && <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />}
                 <button
                   className="step-btn primary full-width"
                   onClick={() => completeStep(2)}
                   disabled={saving || !reservationDate}
                 >
-                  {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Next →'}
+                  {saving ? <><span className="spinner" aria-hidden="true" />Saving…</> : 'Confirm booking'}
                 </button>
-                <div className="step-note">Next saves the plan, so friends can see it.</div>
-                <BookingFiles place={place} canUpload={canEdit} showToast={showToast} />
+                <div className="step-note">Confirming sends a notification to the collection.</div>
+                <button type="button" className="step-link" onClick={() => setStep(1)}>Not yet, take me back</button>
               </div>
             )}
 
             {step === 3 && (
-              <div className="checklist-step">
+              <div className="checklist-step" data-tour="plan">
                 {stepHead(3)}
                 <div className="step-saved">
                   <span className="step-saved-mark"><CircleCheck className="ico" aria-hidden="true" /></span>
-                  <div className="step-title">Planned for {planDay(booking?.planned_at ?? new Date(reservationDate).toISOString())}</div>
+                  <div className="step-title">Booked for {planDay(booking?.planned_at ?? new Date(reservationDate).toISOString())}</div>
                   <div className="step-description">
-                    {formatDateTime(booking?.planned_at ?? new Date(reservationDate).toISOString())}. Saved for everyone in this collection.
+                    {formatDateTime(booking?.planned_at ?? new Date(reservationDate).toISOString())}. The collection has been notified.
                   </div>
                 </div>
                 <input
@@ -752,19 +758,7 @@ export default function PinModal({
               </div>
             )}
 
-            {step === 'final' && (
-              <div className="checklist-step">
-                <div className="step-number">All set!</div>
-                <div className="step-title"><PartyPopper className="ico" aria-hidden="true" /> Ready to Go</div>
-                <div className="step-description">
-                  Everything is planned. You can mark this as "Done" once you've visited!
-                </div>
-                <div className="step-complete"><CircleCheck className="ico" aria-hidden="true" /> All steps completed</div>
-                <button className="step-btn primary full-width mark-done" disabled={doneLocked} onClick={markDone}>
-                  {doneLocked ? <><Hourglass className="ico" aria-hidden="true" /> Available in {formatWait(unlockAt - now)}</> : <><CircleCheck className="ico" aria-hidden="true" /> Mark as Done</>}
-                </button>
-              </div>
-            )}
+            {step === 'final' && bookedDock}
           </>
         )}
       </div>

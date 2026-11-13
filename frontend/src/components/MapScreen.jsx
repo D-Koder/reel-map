@@ -7,6 +7,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { categories, getVibe } from '../lib/constants';
 import { MAPBOX_TOKEN, MELBOURNE_CENTER, SEARCH_BASE, guessCategory } from '../lib/mapboxSearch';
 import { addressAtSpot, nearbyPlaces, retrievePlace, searchSuggestions } from '../lib/placeSearch';
+import { onTour } from '../tour/events';
+import { shownInfo } from '../tour/steps';
 
 const LONG_PRESS_MS = 1000;
 
@@ -175,6 +177,12 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
   // Tracking what is hidden means a collection created later shows by default.
   const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
   const [hiddenCollections, setHiddenCollections] = useState(() => new Set());
+  // The tour asks for every pin to show, so a new person's first place isn't hidden by the empty starting filters.
+  useEffect(() => onTour((type) => {
+    if (type !== 'map-show-all') return;
+    setHiddenCategories(new Set());
+    setHiddenCollections(new Set());
+  }), []);
   const [mapError, setMapError] = useState('');
   const [mapReady, setMapReady] = useState(false);
   const [placesListOpen, setPlacesListOpen] = useState(false);
@@ -415,7 +423,7 @@ const MapScreen = forwardRef(function MapScreen({ places, collections = [], memb
     const title = document.createElement('strong');
     title.textContent = focusedPlace.name;
     content.append(title);
-    const detail = focusedPlace.custom_info || focusedPlace.address;
+    const detail = shownInfo(focusedPlace) || focusedPlace.address;
     if (detail) {
       const line = document.createElement('span');
       line.textContent = detail;
@@ -812,7 +820,7 @@ const openListedPlace = (place) => {
                 {visible.map((place) => (
                   <button key={place.id} type="button" className="map-place-item" onClick={() => openListedPlace(place)}>
                     <span className="map-place-item-name">{place.name}</span>
-                    {place.custom_info && <span className="map-place-item-info">{place.custom_info}</span>}
+                    {shownInfo(place) && <span className="map-place-item-info">{place.custom_info}</span>}
                     {place.address && <span className="map-place-item-address">{place.address}</span>}
                   </button>
                 ))}
@@ -888,7 +896,7 @@ const openListedPlace = (place) => {
                   >
                     <strong>{place.name}</strong>
                     {collection && <span><MapPin className="ico" aria-hidden="true" /> {collection}</span>}
-                    {place.custom_info && <span>{place.custom_info}</span>}
+                    {shownInfo(place) && <span>{place.custom_info}</span>}
                   </button>
                 ))}
               </div>

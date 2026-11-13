@@ -5,6 +5,7 @@ import { apiFetch } from '../lib/api';
 import { shareNote } from '../lib/shareText';
 import { forgetListedLookups, lookupListedPlace, prefetchListedPlaces } from '../lib/listedLookups';
 import { requestLocationApi } from '../lib/googlePlaces';
+import { SAMPLE_DETAILS, SAMPLE_PREFIX, TOUR_MARK } from '../tour/steps';
 
 const inboxKey = (userId) => `reelmap:inbox:${userId}`;
 const lastCollectionKey = (userId) => `reelmap:last-collection:${userId}`;
@@ -84,7 +85,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       location: details.address || data.location || '',
       category: popup ? 'event' : knownCategory(data.category) || 'food',
       collectionId,
-      reelUrl: item.url,
+      reelUrl: item.url.startsWith(SAMPLE_PREFIX) ? null : item.url,
       venueDetails: popup ? { ...details, name } : details,
       // Sharing a reel means you're keen on it.
       feeling: 'keen',
@@ -93,7 +94,7 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
       eventRuns: popup?.runs?.length ? popup.runs : undefined,
       eventPrice: popup?.price || '',
       eventContact: popup?.contact || '',
-      customInfo: popup ? popup.locationNote || popup.howToBook || '' : '',
+      customInfo: item.customInfo || (popup ? popup.locationNote || popup.howToBook || '' : ''),
     });
     if (!created) {
       update(item.id, { status: 'failed', collectionId, name, reelData: data });
@@ -240,9 +241,9 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     }
   }, [inboxCollectionId, remove]);
 
-  // "Wrong place": the user picks the right one in the Finish sheet instead.
+  // "Verify place": the user picks the right one in the Finish sheet instead.
   const reject = useCallback((item) => {
-    update(item.id, { status: 'needs-place', confirm: false });
+    update(item.id, { status: 'needs-place', confirm: false, rejected: true });
     prefetchListedPlaces(item.url, item.reelData);
   }, []);
 
@@ -310,5 +311,16 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
     remove(id);
   }, [remove]);
 
-  return { items, enqueue, confirm, reject, saveListed, watch, unwatch, retry: process, remove, dismiss };
+  // The tour's sample reel: a ready-made "is this the spot?" card, with no lookup. Saving it makes a sample place
+  // (marked so the tour can remove it), through the same path as a real reel.
+  const addSample = useCallback(() => {
+    const reelData = { placeName: SAMPLE_DETAILS.name, location: SAMPLE_DETAILS.address, category: 'food', maps: { details: SAMPLE_DETAILS } };
+    const item = {
+      id: newId(), url: `${SAMPLE_PREFIX}${Date.now()}`, collectionId: pickCollection(), status: 'confirm', confirm: true,
+      name: SAMPLE_DETAILS.name, address: SAMPLE_DETAILS.address, reelData, customInfo: TOUR_MARK, addedAt: Date.now(),
+    };
+    setItems((list) => [...list, item]);
+  }, [pickCollection]);
+
+  return { items, enqueue, confirm, reject, saveListed, addSample, watch, unwatch, retry: process, remove, dismiss };
 }

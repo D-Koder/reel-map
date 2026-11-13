@@ -54,6 +54,19 @@ export function rememberSharedPlace(id) {
 export function pendingSharedPlace() {
   try { return localStorage.getItem(PENDING_KEY); } catch { return null; }
 }
+// An invite link opened before the person has an account: kept until they are in and it has been used, because the
+// email confirmation link brings them back to the home page without it.
+const INVITE_KEY = 'reelmap:pending-invite';
+export function rememberInvite(code) {
+  try { localStorage.setItem(INVITE_KEY, code); } catch { /* private mode */ }
+}
+export function pendingInvite() {
+  try { return localStorage.getItem(INVITE_KEY); } catch { return null; }
+}
+export function forgetInvite() {
+  try { localStorage.removeItem(INVITE_KEY); } catch { /* private mode */ }
+}
+
 export function forgetSharedPlace() {
   try { localStorage.removeItem(PENDING_KEY); } catch { /* private mode */ }
 }

@@ -7,6 +7,10 @@ import { exportCollection } from '../lib/collectionFile';
 import { canEditCollection } from '../lib/roles';
 import EmojiPicker from './EmojiPicker';
 import ConfirmDialog from './ConfirmDialog';
+import { emitTour } from '../tour/events';
+import { useFriends } from '../hooks/useFriends';
+import { addableFriends } from '../lib/friends';
+import Avatar from './Avatar';
 
 async function copy(text, label, showToast) {
   try {
@@ -21,6 +25,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
+  const friends = useFriends(userId, showToast);
+  const [addingFriend, setAddingFriend] = useState(null);
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,6 +77,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
       setLoading(false);
     }
     if (!current) return;
+    emitTour('invite-sent');
     const text = `Join "${collection.name}" on Waylit Maps. Tap the link, or use code ${formatInviteCode(current.code)}.`;
     try {
       if (navigator.share) {
@@ -152,7 +159,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               </div>
             ) : !shown ? (
               <>
-                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                <button type="button" className="step-btn primary full-width" data-tour="invite" onClick={sendInvite}>
                   <Send className="ico" aria-hidden="true" /> Send invite to my partner
                 </button>
                 <button type="button" className="step-btn secondary full-width" onClick={showInvite}>Show invite code</button>
@@ -163,7 +170,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               <>
                 <div className="invite-code" aria-label={`Invite code ${invite.code.split('').join(' ')}`}>{formatInviteCode(invite.code)}</div>
                 <div className="invite-card-hint">Friends enter this in Settings → Join a collection. Works for 7 days.</div>
-                <button type="button" className="step-btn primary full-width" onClick={sendInvite}>
+                <button type="button" className="step-btn primary full-width" data-tour="invite" onClick={sendInvite}>
                   <Send className="ico" aria-hidden="true" /> Send invite to my partner
                 </button>
                 <div className="invite-actions">
@@ -181,6 +188,29 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             )}
             {!collection.isPrivate && <div className="invite-card-hint">New people join as viewers: they can vote and copy places, not change them.</div>}
           </div>
+
+          {isOwner && !collection.isPrivate && addableFriends(friends.rows, collection).length > 0 && (
+            <div className="share-section" data-tour="add-friend">
+              <div className="share-section-title"><Users className="ico" aria-hidden="true" /> Add a friend</div>
+              <div className="share-members">
+                {addableFriends(friends.rows, collection).map((friend) => (
+                  <div className="share-member" key={friend.id}>
+                    <Avatar person={friend} className="share-member-avatar" />
+                    <span className="share-member-name">{friend.display_name}</span>
+                    <button
+                      type="button"
+                      className="step-btn secondary"
+                      disabled={addingFriend === friend.id}
+                      onClick={async () => { setAddingFriend(friend.id); await friends.addToCollection(collection, friend); setAddingFriend(null); }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="toggle-hint">They join as viewers and get a notification.</p>
+            </div>
+          )}
 
           {canExport && (
           <div className="share-section">

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { AVATARS } from '../lib/constants';
+
+// Shown only once Google is switched on in Supabase (Authentication > Providers) and VITE_GOOGLE_SIGNIN=1 is set.
+const GOOGLE_SIGNIN = import.meta.env.VITE_GOOGLE_SIGNIN === '1';
 
 const TITLES = {
   login: 'Welcome back',
@@ -10,12 +12,13 @@ const TITLES = {
   reset: 'Choose a new password',
 };
 
-export default function AuthScreen({ mode: initialMode = 'login', onPasswordReset }) {
+export default function AuthScreen({ mode: initialMode = 'login', onPasswordReset, onBack }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [avatar, setAvatar] = useState(AVATARS[0]);
+  // Everyone starts with the Waylit lantern (the plain 🙂 draws as the lantern).
+  const avatar = '🙂';
   const [country, setCountry] = useState('');
   const [busy, setBusy] = useState(false);
   const [ageOk, setAgeOk] = useState(false);
@@ -24,6 +27,17 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const switchMode = (next) => {
     setMode(next);
     setMessage(null);
+  };
+
+  const signInWithGoogle = async () => {
+    setBusy(true);
+    setMessage(null);
+    // Comes back to this exact address, so an invite link (?invite=) still joins the collection.
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      setBusy(false);
+    }
   };
 
   const submit = async (e) => {
@@ -61,6 +75,7 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={submit}>
+        {onBack && <button type="button" className="link-btn auth-back" onClick={onBack}>‹ Back</button>}
         <div className="auth-logo"><MapPin aria-hidden="true" /></div>
         <h1 className="auth-title">{TITLES[mode]}</h1>
         <p className="auth-subtitle">Save places from reels and plan them together.</p>
@@ -79,23 +94,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
                 required
               />
             </label>
-            <div className="field">
-              <span className="modal-label">Avatar</span>
-              <div className="avatar-grid" role="radiogroup" aria-label="Avatar">
-                {AVATARS.map((a) => (
-                  <button
-                    type="button"
-                    key={a}
-                    role="radio"
-                    aria-checked={avatar === a}
-                    className={`avatar-option ${avatar === a ? 'selected' : ''}`}
-                    onClick={() => setAvatar(a)}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
             <label className="field">
               <span className="modal-label">Country (optional)</span>
               <input
@@ -157,6 +155,16 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
             ? <><span className="spinner" aria-hidden="true" />Please wait…</>
             : { login: 'Log in', signup: 'Create account', forgot: 'Send reset link', reset: 'Save password' }[mode]}
         </button>
+
+        {GOOGLE_SIGNIN && (mode === 'login' || mode === 'signup') && (
+          <>
+            <div className="auth-or" aria-hidden="true">or</div>
+            <button type="button" className="step-btn secondary full-width" onClick={signInWithGoogle} disabled={busy}>
+              Continue with Google
+            </button>
+            <p className="toggle-hint">By continuing you confirm you're 13 or older and agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</p>
+          </>
+        )}
 
         <div className="auth-links">
           {mode === 'login' && (

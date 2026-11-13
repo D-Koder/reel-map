@@ -20,7 +20,7 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
   const all = picked.size === places.length;
 
   return (
-    <div className="inbox-card confirm-list" role="group" aria-label={`This post lists ${places.length} places`}>
+    <div className="inbox-card confirm-list" data-tour="confirm" role="group" aria-label={`This post lists ${places.length} places`}>
       <div className="lc-head">
         <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
         <div className="inbox-info">
@@ -56,7 +56,7 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
         <button type="button" className="inbox-action secondary" onClick={() => setPicked(all ? new Set() : new Set(places.map((p) => p.line)))}>
           {all ? 'Clear all' : 'Select all'}
         </button>
-        <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Wrong place</button>
+        <button type="button" className="inbox-action secondary" onClick={() => { onReject(item); onFinish?.({ ...item, status: 'needs-place', rejected: true }); }}>Verify place</button>
       </div>
     </div>
   );
@@ -74,31 +74,33 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';
         const confirming = item.status === 'confirm';
+        // "Verify place" was tapped: the app did guess, so don't say it couldn't tell.
+        const rejected = finish && item.rejected;
         return (
-          <div key={item.id} className={`inbox-card ${item.status}`} role="status">
+          <div key={item.id} className={`inbox-card ${item.status}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
             <span className="inbox-thumb" aria-hidden="true">
               <Film aria-hidden="true" />
             </span>
             <div className="inbox-info">
-              {item.name && <div className="inbox-name">{item.name}</div>}
+              {(rejected || item.name) && <div className="inbox-name">{rejected ? 'Pick the place' : item.name}</div>}
               <div className="inbox-message">
                 {busy && <span className="spinner" aria-hidden="true" />}
-                {confirming ? (item.address || 'Is this the right place?') : busy && item.progress ? `Saving ${item.progress}…` : busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
+                {rejected ? (item.name ? `We guessed ${item.name}.` : 'Choose it from the list.') : confirming ? (item.address || 'Is this the right place?') : busy && item.progress ? `Saving ${item.progress}…` : busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
               </div>
             </div>
             {confirming && (
               <div className="inbox-confirm">
                 <button type="button" className="inbox-action" onClick={() => onConfirm(item)}>Save</button>
-                <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Wrong place</button>
+                <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Verify place</button>
               </div>
             )}
             {finish && (
               <button type="button" className="inbox-action" onClick={() => onFinish(item)}>
-                Finish
+                {rejected ? 'Pick place' : 'Finish'}
               </button>
             )}
             {/* The lookup can fail for a passing reason (Google or the server), so it can run again. */}
-            {finish && (
+            {finish && !rejected && (
               <button type="button" className="inbox-dismiss" onClick={() => onRetry(item)} aria-label="Look up this reel again">
                 <RefreshCw aria-hidden="true" />
               </button>

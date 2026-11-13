@@ -13,7 +13,7 @@ const longDay = (date) => `${dayName(date)} ${date.getDate()} ${date.toLocaleDat
 // a length (`minutes`, null for none) can be added, which only changes what counts as busy or too late.
 // `busy` is [{ start, end }] Dates; `connected` says whether it came from a calendar. `value` is a time already
 // picked (coming back with Back), which starts the picker on that day with that time chosen.
-export default function TimePicker({ hours, busy, connected, minutes, onMinutes, value, onPick }) {
+export default function TimePicker({ hours, busy, connected, minutes, onMinutes, value, onPick, pickVerb = 'Pick' }) {
   const days = useMemo(() => pickerDays(hours, busy, new Date(), minutes || MIN_PLAN_MINUTES), [hours, busy, minutes]);
   const [selected, setSelected] = useState(() => {
     const index = value ? days.findIndex((item) => item.date.toDateString() === value.toDateString()) : -1;
@@ -97,7 +97,7 @@ export default function TimePicker({ hours, busy, connected, minutes, onMinutes,
             </div>
           )}
           <button type="button" className="step-btn primary full-width" onClick={() => onPick(picked.start)}>
-            Pick {longDay(picked.start)} · {end ? rangeText(picked.start, end) : timeText(picked.start)}{clash.length || picked.state === 'late' ? ' anyway' : ''}
+            {pickVerb} {longDay(picked.start)} · {end ? rangeText(picked.start, end) : timeText(picked.start)}{clash.length || picked.state === 'late' ? ' anyway' : ''}
           </button>
         </>
       )}
