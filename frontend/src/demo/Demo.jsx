@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award } from 'lucide-react';
+import { Award, Rocket } from 'lucide-react';
 import Lantern from '../tour/Lantern';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
@@ -99,12 +99,18 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
             {booked && (
               <div className="demo-reward">
                 <Award className="demo-medal" aria-hidden="true" />
-                <div><b>First plan unlocked</b><small>Sign up to claim your Test Driver badge</small><small>{timeLabel(booked)} · {SAMPLE.name}</small><small>In {s.collEmoji} {s.collName}</small></div>
+                <div><b>First plan unlocked</b><small>{timeLabel(booked)} · {SAMPLE.name}</small><small>In {s.collEmoji} {s.collName}</small></div>
+              </div>
+            )}
+            {booked && (
+              <div className="demo-prize" role="note">
+                <span className="demo-prize-ic"><Rocket aria-hidden="true" /></span>
+                <div><small className="demo-prize-eyebrow">Badge waiting for you</small><b>Test Driver</b><small>New title + 100 XP. Free with your account.</small></div>
               </div>
             )}
             <div className="demo-foot center">
               <button type="button" className="demo-btn" onClick={() => dispatch({ type: 'restart' })}>Replay</button>
-              <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>Sign up</button>
+              <button type="button" className="demo-btn go" onClick={() => { saveDemoHandoff(handoffFrom(s)); onSignUp(); }}>{booked ? 'Claim my badge' : 'Sign up'}</button>
             </div>
             <button type="button" className="demo-link" onClick={onLogin}>I already have an account</button>
           </>

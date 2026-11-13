@@ -94,3 +94,14 @@
   .demo-layer .tour-ring { animation: tour-glow 1.6s ease-in-out infinite; }
   .demo-layer .tour-lantern { animation: tour-bob 2.4s ease-in-out infinite; }
 }
+
+/* The badge waiting on the end card: glows to pull the eye toward Claim. */
+.demo-prize { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: #1a1a18; color: #fff; border-radius: 14px; padding: 10px 12px; animation: demo-reward-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s both, demo-glow 2s ease-in-out 1.4s infinite; }
+.demo-prize div { display: flex; flex-direction: column; }
+.demo-prize b { font-size: 16px; }
+.demo-prize small { color: #d8d5cb; font-size: 12px; }
+.demo-prize .demo-prize-eyebrow { color: #ffd23f; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 700; }
+.demo-prize-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #ffd23f; color: #1a1a18; }
+.demo-prize-ic svg { width: 22px; height: 22px; }
+@keyframes demo-glow { 50% { box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.45); } }
+@media (prefers-reduced-motion: reduce) { .demo-prize { animation: none; } }
