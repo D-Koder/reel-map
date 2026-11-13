@@ -31,6 +31,7 @@ function Confetti() {
 // The card that talks. Points at one thing (a hole in the dim layer), or sits in the middle for the first and last words.
 function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   const rect = useAnchorRect(d.target);
+  const hintRect = useAnchorRect(d.hintTarget || null); // a smaller thing inside the spotlight that the Tap hint sits on
   const tipRef = useRef(null);
   const [own, setOwn] = useState('');
   useEffect(() => { tipRef.current?.focus({ preventScroll: true }); }, [d.title, s.confirmSkip]);
@@ -147,9 +148,11 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
           <div className="tour-ring" style={{ ...hole, opacity: opening ? 0 : 1 }} />
         </>
       )}
-      {d.hint && real && !opening && !s.confirmSkip && (
+      {d.hint && real && !opening && !s.confirmSkip && (hintRect ? (
+        <div className="demo-hint on-button" style={{ left: hintRect.left + hintRect.width / 2, top: hintRect.top + hintRect.height / 2, '--below': `${hintRect.height / 2 + 8}px` }} aria-hidden="true"><i /><i /><span>Tap</span></div>
+      ) : (
         <div className="demo-hint" style={{ left: real.left + real.width / 2, top: real.top + real.height - 6 }} aria-hidden="true"><i /><i /><span>Tap</span></div>
-      )}
+      ))}
       {d.center || s.confirmSkip && !hole ? <div className="tour-backdrop">{tip}</div> : tip}
     </div>,
     document.body

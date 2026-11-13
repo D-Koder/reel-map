@@ -7,6 +7,8 @@ export const PLANS = [
   { emoji: '🍜', name: 'Food crawl' },
   { emoji: '🎉', name: 'Friends hangout' },
 ];
+// The Save button on the real inbox card: the tap hint sits on it.
+export const SAVE_BUTTON = '[data-tour="confirm"] .inbox-action:not(.secondary)';
 export const SAMPLE = { name: 'Sample Noodle Bar', address: '1 Example St, Melbourne VIC 3000' };
 
 export function initialState() {
@@ -94,8 +96,8 @@ export function describeDemo(s, dom = {}) {
     if (s.paste === 'finding') d = tip('Finding your spot…', 'Just a moment.', 'looking', { target: '.inbox-card' });
     else if (s.paste === 'confirm') {
       d = s.verifying
-        ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]', hint: true })
-        : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]', hint: true });
+        ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]', hint: true, hintTarget: SAVE_BUTTON })
+        : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]', hint: true, hintTarget: SAVE_BUTTON });
     } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]', hint: true });
   } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {

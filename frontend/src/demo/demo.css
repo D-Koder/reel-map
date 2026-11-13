@@ -61,7 +61,9 @@
 .demo-hint { position: fixed; z-index: 10051; width: 0; height: 0; pointer-events: none; }
 .demo-hint i { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid #ffd23f; background: rgba(255, 210, 63, 0.35); animation: demo-ripple-loop 1.5s ease-out infinite; }
 .demo-hint i + i { animation-delay: 0.75s; }
-.demo-hint span { position: absolute; left: 0; top: 30px; transform: translateX(-50%); padding: 3px 12px; border-radius: 999px; background: #ffd23f; color: #1a1a18; border: 2px solid #1a1a18; box-shadow: 2px 2px 0 #1a1a18; font: 800 13px/1.2 var(--font-display, sans-serif); animation: demo-bob 1s ease-in-out infinite; }
+.demo-hint span { position: absolute; left: 0; top: var(--below, 30px); transform: translateX(-50%); padding: 3px 12px; border-radius: 999px; background: #ffd23f; color: #1a1a18; border: 2px solid #1a1a18; box-shadow: 2px 2px 0 #1a1a18; font: 800 13px/1.2 var(--font-display, sans-serif); animation: demo-bob 1s ease-in-out infinite; }
+/* Over a button the ripple stays see-through so the word on it can still be read. */
+.demo-hint.on-button i { background: rgba(255, 210, 63, 0.15); }
 @keyframes demo-ripple-loop { 0% { opacity: 0.95; transform: scale(0.35); } 100% { opacity: 0; transform: scale(1.5); } }
 @keyframes demo-bob { 0%, 100% { margin-top: 0; } 50% { margin-top: 6px; } }
 
