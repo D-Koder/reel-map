@@ -32,8 +32,10 @@ test('tips point at the right thing at each moment', () => {
   s = run(['open'], s);
   assert.equal(describeDemo(s, { wizard: 'time' }).target, '[data-tour="plan"]');
   assert.equal(describeDemo(s, { wizard: 'time', timePicked: true }).target, '.time-picker .step-btn.primary');
-  assert.equal(describeDemo(s, { wizard: 'confirm' }).target, '.checklist-step .step-btn.primary');
-  assert.match(describeDemo(s, { wizard: 'confirm' }).body, /time you booked/);
+  // The whole step is lit, so the time field the tip talks about can be tapped; the hint sits on Confirm.
+  assert.equal(describeDemo(s, { wizard: 'confirm' }).target, '.checklist-step');
+  assert.equal(describeDemo(s, { wizard: 'confirm' }).hintTarget, '.checklist-step .step-btn.primary');
+  assert.match(describeDemo(s, { wizard: 'confirm' }).body, /Change the time/);
   assert.match(describeDemo(s, { wizard: 'time' }).body, /Call or Website/);
   assert.equal(describeDemo(run([{ type: 'booked', iso: 'x' }], s)).target, '.checklist-step');
 });
