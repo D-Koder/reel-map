@@ -57,7 +57,6 @@ export function demoReducer(s, a) {
     case 'close': return { ...s, placeOpen: false };
     case 'booked': return { ...s, booked: a.iso };
     case 'booked-next': return { ...s, step: 'done', placeOpen: false };
-    case 'back': return s.placeOpen && !s.booked ? { ...s, placeOpen: false } : s;
     case 'ask-skip': return { ...s, confirmSkip: true };
     case 'keep': return { ...s, confirmSkip: false };
     case 'skip': return { ...s, confirmSkip: false, step: 'done', placeOpen: false, paste: 'idle' };
@@ -65,8 +64,6 @@ export function demoReducer(s, a) {
     default: return s;
   }
 }
-
-export const canGoBack = (s) => s.step === 'book' && !s.booked && s.placeOpen;
 
 // How long a tip stays up before the demo moves on by itself: at least a second and a half, a little longer for more words.
 export const tipMs = (title, body) => Math.min(3000, 1500 + (title.length + body.length) * 15);
@@ -94,24 +91,41 @@ export function describeDemo(s, dom = {}) {
     if (s.paste === 'finding') d = tip('Finding your spot…', 'Just a moment.', 'looking', { target: '.inbox-card' });
     else if (s.paste === 'confirm') {
       d = s.verifying
-        ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]' })
-        : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]' });
-    } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]' });
+        ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]', hint: true })
+        : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]', hint: true });
+    } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]', hint: true });
   } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {
+    // The booking plays itself: the viewer watches, the finger does the tapping.
     if (s.booked) d = tip('Booked! 🎉', 'Your group gets a ping.', 'celebrate', { next: 'booked-next', target: '.checklist-step' });
-    else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: '[data-tour="place"]' });
-    else if (dom.wizard === 'confirm') d = tip('Set the time you got', 'Change it to the time you booked, then tap Confirm.', 'pointing', { target: '.checklist-step .step-btn.primary' });
-    else if (dom.timePicked) d = tip('Nice', 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary' });
-    else d = tip('Find a time', "Pick a day and a time. In your account you'd then tap Call or Website to reserve.", 'thinking', { target: '[data-tour="plan"]' });
+    else if (!s.placeOpen) d = tip("Now let's book it", "Watch. I'll do the tapping.", 'pointing', { target: '[data-tour="place"]', autoplay: true });
+    else if (dom.wizard === 'confirm') d = tip('Did you book it?', 'Saving the time you got.', 'pointing', { target: '.checklist-step .step-btn.primary', autoplay: true });
+    else if (dom.timePicked) d = tip('Nice', 'Locking it in.', 'wink', { target: '.time-picker .step-btn.primary', autoplay: true });
+    else if (dom.dayPicked) d = tip('Picking a time', 'Any slot works for the demo.', 'thinking', { target: '.tp-slots', autoplay: true });
+    else d = tip('Find a time', "Picking a day. In your account you'd tap Call or Website to reserve.", 'thinking', { target: '.tp-days', autoplay: true });
   } else {
     const { title, body } = doneSummary(s);
     d = tip(title, body, 'celebrate', { center: true });
   }
   if (s.paste === 'finding' && s.step === 'paste') d.auto = { ms: tipMs(d.title, d.body) + 1200, action: 'found' };
   if (s.step === 'saved') d.auto = { ms: tipMs(d.title, d.body), action: 'saved-done' };
+  // "Booked!" stays long enough to enjoy, then the demo moves on by itself. Next skips the wait.
+  if (s.step === 'book' && s.booked) d.auto = { ms: 3200, action: 'booked-next' };
   return d;
 }
 
 // What gets remembered for the account the person makes next.
 export const handoffFrom = (s) => ({ collName: s.collName, collEmoji: s.collEmoji, saved: s.saved, booked: Boolean(s.booked) });
+
+// What the finger taps next while the booking plays itself, or null when there is nothing to tap.
+//   target: what to move to; action: a demo action to send instead of a real tap (opening the sheet is the demo's own);
+//   dom: what the real place sheet is showing (see describeDemo)
+export function nextAutoMove(s, dom = {}) {
+  if (s.step !== 'book' || s.booked || s.confirmSkip) return null;
+  if (!s.placeOpen) return { target: '[data-tour="place"]', action: 'open' };
+  if (dom.wizard === 'confirm') return { target: '.checklist-step .step-btn.primary' };
+  if (dom.timePicked) return { target: '.time-picker .step-btn.primary' };
+  if (dom.dayPicked) return { target: '.tp-slot:not(.late):not(.busy)' };
+  if (dom.wizard === 'time') return { target: '.tp-day.free' };
+  return null;
+}

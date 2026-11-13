@@ -13,7 +13,7 @@ import { SAMPLE_DETAILS, TOUR_MARK } from '../tour/steps';
 import { saveDemoHandoff } from '../lib/demoHandoff';
 import '../tour/tour.css';
 import './demo.css';
-import { PLANS, SAMPLE, canGoBack, demoReducer, describeDemo, handoffFrom, initialState, timeLabel } from './demoFlow';
+import { PLANS, SAMPLE, demoReducer, describeDemo, handoffFrom, initialState, nextAutoMove, timeLabel } from './demoFlow';
 
 const ME = 'demo-user';
 const noop = () => {};
@@ -25,6 +25,62 @@ function Confetti() {
     <div className="demo-confetti" aria-hidden="true">
       {Array.from({ length: 28 }, (_, i) => <span key={i} style={{ left: `${(i * 37) % 100}%`, background: colors[i % 4], animationDelay: `${(i % 7) * 0.08}s` }} />)}
     </div>
+  );
+}
+
+// The lantern, as a toy: tap it and it wiggles and changes face for a moment.
+const TAP_POSES = ['wink', 'love', 'celebrate', 'oops'];
+function Buddy({ size, pose }) {
+  const [poked, setPoked] = useState({ n: 0, pose: null });
+  useEffect(() => {
+    if (!poked.pose) return undefined;
+    const id = setTimeout(() => setPoked((p) => ({ ...p, pose: null })), 1400);
+    return () => clearTimeout(id);
+  }, [poked.n]); // eslint-disable-line react-hooks/exhaustive-deps
+  const poke = () => setPoked((p) => ({ n: p.n + 1, pose: TAP_POSES[p.n % TAP_POSES.length] }));
+  return (
+    <button type="button" className={`demo-buddy${poked.pose ? ' poked' : ''}`} key={poked.n} onClick={poke} aria-label="Tap the lantern">
+      <Lantern size={size} pose={poked.pose || pose} />
+    </button>
+  );
+}
+
+// A pretend finger that glides to what the demo is about to tap, presses it, then taps it for real.
+function useAutopilot(move, paused, dispatch) {
+  const [finger, setFinger] = useState(null); // { x, y, press }
+  const key = move ? `${move.target}|${move.action || ''}` : '';
+  useEffect(() => {
+    if (!move || paused) { if (!move) setFinger(null); return undefined; }
+    let dead = false;
+    const timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(() => !dead && fn(), ms));
+    const find = (tries) => {
+      const el = document.querySelector(move.target);
+      if (!el) { if (tries > 0) later(() => find(tries - 1), 120); return; }
+      el.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      later(() => {
+        const r = el.getBoundingClientRect();
+        // The first time, the finger starts below the screen and glides up to the spot.
+        setFinger((f) => f || { x: window.innerWidth / 2, y: window.innerHeight + 40, press: false });
+        later(() => setFinger({ x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 28), press: false }), 60);
+        later(() => setFinger((f) => f && { ...f, press: true }), 860);
+        later(() => {
+          if (move.action) dispatch({ type: move.action }); else el.click();
+          setFinger((f) => f && { ...f, press: false });
+        }, 1110);
+      }, 250);
+    };
+    later(() => find(25), 700);
+    return () => { dead = true; timers.forEach(clearTimeout); };
+  }, [key, paused]); // eslint-disable-line react-hooks/exhaustive-deps
+  return finger;
+}
+
+function Finger({ at }) {
+  if (!at) return null;
+  return createPortal(
+    <div className={`demo-finger${at.press ? ' press' : ''}`} style={{ transform: `translate(${at.x}px, ${at.y}px)` }} aria-hidden="true"><i /><b>👆</b></div>,
+    document.body
   );
 }
 
@@ -77,8 +133,8 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
   } else if (d.center) {
     const booked = s.booked ? new Date(s.booked) : null;
     tip = (
-      <div className="demo-tip center" role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1}>
-        <Lantern size={64} pose={d.pose} />
+      <div className="demo-tip center" role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1} key={d.title}>
+        <Buddy size={64} pose={d.pose} />
         <h3>{d.title}</h3>
         <p>{d.body}</p>
         {s.step === 'planq' && (
@@ -120,12 +176,11 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
     );
   } else {
     tip = (
-      <div className={`demo-tip ${dock}`} role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1}>
+      <div className={`demo-tip ${dock}`} role="dialog" aria-label={d.title} aria-live="polite" ref={tipRef} tabIndex={-1} key={d.title}>
         <div className="demo-tip-head">
-          <Lantern size={40} pose={d.pose} />
+          <Buddy size={40} pose={d.pose} />
           {dots}
           <span className="grow" />
-          {canGoBack(s) && <button type="button" className="demo-link soft" onClick={() => dispatch({ type: 'back' })}>‹ Back</button>}
           <button type="button" className="demo-link soft" onClick={() => dispatch({ type: 'ask-skip' })}>Skip demo</button>
         </div>
         <h3>{d.title}</h3>
@@ -147,6 +202,10 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
           <div className="tour-ring" style={{ ...hole, opacity: opening ? 0 : 1 }} />
         </>
       )}
+      {d.autoplay && !s.confirmSkip && <div className="demo-shield" />}
+      {d.hint && real && !opening && !s.confirmSkip && (
+        <div className="demo-hint" style={{ left: real.left + real.width / 2, top: real.top + real.height - 6 }} aria-hidden="true">👆</div>
+      )}
       {d.center || s.confirmSkip && !hole ? <div className="tour-backdrop">{tip}</div> : tip}
     </div>,
     document.body
@@ -155,14 +214,15 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
 
 // What the real place sheet is showing, read off the screen: the demo doesn't own that sheet's inner steps.
 function useSheetProbe(active) {
-  const [dom, setDom] = useState({ wizard: null, timePicked: false });
+  const [dom, setDom] = useState({ wizard: null, timePicked: false, dayPicked: false });
   useEffect(() => {
-    if (!active) { setDom({ wizard: null, timePicked: false }); return undefined; }
+    if (!active) { setDom({ wizard: null, timePicked: false, dayPicked: false }); return undefined; }
     const read = () => {
       const title = document.querySelector('.checklist-step .step-title')?.textContent ?? '';
       const wizard = /^Did you book/.test(title) ? 'confirm' : document.querySelector('.step-saved') ? 'booked' : title ? 'time' : null;
       const timePicked = Boolean(document.querySelector('.time-picker .step-btn.primary'));
-      setDom((now) => (now.wizard === wizard && now.timePicked === timePicked ? now : { wizard, timePicked }));
+      const dayPicked = Boolean(document.querySelector('.tp-day[aria-pressed="true"]'));
+      setDom((now) => (now.wizard === wizard && now.timePicked === timePicked && now.dayPicked === dayPicked ? now : { wizard, timePicked, dayPicked }));
     };
     read();
     const id = setInterval(read, 150);
@@ -180,6 +240,7 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
   const [toast, setToast] = useState(null);
   const dom = useSheetProbe(s.placeOpen);
   const d = describeDemo(s, dom);
+  const finger = useAutopilot(nextAutoMove(s, dom), s.confirmSkip, dispatch);
 
   const showToast = useCallback((message) => {
     // "Step 1 complete" would sit on top of the button the tip points at.
@@ -308,6 +369,7 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
 
       {toast && <div key={toast.key} className="toast" role="status"><span>{toast.message}</span></div>}
       {confetti && <Confetti />}
+      <Finger at={finger} />
       <DemoTip s={s} d={d} dispatch={dispatch} onExit={onExit} onSignUp={onSignUp} onLogin={onLogin} />
     </div>
   );

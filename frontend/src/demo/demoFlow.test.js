@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANS, canGoBack, demoReducer, describeDemo, doneSummary, handoffFrom, initialState, suggestedTimes, tipMs } from './demoFlow.js';
+import { PLANS, demoReducer, describeDemo, doneSummary, handoffFrom, initialState, nextAutoMove, suggestedTimes, tipMs } from './demoFlow.js';
 import { clearDemoHandoff, hasAccountHere, readDemoHandoff, rememberAccountHere, saveDemoHandoff } from '../lib/demoHandoff.js';
 
 const run = (actions, s = initialState()) => actions.reduce((state, a) => demoReducer(state, typeof a === 'string' ? { type: a } : a), s);
@@ -30,10 +30,11 @@ test('tips point at the right thing at each moment', () => {
   s = run(['saved-done'], s);
   assert.equal(describeDemo(s).target, '[data-tour="place"]');
   s = run(['open'], s);
-  assert.equal(describeDemo(s, { wizard: 'time' }).target, '[data-tour="plan"]');
-  assert.equal(describeDemo(s, { wizard: 'time', timePicked: true }).target, '.time-picker .step-btn.primary');
+  assert.equal(describeDemo(s, { wizard: 'time' }).target, '.tp-days');
+  assert.equal(describeDemo(s, { wizard: 'time', dayPicked: true }).target, '.tp-slots');
+  assert.equal(describeDemo(s, { wizard: 'time', dayPicked: true, timePicked: true }).target, '.time-picker .step-btn.primary');
   assert.equal(describeDemo(s, { wizard: 'confirm' }).target, '.checklist-step .step-btn.primary');
-  assert.match(describeDemo(s, { wizard: 'confirm' }).body, /time you booked/);
+  assert.match(describeDemo(s, { wizard: 'confirm' }).body, /time you got/);
   assert.match(describeDemo(s, { wizard: 'time' }).body, /Call or Website/);
   assert.equal(describeDemo(run([{ type: 'booked', iso: 'x' }], s)).target, '.checklist-step');
 });
@@ -47,12 +48,30 @@ test('Save only works once the place is found, and Verify place explains itself 
   assert.equal(run(['save'], s).saved, true);
 });
 
-test('Back closes the place sheet until it is booked', () => {
-  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'saved-done', 'open']);
-  assert.equal(canGoBack(s), true);
-  s = run(['back'], s);
-  assert.equal(s.placeOpen, false);
-  assert.equal(canGoBack(s), false);
+test('the booking plays itself: the finger taps the place, a day, a time, Continue, then Confirm', () => {
+  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'saved-done']);
+  assert.deepEqual(nextAutoMove(s), { target: '[data-tour="place"]', action: 'open' });
+  assert.equal(describeDemo(s).autoplay, true);
+  s = run(['open'], s);
+  assert.equal(nextAutoMove(s, { wizard: 'time' }).target, '.tp-day.free');
+  assert.equal(nextAutoMove(s, { wizard: 'time', dayPicked: true }).target, '.tp-slot:not(.late):not(.busy)');
+  assert.equal(nextAutoMove(s, { wizard: 'time', dayPicked: true, timePicked: true }).target, '.time-picker .step-btn.primary');
+  assert.equal(nextAutoMove(s, { wizard: 'confirm' }).target, '.checklist-step .step-btn.primary');
+  // Nothing to tap before the sheet shows, once booked, while the skip question is open, or on other steps.
+  assert.equal(nextAutoMove(s, { wizard: null }), null);
+  assert.equal(nextAutoMove(run(['ask-skip'], s), { wizard: 'confirm' }), null);
+  s = run([{ type: 'booked', iso: 'x' }], s);
+  assert.equal(nextAutoMove(s, { wizard: 'booked' }), null);
+  assert.deepEqual(describeDemo(s).auto, { ms: 3200, action: 'booked-next' });
+  assert.equal(nextAutoMove(initialState()), null);
+});
+
+test('the viewer still taps Paste and Save themselves, with a hint finger on each', () => {
+  let s = run(['start', { type: 'plan', name: 'x', emoji: 'y' }]);
+  assert.equal(describeDemo(s).hint, true);
+  assert.equal(describeDemo(s).autoplay, undefined);
+  s = run(['paste', 'found'], s);
+  assert.equal(describeDemo(s).hint, true);
 });
 
 test('skipping goes to the end card and says only what was done', () => {
