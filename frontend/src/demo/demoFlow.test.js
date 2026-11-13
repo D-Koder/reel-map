@@ -175,3 +175,14 @@ test('the 13+ and Terms tick on the first screen goes to the new account, so sig
   saveDemoHandoff(handoffFrom(skipped), mem, 1000);
   assert.equal('agreed' in readDemoHandoff(mem, 2000), false);
 });
+
+test('the mascot uses the name now and then, and says nothing odd without one', () => {
+  const base = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'saved-done', 'open', { type: 'booked', iso: 'x' }]);
+  const named = { ...base, name: 'Sam' };
+  assert.equal(describeDemo(named).title, 'Booked, Sam! 🎉');
+  assert.equal(describeDemo(base).title, 'Booked! 🎉');
+  assert.equal(describeDemo({ ...named, booked: null }, { timePicked: true }).title, 'Nice, Sam');
+  assert.equal(describeDemo({ ...base, booked: null }, { timePicked: true }).title, 'Nice');
+  // Most tips stay plain, so the name feels like a treat.
+  assert.equal(describeDemo({ ...named, step: 'saved' }).title, 'Saved! 🎉');
+});

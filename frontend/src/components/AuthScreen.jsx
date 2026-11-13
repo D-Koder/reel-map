@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { Eye, EyeOff, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { readDemoHandoff } from '../lib/demoHandoff';
 import { GOOGLE_SIGNIN, signInWithGoogle as startGoogle, signUpAccount } from '../lib/signUp';
@@ -16,13 +16,12 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // Someone who tried the demo already gave their name there.
-  const [displayName, setDisplayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
+  const [displayName] = useState(() => (initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : ''));
   const [busy, setBusy] = useState(false);
   // Someone who ticked the 13+ and Terms box at the start of the demo is not asked again.
   const demoAgreed = initialMode === 'signup' && Boolean(readDemoHandoff()?.agreed);
-  const demoName = initialMode === 'signup' ? readDemoHandoff()?.name ?? '' : '';
   const [ageOk, setAgeOk] = useState(demoAgreed);
-  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text }
 
   const switchMode = (next) => {
@@ -42,10 +41,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
 
   const submit = async (e) => {
     e.preventDefault();
-    if ((mode === 'signup' || mode === 'reset') && password !== confirm) {
-      setMessage({ type: 'error', text: 'The passwords do not match.' });
-      return;
-    }
     setBusy(true);
     setMessage(null);
     let error = null;
@@ -85,25 +80,6 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
         <h1 className="auth-title">{TITLES[mode]}</h1>
         <p className="auth-subtitle">Save places from reels and plan them together.</p>
 
-        {mode === 'signup' && (
-          <>
-            {!demoName && (
-            <label className="field">
-              <span className="modal-label">Your name</span>
-              <input
-                className="step-input"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="What friends call you"
-                autoComplete="nickname"
-                maxLength={40}
-                required
-              />
-            </label>
-            )}
-          </>
-        )}
-
         {mode !== 'reset' && (
           <label className="field">
             <span className="modal-label">Email</span>
@@ -122,30 +98,20 @@ export default function AuthScreen({ mode: initialMode = 'login', onPasswordRese
         {mode !== 'forgot' && (
           <label className="field">
             <span className="modal-label">{mode === 'reset' ? 'New password' : 'Password'}</span>
-            <input
-              className="step-input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              minLength={8}
-              required
-            />
-          </label>
-        )}
-
-        {(mode === 'signup' || mode === 'reset') && (
-          <label className="field">
-            <span className="modal-label">Confirm password</span>
-            <input
-              className="step-input"
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
+            <span className="pw-field">
+              <input
+                className="step-input"
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                minLength={8}
+                required
+              />
+              <button type="button" className="pw-eye" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw}>
+                {showPw ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+              </button>
+            </span>
           </label>
         )}
 

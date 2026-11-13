@@ -103,10 +103,10 @@ export function describeDemo(s, dom = {}) {
     } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]', hint: true });
   } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {
-    if (s.booked) d = tip('Booked! 🎉', 'Your group gets a ping. Tap Done to finish.', 'celebrate', { next: 'booked-next', target: '.checklist-step' });
+    if (s.booked) d = tip(`Booked${s.name ? `, ${s.name}` : ''}! 🎉`, 'Your group gets a ping. Tap Done to finish.', 'celebrate', { next: 'booked-next', target: '.checklist-step' });
     else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: '[data-tour="place"]', hint: true });
     else if (dom.wizard === 'confirm') d = tip('Set the time you got', 'Change the time if you like, then tap Confirm.', 'pointing', { target: '.checklist-step', hint: true, hintTarget: '.checklist-step .step-btn.primary' });
-    else if (dom.timePicked) d = tip('Nice', 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary', hint: true });
+    else if (dom.timePicked) d = tip(`Nice${s.name ? `, ${s.name}` : ''}`, 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary', hint: true });
     else d = tip('Find a time', "Pick a day and a time. In your account you'd then tap Call or Website to reserve.", 'thinking', { target: '[data-tour="plan"]' });
   } else {
     const { title, body } = doneSummary(s);

@@ -186,3 +186,8 @@
 .dsu-msg.info { color: #3b3a36; }
 .dsu-msg .demo-link { margin-left: 8px; }
 .dsu-submit { width: 100%; }
+
+.dsu-pw { position: relative; display: block; }
+.dsu-pw .demo-input { width: 100%; padding-right: 48px; }
+.dsu-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; color: #66645d; cursor: pointer; border-radius: 10px; }
+.dsu-eye svg { width: 20px; height: 20px; }

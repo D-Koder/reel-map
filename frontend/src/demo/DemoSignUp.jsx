@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { GOOGLE_SIGNIN, signInWithGoogle, signUpAccount } from '../lib/signUp';
 
 // The sign-up form on the demo's end card, so the person claims their badge without leaving the page.
-// It asks only for what is missing: a name if they did not give one on the first screen, then email and password.
-// The 13+ and Terms tick was already done on the first screen, and the country comes from the phone's region.
+// It asks for the least it can: email and password. The name is the one given on the first screen (or the start of the
+// email, which the database falls back to; it can be changed in the profile). The 13+ and Terms tick was done on the
+// first screen, and the country comes from the phone's region.
 export default function DemoSignUp({ name, onBack, onLogin, beforeSubmit }) {
-  const [who, setWho] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'error' | 'info', text, login?: true }
   const root = useRef(null);
@@ -25,13 +26,11 @@ export default function DemoSignUp({ name, onBack, onLogin, beforeSubmit }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name && !who.trim()) return setMessage({ type: 'error', text: 'Add your name.' });
     if (password.length < 8) return setMessage({ type: 'error', text: 'Use at least 8 characters for the password.' });
-    if (password !== confirm) return setMessage({ type: 'error', text: 'The passwords do not match.' });
     setBusy(true);
     setMessage(null);
     beforeSubmit();
-    const res = await signUpAccount({ email: email.trim(), password, displayName: name || who });
+    const res = await signUpAccount({ email: email.trim(), password, displayName: name });
     setBusy(false);
     if (res.error) setMessage({ type: 'error', text: res.error.message });
     else if (res.exists) setMessage({ type: 'info', text: 'That email already has an account. Log in instead.', login: true });
@@ -48,10 +47,13 @@ export default function DemoSignUp({ name, onBack, onLogin, beforeSubmit }) {
           <div className="dsu-or" aria-hidden="true">or</div>
         </>
       )}
-      {!name && <input className="demo-input" value={who} maxLength={40} placeholder="Your name" aria-label="Your name" autoComplete="given-name" onChange={(e) => setWho(e.target.value)} />}
       <input className="demo-input" type="email" value={email} placeholder="you@example.com" aria-label="Email" autoComplete="email" inputMode="email" required onChange={(e) => setEmail(e.target.value)} />
-      <input className="demo-input" type="password" value={password} placeholder="Password" aria-label="Password" autoComplete="new-password" required onChange={(e) => setPassword(e.target.value)} />
-      <input className="demo-input" type="password" value={confirm} placeholder="Confirm password" aria-label="Confirm password" autoComplete="new-password" required onChange={(e) => setConfirm(e.target.value)} />
+      <span className="dsu-pw">
+        <input className="demo-input" type={showPw ? 'text' : 'password'} value={password} placeholder="Password (8+ characters)" aria-label="Password" autoComplete="new-password" required onChange={(e) => setPassword(e.target.value)} />
+        <button type="button" className="dsu-eye" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? 'Hide password' : 'Show password'} aria-pressed={showPw}>
+          {showPw ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+        </button>
+      </span>
       {message && (
         <div className={`dsu-msg ${message.type}`} role="alert">
           {message.text}
