@@ -6881,7 +6881,7 @@ button { transition: scale 0.12s ease; }
 .header-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-muted); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; font-size: 18px; line-height: 1; }
 .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .header-btn .header-avatar svg { width: auto; height: auto; }
-.header-avatar .mascot-img, .profile-avatar .mascot-img, .person-avatar .mascot-img, .collection-member-avatar .mascot-img, .avatar-option .mascot-img { width: 118% !important; height: auto !important; max-width: none; margin-top: 6%; animation: none; transform: none; }
+.header-avatar .mascot-img, .profile-avatar .mascot-img, .person-avatar .mascot-img, .collection-member-avatar .mascot-img, .avatar-option .mascot-img { width: 92% !important; height: auto !important; max-width: none; margin-top: 10%; animation: none; transform: none; }
 
 /* Starter quests: simple rows, and the sheet that opens with the steps and the reward. */
 .quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
