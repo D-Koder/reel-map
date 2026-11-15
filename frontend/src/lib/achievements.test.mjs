@@ -127,7 +127,7 @@ test('finishing the demo earns Test Driver and its title', () => {
   assert.ok(earnedTitles(new Set(['demo'])).includes('Test Driver'));
 });
 
-test('every frame says what it needs, including the Level 25 prize frame (it once crashed Customise profile)', () => {
+test('every frame says what it needs, including the Level 25 prize frame (it once crashed the frame picker)', () => {
   for (const f of FRAMES) assert.ok(frameLockLabel(f), `${f.id} needs a lock label`);
   assert.equal(frameLockLabel(frameById('laurel')), 'Level 25');
   assert.equal(frameLockLabel(frameById('bronze')), 'Explorer');

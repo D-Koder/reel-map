@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, Rocket, UtensilsCrossed, Zap, ChevronDown, ChevronRight, ChevronUp, Frame } from 'lucide-react';
 import FramedAvatar from './FramedAvatar';
 import { FRAMES, frameLockLabel, frameUnlocked } from '../lib/achievements';
@@ -14,34 +14,35 @@ function Swatch({ frame }) {
   );
 }
 
-// Settings: the badges earned, the frame and title being worn, and what is still to do.
+// Settings: one row that opens the Achievements screen (badges, quests and rewards).
 export default function AchievementsSection({ achievements, onOpenAchievements }) {
-  const [open, setOpen] = useState(false);
+  if (!achievements?.badges.length || !onOpenAchievements) return null;
+  const earned = achievements.badges.filter((b) => b.earned).length;
+  const ready = achievements.readyBadges.length + achievements.prizes.filter((p) => p.state === 'ready').length > 0;
+  return (
+    <div className="settings-section">
+      <button type="button" className="ach-row ach-open" onClick={onOpenAchievements}>
+        <Medal className="ico" aria-hidden="true" /> Achievements
+        <span className="ach-count">Level {achievements.level.level} · {earned} of {achievements.badges.length} badges{ready ? ' · rewards ready!' : ''}</span>
+        <ChevronRight className="ico" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+// Edit profile: pick the frame and the title to wear. A pick applies straight away (no need to save).
+export function ProfileCustomise({ achievements }) {
   const { badges, earnedIds, titles, ladders, fun, frame, title, setFrame, setTitle } = achievements;
   // Titles that come with a badge and are not part of a ladder or a fun one.
   const ladderNames = new Set([...ladders.flatMap((l) => l.tiers.map((t) => t.title)), ...fun.map((f) => f.title)]);
   const badgeTitles = titles.filter((t) => !ladderNames.has(t));
-  const earned = badges.filter((b) => b.earned).length;
   if (!badges.length) return null;
 
   return (
-    <div className="settings-section">
-      <div className="settings-section-title"><Frame className="ico" aria-hidden="true" /> Customisation</div>
-      {onOpenAchievements && (
-        <button type="button" className="ach-row ach-open" onClick={onOpenAchievements}>
-          <Medal className="ico" aria-hidden="true" /> Achievements
-          <span className="ach-count">Level {achievements.level.level}{achievements.readyBadges.length + achievements.prizes.filter((p) => p.state === 'ready').length > 0 ? ' · rewards ready!' : ''}</span>
-          <ChevronRight className="ico" aria-hidden="true" />
-        </button>
-      )}
-      <button type="button" className="ach-row" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <Gem className="ico" aria-hidden="true" /> Profile badges
-        <span className="ach-count">{earned} of {badges.length} badges</span>
-        {open ? <ChevronUp className="ico" aria-hidden="true" /> : <ChevronDown className="ico" aria-hidden="true" />}
-      </button>
-
-      {open && (
-        <div className="ach">
+    <div className="profile-customise">
+      <div className="settings-section-title"><Frame className="ico" aria-hidden="true" /> Frame and title</div>
+      <p className="ach-note">Your picks apply straight away.</p>
+      <div className="ach">
           <h3 className="ach-heading">Profile frame</h3>
           <div className="ach-frames">
             <button type="button" className="ach-frame" aria-pressed={!frame} onClick={() => setFrame(null)}>
@@ -98,8 +99,7 @@ export default function AchievementsSection({ achievements, onOpenAchievements }
               </div>
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

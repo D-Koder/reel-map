@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Download, Folder, KeyRound, Link, LocateFixed, Lock, LockOpen, Settings, Share2, Smartphone, Upload, User, UserPlus, Users, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import AchievementsSection from './AchievementsSection';
+import AchievementsSection, { ProfileCustomise } from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
 import Lantern from '../tour/Lantern';
 import { detectPlatform, isInstalled } from '../lib/platform';
@@ -659,6 +659,8 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
             <button type="button" className="step-btn primary full-width" onClick={handleSave}>
               Save changes
             </button>
+
+            {achievements && <ProfileCustomise achievements={achievements} />}
 
             <AppVersion drawerOpen={editMode} />
           </div>

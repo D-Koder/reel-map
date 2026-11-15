@@ -22,9 +22,9 @@ export const QUESTS = [
   },
   {
     id: 'customise', xp: 10, title: 'Customise your profile',
-    steps: ['Tap your picture at the top right.', 'Tap Customise profile.', 'Pick a frame, a title or a picture.'],
+    steps: ['Tap your picture at the top right.', 'Tap your name card at the top.', 'Pick a frame or a title, or change your picture.'],
     why: 'Frames and titles are how badges show off. This is where you wear them.',
-    how: 'Settings, Customise profile: wear a frame, pick a title, or change your picture.',
+    how: 'Settings, then your name card (Edit profile): wear a frame, pick a title, or change your picture.',
     detect: ({ profile }) => Boolean(
       profile?.frame
       || (profile?.title && profile.title !== BASE_TITLE)

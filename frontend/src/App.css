@@ -7110,3 +7110,4 @@ button { transition: scale 0.12s ease; }
 .vr-end { margin-top: 4px; }
 .vr-hint { align-self: center; color: var(--text-muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .vr, .vr-seq.in, .vr-ring b.pop, .vr-row.in .v, .vr-badge.in .chg { animation: none !important; } .vr-row .v, .vr-badge .chg { opacity: 1 !important; } .vr-ring .v, .vr-bar i, .vr-mini i { transition: none; } }
+.ach-frame .framed { margin: 8px 0 10px; }
