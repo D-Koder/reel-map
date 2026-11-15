@@ -5,13 +5,14 @@ import { isLegacyAccount, planQuestGrants, questProgress, questXp } from '../lib
 import { isInstalled } from '../lib/platform';
 import { getPushSubscription } from '../lib/push';
 import { clearDemoDone, demoDoneHere } from '../lib/demoHandoff';
+import { addClaim, mergeClaims } from '../lib/claims';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 
 // Badges earned, XP and level, level prizes, and the frame and title this person wears.
 // A badge is earned when its goal is met and collected (+100 XP) when it is claimed; a level prize is claimed for +50 XP.
-// Claims are kept on this device. XP from visits, reviews and saves is worked out from the data, so it follows the person.
+// Claims are kept on the account (profiles.claims), or on this device until the database has that column. XP from visits, reviews and saves is worked out from the data, so it follows the person.
 // The frame and title are saved to the profile, so the people you share with see them. Until the database has those
 // columns (profile.flairReady is false) they are kept on this device only.
 export default function useAchievements({ userId, accountCreatedAt, showToast, ready, places, collections, profile, saveFlair }) {
@@ -66,12 +67,15 @@ export default function useAchievements({ userId, accountCreatedAt, showToast, r
   useEffect(() => { const timer = setTimeout(() => setGraceOver(true), 8000); return () => clearTimeout(timer); }, []);
 
   // Badges celebrated before claiming existed count as claimed ("seen" was their old name).
+  // Account claims plus this device's earlier ones; the device's are copied up once (below), so nothing is lost.
+  const claimsOnAccount = Boolean(profile?.claimsReady);
+  const merged = useMemo(() => mergeClaims(claimsOnAccount ? profile.claims : {}, prefs), [claimsOnAccount, profile?.claims, prefs]);
   const claimedBadges = useMemo(() => {
-    const set = new Set(prefs.claimed ?? prefs.seen ?? []);
+    const set = new Set(merged.badges);
     if (accountBadge) { if (profile.demoBadge === 'claimed') set.add('demo'); else set.delete('demo'); }
     return set;
-  }, [prefs.claimed, prefs.seen, accountBadge, profile?.demoBadge]);
-  const claimedPrizes = useMemo(() => new Set(prefs.prizes ?? []), [prefs.prizes]);
+  }, [merged, accountBadge, profile?.demoBadge]);
+  const claimedPrizes = useMemo(() => new Set(merged.prizes), [merged]);
   const claimedBadgeIds = useMemo(() => badges.filter((b) => b.earned && claimedBadges.has(b.id)).map((b) => b.id), [badges, claimedBadges]);
 
   // Badge perks (frames, titles, a texture) are yours as soon as the badge is earned. Level prizes need a claim.
@@ -158,10 +162,19 @@ export default function useAchievements({ userId, accountCreatedAt, showToast, r
     if (Object.keys(patch).length) saveFlair?.(patch);
   }, [ready, synced, profile, prefs.frame, prefs.title, earnedIds, titles, saveFlair]);
 
+  // Claims made on this device before the account could hold them move across once.
+  const claimsMoved = useRef(false);
+  useEffect(() => {
+    if (!ready || !claimsOnAccount || claimsMoved.current) return;
+    claimsMoved.current = true;
+    if (merged.changed) saveFlair?.({ claims: { badges: merged.badges, prizes: merged.prizes } });
+  }, [ready, claimsOnAccount, merged, saveFlair]);
+
   const claimBadge = (id) => {
     const badge = badges.find((b) => b.id === id);
     if (!badge?.earned || claimedBadges.has(id)) return;
     save({ claimed: [...claimedBadges, id] });
+    if (claimsOnAccount) saveFlair?.({ claims: addClaim(merged, { badge: id }) });
     if (id === 'demo' && accountBadge) saveFlair?.({ demo_badge: 'claimed' });
     setReward({ kind: 'badge', badge });
   };
@@ -204,6 +217,7 @@ export default function useAchievements({ userId, accountCreatedAt, showToast, r
       const prize = PRIZES.find((p) => p.level === levelNumber);
       if (!prize || levelNumber > level.level || claimedPrizes.has(levelNumber)) return;
       save({ prizes: [...claimedPrizes, levelNumber] });
+      if (claimsOnAccount) saveFlair?.({ claims: addClaim(merged, { prize: levelNumber }) });
       setReward({ kind: 'prize', prize });
     },
     dismissReward: () => setReward(null),

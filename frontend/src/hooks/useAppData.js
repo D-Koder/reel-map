@@ -229,7 +229,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, flairRes, demoRes, questsRes, shortcutRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, flairRes, demoRes, questsRes, claimsRes, shortcutRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -247,6 +247,7 @@ export function useAppData(userId, showToast) {
       supabase.from('profiles').select('id, frame, title'),
       supabase.from('profiles').select('demo_badge').eq('id', userId).maybeSingle(),
       supabase.from('profiles').select('quests').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('claims').eq('id', userId).maybeSingle(),
       supabase.from('shortcut_keys').select('connected_at').maybeSingle(),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
@@ -321,6 +322,9 @@ export function useAppData(userId, showToast) {
         // False until the database has profiles.quests (see 20261114000000_profile_quests.sql); then the notes stay on this device.
         questsReady: !questsRes.error,
         quests: questsRes.error ? {} : questsRes.data?.quests ?? {},
+        // False until the database has profiles.claims (see 20261117000000_profile_claims.sql); then claims stay on this device.
+        claimsReady: !claimsRes.error,
+        claims: claimsRes.error ? {} : claimsRes.data?.claims ?? {},
         shortcutConnected: Boolean(shortcutRes.data?.connected_at),
         frame: flair[userId]?.frame ?? null,
         title: flair[userId]?.title ?? null,

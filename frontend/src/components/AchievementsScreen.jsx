@@ -247,7 +247,6 @@ export default function AchievementsScreen({ achievements, onClose }) {
             <li><b>+5 to +15</b> each starter quest, once</li>
           </ul>
         </details>
-        <p className="ax-foot">Claims are saved on this device.</p>
       </div>
 
       {openQuest && <QuestSheet quest={openQuest} totalXp={xp} onClose={() => setQuestId(null)} />}
