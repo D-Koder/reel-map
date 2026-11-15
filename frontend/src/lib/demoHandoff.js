@@ -40,12 +40,3 @@ export function clearDemoDone(storage = globalThis.localStorage) {
 export function demoDoneHere(storage = globalThis.localStorage) {
   try { return storage.getItem(DONE_KEY) === '1'; } catch { return false; }
 }
-
-// Set once someone has signed in on this device, so the main page can send them straight to Log in next time.
-const ACCOUNT_KEY = 'waylit:has-account';
-export function rememberAccountHere(storage = globalThis.localStorage) {
-  try { storage.setItem(ACCOUNT_KEY, '1'); } catch { /* private mode */ }
-}
-export function hasAccountHere(storage = globalThis.localStorage) {
-  try { return storage.getItem(ACCOUNT_KEY) === '1'; } catch { return false; }
-}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import AuthScreen from './AuthScreen';
 import Landing from './Landing';
-import { hasAccountHere } from '../lib/demoHandoff';
 import { pendingInvite } from '../lib/share';
 import { firstView } from '../lib/firstView';
 
@@ -9,7 +8,7 @@ import { firstView } from '../lib/firstView';
 const Demo = React.lazy(() => import('../demo/Demo'));
 
 export default function LoggedOut({ sharedPlace = false }) {
-  const [view, setView] = useState(() => firstView({ sharedPlace, invited: Boolean(pendingInvite()), knownDevice: hasAccountHere() }));
+  const [view, setView] = useState(() => firstView({ sharedPlace, invited: Boolean(pendingInvite()) }));
 
   if (view === 'demo') {
     return (
@@ -21,5 +20,5 @@ export default function LoggedOut({ sharedPlace = false }) {
   if (view === 'landing') {
     return <Landing onTry={() => setView('demo')} onSignUp={() => setView('signup')} onLogin={() => setView('login')} />;
   }
-  return <AuthScreen mode={view} onBack={view === 'login' && hasAccountHere() ? undefined : () => setView('landing')} />;
+  return <AuthScreen mode={view} onBack={() => setView('landing')} />;
 }

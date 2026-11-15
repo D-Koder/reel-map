@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PLANS, canGoBack, demoReducer, describeDemo, doneSummary, handoffFrom, initialState, suggestedTimes, tipMs } from './demoFlow.js';
-import { clearDemoHandoff, hasAccountHere, readDemoHandoff, rememberAccountHere, saveDemoHandoff } from '../lib/demoHandoff.js';
+import { clearDemoHandoff, readDemoHandoff, saveDemoHandoff } from '../lib/demoHandoff.js';
 
 const run = (actions, s = initialState()) => actions.reduce((state, a) => demoReducer(state, typeof a === 'string' ? { type: a } : a), s);
 const memory = () => { const m = new Map(); return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
@@ -124,15 +124,6 @@ test('a storage that throws never breaks the demo', () => {
   assert.equal(saveDemoHandoff({ collName: 'x' }, broken), false);
   assert.equal(readDemoHandoff(broken), null);
   assert.doesNotThrow(() => clearDemoHandoff(broken));
-  assert.equal(hasAccountHere(broken), false);
-  assert.doesNotThrow(() => rememberAccountHere(broken));
-});
-
-test('a device that has signed in before is remembered', () => {
-  const store = memory();
-  assert.equal(hasAccountHere(store), false);
-  rememberAccountHere(store);
-  assert.equal(hasAccountHere(store), true);
 });
 
 test('the name asked on the first screen shows on the end card and goes to the new account', () => {

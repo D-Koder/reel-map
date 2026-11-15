@@ -10,7 +10,6 @@ import DeleteAccountModal from './components/DeleteAccountModal';
 import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import LoggedOut from './components/LoggedOut';
-import { rememberAccountHere } from './lib/demoHandoff';
 import ShareCollectionModal from './components/ShareCollectionModal';
 import { useFriendLink } from './hooks/useFriends';
 
@@ -87,8 +86,6 @@ const NEAR_ALERTS_KEY = 'reelmap:near-alerts';
 const UNDO_MS = 5000;
 
 function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedPlaceDone }) {
-  // Next time this device opens the main page signed out, it goes straight to Log in.
-  useEffect(() => { rememberAccountHere(); }, []);
   const data = useAppData(userId, showToast);
   // Error reports carry this id (never an email or name) so a bug can be traced to one account.
   useEffect(() => {
