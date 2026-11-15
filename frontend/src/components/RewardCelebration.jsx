@@ -5,6 +5,7 @@ import { PRIZE_ICONS } from './prizeIcons';
 import { frameById } from '../lib/achievements';
 import { PRIZES, XP, badgeXp } from '../lib/levels';
 import useCountUp from '../hooks/useCountUp';
+import ChestReveal from './ChestReveal';
 
 const COLOURS = ['#e8590c', '#ffd23f', '#e0336a', '#0ea5e9', '#16a34a', '#7c3aed'];
 
@@ -77,6 +78,30 @@ export default function RewardCelebration({ reward, levelUp, onClose, onWear }) 
   }
 
   const canWear = wearFrame || wearTitle;
+
+  // A badge or a level prize is opened from a treasure chest. A level-up (no chest) keeps the plain celebration below.
+  if (kind !== 'level') {
+    const Big = badge ? (BADGE_ICONS[badge.icon] ?? Medal) : (PRIZE_ICONS[prize.icon] ?? Gift);
+    return (
+      <ChestReveal icon={<Big aria-hidden="true" />} onClose={onClose}>
+        <span className="cr-new">{eyebrow}</span>
+        <span className="cr-ribbon" id="rw-title">{headline}</span>
+        {gained > 0 && <span className="cr-xp">+{xp} XP</span>}
+        {line && <span className="cr-desc">{line}</span>}
+        {reward && levelUp && <span className="cr-xp"><Star aria-hidden="true" size={13} /> Level up! You are Level {levelUp.to}</span>}
+        {lines.length > 0 && (
+          <ul className="cr-lines">
+            {lines.map((l, i) => <li key={i}><l.Icon aria-hidden="true" /> {l.text}</li>)}
+          </ul>
+        )}
+        <div className="cr-actions">
+          {canWear && <button type="button" className="step-btn secondary" onClick={() => onWear(wearFrame, wearTitle)}>Wear it now</button>}
+          <button type="button" className="step-btn primary" onClick={onClose}>Collect</button>
+        </div>
+      </ChestReveal>
+    );
+  }
+
   return (
     <div className={`celebrate-overlay badge-celebrate rw ${kind === 'badge' ? variant : ''}`} onClick={onClose}>
       {variant === 'bolt' && <div className="badge-flash" aria-hidden="true" />}

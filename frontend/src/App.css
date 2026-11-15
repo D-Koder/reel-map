@@ -6859,3 +6859,82 @@ button { transition: scale 0.12s ease; }
 .quest-reward-text b { font-size: 16px; }
 .quest-reward-text small { font-size: 14px; color: var(--text-muted); }
 .quest-sheet-hint { margin: 0; text-align: center; font-size: 13px; color: var(--text-muted); }
+
+/* Reward chest: the claim celebration for badges and level prizes (see components/ChestReveal.jsx). */
+/* Chest reveal v2: layered chest (back, prize, front), anticipation, shake, flash, crBurst, prize flip, float. */
+.cr-scrim { position: fixed; z-index: 10050; inset: 0; background: rgba(5,7,18,.86); display: grid; place-items: center; padding: 20px; animation: crFade .25s both; overflow-y: auto; }
+.cr-stage { position: relative; width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 124px 14px 18px; border-radius: 24px; background: radial-gradient(circle at 50% 42%, #5a3f12 0%, #241a0a 55%, #0e0b06 100%); text-align: center; overflow: hidden; box-shadow: 0 0 0 2px #3a2c12, 0 20px 60px rgba(0,0,0,.6); }
+.cr-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 40%, #fff7cf, rgba(255,210,63,.6) 40%, transparent 70%); opacity: 0; pointer-events: none; z-index: 4; }
+.cr-stage.open .cr-flash { animation: crFlashPop .55s ease-out both; }
+.cr-rays { position: absolute; left: 50%; top: 150px; width: 340px; height: 340px; margin: -170px 0 0 -170px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,214,90,.5) 0 8deg, transparent 8deg 24deg); -webkit-mask: radial-gradient(circle, #000 10%, transparent 66%); mask: radial-gradient(circle, #000 10%, transparent 66%); opacity: 0; pointer-events: none; }
+.cr-stage.open .cr-rays { animation: crSpin 14s linear infinite, crRaysIn .8s ease-out .2s both; }
+.cr-glow { position: absolute; left: 50%; top: 190px; width: 230px; height: 230px; margin: -115px 0 0 -115px; border-radius: 50%; background: radial-gradient(circle, rgba(255,210,63,.45), transparent 65%); animation: crBreathe 2.6s ease-in-out infinite; pointer-events: none; }
+.cr-stage.shaking .cr-glow { animation: crBreathe .35s ease-in-out infinite; }
+.cr-stage.open .cr-glow { animation: none; opacity: .9; transform: scale(1.25); }
+.cr-box { position: relative; width: 170px; height: 130px; z-index: 2; margin-top: 14px; padding: 0; border: 0; background: none; cursor: pointer; perspective: 600px; -webkit-tap-highlight-color: transparent; }
+.cr-box .cr-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+.cr-box .cr-back { z-index: 1; } .cr-box .cr-front { z-index: 3; }
+.cr-box-in { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.cr-stage.closed .cr-box-in { animation: crBob 2.2s ease-in-out infinite; }
+.cr-stage.shaking .cr-box-in { animation: crWindup .18s ease-out, crShakeHard .7s ease-in-out .18s; }
+.cr-stage.open .cr-box-in { animation: crLand .5s cubic-bezier(.3,1.5,.5,1); }
+.cr-lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .55s cubic-bezier(.3,1.7,.5,1); }
+.cr-stage.open .cr-lid { transform: translateY(-30px) rotate(-14deg) scaleY(.86); }
+.cr-under { opacity: 0; transition: opacity .2s .15s; } .cr-stage.open .cr-under { opacity: 1; }
+.cr-inside { opacity: 0; transition: opacity .25s; } .cr-stage.open .cr-inside, .cr-stage.shaking .cr-inside { opacity: 1; }
+.cr-seam { opacity: 0; } .cr-stage.shaking .cr-seam { opacity: 1; animation: crSeam .18s linear infinite; }
+.cr-lock { transform-box: fill-box; transform-origin: 50% 50%; } .cr-stage.open .cr-lock { animation: crLockPop .6s ease-in both; }
+.cr-prize { position: absolute; left: 50%; top: 18px; z-index: 2; width: 74px; height: 88px; margin-left: -37px; opacity: 0; transform: translateY(40px) scale(.3); filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); transform-style: preserve-3d; }
+.cr-prize > span:first-child { display: block; width: 100%; height: 100%; }
+.cr-prize > span:first-child svg { width: 100%; height: 100%; display: block; }
+.cr-medal-icon { position: absolute; left: 50%; top: 39%; width: 30px; height: 30px; margin: -15px 0 0 -15px; display: grid; place-items: center; color: #1a1a18; }
+.cr-medal-icon svg { width: 100%; height: 100%; }
+.cr-stage.open .cr-prize { animation: crRise 1.1s cubic-bezier(.2,1.2,.3,1) .22s both, crFloaty 2.6s ease-in-out 1.35s infinite; }
+.cr-prize .cr-sheen { position: absolute; inset: 0; overflow: hidden; border-radius: 50%; mask: radial-gradient(circle at 50% 36%, #000 40%, transparent 41%); -webkit-mask: radial-gradient(circle at 50% 36%, #000 40%, transparent 41%); }
+.cr-prize .cr-sheen::after { content: ''; position: absolute; top: -10%; bottom: -10%; width: 30%; left: -50%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.9), transparent); animation: crSweep 1.4s ease 1.3s 2 both; }
+.cr-spark { position: absolute; left: 50%; top: 170px; width: 0; height: 0; z-index: 3; pointer-events: none; }
+.cr-spark i { position: absolute; width: 11px; height: 11px; margin: -5px; background: var(--c, #ffd23f); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: crBurst var(--t, .9s) cubic-bezier(.1,.8,.3,1) var(--d, .1s) both; }
+.cr-idle { position: absolute; z-index: 3; width: 10px; height: 10px; background: #ffe680; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: crTwinkle 1.8s ease-in-out infinite; }
+.cr-stage:not(.closed) .cr-idle { display: none; }
+.cr-hint { color: #ffd23f; font-weight: 800; font-size: 15px; z-index: 2; margin-top: 4px; animation: crPulse2 1.4s ease-in-out infinite; }
+.cr-reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 2; margin-top: 4px; }
+.cr-new { background: #ffd23f; color: #1a1a18; border-radius: 99px; padding: 2px 10px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; animation: crStampB .5s cubic-bezier(.34,1.56,.64,1) .8s both; }
+.cr-ribbon { background: linear-gradient(#f0603a, #d6431e); color: #fff; font: 800 18px var(--font-display, inherit); letter-spacing: .06em; text-transform: uppercase; padding: 6px 28px; border-top: 2.5px solid #1a1a18; border-bottom: 2.5px solid #1a1a18; clip-path: polygon(0 0,100% 0,calc(100% - 12px) 50%,100% 100%,0 100%,12px 50%); animation: crStampB .55s cubic-bezier(.34,1.56,.64,1) .95s both; }
+.cr-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; animation: crFadeUp .5s ease 1.2s both; }
+.cr-chips span { background: rgba(255,255,255,.14); border-radius: 99px; padding: 3px 10px; font-size: 13px; font-weight: 700; }
+.cr-desc { color: #e0dccf; font-size: 14px; animation: crFadeUp .5s ease 1.3s both; }
+.cr-stage .btn { max-width: 280px; }
+.cr-close { position: absolute; top: 8px; right: 8px; z-index: 5; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); font-size: 18px; cursor: pointer; }
+.cr-conf { position: fixed; inset: 0; z-index: 41; overflow: hidden; pointer-events: none; }
+.cr-conf span { position: absolute; top: -14px; width: 8px; height: 14px; border-radius: 2px; animation: crFall 1.9s ease-in forwards; }
+@keyframes crBob { 50% { transform: translateY(-5px) rotate(-1.2deg); } }
+@keyframes crWindup { 100% { transform: scale(1.08, .9); } }
+@keyframes crShakeHard { 0% { transform: scale(1.08,.9); } 12% { transform: rotate(-6deg) scale(1.06); } 28% { transform: rotate(7deg) scale(1.08); } 44% { transform: rotate(-9deg) scale(1.1); } 60% { transform: rotate(9deg) scale(1.12); } 76% { transform: rotate(-6deg) scale(1.1); } 100% { transform: rotate(0) scale(1.12); } }
+@keyframes crLand { 0% { transform: scale(1.12); } 40% { transform: scale(.94, 1.04); } 100% { transform: none; } }
+@keyframes crSeam { 50% { opacity: .35; } }
+@keyframes crLockPop { 0% { transform: none; opacity: 1; } 35% { transform: translateY(-26px) rotate(-30deg); opacity: 1; } 100% { transform: translateY(46px) rotate(60deg); opacity: 0; } }
+@keyframes crRise { 0% { opacity: 0; z-index: 2; transform: translateY(46px) scale(.3) rotateY(0); } 25% { opacity: 1; z-index: 2; } 45% { z-index: 4; } 65% { transform: translateY(-112px) scale(1.25) rotateY(540deg); } 100% { opacity: 1; z-index: 4; transform: translateY(-96px) scale(1) rotateY(720deg); } }
+@keyframes crFloaty { 0%, 100% { z-index: 4; } 50% { z-index: 4; transform: translateY(-104px) rotateY(720deg); } }
+@keyframes crSweep { to { left: 130%; } }
+@keyframes crBurst { 0% { transform: translate(0,0) scale(.2) rotate(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), var(--y)) scale(1) rotate(180deg); opacity: 0; } }
+@keyframes crTwinkle { 0%, 100% { transform: scale(0); } 50% { transform: scale(1); } }
+@keyframes crFlashPop { 0% { opacity: 0; } 18% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes crRaysIn { from { opacity: 0; transform: scale(.4); } to { opacity: 1; } }
+@keyframes crBreathe { 50% { transform: scale(1.18); opacity: .7; } }
+@keyframes crSpin { to { transform: rotate(360deg); } }
+@keyframes crStampB { from { opacity: 0; transform: scale(2.4) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes crFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes crPulse2 { 50% { transform: scale(1.06); } }
+@keyframes crFall { to { transform: translateY(105vh) rotate(600deg); opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .cr-stage.open .cr-prize { animation: none; opacity: 1; transform: translateY(-96px); } .cr-stage.open .cr-flash, .cr-stage.open .cr-rays, .cr-stage.open .cr-lock, .cr-spark i, .cr-idle { animation: none !important; } .cr-spark { display: none; } .cr-lid { transition: none; } .cr-new, .cr-ribbon, .cr-chips, .cr-desc, .cr-collect { opacity: 1; transform: none; animation: none; } }
+
+@keyframes crFade { from { opacity: 0; } }
+.cr-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; width: 100%; animation: crFadeUp .5s ease 1.5s both; }
+.cr-actions .step-btn { flex: 1 1 120px; }
+.cr-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #e0dccf; animation: crFadeUp .5s ease 1.3s both; }
+.cr-lines svg { width: 14px; height: 14px; vertical-align: -2px; color: #ffd23f; }
+.cr-xp { background: rgba(255,255,255,.14); border-radius: 99px; padding: 3px 12px; font-size: 14px; font-weight: 800; animation: crFadeUp .5s ease 1.2s both; }
+.cr-title { color: #fff; font-weight: 800; font-size: 22px; }
+
+.cr-box:focus { outline: none; }
+.cr-box:focus-visible { outline: none; filter: drop-shadow(0 0 8px #ffd23f); }
