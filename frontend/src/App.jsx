@@ -108,6 +108,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [achFromSettings, setAchFromSettings] = useState(false); // Back from Achievements returns to Settings when that is where it was opened
   // The bell wobbles when something new arrives.
   const [bellRinging, setBellRinging] = useState(false);
   // Show my location on the map. Kept on this device only; the location itself is never saved.
@@ -643,7 +644,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
         userId={userId}
         profile={data.profile}
         achievements={achievements}
-        onOpenAchievements={() => { setSettingsOpen(false); setAchievementsOpen(true); }}
+        onOpenAchievements={() => { setSettingsOpen(false); setAchFromSettings(true); setAchievementsOpen(true); }}
         collections={collections}
         onCreateCollection={data.createCollection}
         onSetPrivacy={data.setCollectionPrivate}
@@ -801,7 +802,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
 
       {visitSummary && <VisitRewards summary={visitSummary.summary} xpAfter={visitSummary.xpAfter} onClose={() => setVisitSummary(null)} />}
 
-      {achievementsOpen && <AchievementsScreen achievements={achievements} onClose={() => setAchievementsOpen(false)} />}
+      {achievementsOpen && <AchievementsScreen achievements={achievements} onClose={() => { setAchievementsOpen(false); if (achFromSettings) setSettingsOpen(true); setAchFromSettings(false); }} />}
 
       {!celebrating && !pendingVisit && !visitSummary && (achievements.reward || achievements.levelUp) && (
         <RewardCelebration

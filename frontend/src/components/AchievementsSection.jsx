@@ -26,15 +26,16 @@ export default function AchievementsSection({ achievements, onOpenAchievements }
 
   return (
     <div className="settings-section">
+      <div className="settings-section-title"><Frame className="ico" aria-hidden="true" /> Customisation</div>
       {onOpenAchievements && (
-        <button type="button" className="settings-section-title settings-section-toggle ach-open" onClick={onOpenAchievements}>
+        <button type="button" className="ach-row ach-open" onClick={onOpenAchievements}>
           <Medal className="ico" aria-hidden="true" /> Achievements
           <span className="ach-count">Level {achievements.level.level}{achievements.readyBadges.length + achievements.prizes.filter((p) => p.state === 'ready').length > 0 ? ' · rewards ready!' : ''}</span>
           <ChevronRight className="ico" aria-hidden="true" />
         </button>
       )}
-      <button type="button" className="settings-section-title settings-section-toggle ach-customise" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <Frame className="ico" aria-hidden="true" /> Customise profile
+      <button type="button" className="ach-row" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Gem className="ico" aria-hidden="true" /> Profile badges
         <span className="ach-count">{earned} of {badges.length} badges</span>
         {open ? <ChevronUp className="ico" aria-hidden="true" /> : <ChevronDown className="ico" aria-hidden="true" />}
       </button>
