@@ -102,9 +102,6 @@
 .chest-rays { position: absolute; left: 50%; top: 70px; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 210, 63, 0.55) 0 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 12%, transparent 68%); mask: radial-gradient(circle, #000 12%, transparent 68%); opacity: 0; transform: scale(0.3); pointer-events: none; }
 .chest-stage.open .chest-rays { animation: demo-rays 9s linear infinite, demo-rays-in 0.6s ease-out both; }
 .chest-box { position: relative; width: 150px; height: 118px; z-index: 1; }
-.chest-svg { width: 100%; height: 100%; overflow: visible; }
-.chest-lid { transform-box: fill-box; transform-origin: 8% 92%; transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.chest-stage.open .chest-lid { transform: translate(6px, -22px) rotate(-16deg); }
 .chest-stage.closed .chest-box { animation: demo-bob 1.8s ease-in-out infinite; }
 .chest-stage.shaking .chest-box { animation: demo-chest-shake 0.55s ease-in-out; }
 .chest-glint { position: absolute; width: 10px; height: 10px; background: #ffd23f; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: demo-twinkle 1.6s ease-in-out infinite; }
@@ -123,7 +120,11 @@
 .chest-xp span { background: rgba(255, 255, 255, 0.14); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
 .chest-lock { color: #ffd23f; font-size: 13px; font-weight: 700; animation: demo-fade-up 0.5s ease 1.3s both; }
 .demo-lock { width: 11px; height: 11px; vertical-align: -1px; }
-.chest-stage.open { padding-top: 96px; }
+.chest-img { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); max-width: none; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5)); }
+.chest-img-closed { width: 136px; }
+.chest-img-open { width: 122px; opacity: 0; }
+.chest-stage.open .chest-img-closed { opacity: 0; } .chest-stage.open .chest-img-open { opacity: 1; }
+.chest-stage.open { padding-top: 100px; }
 .chest-stage.open .chest-box { width: 108px; height: 85px; margin-top: 4px; animation: none; }
 
 @keyframes demo-bob { 50% { transform: translateY(-5px) rotate(-1.5deg); } }
@@ -139,7 +140,6 @@
   .chest-stage, .chest-stage .chest-box, .chest-glint, .chest-hint, .chest-stage.open .chest-rays, .chest-stage.open .chest-prize, .chest-new, .chest-ribbon, .chest-xp, .chest-lock { animation: none !important; }
   .chest-stage.open .chest-prize, .chest-new, .chest-ribbon, .chest-xp, .chest-lock { opacity: 1; transform: none; }
   .chest-stage.open .chest-prize { transform: translateY(-6px); }
-  .chest-lid { transition: none; }
 }
 
 /* First screen: name + the 13+ and Terms box. */

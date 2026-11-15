@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { CHEST_BACK, CHEST_FRONT, MEDAL } from '../lib/chestArt';
+import { MEDAL } from '../lib/chestArt';
 
 const SPARK_COLOURS = ['#ffd23f', '#fff3b0', '#ff9f1c', '#ffffff', '#e8502a'];
 const CONFETTI_COLOURS = ['#ffd23f', '#e8502a', '#0ea5e9', '#16a34a', '#e0336a', '#7c3aed'];
@@ -9,7 +9,8 @@ const reduced = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)'
 // The treasure chest for claiming a badge or a level prize. Same as the end of the no-login demo, nicer:
 //   closed  the chest bobs and sparkles ("Tap to open your reward!")
 //   shaking it squashes, then shakes harder, with light leaking from under the lid
-//   open    the lock pops off, the lid flips up, a flash and a burst of sparks, the medal rises, spinning, in front of the lid
+//   open    the lid swings open, a flash and a burst of sparks, the medal rises, spinning, and the mascot cheers
+// The chest is a picture (public/art/chest): a closed one that swaps for an open one. The medal rises out of it.
 // `icon` is drawn on the medal. `children` is what is revealed under the chest once it is open (the name, XP, buttons).
 export default function ChestReveal({ icon, onClose, children }) {
   const [phase, setPhase] = useState('closed');
@@ -39,17 +40,17 @@ export default function ChestReveal({ icon, onClose, children }) {
         <span className="cr-rays" aria-hidden="true" />
         <span className="cr-glow" aria-hidden="true" />
         {[[18, 70], [150, 50], [40, 14], [128, 104]].map(([x, y], i) => (
-          <i key={i} className="cr-idle" aria-hidden="true" style={{ left: `calc(50% - 85px + ${x}px)`, top: `${y + 136}px`, animationDelay: `${i * 0.45}s` }} />
+          <i key={i} className="cr-idle" aria-hidden="true" style={{ left: `calc(50% - 85px + ${x}px)`, top: `${y + 190}px`, animationDelay: `${i * 0.45}s` }} />
         ))}
         <button type="button" className="cr-box" aria-label="Open the chest" onClick={open} autoFocus>
           <span className="cr-box-in">
-            <span dangerouslySetInnerHTML={{ __html: CHEST_BACK }} />
+            <img className="cr-chest cr-chest-closed" src="/art/chest/closed.webp" alt="" draggable="false" />
+            <img className="cr-chest cr-chest-open" src="/art/chest/open.webp" alt="" draggable="false" />
             <span className="cr-prize">
               <span dangerouslySetInnerHTML={{ __html: MEDAL }} />
               <span className="cr-medal-icon">{icon}</span>
               <span className="cr-sheen" />
             </span>
-            <span dangerouslySetInnerHTML={{ __html: CHEST_FRONT }} />
           </span>
         </button>
         {phase === 'closed' && <span className="cr-hint">Tap to open your reward!</span>}
@@ -59,6 +60,7 @@ export default function ChestReveal({ icon, onClose, children }) {
             {sparks.map((s, i) => <i key={i} style={{ '--x': `${s.x}px`, '--y': `${s.y}px`, '--c': s.c, '--d': `${s.d}s`, '--t': `${s.t}s` }} />)}
           </span>
         )}
+        {phase === 'open' && <img className="cr-mascot" src="/art/mascot/cheer.webp" alt="" draggable="false" />}
         {phase === 'open' && <div className="cr-reveal">{children}</div>}
       </div>
       {phase === 'open' && !reduced() && (

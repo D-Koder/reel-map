@@ -83,7 +83,17 @@ const Body = () => (
   </>
 );
 
+// The mascot is a set of four pictures (public/art/mascot). Each pose name picks the closest one.
+const MASCOT_FOR_POSE = { hello: 'idle', wink: 'idle', love: 'idle', oops: 'idle', celebrate: 'cheer', thinking: 'map', pointing: 'map', looking: 'map', sleepy: 'rest' };
+export const mascotSrc = (pose) => `/art/mascot/${MASCOT_FOR_POSE[pose] || 'idle'}.webp`;
+
+// `size` is the picture's height before; the mascot is drawn about as tall as the old lantern with its arms up (1.25 x size).
 export default function Lantern({ size = 38, pose }) {
+  return <img className="tour-lantern mascot-img" src={mascotSrc(pose)} alt="" aria-hidden="true" draggable="false" style={{ height: Math.round(size * 1.25), width: 'auto' }} />;
+}
+
+// The old drawn lantern, kept for reference while the new art settles in. Nothing uses it.
+export function DrawnLantern({ size = 38, pose }) {
   const spec = pose ? LANTERN_POSES[pose] : null;
   if (!spec) {
     return (

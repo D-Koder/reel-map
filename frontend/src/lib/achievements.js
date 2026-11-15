@@ -33,9 +33,9 @@ export const BADGES = [
   { id: 'reviewer', cat: 'Create', name: 'Reviewer', icon: 'MessageSquare', target: 5, how: 'Write reviews', reward: 'Reviews highlighted to your partner', rewardBuilt: false, title: 'Critic' },
 ];
 
-// Twelve frames: seven earned with a badge, three seasonal ones free for everyone in season, one level prize, and one
+// Thirteen frames: seven earned with a badge, four seasonal ones free for everyone in season, one level prize, and one
 // free for everyone all year (First Light), so a new person can try changing their frame straight away.
-// `months` is [first, last], 1 to 12; a range that wraps the new year (Sep to Feb) has first > last.
+// `months` is [first, last], 1 to 12; a range that wraps the new year (Dec to Feb) has first > last.
 export const FRAMES = [
   { id: 'bronze', name: 'Bronze Compass', badge: 'explorer' },
   { id: 'silver', name: 'Silver City', badge: 'local' },
@@ -46,7 +46,8 @@ export const FRAMES = [
   { id: 'rainbow', name: 'Animated Rainbow', badge: 'reelmaster' },
   { id: 'blossom', name: 'Blossom', months: [3, 5], season: 'Mar to May', glyph: ['✿', [0, 72, 144, 216, 288]] },
   { id: 'sunny', name: 'Sunny', months: [6, 8], season: 'Jun to Aug', glyph: ['☀', [45, 225]] },
-  { id: 'cosy', name: 'Cosy', months: [9, 2], season: 'Sep to Feb', glyph: ['❄', [315, 135, 225]] },
+  { id: 'cosy', name: 'Cosy', months: [9, 11], season: 'Sep to Nov', glyph: ['❄', [315, 135, 225]] },
+  { id: 'winter', name: 'Winter', months: [12, 2], season: 'Dec to Feb' },
   // The one frame no badge gives: the Level 25 prize.
   { id: 'laurel', name: 'Gold Laurel', prize: 25, glyph: ['✦', [0, 90, 180, 270]] },
   // Free for everyone, and the Test Driver badge shows it as part of its reward.
@@ -57,6 +58,10 @@ export const BASE_TITLE = 'Wanderer';
 
 export const badgeById = (id) => BADGES.find((b) => b.id === id);
 export const frameById = (id) => FRAMES.find((f) => f.id === id);
+
+// Every frame is a picture (public/art/frames/<id>.webp) drawn around the avatar, except the animated rainbow, which is
+// still a ring made in CSS. null means "draw the CSS ring".
+export const frameArt = (id) => (frameById(id) && id !== 'rainbow' ? `/art/frames/${id}.webp` : null);
 
 // What a locked frame says it needs: a season, a level (the Level 25 prize frame), or a badge.
 export function frameLockLabel(frame) {

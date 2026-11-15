@@ -1,7 +1,7 @@
 // Run with: node --test frontend/src/lib/achievements.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BADGES, FRAMES, FUN_TITLES, TITLE_LADDERS, badgeStatus, computeProgress, demoCelebrationPending, earnedTitles, frameLockLabel, frameUnlocked, funTitles, inSeason, frameById, titleLadders } from './achievements.js';
+import { BADGES, FRAMES, FUN_TITLES, TITLE_LADDERS, badgeStatus, computeProgress, demoCelebrationPending, earnedTitles, frameArt, frameLockLabel, frameUnlocked, funTitles, inSeason, frameById, titleLadders } from './achievements.js';
 
 const day = (n) => new Date(Date.UTC(2026, 10, 12) - n * 86400000).toISOString();
 const collections = [{ id: 'c1', members: [{ id: 'me' }, { id: 'sam' }] }, { id: 'c2', members: [{ id: 'me' }] }];
@@ -9,10 +9,10 @@ const place = (id, extra = {}) => ({ id, collection_id: 'c1', category: 'food', 
 const now = new Date(Date.UTC(2026, 10, 12));
 const status = (places, profile = {}) => Object.fromEntries(badgeStatus({ places, collections, profile, userId: 'me', now }).map((b) => [b.id, b]));
 
-test('there are 19 badges and 12 frames, as designed', () => {
+test('there are 19 badges and 13 frames, as designed', () => {
   assert.equal(BADGES.length, 19);
-  assert.equal(FRAMES.length, 12);
-  assert.equal(FRAMES.filter((f) => f.months).length, 3);
+  assert.equal(FRAMES.length, 13);
+  assert.equal(FRAMES.filter((f) => f.months).length, 4);
 });
 
 test('every frame badge and every badge frame exists, and no title is shared', () => {
@@ -64,11 +64,18 @@ test('soon badges never earn', () => {
   for (const id of ['local', 'globetrotter', 'reelmaster', 'regular', 'gem']) assert.equal(s[id].earned, false);
 });
 
-test('seasonal frames follow the date, including Sep to Feb wrapping the new year', () => {
+test('seasonal frames follow the date, with Winter wrapping the new year and exactly one season on at a time', () => {
   const cosy = frameById('cosy');
+  const winter = frameById('winter');
   assert.equal(inSeason(cosy, new Date(2026, 10, 12)), true);
-  assert.equal(inSeason(cosy, new Date(2027, 0, 5)), true);
+  assert.equal(inSeason(cosy, new Date(2026, 11, 12)), false);
+  assert.equal(inSeason(winter, new Date(2026, 11, 12)), true);
+  assert.equal(inSeason(winter, new Date(2027, 0, 5)), true);
+  assert.equal(inSeason(winter, new Date(2027, 1, 28)), true);
+  assert.equal(inSeason(winter, new Date(2027, 2, 1)), false);
   assert.equal(inSeason(cosy, new Date(2026, 6, 1)), false);
+  const seasonal = FRAMES.filter((f) => f.months);
+  for (let m = 0; m < 12; m++) assert.equal(seasonal.filter((f) => inSeason(f, new Date(2026, m, 15))).length, 1, `month ${m + 1}`);
   assert.equal(frameUnlocked(frameById('bronze'), new Set()), false);
   assert.equal(frameUnlocked(frameById('bronze'), new Set(['explorer'])), true);
 });
@@ -166,4 +173,10 @@ test('a new account can wear First Light from the start (the saved frame is kept
   const wearable = FRAMES.filter((f) => frameUnlocked(f, none, new Date(Date.UTC(2026, 6, 1)))).map((f) => f.id);
   // In July only the free frame and the summer frame are open to someone with nothing earned.
   assert.deepEqual(wearable.sort(), ['glow', 'sunny']);
+});
+
+test('every frame has its own picture, except the rainbow ring which stays drawn in CSS', () => {
+  for (const f of FRAMES) assert.equal(frameArt(f.id), f.id === 'rainbow' ? null : `/art/frames/${f.id}.webp`, f.id);
+  assert.equal(frameArt('nope'), null);
+  assert.equal(frameArt(null), null);
 });

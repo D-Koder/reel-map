@@ -128,15 +128,8 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                 <span className="chest-rays" aria-hidden="true" />
                 <span className="chest-box" aria-hidden="true">
                   {chest !== 'open' && <><i className="chest-glint a" /><i className="chest-glint b" /><i className="chest-glint c" /></>}
-                  <svg className="chest-svg" viewBox="0 0 150 118">
-                    <rect x="10" y="52" width="130" height="62" rx="10" fill="#8a4b16" stroke="#1a1a18" strokeWidth="4" />
-                    <rect x="62" y="52" width="26" height="62" fill="#ffd23f" stroke="#1a1a18" strokeWidth="4" />
-                    <rect x="66" y="68" width="18" height="18" rx="4" fill="#fff3c4" stroke="#1a1a18" strokeWidth="3" />
-                    <g className="chest-lid">
-                      <path d="M10 54 V40 a30 30 0 0 1 30 -30 h70 a30 30 0 0 1 30 30 V54 Z" fill="#b5651d" stroke="#1a1a18" strokeWidth="4" strokeLinejoin="round" />
-                      <rect x="62" y="10" width="26" height="44" fill="#ffd23f" stroke="#1a1a18" strokeWidth="4" />
-                    </g>
-                  </svg>
+                  <img className="chest-img chest-img-closed" src="/art/chest/closed.webp" alt="" draggable="false" />
+                  <img className="chest-img chest-img-open" src="/art/chest/open.webp" alt="" draggable="false" />
                 </span>
                 <span className="chest-prize" aria-hidden="true">
                   <svg viewBox="0 0 64 76">
