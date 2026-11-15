@@ -1,24 +1,64 @@
-import React, { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Check, ChevronRight, X } from 'lucide-react';
+import useSheetDrag from '../lib/useSheetDrag';
+import { questReward } from '../lib/quests';
 import { readJSON, writeJSON } from '../lib/storage';
 
 const hiddenKey = (userId) => `reelmap:quests-hidden:${userId}`;
 
-// What to tap for the quests that open something. The others are explained in words.
-const ACTIONS = {
-  name: 'settings', customise: 'settings', notifications: 'settings', shortcut: 'settings', invite: 'invite',
-};
+// The details of one quest: its name, the steps to do it, and the reward. Nothing here opens the place for them: the
+// person goes and finds it, and the quest ticks by itself when the app sees it done.
+function QuestSheet({ quest, totalXp, onClose }) {
+  const sheetRef = useRef(null);
+  const drag = useSheetDrag(sheetRef, onClose);
+  const reward = questReward(quest, quest.done, totalXp);
 
-// The starter quests card on Home: the next few things to learn, each with its XP. It replaces the old 3-step card.
+  useEffect(() => {
+    sheetRef.current?.focus();
+    const onKey = (event) => event.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div ref={sheetRef} className="modal edit-sheet quest-sheet" role="dialog" aria-modal="true" aria-labelledby="quest-sheet-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" {...drag} />
+        <div className="modal-header">
+          <div className="modal-title" id="quest-sheet-title">{quest.title}</div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
+        </div>
+        <div className="quest-sheet-body">
+          <div className="quest-sheet-label">How to do it</div>
+          <ol className="quest-steps">
+            {quest.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+          <div className={`quest-reward${quest.done ? ' got' : ''}`}>
+            <span className="quest-reward-xp">{reward.chip}</span>
+            <span className="quest-reward-text">
+              <b>{reward.title}</b>
+              {reward.note && <small>{reward.note}</small>}
+            </span>
+          </div>
+          <button type="button" className="step-btn primary full-width" onClick={onClose}>Close</button>
+          {!quest.done && <p className="quest-sheet-hint">It ticks by itself when the app sees it done.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The starter quests card on Home: a short, simple list. Tap a quest for the steps and the reward.
 // It goes away once every quest is done, or when closed.
-export default function StarterQuests({ userId, quests, onOpenSettings, onInvite }) {
+export default function StarterQuests({ userId, quests, totalXp = 0 }) {
   const [hidden, setHidden] = useState(() => readJSON(hiddenKey(userId), false));
   const [all, setAll] = useState(false);
+  const [openId, setOpenId] = useState(null);
   if (!quests || hidden || quests.complete) return null;
 
   const close = () => { writeJSON(hiddenKey(userId), true); setHidden(true); };
   const list = all ? quests.list : quests.list.filter((q) => !q.done).slice(0, 3);
-  const act = (q) => (ACTIONS[q.id] === 'invite' ? onInvite : ACTIONS[q.id] === 'settings' ? onOpenSettings : null);
+  const open = quests.list.find((q) => q.id === openId) ?? null;
 
   return (
     <section className="welcome quests" aria-label="Starter quests">
@@ -30,23 +70,20 @@ export default function StarterQuests({ userId, quests, onOpenSettings, onInvite
         </button>
       </div>
       <div className="quest-bar" role="progressbar" aria-valuemin={0} aria-valuemax={quests.totalXp} aria-valuenow={quests.xp} aria-label="Starter quest XP"><i style={{ width: `${Math.round((quests.xp / quests.totalXp) * 100)}%` }} /></div>
-      <ol className="welcome-list">
-        {list.map((q) => {
-          const run = !q.done && act(q);
-          return (
-            <li key={q.id} className={`welcome-step ${q.done ? 'done' : ''}`}>
+      <ul className="quest-list">
+        {list.map((q) => (
+          <li key={q.id}>
+            <button type="button" className={`quest-row${q.done ? ' done' : ''}`} onClick={() => setOpenId(q.id)}>
               <span className="welcome-tick" aria-hidden="true">{q.done && <Check size={14} />}</span>
-              <div className="welcome-text">
-                <div className="welcome-title">{q.title}{q.done && <span className="sr-only"> (done)</span>}</div>
-                {!q.done && <div className="welcome-hint">{q.how}</div>}
-              </div>
+              <span className="quest-title">{q.title}{q.done && <span className="sr-only"> (done)</span>}</span>
               <span className="quest-xp">+{q.xp}</span>
-              {run && <button type="button" className="inbox-action" onClick={run}>{ACTIONS[q.id] === 'invite' ? 'Invite' : 'Open'}</button>}
-            </li>
-          );
-        })}
-      </ol>
+              <ChevronRight className="quest-chev" aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
       <button type="button" className="quest-toggle" onClick={() => setAll((v) => !v)}>{all ? 'Show next up' : 'See all quests'}</button>
+      {open && <QuestSheet quest={open} totalXp={totalXp} onClose={() => setOpenId(null)} />}
     </section>
   );
 }

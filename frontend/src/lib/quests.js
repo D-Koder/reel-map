@@ -8,6 +8,7 @@
 // never removed, so undoing the thing (deleting the reel) does not take the XP back and cannot be farmed.
 
 import { BASE_TITLE } from './achievements.js';
+import { levelInfo } from './levels.js';
 
 // Accounts made before this are credited quietly for what they already did (no pop for every quest at once).
 export const QUESTS_LAUNCH = '2026-11-16T00:00:00Z';
@@ -126,4 +127,12 @@ export function questProgress(notes) {
     next: QUESTS.filter((q) => !notes?.[q.id]),
     list: QUESTS.map((q) => ({ id: q.id, title: q.title, why: q.why, how: q.how, steps: q.steps, xp: q.xp, done: Boolean(notes?.[q.id]) })),
   };
+}
+
+// What the quest sheet shows as the reward: the XP chip, a heading, and how far the next level is (not once it is earned).
+// totalXp is everything the person has, so the distance to the next level is true.
+export function questReward(quest, isDone, totalXp) {
+  if (isDone) return { chip: `\u2713 ${quest.xp} XP`, title: 'Earned', note: null };
+  const info = levelInfo(totalXp);
+  return { chip: `+${quest.xp} XP`, title: 'Your reward', note: info.max ? null : `Level ${info.level + 1} is ${info.left} XP away` };
 }

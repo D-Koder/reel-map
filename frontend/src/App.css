@@ -6836,3 +6836,26 @@ button { transition: scale 0.12s ease; }
 .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .header-btn .header-avatar svg { width: auto; height: auto; }
 .header-avatar .tour-lantern, .profile-avatar .tour-lantern, .person-avatar .tour-lantern, .collection-member-avatar .tour-lantern, .avatar-option .tour-lantern { animation: none; transform: translateY(-5.5%); }
+
+/* Starter quests: simple rows, and the sheet that opens with the steps and the reward. */
+.quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.quest-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 2px; background: none; border: 0; border-top: 1px solid var(--border); cursor: pointer; text-align: left; font: inherit; font-weight: 600; color: var(--text); }
+.quest-list li:first-child .quest-row { border-top: 0; }
+.quest-title { flex: 1; min-width: 0; }
+.quest-row.done .quest-title { color: var(--text-muted); text-decoration: line-through; }
+.quest-row .welcome-tick { flex: none; }
+.quest-row.done .welcome-tick { background: var(--success); border-color: var(--success); }
+.quest-chev { flex: none; width: 18px; height: 18px; color: var(--text-muted); }
+.quest-sheet:focus { outline: none; }
+.quest-sheet-body { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 8px; }
+.quest-sheet-label { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.quest-steps { list-style: none; counter-reset: qstep; margin: -6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.quest-steps li { counter-increment: qstep; display: flex; align-items: flex-start; gap: 12px; font-size: 16px; line-height: 1.35; }
+.quest-steps li::before { content: counter(qstep); flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-hover); border: 1px solid var(--border); display: grid; place-items: center; font-size: 13px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.quest-reward { display: flex; align-items: center; gap: 14px; background: var(--surface-hover); border-radius: 14px; padding: 12px 14px; }
+.quest-reward-xp { flex: none; background: #ffd23f; color: #1a1a18; font-weight: 800; font-size: 20px; border-radius: 12px; padding: 8px 14px; font-variant-numeric: tabular-nums; }
+.quest-reward.got .quest-reward-xp { background: var(--success); }
+.quest-reward-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.quest-reward-text b { font-size: 16px; }
+.quest-reward-text small { font-size: 14px; color: var(--text-muted); }
+.quest-sheet-hint { margin: 0; text-align: center; font-size: 13px; color: var(--text-muted); }

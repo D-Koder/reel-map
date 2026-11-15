@@ -549,7 +549,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
             collections={collections}
             banner={
               <>
-                {!tourActive && <StarterQuests userId={userId} quests={achievements.quests} onOpenSettings={() => setSettingsOpen(true)} onInvite={() => collections[0] && setShareModal(collections[0])} />}
+                {!tourActive && <StarterQuests userId={userId} quests={achievements.quests} totalXp={achievements.xp} />}
                 <PasteReelCard onSave={(url) => inbox.enqueue(url, { confirm: true })} showToast={showToast} />
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} onConfirm={inbox.confirm} onReject={inbox.reject} onSaveListed={inbox.saveListed} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />

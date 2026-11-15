@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUESTS, QUESTS_LAUNCH, detectQuests, isLegacyAccount, planQuestGrants, questById, questProgress, questXp } from './quests.js';
+import { QUESTS, QUESTS_LAUNCH, detectQuests, isLegacyAccount, planQuestGrants, questById, questProgress, questReward, questXp } from './quests.js';
 import { LEVEL_XP, badgeXp, levelInfo, totalXp } from './levels.js';
 
 const ME = 'me';
@@ -168,4 +168,16 @@ test('pacing: the first session reaches Level 2, finishing every quest with Test
 test('the old way of counting claimed badges (a number) still works', () => {
   assert.equal(totalXp({ places: [], collections: [], userId: ME }, 2, 3), 200 + 150);
   assert.equal(totalXp({ places: [], collections: [], userId: ME }, ['explorer', 'curator'], 3), 200 + 150);
+});
+
+test('the reward shown in the quest sheet: the XP, and how far the next level is', () => {
+  const save = questById('save');
+  assert.deepEqual(questReward(save, false, 0), { chip: '+15 XP', title: 'Your reward', note: 'Level 2 is 50 XP away' });
+  assert.deepEqual(questReward(save, false, 30), { chip: '+15 XP', title: 'Your reward', note: 'Level 2 is 20 XP away' });
+  // Exactly on a level: the next one is the target.
+  assert.equal(questReward(save, false, 50).note, 'Level 3 is 50 XP away');
+  // Done: earned, and no distance to the next level.
+  assert.deepEqual(questReward(save, true, 30), { chip: '\u2713 15 XP', title: 'Earned', note: null });
+  // The top level has nothing to reach.
+  assert.equal(questReward(save, false, 99999).note, null);
 });
