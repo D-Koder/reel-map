@@ -7112,6 +7112,7 @@ button { transition: scale 0.12s ease; }
 .vr-hint { align-self: center; color: var(--text-muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .vr, .vr-seq.in, .vr-ring b.pop, .vr-row.in .v, .vr-badge.in .chg { animation: none !important; } .vr-row .v, .vr-badge .chg { opacity: 1 !important; } .vr-ring .v, .vr-bar i, .vr-mini i { transition: none; } }
 .ach-frame .framed, .ach-frame .framed-none { margin: 8px 0 14px; }
+.ach-frame .framed-none { width: 44px; height: 44px; align-self: center; }
 
 /* No frame: a thick light grey ring outside the picture. */
 .framed-none { display: inline-flex; flex: none; border-radius: 50%; box-shadow: 0 0 0 4px #d5d8e0; }
