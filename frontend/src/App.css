@@ -6938,3 +6938,67 @@ button { transition: scale 0.12s ease; }
 
 .cr-box:focus { outline: none; }
 .cr-box:focus-visible { outline: none; filter: drop-shadow(0 0 8px #ffd23f); }
+
+/* Achievements redesign: player card, three tabs, rewards path, quiet DONE stamp. */
+.ax2-hero { margin-top: 6px; border-radius: 22px; padding: 16px; background: linear-gradient(135deg, #e0336a, #e8502a); color: #fff; display: flex; flex-direction: column; gap: 14px; }
+.ax2-hero-row { display: flex; align-items: center; gap: 14px; }
+.ax2-ring { position: relative; flex: none; width: 84px; height: 84px; }
+.ax2-ring svg { width: 84px; height: 84px; transform: rotate(-90deg); }
+.ax2-ring circle { fill: none; stroke-width: 9; }
+.ax2-ring .trk { stroke: rgba(255, 255, 255, 0.25); }
+.ax2-ring .val { stroke: #ffd23f; stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.ax2-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 34px; }
+.ax2-ring b.pop { animation: ax2Pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes ax2Pop { 0% { transform: scale(0.4); } 60% { transform: scale(1.35); } 100% { transform: none; } }
+.ax2-lv { font-family: var(--font-display); font-weight: 800; font-size: 24px; }
+.ax2-title { display: inline-block; margin-top: 4px; background: rgba(0, 0, 0, 0.25); border-radius: 99px; padding: 3px 10px; font-size: 13px; font-weight: 700; }
+.ax2-xp { height: 12px; border-radius: 99px; background: rgba(0, 0, 0, 0.28); overflow: hidden; }
+.ax2-xp i { display: block; height: 100%; border-radius: inherit; background: #ffd23f; transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.ax2-xp-l { display: flex; justify-content: space-between; margin-top: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ax2-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ax2-stats div { background: rgba(0, 0, 0, 0.2); border-radius: 14px; padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 600; }
+.ax2-stats b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+.ax2-tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 14px 0 4px; background: var(--surface-muted); border-radius: 16px; border: 1px solid var(--border); }
+.ax2-tabs button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 4px; border-radius: 12px; font-size: 14px; font-weight: 700; color: var(--text-muted); }
+.ax2-tabs button svg { width: 16px; height: 16px; }
+.ax2-tabs button[aria-selected='true'] { background: var(--accent); color: #fff; }
+.ax2-tabs button:focus-visible { outline: 3px solid #ffd23f; outline-offset: 1px; }
+.ax2-dot { min-width: 18px; height: 18px; border-radius: 9px; background: #ffd23f; color: #1a1a18; font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 5px; }
+.ax2-panel { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.ax2-qcard { border: 1.5px solid var(--border); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--card, var(--surface-muted)); }
+.ax2-qbar { height: 8px; border-radius: 99px; background: var(--surface-hover); overflow: hidden; }
+.ax2-qbar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ffd23f, #d9431c); transition: width 0.6s; }
+.ax2-alldone { display: flex; align-items: center; gap: 12px; border: 1.5px solid var(--success); border-radius: 18px; padding: 14px; }
+.ax2-alldone b { display: block; font-family: var(--font-display); font-size: 18px; }
+.ax2-alldone small { color: var(--text-muted); font-size: 14px; }
+.ax2-tick { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--success); color: #0b0e22; display: grid; place-items: center; }
+.ax2-togo { flex: none; text-align: center; font-size: 12px; color: var(--text-muted); }
+.ax2-togo b { display: block; font-family: var(--font-display); font-size: 22px; color: var(--text); }
+.ax-tile.done { background: transparent; border-style: dashed; }
+.ax-tile.done .ax-ring { opacity: 0.5; }
+.ax-tile.done b, .ax-tile.done small { color: var(--text-muted); }
+.ax-tile.done .ax-in { background: var(--surface-hover); color: var(--text-muted); }
+.ax2-stamp { position: absolute; left: 50%; top: 24px; z-index: 3; transform: translateX(-50%) rotate(-14deg); border: 2.5px solid var(--success); color: var(--success); border-radius: 8px; padding: 1px 8px; font-family: var(--font-display); font-weight: 800; font-size: 14px; letter-spacing: 0.12em; background: color-mix(in srgb, var(--surface) 60%, transparent); pointer-events: none; animation: ax2Stamp 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+@keyframes ax2Stamp { from { transform: translateX(-50%) rotate(-14deg) scale(2.2); opacity: 0; } }
+.ax2-path { position: relative; display: flex; flex-direction: column; gap: 10px; padding-left: 22px; }
+.ax2-path::before { content: ''; position: absolute; left: 9px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--surface-hover); }
+.ax2-node { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; gap: 12px; background: var(--card, var(--surface-muted)); border: 1.5px solid var(--border); border-radius: 16px; padding: 10px 12px; cursor: pointer; width: 100%; }
+.ax2-node::before { content: ''; position: absolute; left: -19px; top: 50%; width: 15px; height: 15px; margin-top: -7px; border-radius: 50%; background: var(--surface-hover); border: 3px solid var(--surface); box-shadow: 0 0 0 2px var(--border); }
+.ax2-node.got::before { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+.ax2-node.ready::before { background: #ffd23f; box-shadow: 0 0 0 3px #ffd23f; }
+.ax2-node.next { border-color: var(--accent); }
+.ax2-node.locked { opacity: 0.65; }
+.ax2-lvl { flex: none; width: 46px; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); }
+.ax2-lvl b { display: block; font-family: var(--font-display); font-size: 22px; color: var(--text); letter-spacing: 0; }
+.ax2-nm { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; }
+.ax2-nm small { display: block; font-weight: 500; color: var(--text-muted); font-size: 13px; }
+.ax2-nm-ic { display: none; }
+.ax2-st { flex: none; font-size: 12px; font-weight: 800; border-radius: 99px; padding: 4px 10px; background: var(--surface-hover); color: var(--text-muted); }
+.ax2-node.got .ax2-st { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success-text, var(--success)); }
+.ax2-node.ready .ax2-st { background: #ffd23f; color: #1a1a18; }
+.ax2-node:focus-visible, .ax2-stamp:focus-visible { outline: 3px solid #ffd23f; outline-offset: 2px; }
+.ax2-flash { animation: ax2Flash 0.7s ease-in-out 3 !important; }
+@keyframes ax2Flash { 50% { box-shadow: 0 0 0 5px rgba(255, 210, 63, 0.55); border-color: #ffd23f; } }
+.ax2-rules { margin: 14px 2px 0; font-size: 14px; color: var(--text-muted); }
+.ax2-rules summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+@media (prefers-reduced-motion: reduce) { .ax2-ring .val, .ax2-xp i, .ax2-qbar i { transition: none; } .ax2-ring b.pop, .ax2-stamp, .ax2-flash { animation: none !important; } }

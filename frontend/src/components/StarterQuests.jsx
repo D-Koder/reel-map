@@ -8,7 +8,7 @@ const hiddenKey = (userId) => `reelmap:quests-hidden:${userId}`;
 
 // The details of one quest: its name, the steps to do it, and the reward. Nothing here opens the place for them: the
 // person goes and finds it, and the quest ticks by itself when the app sees it done.
-function QuestSheet({ quest, totalXp, onClose }) {
+export function QuestSheet({ quest, totalXp, onClose }) {
   const sheetRef = useRef(null);
   const drag = useSheetDrag(sheetRef, onClose);
   const reward = questReward(quest, quest.done, totalXp);
