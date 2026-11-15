@@ -241,6 +241,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
     return () => clearTimeout(timer);
   }, [unreadCount, notificationsLoaded]);
 
+  const [tourActive, setTourActive] = useState(false); // the first-run tour is on screen
   const achievements = useAchievements({ userId, accountCreatedAt, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const pinColours = usePinColours(userId);
@@ -548,7 +549,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
             collections={collections}
             banner={
               <>
-                <WelcomeSteps userId={userId} places={places} collections={collections} onInvite={() => setShareModal(collections[0])} />
+                {!tourActive && <WelcomeSteps userId={userId} places={places} collections={collections} onInvite={() => setShareModal(collections[0])} />}
                 <PasteReelCard onSave={(url) => inbox.enqueue(url, { confirm: true })} showToast={showToast} />
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} onConfirm={inbox.confirm} onReject={inbox.reject} onSaveListed={inbox.saveListed} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />
@@ -836,6 +837,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
       )}
 
       <TourHost
+        onActiveChange={setTourActive}
         userId={userId}
         name={data.profile?.display_name}
         loading={data.loading}

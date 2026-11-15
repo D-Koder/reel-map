@@ -167,13 +167,23 @@ test('the 13+ and Terms tick on the first screen goes to the new account, so sig
   assert.equal('agreed' in readDemoHandoff(mem, 2000), false);
 });
 
-test('the mascot uses the name now and then, and says nothing odd without one', () => {
+test('the mascot answers to the name in a friendly way, and says nothing odd without one', () => {
   const base = run(['start', { type: 'plan', name: 'x', emoji: 'y' }, 'paste', 'found', 'save', 'saved-done', 'open', { type: 'booked', iso: 'x' }]);
   const named = { ...base, name: 'Sam' };
-  assert.equal(describeDemo(named).title, 'Booked, Sam! 🎉');
-  assert.equal(describeDemo(base).title, 'Booked! 🎉');
+  // Welcome, after the first screen.
+  const planq = run([{ type: 'start', name: 'Sam' }]);
+  assert.equal(describeDemo(planq).title, 'Welcome, Sam! 👋');
+  assert.equal(describeDemo(run(['start'])).title, 'What are you planning?');
+  // Saving, picking a time, booking.
+  assert.equal(describeDemo({ ...named, step: 'saved' }).title, 'Nice one, Sam! 🎉');
+  assert.equal(describeDemo({ ...base, step: 'saved' }).title, 'Saved! 🎉');
   assert.equal(describeDemo({ ...named, booked: null }, { timePicked: true }).title, 'Nice, Sam');
   assert.equal(describeDemo({ ...base, booked: null }, { timePicked: true }).title, 'Nice');
-  // Most tips stay plain, so the name feels like a treat.
-  assert.equal(describeDemo({ ...named, step: 'saved' }).title, 'Saved! 🎉');
+  assert.equal(describeDemo(named).title, 'Booked, Sam! 🎉');
+  assert.match(describeDemo(named).body, /^Thanks for booking, Sam 🙂 Your group gets a ping/);
+  assert.equal(describeDemo(base).title, 'Booked! 🎉');
+  assert.doesNotMatch(describeDemo(base).body, /Sam|Thanks for booking/);
+  // The end card thanks them too.
+  assert.match(doneSummary({ ...named, step: 'done' }).body, /^Thanks for playing along, Sam 🙂/);
+  assert.doesNotMatch(doneSummary({ ...base, step: 'done' }).body, /Thanks for playing/);
 });

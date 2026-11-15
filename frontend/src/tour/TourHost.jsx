@@ -95,7 +95,7 @@ function Overlay({ stepId, desc, dot, dotCount, canBack, onBack, onNext, onSkipT
 // the sample place when it ends. It reads the app's state through props and drives the app through `actions`.
 export default function TourHost({
   userId, name, loading, blocked, waitingForInvite, joinedByInvite,
-  places, collections, inboxItems, isWide, screen, openPinId, editPinId, settingsOpen, shareOpen, notificationsOpen, actions,
+  places, collections, inboxItems, isWide, screen, openPinId, editPinId, settingsOpen, shareOpen, notificationsOpen, actions, onActiveChange,
 }) {
   // undefined while loading, null for a new account, 'missing' until the database has the column, else what was saved.
   const [saved, setSaved] = useState(undefined);
@@ -106,6 +106,9 @@ export default function TourHost({
   const removing = useRef(new Set());
   const creatingDemoCollection = useRef(false);
   actionsRef.current = actions;
+  // The app hides its Get started card while the tour is on screen, so the two do not talk over each other.
+  const active = Boolean(t);
+  useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
 
   useEffect(() => {
     let off = false;

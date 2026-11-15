@@ -81,7 +81,7 @@ export function doneSummary(s) {
   if (!s.booked) {
     return { title: 'Ready when you are', body: did.length ? `You ${did.join(' and ')}. Save your own reels and plan with a partner.` : 'Save your own reels and plan with a partner.' };
   }
-  return { title: `You planned your first date${s.name ? `, ${s.name}` : ''}! 🎉`, body: `You ${did.join(' and ')} faster than I could say Waylit Maps. Make it yours and plan with a partner.` };
+  return { title: `You planned your first date${s.name ? `, ${s.name}` : ''}! 🎉`, body: `${s.name ? `Thanks for playing along, ${s.name} 🙂 ` : ''}You ${did.join(' and ')} faster than I could say Waylit Maps. Make it yours and plan with a partner.` };
 }
 
 // The words, the pose and what to point at for the current moment.
@@ -93,7 +93,9 @@ export function describeDemo(s, dom = {}) {
   const tip = (title, body, pose, extra = {}) => ({ title, body, pose, target: null, center: false, ...extra });
   let d;
   if (s.step === 'welcome') d = tip('Try Waylit. No account needed.', 'Turn a reel into a plan in a few taps.', 'hello', { center: true });
-  else if (s.step === 'planq') d = tip('What are you planning?', 'Pick one to start your first collection.', 'thinking', { center: true });
+  else if (s.step === 'planq') d = s.name
+    ? tip(`Welcome, ${s.name}! 👋`, 'So, what are you planning? Pick one to start your first collection.', 'hello', { center: true })
+    : tip('What are you planning?', 'Pick one to start your first collection.', 'thinking', { center: true });
   else if (s.step === 'paste') {
     if (s.paste === 'finding') d = tip('Finding your spot…', 'Just a moment.', 'looking', { target: '.inbox-card' });
     else if (s.paste === 'confirm') {
@@ -101,9 +103,9 @@ export function describeDemo(s, dom = {}) {
         ? tip('Verify place', 'In your account this lets you pick a different place. For now, tap Save.', 'pointing', { target: '[data-tour="confirm"]', hint: true, hintTarget: SAVE_BUTTON })
         : tip('Is this the spot?', "Check it's right, then tap Save. Not quite right? Tap Verify place to pick the right one.", 'pointing', { target: '[data-tour="confirm"]', hint: true, hintTarget: SAVE_BUTTON });
     } else d = tip('Got a reel?', 'Copy the link, then tap Paste.', 'pointing', { target: '[data-tour="paste"]', hint: true });
-  } else if (s.step === 'saved') d = tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
+  } else if (s.step === 'saved') d = s.name ? tip(`Nice one, ${s.name}! 🎉`, 'Saved. Your first place is in.', 'celebrate') : tip('Saved! 🎉', 'Your first place is in.', 'celebrate');
   else if (s.step === 'book') {
-    if (s.booked) d = tip(`Booked${s.name ? `, ${s.name}` : ''}! 🎉`, 'Your group gets a ping. Tap Done to finish.', 'celebrate', { next: 'booked-next', target: '.checklist-step' });
+    if (s.booked) d = tip(`Booked${s.name ? `, ${s.name}` : ''}! 🎉`, `${s.name ? `Thanks for booking, ${s.name} 🙂 ` : ''}Your group gets a ping. Tap Done to finish.`, 'celebrate', { next: 'booked-next', target: '.checklist-step' });
     else if (!s.placeOpen) d = tip("Let's book it", 'Tap your place.', 'pointing', { target: '[data-tour="place"]', hint: true });
     else if (dom.wizard === 'confirm') d = tip('Set the time you got', 'Change the time if you like, then tap Confirm.', 'pointing', { target: '.checklist-step', hint: true, hintTarget: '.checklist-step .step-btn.primary' });
     else if (dom.timePicked) d = tip(`Nice${s.name ? `, ${s.name}` : ''}`, 'Tap Continue.', 'pointing', { target: '.time-picker .step-btn.primary', hint: true });

@@ -166,16 +166,19 @@ export function describe(id, ctx) {
         return { title: 'Never miss it', body: 'Notifications are on by default. Open Settings to choose a day and time for your weekly pick.', hint: 'Tap the settings button.', anchor: '[data-tour="gear"]', skipLabel: 'Do this later' };
       }
       const anchor = '[data-tour="notify"]';
+      // This step opens Settings, so it says what the whole panel is for, then what to know about notifications on this phone.
+      const title = 'Your settings';
+      const intro = 'This is your settings panel. Customise your account, manage your collections, and set up your notifications and shortcuts.';
       if (ctx.pushState === 'default') {
-        return { title: 'Allow notifications', body: 'They are on for your account. Allow them on this phone to get reminders, votes and booking updates. You can also choose a day and time for your weekly pick, or turn it off.', anchor, needsNext: true, extra: { label: 'Allow on this phone', action: 'allow-push' } };
+        return { title, body: `${intro} Notifications are on for your account. Allow them on this phone to get reminders, votes and booking updates.`, anchor, needsNext: true, extra: { label: 'Allow on this phone', action: 'allow-push' } };
       }
       if (ctx.pushState === 'denied') {
-        return { title: 'Notifications are blocked', body: 'This phone is blocking them. You can allow Waylit in your browser settings. Your weekly pick day and time are here too.', anchor, needsNext: true };
+        return { title, body: `${intro} This phone is blocking notifications. You can allow Waylit in your browser settings.`, anchor, needsNext: true };
       }
       if (ctx.pushState === 'unsupported') {
-        return { title: 'Notifications on your phone', body: 'They work once Waylit is on your Home Screen. Your weekly pick day and time are here too, and you can turn it off.', anchor, needsNext: true };
+        return { title, body: `${intro} Notifications work once Waylit is on your Home Screen.`, anchor, needsNext: true };
       }
-      return { title: 'Your notifications are on', body: "You'll get reminders, votes and booking updates. Choose a day and time for your weekly pick, or turn it off.", anchor, needsNext: true };
+      return { title, body: `${intro} Your notifications are on, and you can pick a day and time for your weekly pick here.`, anchor, needsNext: true };
     }
 
     case 'vote': {

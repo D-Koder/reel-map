@@ -152,7 +152,16 @@ test('notifications are described as on by default, with no "switch it on" instr
     const d = describe('notify', withPlace({ settingsOpen: true, pushState }));
     assert.doesNotMatch(`${d.title} ${d.body} ${d.hint ?? ''}`, /switch .* on|turn on notifications/i, pushState);
   }
-  assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'granted' })).title, 'Your notifications are on');
+  // The step explains the whole settings panel, then says what matters for notifications on this phone.
+  for (const pushState of ['granted', 'default', 'denied', 'unsupported']) {
+    const d = describe('notify', withPlace({ settingsOpen: true, pushState }));
+    assert.equal(d.title, 'Your settings', pushState);
+    assert.match(d.body, /account/i);
+    assert.match(d.body, /collections/i);
+    assert.match(d.body, /notifications/i);
+    assert.match(d.body, /shortcuts/i);
+  }
+  assert.match(describe('notify', withPlace({ settingsOpen: true, pushState: 'granted' })).body, /are on/i);
   assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'default' })).extra.action, 'allow-push');
   assert.equal(describe('notify', withPlace({ settingsOpen: true, pushState: 'granted' })).extra, undefined);
 });

@@ -11,7 +11,6 @@ import HomeScreen from '../components/HomeScreen';
 import PinModal from '../components/PinModal';
 import ReelInbox from '../components/ReelInbox';
 import PasteReelCard from '../components/PasteReelCard';
-import WelcomeSteps from '../components/WelcomeSteps';
 import { AppHeader, BottomNav } from '../components/AppChrome';
 import { SAMPLE_DETAILS, TOUR_MARK } from '../tour/steps';
 import { markDemoDone, saveDemoHandoff } from '../lib/demoHandoff';
@@ -339,7 +338,6 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
 
   const banner = (
     <>
-      <WelcomeSteps userId={ME} places={places} collections={collections} onInvite={noop} />
       <PasteReelCard onSave={noop} showToast={showToast} onPaste={() => s.step === 'paste' && s.paste === 'idle' && dispatch({ type: 'paste' })} />
       <ReelInbox
         items={inboxItems}
