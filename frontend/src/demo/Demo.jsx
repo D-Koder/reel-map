@@ -355,7 +355,7 @@ export default function Demo({ onExit, onSignUp, onLogin }) {
 
   return (
     <div className="app demo-app">
-      <AppHeader />
+      <AppHeader profile={me} />
       <main className="content">
         <section className="panel panel-home active">
           <HomeScreen

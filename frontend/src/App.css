@@ -6826,3 +6826,9 @@ button { transition: scale 0.12s ease; }
 .quest-xp { flex: none; font-size: 12px; font-weight: 800; color: var(--accent, #d9431c); }
 .quest-toggle { margin-top: 8px; background: none; border: 0; padding: 4px 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .quest-bar i { transition: none; } }
+
+/* The person's picture as the Settings button in the header, and the lantern held still inside any avatar circle. */
+.header-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-muted); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; font-size: 18px; line-height: 1; }
+.header-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.header-btn .header-avatar svg { width: auto; height: auto; }
+.header-avatar .tour-lantern, .profile-avatar .tour-lantern, .person-avatar .tour-lantern, .collection-member-avatar .tour-lantern, .avatar-option .tour-lantern { animation: none; }

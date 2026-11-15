@@ -532,7 +532,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
 
   return (
     <div className="app">
-      <AppHeader unreadCount={unreadCount} bellRinging={bellRinging} onBell={() => { setNotificationsOpen(true); markAllRead(); }} onGear={() => setSettingsOpen(true)} />
+      <AppHeader unreadCount={unreadCount} bellRinging={bellRinging} onBell={() => { setNotificationsOpen(true); markAllRead(); }} onGear={() => setSettingsOpen(true)} profile={data.profile ? { ...data.profile, frame: achievements.frame } : null} />
 
       {!online && (
         <div className="offline-banner" role="status">

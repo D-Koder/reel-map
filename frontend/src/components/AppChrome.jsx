@@ -1,8 +1,11 @@
 import React from 'react';
 import { Bell, House, Map as MapIcon, Plus, SlidersHorizontal } from 'lucide-react';
+import { AvatarFace } from './Avatar';
+import FramedAvatar from './FramedAvatar';
 
 // The top bar and the bottom tab bar of the signed-in app. The no-login demo draws these same two pieces.
-export function AppHeader({ unreadCount = 0, bellRinging = false, onBell, onGear }) {
+// profile: the signed-in person (avatar, avatar_url, frame). Their picture is the Settings button; without one it is the sliders icon.
+export function AppHeader({ unreadCount = 0, bellRinging = false, onBell, onGear, profile = null }) {
   return (
     <header className="header">
       <span className="header-title">waylit maps<span className="wordmark-dot" aria-hidden="true">.</span></span>
@@ -16,7 +19,11 @@ export function AppHeader({ unreadCount = 0, bellRinging = false, onBell, onGear
           )}
         </button>
         <button className="header-btn" data-tour="gear" onClick={onGear} aria-label="Settings">
-          <SlidersHorizontal aria-hidden="true" />
+          {profile ? (
+            <FramedAvatar frame={profile.frame} small>
+              <span className="header-avatar"><AvatarFace person={profile} lantern={22} /></span>
+            </FramedAvatar>
+          ) : <SlidersHorizontal aria-hidden="true" />}
         </button>
       </div>
     </header>
