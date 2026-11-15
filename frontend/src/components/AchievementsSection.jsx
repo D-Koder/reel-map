@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, Lock, MapPin, Medal, MessageSquare, PlayCircle, Repeat, Rocket, UtensilsCrossed, Zap, ChevronDown, ChevronRight, ChevronUp, Frame } from 'lucide-react';
 import FramedAvatar from './FramedAvatar';
-import { FRAMES, frameUnlocked, badgeById } from '../lib/achievements';
+import { FRAMES, frameLockLabel, frameUnlocked } from '../lib/achievements';
 
 export const BADGE_ICONS = { Building2, Calendar, Camera, Clock, Compass, Flame, Gem, Globe, Heart, Hourglass, Leaf, Link, MapPin, MessageSquare, PlayCircle, Repeat, Rocket, UtensilsCrossed, Zap };
 
@@ -53,7 +53,7 @@ export default function AchievementsSection({ achievements, onOpenAchievements }
                 <button key={f.id} type="button" className={`ach-frame${unlocked ? '' : ' locked'}`} aria-pressed={frame === f.id} disabled={!unlocked} onClick={() => setFrame(f.id)}>
                   <Swatch frame={f.id} />
                   <span>{f.name}</span>
-                  <small>{unlocked ? (f.months ? 'In season' : 'Earned') : f.months ? f.season : <><Lock aria-hidden="true" /> {badgeById(f.badge).name}</>}</small>
+                  <small>{unlocked ? (f.months ? 'In season' : 'Earned') : f.months ? f.season : <><Lock aria-hidden="true" /> {frameLockLabel(f)}</>}</small>
                 </button>
               );
             })}

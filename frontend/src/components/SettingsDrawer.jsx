@@ -4,10 +4,9 @@ import { ArrowLeft, Bell, Info, RefreshCw, Flame, Camera, ChevronDown, ChevronRi
 import { supabase } from '../lib/supabase';
 import AchievementsSection from './AchievementsSection';
 import FramedAvatar from './FramedAvatar';
-import { PIN_COLOURS } from '../hooks/usePinColours';
-import { PIN_PATTERNS, patternTile, patternUnlocked } from '../lib/pinPatterns';
+import Lantern from '../tour/Lantern';
 import { detectPlatform, isInstalled } from '../lib/platform';
-import { AVATARS, DEFAULT_AVATAR_URL } from '../lib/constants';
+import { AVATARS } from '../lib/constants';
 import { clearUserStorage } from '../lib/storage';
 import { findInboxCollection } from '../hooks/useReelInbox';
 import { disableFridayPick, enableFridayPick, getPushSubscription, isPushSupported } from '../lib/push';
@@ -357,7 +356,7 @@ function ShortcutSetup({ showToast }) {
 }
 
 // isInbox: my TBD collection, where shared reels land. It can be renamed (in Share & manage) but not deleted.
-function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare, pin, onPin, unlocked }) {
+function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMoveDown, onMove, onTogglePrivacy, onShare }) {
   const owner = collection.members.find((m) => m.role === 'owner');
 
   return (
@@ -402,29 +401,6 @@ function CollectionRow({ collection, isOwner, isInbox = false, canMoveUp, canMov
           </button>
         )}
       </div>
-      {onPin && (
-        <div className="pin-colours" role="group" aria-label={`Pin colour for ${collection.name}`}>
-          <span className="pin-colours-label">Pins</span>
-          <button type="button" className="pin-swatch pin-swatch-none" aria-pressed={!pin?.c} aria-label="Group colours (default)" title="Group colours (default)" onClick={() => onPin({ c: null })} />
-          {PIN_COLOURS.map((c) => (
-            <button key={c.id} type="button" className="pin-swatch" style={{ background: c.hex }} aria-pressed={pin?.c === c.hex} aria-label={c.name} title={c.name} onClick={() => onPin({ c: c.hex })} />
-          ))}
-        </div>
-      )}
-      {onPin && (
-        <div className="pin-colours" role="group" aria-label={`Pin pattern for ${collection.name}`}>
-          <span className="pin-colours-label">Pattern</span>
-          <button type="button" className="pin-swatch pin-pattern" style={{ background: pin?.c ?? 'var(--surface-hover)' }} aria-pressed={!pin?.p} aria-label="No pattern" title="No pattern" onClick={() => onPin({ p: null })} />
-          {PIN_PATTERNS.map((p) => {
-            const open = unlocked ? patternUnlocked(p, unlocked) : false;
-            return (
-              <button key={p.id} type="button" className={`pin-swatch pin-pattern${open ? '' : ' pin-pattern-locked'}`} style={{ background: pin?.c ?? '#d4421d', backgroundImage: `${patternTile(p.id)}, ${patternTile(p.id)}` }} aria-pressed={pin?.p === p.id} aria-label={open ? p.name : `${p.name}, locked`} disabled={!open} title={open ? p.name : `${p.name}: ${p.unlock.badge ? 'earn the Explorer badge' : `reach Level ${p.unlock.prize} and claim the prize`}`} onClick={() => onPin({ p: p.id })}>
-                {!open && <Lock aria-hidden="true" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -586,7 +562,8 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
     profile.avatar_url ? (
       <img className="profile-avatar-image" src={profile.avatar_url} alt="Profile" />
     ) : profile.avatar === '🙂' ? (
-      <img className="profile-avatar-image" src={DEFAULT_AVATAR_URL} alt="Profile" />
+      // Everyone starts with the Waylit lantern, not a grey silhouette.
+      <Lantern size={44} pose="hello" />
     ) : (
       profile.avatar
     )
@@ -656,7 +633,7 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
                         setPickingAvatar(false);
                       }}
                     >
-                      {a}
+                      {a === '🙂' ? <Lantern size={30} pose="hello" /> : a}
                     </button>
                   ))}
                 </div>
@@ -777,7 +754,6 @@ export default function SettingsDrawer({
   userId,
   profile,
   achievements,
-  pinColours,
   onOpenAchievements,
   collections,
   onCreateCollection,
@@ -864,9 +840,6 @@ export default function SettingsDrawer({
                 }}
                 onTogglePrivacy={toggleLock}
                 onShare={onShare}
-                pin={pinColours?.map[c.id]}
-                onPin={pinColours && c.id !== inboxId ? (patch) => pinColours.setPin(c.id, patch) : undefined}
-                unlocked={pinColours?.unlocked}
               />
             ))}
             <form className="inline-form" data-tour="new-collection" onSubmit={addCollection}>

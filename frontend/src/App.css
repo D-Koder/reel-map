@@ -871,7 +871,7 @@ button.collection-empty {
 .collection-manage-heading { margin-bottom: 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
 .collection-member-row { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .collection-member-label { flex: 1; font-size: 15px; }
-.collection-member-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.collection-member-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: inline-grid; place-items: center; overflow: hidden; }
 .person-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 
 .street-label {

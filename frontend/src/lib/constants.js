@@ -18,7 +18,6 @@ const CATEGORY_IDS = new Set(categories.map((c) => c.id));
 export const knownCategory = (id) => (CATEGORY_IDS.has(id) ? id : null);
 
 export const AVATARS = ['🙂', '😎', '🧑', '👩', '👨', '🦊', '🐼', '🐨', '🌸', '⚡'];
-export const DEFAULT_AVATAR_URL = 'https://static.vecteezy.com/system/resources/previews/036/280/650/large_2x/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-illustration-vector.jpg';
 
 export function categoryIcon(categoryId) {
   return categories.find((c) => c.id === categoryId)?.icon ?? '📍';

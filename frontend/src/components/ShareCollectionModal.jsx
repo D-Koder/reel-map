@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Copy, Crown, Download, Eye, FileSpreadsheet, Link, Lock, Pencil, Send, Users, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { formatInviteCode, useInvites } from '../hooks/useInvites';
-import { DEFAULT_AVATAR_URL } from '../lib/constants';
 import { exportCollection } from '../lib/collectionFile';
 import { canEditCollection } from '../lib/roles';
 import EmojiPicker from './EmojiPicker';
@@ -11,6 +10,8 @@ import { emitTour } from '../tour/events';
 import { useFriends } from '../hooks/useFriends';
 import { addableFriends } from '../lib/friends';
 import Avatar from './Avatar';
+import PinStyle from './PinStyle';
+import Lantern from '../tour/Lantern';
 
 async function copy(text, label, showToast) {
   try {
@@ -21,7 +22,7 @@ async function copy(text, label, showToast) {
   }
 }
 
-export default function ShareCollectionModal({ collection, userId, places = [], onSetRole, onUpdate, onRemoveMember, onDelete, onClose, showToast }) {
+export default function ShareCollectionModal({ collection, userId, places = [], pin, onPin, pinUnlocked, onSetRole, onUpdate, onRemoveMember, onDelete, onClose, showToast }) {
   const sheetRef = React.useRef(null);
   const sheetDrag = useSheetDrag(sheetRef, onClose);
   const { getInvite } = useInvites(userId, showToast);
@@ -151,6 +152,8 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
             </form>
           )}
 
+          {onPin && <PinStyle collection={collection} pin={pin} onPin={onPin} unlocked={pinUnlocked} />}
+
           <div className="invite-card">
             <div className="invite-card-label">{collection.isPrivate ? 'Locked' : 'Invite code'}</div>
             {collection.isPrivate ? (
@@ -243,7 +246,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               {collection.members.map((member) => (
                 <div className="share-member" key={member.id}>
                   <span className="share-member-avatar">
-                    {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <img className="collection-member-avatar" src={DEFAULT_AVATAR_URL} alt="" /> : member.avatar}
+                    {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <span className="collection-member-avatar"><Lantern size={28} pose="hello" /></span> : member.avatar}
                   </span>
                   <span className="share-member-name">{member.display_name}</span>
                   {member.role === 'owner' ? (

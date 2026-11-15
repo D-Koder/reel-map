@@ -1,7 +1,7 @@
 // Run with: node --test frontend/src/lib/achievements.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BADGES, FRAMES, FUN_TITLES, TITLE_LADDERS, badgeStatus, computeProgress, earnedTitles, frameUnlocked, funTitles, inSeason, frameById, titleLadders } from './achievements.js';
+import { BADGES, FRAMES, FUN_TITLES, TITLE_LADDERS, badgeStatus, computeProgress, demoCelebrationPending, earnedTitles, frameLockLabel, frameUnlocked, funTitles, inSeason, frameById, titleLadders } from './achievements.js';
 
 const day = (n) => new Date(Date.UTC(2026, 10, 12) - n * 86400000).toISOString();
 const collections = [{ id: 'c1', members: [{ id: 'me' }, { id: 'sam' }] }, { id: 'c2', members: [{ id: 'me' }] }];
@@ -118,4 +118,31 @@ test('finishing the demo earns Test Driver and its title', () => {
   assert.equal(badgeStatus({ demoDone: false }).find((b) => b.id === 'demo').earned, false);
   assert.equal(badgeStatus({ demoDone: true }).find((b) => b.id === 'demo').earned, true);
   assert.ok(earnedTitles(new Set(['demo'])).includes('Test Driver'));
+});
+
+test('every frame says what it needs, including the Level 25 prize frame (it once crashed Customise profile)', () => {
+  for (const f of FRAMES) assert.ok(frameLockLabel(f), `${f.id} needs a lock label`);
+  assert.equal(frameLockLabel(frameById('laurel')), 'Level 25');
+  assert.equal(frameLockLabel(frameById('bronze')), 'Explorer');
+  assert.equal(frameLockLabel(frameById('sunny')), 'Jun to Aug');
+});
+
+test('the first-run tour waits for the Test Driver celebration, but never for ever', () => {
+  const base = { ready: true, accountBadge: true, demoBadge: null, deviceDone: false, isNewAccount: true, graceOver: false, demoReady: false };
+  // Nothing to celebrate: the tour goes ahead.
+  assert.equal(demoCelebrationPending(base), false);
+  // Not loaded yet: no hold.
+  assert.equal(demoCelebrationPending({ ...base, ready: false, demoBadge: 'earned' }), false);
+  // Earned on the account (email sign-up): hold until it is claimed.
+  assert.equal(demoCelebrationPending({ ...base, demoBadge: 'earned' }), true);
+  assert.equal(demoCelebrationPending({ ...base, demoBadge: 'claimed' }), false);
+  // Google sign-up: the demo was finished on this device and the mark is being saved. Held briefly, then let go.
+  assert.equal(demoCelebrationPending({ ...base, deviceDone: true }), true);
+  assert.equal(demoCelebrationPending({ ...base, deviceDone: true, graceOver: true }), false);
+  // An older account that finished the demo on this device earns nothing, so nothing is held.
+  assert.equal(demoCelebrationPending({ ...base, deviceDone: true, isNewAccount: false }), false);
+  // No database column yet: the device decides.
+  assert.equal(demoCelebrationPending({ ...base, accountBadge: false, deviceDone: true }), true);
+  assert.equal(demoCelebrationPending({ ...base, accountBadge: false, demoReady: true, graceOver: true }), true);
+  assert.equal(demoCelebrationPending({ ...base, accountBadge: false }), false);
 });

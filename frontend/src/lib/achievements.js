@@ -55,6 +55,22 @@ export const BASE_TITLE = 'Wanderer';
 export const badgeById = (id) => BADGES.find((b) => b.id === id);
 export const frameById = (id) => FRAMES.find((f) => f.id === id);
 
+// What a locked frame says it needs: a season, a level (the Level 25 prize frame), or a badge.
+export function frameLockLabel(frame) {
+  if (frame.months) return frame.season;
+  if (frame.prize) return `Level ${frame.prize}`;
+  return badgeById(frame.badge)?.name ?? '';
+}
+
+// Is a Test Driver celebration still to come? The first-run tour waits while this is true, so a new account claims its
+// prize first. With the database column (accountBadge) the answer comes from the account; without it, from this device.
+// graceOver ends the "not marked yet" wait after a few seconds, in case the mark could not be saved.
+export function demoCelebrationPending({ ready, accountBadge, demoBadge, deviceDone, isNewAccount, graceOver, demoReady }) {
+  if (!ready) return false;
+  if (accountBadge) return demoBadge === 'earned' || (demoBadge == null && deviceDone && isNewAccount && !graceOver);
+  return (deviceDone && !graceOver) || demoReady;
+}
+
 export function inSeason(frame, date = new Date()) {
   if (!frame.months) return false;
   const month = date.getMonth() + 1;

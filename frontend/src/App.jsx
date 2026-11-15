@@ -35,7 +35,7 @@ import { useInvites } from './hooks/useInvites';
 import { useNearbyAlerts } from './hooks/useNearbyAlerts';
 import { useNotifications } from './hooks/useNotifications';
 import { useOnline } from './hooks/useOnline';
-import { rememberCollection, useReelInbox } from './hooks/useReelInbox';
+import { findInboxCollection, rememberCollection, useReelInbox } from './hooks/useReelInbox';
 import { useShortcutReels } from './hooks/useShortcutReels';
 import { notificationTarget } from './lib/notificationTarget';
 import { forgetInvite, forgetSharedPlace, pendingInvite, pendingSharedPlace, rememberInvite, rememberSharedPlace, takeSharedPlaceFromUrl } from './lib/share';
@@ -626,7 +626,6 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
         userId={userId}
         profile={data.profile}
         achievements={achievements}
-        pinColours={{ map: pinColours.map, setPin: pinColours.setPin, unlocked }}
         onOpenAchievements={() => { setSettingsOpen(false); setAchievementsOpen(true); }}
         collections={collections}
         onCreateCollection={data.createCollection}
@@ -831,6 +830,9 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
           onRemoveMember={(member) => data.removeCollectionMember(shareModal.id, member.id)}
           onDelete={() => deleteCollection(shareModal.id)}
           places={places.filter((p) => p.collection_id === shareModal.id)}
+          pin={pinColours.map[shareModal.id]}
+          onPin={findInboxCollection(collections)?.id === shareModal.id ? undefined : (patch) => pinColours.setPin(shareModal.id, patch)}
+          pinUnlocked={unlocked}
           onClose={() => setShareModal(null)}
           showToast={showToast}
         />
@@ -840,7 +842,8 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
         userId={userId}
         name={data.profile?.display_name}
         loading={data.loading}
-        blocked={Boolean(sharedPlaceId) || adding}
+        // A new account claims its prize (and any level-up) before the first-run tour starts.
+        blocked={Boolean(sharedPlaceId) || adding || achievements.pendingDemo || Boolean(achievements.reward) || Boolean(achievements.levelUp)}
         waitingForInvite={waitingForInvite}
         joinedByInvite={joinedByInvite}
         places={places}

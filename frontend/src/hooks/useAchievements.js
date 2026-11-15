@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BASE_TITLE, badgeStatus, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
+import { BASE_TITLE, badgeStatus, demoCelebrationPending, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
 import { PRIZES, levelInfo, prizeToken, prizesBetween, totalXp } from '../lib/levels';
 import { clearDemoDone, demoDoneHere } from '../lib/demoHandoff';
 import { readJSON, writeJSON } from '../lib/storage';
@@ -43,14 +43,24 @@ export default function useAchievements({ userId, accountCreatedAt, ready, place
 
   // Signing in with Google cannot carry the demo with it, so a brand-new account (made in the last hour) on the
   // device that finished the demo is marked here instead. An account that already existed is never marked.
+  const NEW_ACCOUNT_MS = 60 * 60 * 1000;
+  const accountAge = Date.now() - new Date(accountCreatedAt ?? 0).getTime();
+  const isNewAccount = accountAge >= 0 && accountAge < NEW_ACCOUNT_MS;
+  const granting = useRef(false);
   useEffect(() => {
     if (!ready || !accountBadge || !demoDoneHere()) return;
-    // The account now carries the badge (or is not new enough to earn it): this device's memory has done its job.
+    // The account now carries the badge: this device's memory has done its job.
     if (profile.demoBadge != null) { clearDemoDone(); return; }
-    const age = Date.now() - new Date(accountCreatedAt ?? 0).getTime();
-    if (age >= 0 && age < 60 * 60 * 1000) saveFlair?.({ demo_badge: 'earned' });
-    clearDemoDone();
-  }, [ready, accountBadge, profile?.demoBadge, accountCreatedAt, saveFlair]);
+    if (!isNewAccount) { clearDemoDone(); return; }
+    if (granting.current) return;
+    granting.current = true;
+    saveFlair?.({ demo_badge: 'earned' });
+  }, [ready, accountBadge, profile?.demoBadge, isNewAccount, saveFlair]);
+
+  // True while a Test Driver celebration is still to come for this new account, so the first-run tour can wait for it.
+  // The not-yet-marked phase is only held for a few seconds, in case the mark could not be saved.
+  const [graceOver, setGraceOver] = useState(false);
+  useEffect(() => { const timer = setTimeout(() => setGraceOver(true), 8000); return () => clearTimeout(timer); }, []);
 
   // Badges celebrated before claiming existed count as claimed ("seen" was their old name).
   const claimedBadges = useMemo(() => {
@@ -136,7 +146,10 @@ export default function useAchievements({ userId, accountCreatedAt, ready, place
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, demoReady]);
 
+  const pendingDemo = demoCelebrationPending({ ready, accountBadge, demoBadge: profile?.demoBadge, deviceDone: demoDoneHere(), isNewAccount, graceOver, demoReady });
+
   return {
+    pendingDemo,
     badges,
     earnedIds,
     titles,
