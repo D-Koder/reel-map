@@ -15,11 +15,13 @@ export const QUESTS_LAUNCH = '2026-11-16T00:00:00Z';
 export const QUESTS = [
   {
     id: 'name', xp: 5, title: 'Make it yours: your name',
+    steps: ['Tap your picture at the top right.', 'Tap your card at the top of Settings.', 'Check your name.', 'Tap Save.'],
     why: 'Friends see this name, and it makes the app feel like yours.',
     how: 'Settings, tap your card, check your name and tap Save.',
   },
   {
     id: 'customise', xp: 10, title: 'Customise your profile',
+    steps: ['Tap your picture at the top right.', 'Tap Customise profile.', 'Pick a frame, a title or a picture.'],
     why: 'Frames and titles are how badges show off. This is where you wear them.',
     how: 'Settings, Customise profile: wear a frame, pick a title, or change your picture.',
     detect: ({ profile }) => Boolean(
@@ -31,42 +33,49 @@ export const QUESTS = [
   },
   {
     id: 'save', xp: 15, title: 'Save your first reel',
+    steps: ['Copy a reel link from Instagram or TikTok.', 'Come back to Waylit and tap Paste a reel link.', 'Check the place and tap Save.'],
     why: 'Saving reels is the whole point: it turns scrolling into plans.',
     how: 'Copy a reel link, tap Paste a reel link, then Save.',
     detect: ({ places }) => (places?.length ?? 0) > 0,
   },
   {
     id: 'homescreen', xp: 15, title: 'Add Waylit to your Home Screen',
+    steps: ['Open Waylit in Safari.', 'Tap the Share button.', 'Tap Add to Home Screen.', 'Open Waylit from the new icon.'],
     why: 'It opens faster, and on iPhone notifications only work from the Home Screen.',
     how: 'In Safari tap Share, then Add to Home Screen, and open Waylit from the icon.',
     detect: ({ standalone }) => Boolean(standalone),
   },
   {
     id: 'notifications', xp: 10, title: 'Turn on notifications',
+    steps: ['Tap your picture at the top right.', 'Find Notifications.', 'Tap Allow on this phone.'],
     why: 'Votes, bookings and your weekly pick find you instead of the other way round.',
     how: 'Settings, Notifications, Allow on this phone.',
     detect: ({ pushSubscribed }) => Boolean(pushSubscribed),
   },
   {
     id: 'shortcut', xp: 10, title: 'Set up the share shortcut',
+    steps: ['Tap your picture at the top right.', 'Find Shortcut and follow the steps.', 'Share a reel to Waylit.'],
     why: 'The fastest way to save: share a reel straight from Instagram or TikTok.',
     how: 'Settings, Shortcut: follow the steps, then share a reel to Waylit.',
     detect: ({ shortcutConnected }) => Boolean(shortcutConnected),
   },
   {
     id: 'invite', xp: 15, title: 'Invite your partner',
+    steps: ["Open a collection's gear.", 'Tap Send invite to my partner.', 'Send it. It counts once they join.'],
     why: 'Plans are better with two, and you see who is keen.',
     how: 'Open a collection\'s gear and tap Send invite to my partner. It counts once they join.',
     detect: ({ collections }) => (collections ?? []).some((c) => (c.members?.length ?? 0) > 1),
   },
   {
     id: 'vote', xp: 5, title: 'Vote on a place',
+    steps: ['Open a saved place.', 'Tap Keen, Maybe or Meh.'],
     why: 'Keen, Maybe or Meh tells your group what to do next.',
     how: 'Open a saved place and tap how keen you are.',
     detect: ({ places, userId }) => (places ?? []).some((p) => p.reactions?.[userId]),
   },
   {
     id: 'book', xp: 10, title: 'Book a time',
+    steps: ['Open a place.', 'Pick a day and a time.', 'Tap Confirm.'],
     why: 'This is the payoff: a real plan with a day and a time.',
     how: 'Open a place, pick a day and time, then Confirm.',
     detect: ({ places, userId }) => (places ?? []).some((p) => p.booking?.planned_at && (!p.booking.booked_by || p.booking.booked_by === userId)),
@@ -115,6 +124,6 @@ export function questProgress(notes) {
     totalXp: QUESTS.reduce((sum, q) => sum + q.xp, 0),
     complete: doneList.length === QUESTS.length,
     next: QUESTS.filter((q) => !notes?.[q.id]),
-    list: QUESTS.map((q) => ({ id: q.id, title: q.title, why: q.why, how: q.how, xp: q.xp, done: Boolean(notes?.[q.id]) })),
+    list: QUESTS.map((q) => ({ id: q.id, title: q.title, why: q.why, how: q.how, steps: q.steps, xp: q.xp, done: Boolean(notes?.[q.id]) })),
   };
 }

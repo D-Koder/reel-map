@@ -143,7 +143,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                   <span className="chest-reveal">
                     <span className="chest-new">New badge · 1 of {BADGES.length}</span>
                     <span className="chest-name">Test Driver</span>
-                    <span className="chest-xp"><span>+{badgeXp('demo')} XP</span><span>New title</span></span>
+                    <span className="chest-xp"><span>+{badgeXp('demo')} XP</span><span>New title</span><span>Free frame</span></span>
                     <span className="chest-lock"><Lock className="demo-lock" aria-hidden="true" /> Sign up to claim it</span>
                   </span>
                 ) : (

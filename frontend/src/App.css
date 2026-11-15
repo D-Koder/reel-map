@@ -6205,13 +6205,17 @@ a.step-btn {
 .frame-sunny::before { background: conic-gradient(#ffd23f, #ff9f1c, #ffe066, #ff9f1c, #ffd23f); }
 .frame-sunny::after { background: repeating-conic-gradient(rgba(255, 255, 255, 0.65) 0 4deg, transparent 4deg 15deg); }
 .frame-cosy::before { background: linear-gradient(160deg, #c2410c, #f59e0b 55%, #7c2d12); }
+.frame-glow::before { background: conic-gradient(from 30deg, #ffd23f, #fff3b0, #ffb300, #ffe680, #ffd23f); animation: frameGlow 3s ease-in-out infinite; }
+.frame-glow::after { background: repeating-conic-gradient(rgba(255, 255, 255, 0.55) 0 3deg, transparent 3deg 20deg); }
+.frame-glow .frame-glyph { color: #fff8dc; }
+@keyframes frameGlow { 50% { filter: drop-shadow(0 0 4px rgba(255, 210, 63, 0.85)) brightness(1.08); } }
 .frame-laurel::before { background: conic-gradient(from 0deg, #c9961a, #fff1a8, #b8860b, #ffe08a, #c9961a, #fff1a8, #b8860b, #ffe08a, #c9961a); animation: frameSpin 8s linear infinite; }
 .frame-laurel::after { background: repeating-conic-gradient(rgba(90, 55, 0, 0.55) 0 3deg, transparent 3deg 12deg); }
 .frame-laurel .frame-glyph { animation: frameBeat 1.6s ease-in-out infinite; }
 @keyframes frameSpin { to { transform: rotate(360deg); } }
 @keyframes frameBeat { 50% { transform: translate(-50%, -50%) scale(1.25); } }
 @media (prefers-reduced-motion: reduce) {
-  .frame-rainbow::before, .frame-laurel::before, .frame-hearts .frame-glyph, .frame-laurel .frame-glyph { animation: none; }
+  .frame-rainbow::before, .frame-glow::before, .frame-laurel::before, .frame-hearts .frame-glyph, .frame-laurel .frame-glyph { animation: none; }
 }
 
 .profile-title {

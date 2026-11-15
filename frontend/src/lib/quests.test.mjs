@@ -20,6 +20,13 @@ test('there are nine starter quests, each explained, worth 95 XP in all', () => 
   assert.equal(QUESTS.reduce((sum, q) => sum + q.xp, 0), 95);
 });
 
+test('every quest has clear steps: short, in order, each a sentence', () => {
+  for (const q of QUESTS) {
+    assert.ok(Array.isArray(q.steps) && q.steps.length >= 2 && q.steps.length <= 5, `${q.id} needs 2 to 5 steps`);
+    for (const step of q.steps) assert.ok(typeof step === 'string' && step.length > 3 && step.length < 70 && /[.]$/.test(step), `${q.id}: "${step}" should be one short sentence`);
+  }
+});
+
 test('nothing is done on a brand-new account', () => {
   assert.deepEqual(done(none), []);
 });

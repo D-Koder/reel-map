@@ -29,11 +29,12 @@ export const BADGES = [
   { id: 'finally', cat: 'Moments', name: 'Finally!', icon: 'Hourglass', target: 1, how: 'Visit a place saved 6+ months ago', reward: 'Special "years in the making" celebration', rewardBuilt: true },
   { id: 'seasons', cat: 'Moments', name: 'Four Seasons', icon: 'Leaf', target: 4, how: 'Visit places in different seasons', reward: 'Seasonal stamp collection', rewardBuilt: false, title: 'Seasoned' },
   { id: 'photographer', cat: 'Create', name: 'Photographer', icon: 'Camera', target: 10, how: 'Add photos to places', reward: 'Photo collage on your profile', rewardBuilt: false, title: 'Photographer' },
-  { id: 'demo', cat: 'Moments', name: 'Test Driver', icon: 'Rocket', target: 1, how: 'Finish the no-login demo and book a time', reward: 'A badge for trying Waylit first', rewardBuilt: true, title: 'Test Driver' },
+  { id: 'demo', cat: 'Moments', name: 'Test Driver', icon: 'Rocket', target: 1, how: 'Finish the no-login demo and book a time', reward: 'A badge for trying Waylit first', rewardBuilt: true, frame: 'glow', title: 'Test Driver' },
   { id: 'reviewer', cat: 'Create', name: 'Reviewer', icon: 'MessageSquare', target: 5, how: 'Write reviews', reward: 'Reviews highlighted to your partner', rewardBuilt: false, title: 'Critic' },
 ];
 
-// Eleven frames: seven earned with a badge, three seasonal ones free for everyone in season, and one level prize.
+// Twelve frames: seven earned with a badge, three seasonal ones free for everyone in season, one level prize, and one
+// free for everyone all year (First Light), so a new person can try changing their frame straight away.
 // `months` is [first, last], 1 to 12; a range that wraps the new year (Sep to Feb) has first > last.
 export const FRAMES = [
   { id: 'bronze', name: 'Bronze Compass', badge: 'explorer' },
@@ -48,6 +49,8 @@ export const FRAMES = [
   { id: 'cosy', name: 'Cosy', months: [9, 2], season: 'Sep to Feb', glyph: ['❄', [315, 135, 225]] },
   // The one frame no badge gives: the Level 25 prize.
   { id: 'laurel', name: 'Gold Laurel', prize: 25, glyph: ['✦', [0, 90, 180, 270]] },
+  // Free for everyone, and the Test Driver badge shows it as part of its reward.
+  { id: 'glow', name: 'First Light', free: true, glyph: ['✦', [45, 225]] },
 ];
 
 export const BASE_TITLE = 'Wanderer';
@@ -57,6 +60,7 @@ export const frameById = (id) => FRAMES.find((f) => f.id === id);
 
 // What a locked frame says it needs: a season, a level (the Level 25 prize frame), or a badge.
 export function frameLockLabel(frame) {
+  if (frame.free) return 'Free';
   if (frame.months) return frame.season;
   if (frame.prize) return `Level ${frame.prize}`;
   return badgeById(frame.badge)?.name ?? '';
@@ -80,6 +84,7 @@ export function inSeason(frame, date = new Date()) {
 
 // A frame can be worn when its badge is earned, or when it is a seasonal frame and the season is on.
 export function frameUnlocked(frame, earnedIds, date = new Date()) {
+  if (frame.free) return true;
   if (frame.months) return inSeason(frame, date);
   if (frame.prize) return earnedIds.has(prizeToken(frame.prize));
   return earnedIds.has(frame.badge);

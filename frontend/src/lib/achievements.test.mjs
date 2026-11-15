@@ -9,9 +9,9 @@ const place = (id, extra = {}) => ({ id, collection_id: 'c1', category: 'food', 
 const now = new Date(Date.UTC(2026, 10, 12));
 const status = (places, profile = {}) => Object.fromEntries(badgeStatus({ places, collections, profile, userId: 'me', now }).map((b) => [b.id, b]));
 
-test('there are 18 badges and 11 frames, as designed', () => {
+test('there are 19 badges and 12 frames, as designed', () => {
   assert.equal(BADGES.length, 19);
-  assert.equal(FRAMES.length, 11);
+  assert.equal(FRAMES.length, 12);
   assert.equal(FRAMES.filter((f) => f.months).length, 3);
 });
 
@@ -145,4 +145,25 @@ test('the first-run tour waits for the Test Driver celebration, but never for ev
   assert.equal(demoCelebrationPending({ ...base, accountBadge: false, deviceDone: true }), true);
   assert.equal(demoCelebrationPending({ ...base, accountBadge: false, demoReady: true, graceOver: true }), true);
   assert.equal(demoCelebrationPending({ ...base, accountBadge: false }), false);
+});
+
+test('First Light is a free frame: anyone can wear it, and Test Driver shows it as part of its reward', () => {
+  const glow = frameById('glow');
+  assert.equal(glow.name, 'First Light');
+  assert.equal(glow.free, true);
+  // No badge, no season, no level needed.
+  assert.equal(frameUnlocked(glow, new Set()), true);
+  assert.equal(frameUnlocked(glow, new Set(), new Date(Date.UTC(2026, 6, 1))), true);
+  assert.equal(frameLockLabel(glow), 'Free');
+  assert.equal(BADGES.find((b) => b.id === 'demo').frame, 'glow');
+  // The other frames still need what they needed.
+  assert.equal(frameUnlocked(frameById('bronze'), new Set()), false);
+  assert.equal(frameUnlocked(frameById('laurel'), new Set()), false);
+});
+
+test('a new account can wear First Light from the start (the saved frame is kept, not dropped)', () => {
+  const none = new Set();
+  const wearable = FRAMES.filter((f) => frameUnlocked(f, none, new Date(Date.UTC(2026, 6, 1)))).map((f) => f.id);
+  // In July only the free frame and the summer frame are open to someone with nothing earned.
+  assert.deepEqual(wearable.sort(), ['glow', 'sunny']);
 });
