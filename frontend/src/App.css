@@ -6237,20 +6237,18 @@ a.step-btn {
 .frame-laurel { --gem: #fff1b8; --gem-edge: #f4cb57; --detail: repeating-conic-gradient(rgba(90, 55, 0, 0.4) 0 1deg, transparent 1deg 6deg); }
 .frame-laurel::before { background: conic-gradient(from 0deg, #a8780c, #fff1a8, #c9961a, #ffe08a, #a8780c, #fff1a8, #c9961a, #ffe08a, #a8780c); animation: frameSpin 10s linear infinite; }
 .frame-laurel .frame-glyph { animation: frameBeat 2.2s ease-in-out infinite; }
-/* The shine: a bright glint that sweeps once around the metal frames (silver, gold, First Light, Gold Laurel), then rests. */
+/* The shine: a bright glint that sweeps once around the metal frames (Silver City and Gold Passport), then rests. */
 @property --shine { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
-.frame-silver, .frame-gold, .frame-glow, .frame-laurel { --shine-a: 0.95; }
-.frame-silver::after, .frame-gold::after, .frame-glow::after, .frame-laurel::after { animation: frameShine 4.2s ease-in-out infinite; }
+.frame-silver, .frame-gold { --shine-a: 0.95; }
+.frame-silver::after, .frame-gold::after { animation: frameShine 4.2s ease-in-out infinite; }
 .frame-gold::after { animation-delay: 0.8s; }
-.frame-glow::after { animation-delay: 1.6s; }
-.frame-laurel::after { animation-delay: 2.4s; }
 @keyframes frameShine { 0% { --shine: 0deg; } 50%, 100% { --shine: 360deg; } }
 @keyframes frameGlow { 50% { filter: drop-shadow(0 0 5px rgba(255, 200, 40, 0.7)); } }
 @keyframes frameSpin { to { transform: rotate(360deg); } }
 @keyframes frameBeat { 50% { transform: translate(-50%, -50%) scale(1.15); } }
 @media (prefers-reduced-motion: reduce) {
   .frame-rainbow::before, .frame-laurel::before, .frame-glow, .frame-hearts .frame-glyph, .frame-laurel .frame-glyph { animation: none; }
-  .frame-silver::after, .frame-gold::after, .frame-glow::after, .frame-laurel::after { animation: none; }
+  .frame-silver::after, .frame-gold::after { animation: none; }
 }
 
 .profile-title {
