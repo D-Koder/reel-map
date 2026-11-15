@@ -33,10 +33,12 @@ test('going with a friend multiplies everything by 1.5, and the total is the sum
   assert.equal(r.total, Math.round((20 + 20 + 10) * 1.5));
 });
 
-test('the daily limit of five places: the fifth earns XP, a sixth the same day earns nothing and shows no screen', () => {
+test('every completed booking earns something: a sixth place the same day is worth 5 instead of 20', () => {
   const today = (n) => Array.from({ length: n }, (_, i) => done(`p${i}`, { booking: { done_at: day(0) } }));
   assert.equal(run(today(5), [solo], 'p4').total, 20);
-  assert.equal(run(today(6), [solo], 'p5'), null);
+  const sixth = run(today(6), [solo], 'p5');
+  assert.equal(sixth.total, 5);
+  assert.deepEqual(sixth.parts, [{ label: 'Place done', value: 5 }]);
 });
 
 test('nothing to show for a place that is not done, or that is not there', () => {

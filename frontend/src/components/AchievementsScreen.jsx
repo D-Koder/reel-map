@@ -239,7 +239,7 @@ export default function AchievementsScreen({ achievements, onClose }) {
         <details className="ax2-rules">
           <summary>How XP works</summary>
           <ul className="ax-rules">
-            <li><b>+{XP.visit}</b> a place done</li>
+            <li><b>+{XP.visit}</b> a place done (+{XP.visitAfterCap} after five in a day)</li>
             <li><b>+{XP.review}</b> a review, <b>+{XP.photo}</b> each photo (up to {XP.photosMax})</li>
             <li><b>x{XP.together}</b> when you go with a friend</li>
             <li><b>+{XP.save}</b> a place saved</li>

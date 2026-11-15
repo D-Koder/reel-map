@@ -1,14 +1,14 @@
 // XP, levels and level prizes. Plain data and pure functions, so it runs the same in the app and in a test.
 //
 // XP is worked out from what is already saved, never stored, so it cannot drift or be farmed twice:
-//   a place marked done  20   (no more than 5 places a day earn it)
+//   a place marked done  20   (the first 5 places a day; every one after that is worth 5, so no booking earns nothing)
 //   a review of 20+ letters +20, and +5 for each of up to 3 photos on it
 //   a place done with a friend (a shared collection) earns 1.5 times all of the above
 //   a place saved         5
 // Claiming a badge adds 100 and claiming a level prize adds 50. Those two are kept on the device.
 // All the numbers live here, so they are easy to tune after real use.
 
-export const XP = { visit: 20, review: 20, photo: 5, photosMax: 3, together: 1.5, save: 5, badge: 100, prize: 50, visitsPerDay: 5, minReview: 20 };
+export const XP = { visit: 20, review: 20, photo: 5, photosMax: 3, together: 1.5, save: 5, badge: 100, prize: 50, visitsPerDay: 5, visitAfterCap: 5, minReview: 20 };
 
 // Total XP needed to reach each level, 1 to 25. Early levels are cheap, later ones slowly cost more.
 export const LEVEL_XP = [0, 50, 100, 160, 230, 310, 400, 500, 610, 730, 860, 1000, 1150, 1320, 1505, 1705, 1920, 2150, 2395, 2655, 2930, 3220, 3525, 3845, 4180];
@@ -66,10 +66,9 @@ export function computeActionXp({ places = [], collections = [], userId = null }
   for (const { place, together } of done) {
     const day = new Date(place.booking.done_at).toDateString();
     const used = perDay.get(day) ?? 0;
-    if (used >= XP.visitsPerDay) continue;
     perDay.set(day, used + 1);
     const review = (place.reviews ?? []).find((r) => r.user_id === userId);
-    let value = XP.visit;
+    let value = used >= XP.visitsPerDay ? XP.visitAfterCap : XP.visit;
     if (review) {
       if ((review.body ?? '').trim().length >= XP.minReview) value += XP.review;
       value += Math.min(review.photos?.length ?? 0, XP.photosMax) * XP.photo;

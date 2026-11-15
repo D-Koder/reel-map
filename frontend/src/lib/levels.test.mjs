@@ -53,10 +53,21 @@ test('a place in two collections counts once, and shared wins', () => {
   assert.equal(xp(places), 30 + XP.save);
 });
 
-test('only five places a day earn visit XP, and saves still count', () => {
+test('every completed booking earns XP: the first five a day are worth the full 20, later ones a smaller 5', () => {
   const same = Array.from({ length: 7 }, (_, i) => done(`p${i}`, 'solo', '2026-11-01T12:00:00Z'));
-  assert.equal(computeActionXp({ places: same, collections, userId: 'me' }).visits, 5 * 20);
-  assert.equal(xp(same), 100 + 7 * XP.save);
+  assert.equal(XP.visitAfterCap, 5);
+  assert.equal(computeActionXp({ places: same, collections, userId: 'me' }).visits, 5 * 20 + 2 * 5);
+  assert.equal(xp(same), 5 * 20 + 2 * 5 + 7 * XP.save);
+  // A sixth place is never worth nothing.
+  assert.ok(computeActionXp({ places: same.slice(0, 6), collections, userId: 'me' }).visits > computeActionXp({ places: same.slice(0, 5), collections, userId: 'me' }).visits);
+});
+
+test('after the daily limit, a friend still multiplies, and a review still adds its bonus', () => {
+  const day = '2026-11-01T12:00:00Z';
+  const first = Array.from({ length: 5 }, (_, i) => done(`p${i}`, 'solo', day));
+  const sixth = done('p5', 'together', day, { reviews: [{ user_id: 'me', body: 'x'.repeat(25), photos: [] }] });
+  const gained = computeActionXp({ places: [...first, sixth], collections, userId: 'me' }).visits - computeActionXp({ places: first, collections, userId: 'me' }).visits;
+  assert.equal(gained, Math.round((5 + 20) * 1.5));
 });
 
 test('a saved place that is not done earns only the save', () => {

@@ -26,20 +26,22 @@ export function visitRewards({ places, collections = [], userId, placeId, profil
   const base = computeActionXp(input(before)).total;
   const withVisit = computeActionXp(input(visitOnly)).total;
   const total = computeActionXp(input(places)).total - base;
-  if (total <= 0) return null; // for example a sixth place today, which earns nothing
+  if (total <= 0) return null;
 
   // The parts, at their base value. The visit counts only when it earned something (the daily limit can stop it),
   // and a review or photos count only together with a visit.
   const parts = [];
   const review = mine(doneEntry.reviews, userId);
+  const members = (collections.find((c) => c.id === doneEntry.collection_id)?.members ?? []).length;
+  const together = members > 1;
   if (withVisit > base) {
-    parts.push({ label: 'Place done', value: XP.visit });
+    // The visit is worth the full 20, or 5 once five places were done the same day (before any friend multiplier).
+    const visit = Math.round((withVisit - base) / (together ? XP.together : 1));
+    parts.push({ label: 'Place done', value: visit });
     if ((review?.body ?? '').trim().length >= XP.minReview) parts.push({ label: 'Review', value: XP.review });
     const photos = Math.min(review?.photos?.length ?? 0, XP.photosMax);
     if (photos) parts.push({ label: `${photos} photo${photos > 1 ? 's' : ''}`, value: photos * XP.photo });
   }
-  const members = (collections.find((c) => c.id === doneEntry.collection_id)?.members ?? []).length;
-  const together = members > 1;
 
   // Badges that moved because of this visit.
   const bCounts = computeProgress({ places: before, collections, profile, userId, now });
