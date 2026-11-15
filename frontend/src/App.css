@@ -4249,6 +4249,8 @@ a.step-btn { display: block; text-align: center; text-decoration: none; }
   padding: 24px calc(var(--gutter) + var(--safe-right)) 32px calc(var(--gutter) + var(--safe-left));
 }
 
+.profile-avatar-stage { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 26px 0; }
+.profile-avatar-stage .profile-title { margin-top: 18px; font-size: 14px; }
 .profile-avatar-large {
   width: 104px;
   height: 104px;

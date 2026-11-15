@@ -596,15 +596,20 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
           </div>
 
           <div className="settings-content profile-panel-body">
-            <button
-              type="button"
-              className="profile-avatar profile-avatar-editable profile-avatar-large"
-              onClick={() => setPickingAvatar((v) => !v)}
-              aria-label="Change avatar"
-              aria-expanded={pickingAvatar}
-            >
-              <AvatarComponent />
-            </button>
+            <div className="profile-avatar-stage">
+              <FramedAvatar frame={achievements?.frame}>
+              <button
+                type="button"
+                className="profile-avatar profile-avatar-editable profile-avatar-large"
+                onClick={() => setPickingAvatar((v) => !v)}
+                aria-label="Change avatar"
+                aria-expanded={pickingAvatar}
+              >
+                <AvatarComponent />
+              </button>
+              </FramedAvatar>
+              {achievements?.title && <span className="profile-title">{achievements.title}{achievements.levelChip ? <span className="level-chip">Lv {achievements.levelChip}</span> : null}</span>}
+            </div>
 
             <div className="profile-photo-buttons">
               <button type="button" className="step-btn secondary" onClick={() => setPickingAvatar((v) => !v)} aria-expanded={pickingAvatar}>
