@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronRight, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
 import { questReward } from '../lib/quests';
-import { readJSON, writeJSON } from '../lib/storage';
-
-const hiddenKey = (userId) => `reelmap:quests-hidden:${userId}`;
 
 // The details of one quest: its name, the steps to do it, and the reward. Nothing here opens the place for them: the
 // person goes and finds it, and the quest ticks by itself when the app sees it done.
@@ -20,7 +18,8 @@ export function QuestSheet({ quest, totalXp, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  // Drawn on the page itself (not inside the Home card) so it sits above the tab bar.
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div ref={sheetRef} className="modal edit-sheet quest-sheet" role="dialog" aria-modal="true" aria-labelledby="quest-sheet-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" {...drag} />
@@ -44,19 +43,18 @@ export function QuestSheet({ quest, totalXp, onClose }) {
           {!quest.done && <p className="quest-sheet-hint">It ticks by itself when the app sees it done.</p>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 // The starter quests card on Home: a short, simple list. Tap a quest for the steps and the reward.
-// It goes away once every quest is done, or when closed.
+// It stays until every quest is done: it cannot be hidden.
 export default function StarterQuests({ userId, quests, totalXp = 0 }) {
-  const [hidden, setHidden] = useState(() => readJSON(hiddenKey(userId), false));
   const [all, setAll] = useState(false);
   const [openId, setOpenId] = useState(null);
-  if (!quests || hidden || quests.complete) return null;
+  if (!quests || quests.complete) return null;
 
-  const close = () => { writeJSON(hiddenKey(userId), true); setHidden(true); };
   const list = all ? quests.list : quests.list.filter((q) => !q.done).slice(0, 3);
   const open = quests.list.find((q) => q.id === openId) ?? null;
 
@@ -65,9 +63,6 @@ export default function StarterQuests({ userId, quests, totalXp = 0 }) {
       <div className="welcome-head">
         <strong>Starter quests</strong>
         <span className="quest-count">{quests.done} of {quests.total} · {quests.xp} XP</span>
-        <button type="button" className="inbox-dismiss" onClick={close} aria-label="Hide starter quests">
-          <X aria-hidden="true" />
-        </button>
       </div>
       <div className="quest-bar" role="progressbar" aria-valuemin={0} aria-valuemax={quests.totalXp} aria-valuenow={quests.xp} aria-label="Starter quest XP"><i style={{ width: `${Math.round((quests.xp / quests.totalXp) * 100)}%` }} /></div>
       <ul className="quest-list">

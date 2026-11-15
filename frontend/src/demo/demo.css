@@ -110,8 +110,14 @@
 .chest-plan { color: #d8d5cb; font-size: 12px; z-index: 1; }
 
 /* The badge pops out as a medal on a ribbon, and the title pops out as a ribbon banner. */
-.chest-prize { position: absolute; left: 50%; top: 10px; z-index: 2; width: 62px; height: 74px; margin-left: -31px; opacity: 0; transform: translateY(40px) scale(0.2); filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
+.chest-prize { position: absolute; left: 50%; top: 10px; z-index: 2; width: 62px; height: 74px; opacity: 0; transform: translateY(40px) scale(0.2); filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
 .chest-prize svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* A reward with a frame: the medal and the frame rise out side by side. */
+.chest-prize { margin-left: -61px; }
+.chest-prize-frame { width: auto; height: auto; top: 32px; margin-left: 9px; }
+.chest-prize-frame > span:first-child { display: inline-flex; }
+.chest-frame-pic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #eef0f5; overflow: hidden; }
+.chest-stage.open .chest-prize-frame { animation-delay: 0.3s; }
 .chest-stage.open .chest-prize { animation: demo-prize-up 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both; }
 .chest-reveal { display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 1; padding-top: 2px; }
 .chest-new { color: #1a1a18; background: #ffd23f; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; animation: demo-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.9s both; }

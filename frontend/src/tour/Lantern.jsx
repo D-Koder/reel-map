@@ -88,8 +88,13 @@ const MASCOT_FOR_POSE = { hello: 'idle', wink: 'idle', love: 'idle', oops: 'idle
 export const mascotSrc = (pose) => `/art/mascot/${MASCOT_FOR_POSE[pose] || 'idle'}.webp`;
 
 // `size` is the picture's height before; the mascot is drawn about as tall as the old lantern with its arms up (1.25 x size).
+// Width over height of each picture, so the size is always given in both directions and a flex parent cannot stretch it.
+const MASCOT_RATIO = { idle: 216 / 226, cheer: 237 / 250, map: 186 / 242, rest: 202 / 213 };
 export default function Lantern({ size = 38, pose }) {
-  return <img className="tour-lantern mascot-img" src={mascotSrc(pose)} alt="" aria-hidden="true" draggable="false" style={{ height: Math.round(size * 1.25), width: 'auto' }} />;
+  const src = mascotSrc(pose);
+  const height = Math.round(size * 1.25);
+  const width = Math.round(height * MASCOT_RATIO[src.split('/').pop().replace('.webp', '')]);
+  return <img className="tour-lantern mascot-img" src={src} alt="" aria-hidden="true" draggable="false" width={width} height={height} style={{ width, height }} />;
 }
 
 // The old drawn lantern, kept for reference while the new art settles in. Nothing uses it.

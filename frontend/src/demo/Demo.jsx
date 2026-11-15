@@ -7,6 +7,7 @@ import { QUESTS } from '../lib/quests';
 import { setSound, sfx, soundOn } from './sfx';
 import DemoSignUp from './DemoSignUp';
 import Lantern from '../tour/Lantern';
+import FramedAvatar from '../components/FramedAvatar';
 import useAnchorRect from '../tour/useAnchorRect';
 import HomeScreen from '../components/HomeScreen';
 import PinModal from '../components/PinModal';
@@ -123,6 +124,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
         )}
         {s.step === 'done' && (
           <>
+            {chest === 'open' && <Confetti />}
             {booked && (
               <button type="button" className={`chest-stage ${chest === 'open' ? 'open' : chest === 'shaking' ? 'shaking' : 'closed'}`} onClick={openChest} disabled={chest === 'open'} aria-label={chest === 'open' ? 'Test Driver badge unlocked. Sign up to claim it.' : 'Tap to open your reward chest'}>
                 <span className="chest-rays" aria-hidden="true" />
@@ -139,6 +141,9 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                     <circle cx="32" cy="30" r="17.5" fill="#ffe680" stroke="#1a1a18" strokeWidth="2.5" />
                     <path d="M32 18.5l3.4 7.2 7.9 1-5.8 5.4 1.5 7.8L32 36l-7 3.9 1.5-7.8-5.8-5.4 7.9-1z" fill="#e8502a" stroke="#1a1a18" strokeWidth="2" strokeLinejoin="round" />
                   </svg>
+                </span>
+                <span className="chest-prize chest-prize-frame" aria-hidden="true">
+                  <FramedAvatar frame="glow"><span className="chest-frame-pic"><Lantern size={20} pose="hello" /></span></FramedAvatar>
                 </span>
                 {chest === 'open' ? (
                   <span className="chest-reveal">

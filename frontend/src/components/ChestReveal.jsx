@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { MEDAL } from '../lib/chestArt';
+import FramedAvatar from './FramedAvatar';
+import Lantern from '../tour/Lantern';
 
 const SPARK_COLOURS = ['#ffd23f', '#fff3b0', '#ff9f1c', '#ffffff', '#e8502a'];
 const CONFETTI_COLOURS = ['#ffd23f', '#e8502a', '#0ea5e9', '#16a34a', '#e0336a', '#7c3aed'];
@@ -11,8 +13,8 @@ const reduced = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)'
 //   shaking it squashes, then shakes harder, with light leaking from under the lid
 //   open    the lid swings open, a flash and a burst of sparks, the medal rises, spinning, and the mascot cheers
 // The chest is a picture (public/art/chest): a closed one that swaps for an open one. The medal rises out of it.
-// `icon` is drawn on the medal. `children` is what is revealed under the chest once it is open (the name, XP, buttons).
-export default function ChestReveal({ icon, onClose, children }) {
+// `icon` is drawn on the medal. `frame` (a frame id) rises out beside the medal when the reward comes with one. `children` is what is revealed under the chest once it is open (the name, XP, buttons).
+export default function ChestReveal({ icon, frame = null, onClose, children }) {
   const [phase, setPhase] = useState('closed');
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -35,7 +37,7 @@ export default function ChestReveal({ icon, onClose, children }) {
 
   return (
     <div className="cr-scrim" role="dialog" aria-modal="true" aria-label="Reward chest">
-      <div className={`cr-stage ${phase === 'closed' ? 'closed' : phase === 'shaking' ? 'shaking' : 'open'}`}>
+      <div className={`cr-stage ${phase === 'closed' ? 'closed' : phase === 'shaking' ? 'shaking' : 'open'}${frame ? ' has-frame' : ''}`}>
         <button type="button" className="cr-close" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>
         <span className="cr-rays" aria-hidden="true" />
         <span className="cr-glow" aria-hidden="true" />
@@ -51,6 +53,11 @@ export default function ChestReveal({ icon, onClose, children }) {
               <span className="cr-medal-icon">{icon}</span>
               <span className="cr-sheen" />
             </span>
+            {frame && (
+              <span className="cr-prize cr-prize-frame">
+                <FramedAvatar frame={frame}><span className="cr-frame-pic"><Lantern size={26} pose="hello" /></span></FramedAvatar>
+              </span>
+            )}
           </span>
         </button>
         {phase === 'closed' && <span className="cr-hint">Tap to open your reward!</span>}

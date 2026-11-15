@@ -6272,6 +6272,24 @@ a.step-btn {
   color: var(--accent-text);
 }
 
+.settings-section-toggle.ach-open, .settings-section-toggle.ach-customise {
+  padding: 14px 14px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  border: 1.5px solid var(--accent);
+  background: var(--accent-softer);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 0 var(--accent);
+}
+.settings-section-toggle.ach-open .ico:first-child, .settings-section-toggle.ach-customise .ico:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: var(--accent); color: #fff; flex: none; }
+.settings-section-toggle.ach-open .ach-count, .settings-section-toggle.ach-customise .ach-count { color: var(--accent); font-weight: 800; }
+.settings-section-toggle.ach-open:active, .settings-section-toggle.ach-customise:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--accent); }
 .ach-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .ach { display: grid; gap: 10px; padding-top: 6px; }
 .ach-heading { margin: 8px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
@@ -6286,6 +6304,7 @@ a.step-btn {
 .ach-frame small { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--text-muted); }
 .ach-frame small svg { width: 11px; height: 11px; }
 .ach-frame:focus-visible, .ach-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.frame-swatch.none { box-shadow: 0 0 0 3px #d5d8e0, 0 0 0 5px var(--card); }
 .frame-swatch { display: block; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ffb38a, #e8590c); box-shadow: 0 0 0 2px var(--card); }
 .ach-titles { display: flex; flex-wrap: wrap; gap: 8px; }
 .ach-chip { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--card); font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
@@ -6881,7 +6900,7 @@ button { transition: scale 0.12s ease; }
 .header-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-muted); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; font-size: 18px; line-height: 1; }
 .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .header-btn .header-avatar svg { width: auto; height: auto; }
-.header-avatar .mascot-img, .profile-avatar .mascot-img, .person-avatar .mascot-img, .collection-member-avatar .mascot-img, .avatar-option .mascot-img { width: 80% !important; height: auto !important; max-width: none; margin-top: 20%; animation: none; transform: none; }
+.header-avatar .mascot-img, .profile-avatar .mascot-img, .person-avatar .mascot-img, .collection-member-avatar .mascot-img, .avatar-option .mascot-img, .cr-frame-pic .mascot-img, .chest-frame-pic .mascot-img { width: 80% !important; height: auto !important; max-width: none; margin-top: 20%; animation: none; transform: none; }
 
 /* Starter quests: simple rows, and the sheet that opens with the steps and the reward. */
 .quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -6924,6 +6943,11 @@ button { transition: scale 0.12s ease; }
 .cr-chest-open { width: 210px; opacity: 0; }
 .cr-stage.open .cr-chest-closed { opacity: 0; } .cr-stage.open .cr-chest-open { opacity: 1; }
 .cr-stage.shaking .cr-chest-closed { filter: drop-shadow(0 0 14px rgba(255,210,63,.8)) drop-shadow(0 8px 10px rgba(0,0,0,.5)); }
+.cr-stage.has-frame .cr-prize:not(.cr-prize-frame) { margin-left: -80px; }
+.cr-prize.cr-prize-frame { width: auto; height: auto; top: 62px; margin-left: 12px; }
+.cr-prize.cr-prize-frame > span:first-child { display: inline-flex; width: auto; height: auto; }
+.cr-frame-pic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #eef0f5; overflow: hidden; }
+.cr-stage.open .cr-prize.cr-prize-frame { animation-delay: .4s, 1.6s; }
 .cr-mascot { position: absolute; left: 6px; top: 214px; z-index: 5; width: 74px; opacity: 0; animation: crMascotIn .6s cubic-bezier(.3,1.4,.5,1) 1s both; pointer-events: none; }
 @keyframes crMascotIn { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
 .cr-stage.closed .cr-box-in { animation: crBob 2.2s ease-in-out infinite; }

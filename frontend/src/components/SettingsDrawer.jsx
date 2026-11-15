@@ -94,7 +94,7 @@ function NotificationsToggle({ userId }) {
         Reminders, votes, new places and your weekly pick.
         {accountWide ? ' This switch covers all your devices.' : ' Turn this on in each device you use.'}
       </div>
-      {!supported && <div className="toggle-hint">This device can only show notifications once the app is on your home screen.</div>}
+      {!supported && !isInstalled() && <div className="toggle-hint">This device can only show notifications once the app is on your home screen.</div>}
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );
@@ -155,7 +155,6 @@ function WeeklyPickDay({ userId }) {
   };
 
   const canChooseTime = day !== null && typeof hour === 'number';
-  const timeText = typeof hour === 'number' ? hourLabel(hour) : '7pm';
 
   return (
     <div className="settings-field">
@@ -176,11 +175,7 @@ function WeeklyPickDay({ userId }) {
           </select>
         )}
       </div>
-      <div className="toggle-hint">
-        {day === null
-          ? 'No weekly pick. Turn it on to get a place suggestion each week.'
-          : `One place you haven't planned yet, at ${timeText} your time. It needs notifications on.`}
-      </div>
+      {day === null && <div className="toggle-hint">No weekly pick. Turn it on to get a place suggestion each week.</div>}
       {error && <div className="toggle-hint">{error}</div>}
     </div>
   );

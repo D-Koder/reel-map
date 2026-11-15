@@ -9,7 +9,7 @@ export const BADGE_ICONS = { Building2, Calendar, Camera, Clock, Compass, Flame,
 function Swatch({ frame }) {
   return (
     <FramedAvatar frame={frame}>
-      <span className="frame-swatch" aria-hidden="true" />
+      <span className={`frame-swatch${frame ? '' : ' none'}`} aria-hidden="true" />
     </FramedAvatar>
   );
 }
@@ -33,7 +33,7 @@ export default function AchievementsSection({ achievements, onOpenAchievements }
           <ChevronRight className="ico" aria-hidden="true" />
         </button>
       )}
-      <button type="button" className="settings-section-title settings-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <button type="button" className="settings-section-title settings-section-toggle ach-customise" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <Frame className="ico" aria-hidden="true" /> Customise profile
         <span className="ach-count">{earned} of {badges.length} badges</span>
         {open ? <ChevronUp className="ico" aria-hidden="true" /> : <ChevronDown className="ico" aria-hidden="true" />}

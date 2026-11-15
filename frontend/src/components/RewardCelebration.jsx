@@ -83,7 +83,7 @@ export default function RewardCelebration({ reward, levelUp, onClose, onWear }) 
   if (kind !== 'level') {
     const Big = badge ? (BADGE_ICONS[badge.icon] ?? Medal) : (PRIZE_ICONS[prize.icon] ?? Gift);
     return (
-      <ChestReveal icon={<Big aria-hidden="true" />} onClose={onClose}>
+      <ChestReveal icon={<Big aria-hidden="true" />} frame={wearFrame} onClose={onClose}>
         <span className="cr-new">{eyebrow}</span>
         <span className="cr-ribbon" id="rw-title">{headline}</span>
         {gained > 0 && <span className="cr-xp">+{xp} XP</span>}
