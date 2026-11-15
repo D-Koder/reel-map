@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Lock, Rocket } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { BADGES } from '../lib/achievements';
 import { PRIZES, badgeXp, levelInfo } from '../lib/levels';
 import { QUESTS } from '../lib/quests';
@@ -138,11 +138,19 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                     </g>
                   </svg>
                 </span>
-                <span className="chest-prize" aria-hidden="true"><Rocket /></span>
+                <span className="chest-prize" aria-hidden="true">
+                  <svg viewBox="0 0 64 76">
+                    <path d="M18 40 L10 70 L22 63 L28 74 L34 46 Z" fill="#e8502a" stroke="#1a1a18" strokeWidth="3" strokeLinejoin="round" />
+                    <path d="M46 40 L54 70 L42 63 L36 74 L30 46 Z" fill="#c63d1b" stroke="#1a1a18" strokeWidth="3" strokeLinejoin="round" />
+                    <circle cx="32" cy="30" r="25" fill="#ffd23f" stroke="#1a1a18" strokeWidth="3.5" />
+                    <circle cx="32" cy="30" r="17.5" fill="#ffe680" stroke="#1a1a18" strokeWidth="2.5" />
+                    <path d="M32 18.5l3.4 7.2 7.9 1-5.8 5.4 1.5 7.8L32 36l-7 3.9 1.5-7.8-5.8-5.4 7.9-1z" fill="#e8502a" stroke="#1a1a18" strokeWidth="2" strokeLinejoin="round" />
+                  </svg>
+                </span>
                 {chest === 'open' ? (
                   <span className="chest-reveal">
                     <span className="chest-new">New badge · 1 of {BADGES.length}</span>
-                    <span className="chest-name">Test Driver</span>
+                    <span className="chest-ribbon">Test Driver</span>
                     <span className="chest-xp"><span>+{badgeXp('demo')} XP</span><span>New title</span><span>Free frame</span></span>
                     <span className="chest-lock"><Lock className="demo-lock" aria-hidden="true" /> Sign up to claim it</span>
                   </span>
