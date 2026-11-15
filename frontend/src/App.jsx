@@ -21,6 +21,8 @@ import PasteReelCard from './components/PasteReelCard';
 import StarterQuests from './components/StarterQuests';
 import Celebration from './components/Celebration';
 import RewardCelebration from './components/RewardCelebration';
+import VisitRewards from './components/VisitRewards';
+import { visitRewards } from './lib/visitRewards';
 import AchievementsScreen from './components/AchievementsScreen';
 import useAchievements from './hooks/useAchievements';
 import usePinColours from './hooks/usePinColours';
@@ -151,6 +153,9 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
   const finishingReelName = useRef('');
   // The place just marked as done, for the celebration.
   const [celebrating, setCelebrating] = useState(null);
+  // After the celebration closes, "here is what you earned" for that place: pendingVisit is the place, visitSummary the result.
+  const [pendingVisit, setPendingVisit] = useState(null);
+  const [visitSummary, setVisitSummary] = useState(null);
 
   // Deletes wait UNDO_MS before they are sent, so the toast can offer Undo. Keys: "place:<collection>:<place>" or "collection:<id>".
   const [hiddenKeys, setHiddenKeys] = useState(() => new Set());
@@ -243,6 +248,20 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
 
   const [tourActive, setTourActive] = useState(false); // the first-run tour is on screen
   const achievements = useAchievements({ userId, accountCreatedAt, showToast, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
+
+  // The summary is worked out once, a moment after the celebration closes, so a review that was just saved has landed.
+  const latest = useRef({});
+  latest.current = { places, collections, xp: achievements.xp, profile: data.profile };
+  useEffect(() => {
+    if (!pendingVisit) return undefined;
+    const timer = setTimeout(() => {
+      const { places: all, collections: cols, profile: prof } = latest.current;
+      const summary = visitRewards({ places: all, collections: cols, userId, placeId: pendingVisit, profile: prof });
+      setPendingVisit(null);
+      if (summary) setVisitSummary({ summary, xpAfter: latest.current.xp });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [pendingVisit, userId]);
 
   const pinColours = usePinColours(userId);
   // Plain pin colours are for everyone. Each texture needs its badge (Explorer) or its level prize.
@@ -777,12 +796,14 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
       )}
 
       {celebrating && (
-        <Celebration placeName={celebrating.name} streak={streak} maxPhotos={Math.max(0, 5 - (celebrating.place?.reviews?.find((r) => r.user_id === userId)?.photos?.length ?? 0))} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => setCelebrating(null)} />
+        <Celebration placeName={celebrating.name} streak={streak} maxPhotos={Math.max(0, 5 - (celebrating.place?.reviews?.find((r) => r.user_id === userId)?.photos?.length ?? 0))} onSave={(memory) => data.saveVisitMemory(celebrating.place, memory)} onClose={() => { setPendingVisit(celebrating.place?.id ?? null); setCelebrating(null); }} />
       )}
+
+      {visitSummary && <VisitRewards summary={visitSummary.summary} xpAfter={visitSummary.xpAfter} onClose={() => setVisitSummary(null)} />}
 
       {achievementsOpen && <AchievementsScreen achievements={achievements} onClose={() => setAchievementsOpen(false)} />}
 
-      {!celebrating && (achievements.reward || achievements.levelUp) && (
+      {!celebrating && !pendingVisit && !visitSummary && (achievements.reward || achievements.levelUp) && (
         <RewardCelebration
           key={achievements.reward ? `${achievements.reward.kind}:${achievements.reward.badge?.id ?? achievements.reward.prize?.level}` : `level:${achievements.levelUp.to}`}
           reward={achievements.reward}

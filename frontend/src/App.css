@@ -7002,3 +7002,58 @@ button { transition: scale 0.12s ease; }
 .ax2-rules { margin: 14px 2px 0; font-size: 14px; color: var(--text-muted); }
 .ax2-rules summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .ax2-ring .val, .ax2-xp i, .ax2-qbar i { transition: none; } .ax2-ring b.pop, .ax2-stamp, .ax2-flash { animation: none !important; } }
+
+/* "Here is what you earned" after a place is done: calm reveal, one item at a time (see components/VisitRewards.jsx). */
+.vr { position: fixed; inset: 0; z-index: 10040; background: var(--surface); overflow-y: auto; padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(28px + env(safe-area-inset-bottom, 0px)); animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+.vr-in { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.vr-title { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; text-wrap: balance; }
+.vr-card { border: 1.5px solid var(--border); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--card, var(--surface-muted)); }
+.vr-xp { background: linear-gradient(135deg, #e0336a, #e8502a); border: 0; color: #fff; }
+.vr-xp:not(:has(.in)) { display: none; }
+.vr-badges:not(:has(.in)) { display: none; }
+.vr-seq:not(.in) { display: none; }
+.vr-seq.in { animation: vrIn calc(0.8s / var(--spd, 1)) cubic-bezier(0.25, 0.6, 0.25, 1) both; }
+@keyframes vrIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: none; } }
+.vr-row { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.vr-row .l { flex: 1; }
+.vr-row .v { display: inline-block; transform-origin: right center; font-family: var(--font-display); font-weight: 800; font-size: 17px; font-variant-numeric: tabular-nums; }
+.vr-row.in .v { opacity: 0; animation: vrNum calc(0.9s / var(--spd, 1)) cubic-bezier(0.3, 1.2, 0.5, 1) 0.25s both; }
+.vr-total { border-top: 1px solid rgba(255, 255, 255, 0.3); padding-top: 10px; font-weight: 800; }
+.vr-total .v { font-size: 24px; }
+.vr-total.in .v { animation-delay: 0.2s; }
+/* The number lands: starts small, swells past full size in gold, settles. */
+@keyframes vrNum { 0% { transform: scale(0.4); opacity: 0; } 45% { transform: scale(1.55); opacity: 1; color: #fff3b0; text-shadow: 0 0 14px rgba(255, 210, 63, 0.9); } 75% { transform: scale(0.96); opacity: 1; } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
+.vr-lvrow { display: flex; align-items: center; gap: 12px; }
+.vr-ring { position: relative; flex: none; width: 64px; height: 64px; }
+.vr-ring svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+.vr-ring circle { fill: none; stroke-width: 8; }
+.vr-ring .t { stroke: rgba(255, 255, 255, 0.25); }
+.vr-ring .v { stroke: #ffd23f; stroke-linecap: round; transition: stroke-dashoffset calc(1.4s / var(--spd, 1)) cubic-bezier(0.4, 0, 0.2, 1); }
+.vr-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 26px; }
+.vr-ring b.pop { animation: vrPop 0.9s ease-in-out; }
+@keyframes vrPop { 50% { transform: scale(1.12); } }
+.vr-lvbar { flex: 1; min-width: 0; }
+.vr-bar { height: 12px; border-radius: 99px; background: rgba(0, 0, 0, 0.28); overflow: hidden; }
+.vr-bar i { display: block; height: 100%; border-radius: inherit; background: #ffd23f; transition: width calc(1.4s / var(--spd, 1)) cubic-bezier(0.4, 0, 0.2, 1); }
+.vr-lvl-l { display: flex; justify-content: space-between; margin-top: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.vr-sec { font-family: var(--font-display); font-weight: 800; font-size: 18px; margin: 2px 2px 0; }
+.vr-badges { gap: 14px; }
+.vr-badge { display: flex; align-items: center; gap: 12px; }
+.vr-badge .m { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-hover); border: 2px solid var(--border); color: var(--text-muted); }
+.vr-badge .m svg { width: 22px; height: 22px; }
+.vr-badge .tx { flex: 1; min-width: 0; }
+.vr-badge .tx b { display: block; font-size: 15px; }
+.vr-badge .tx small { color: var(--text-muted); font-size: 13px; }
+.vr-mini { height: 6px; border-radius: 9px; background: var(--surface-hover); overflow: hidden; margin-top: 5px; }
+.vr-mini i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width calc(1.1s / var(--spd, 1)) cubic-bezier(0.4, 0, 0.2, 1); }
+.vr-badge .chg { flex: none; display: inline-block; transform-origin: right center; font-family: var(--font-display); font-weight: 800; font-size: 14px; color: #c98a00; }
+.vr-badge.in .chg { opacity: 0; animation: vrNum calc(0.9s / var(--spd, 1)) cubic-bezier(0.3, 1.2, 0.5, 1) 0.6s both; }
+.vr-badge.got { border: 1.5px solid #ffd23f; border-radius: 16px; padding: 10px; background: color-mix(in srgb, #ffd23f 14%, transparent); }
+.vr-badge.got .m { background: #ffd23f; color: #1a1a18; border-color: #fff3b0; }
+.vr-reward { border-color: #ffd23f; gap: 6px; }
+.vr-reward b { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.vr-reward svg { width: 18px; height: 18px; color: #c98a00; }
+.vr-reward span { color: var(--text-muted); font-size: 14px; }
+.vr-end { margin-top: 4px; }
+.vr-hint { align-self: center; color: var(--text-muted); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .vr, .vr-seq.in, .vr-ring b.pop, .vr-row.in .v, .vr-badge.in .chg { animation: none !important; } .vr-row .v, .vr-badge .chg { opacity: 1 !important; } .vr-ring .v, .vr-bar i, .vr-mini i { transition: none; } }
