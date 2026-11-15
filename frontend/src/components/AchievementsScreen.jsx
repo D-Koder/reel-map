@@ -4,7 +4,7 @@ import { BADGE_ICONS } from './AchievementsSection';
 import { PRIZE_ICONS } from './prizeIcons';
 import { FRAMES, frameUnlocked } from '../lib/achievements';
 import { PIN_PATTERNS, patternUnlocked } from '../lib/pinPatterns';
-import { LEVEL_XP, XP } from '../lib/levels';
+import { LEVEL_XP, XP, badgeXp } from '../lib/levels';
 import useCountUp from '../hooks/useCountUp';
 
 const TABS = ['All', 'Explore', 'Together', 'Moments', 'Create'];
@@ -113,7 +113,8 @@ export default function AchievementsScreen({ achievements, onClose }) {
           <li><b>+{XP.review}</b> a review, <b>+{XP.photo}</b> each photo (up to {XP.photosMax})</li>
           <li><b>x{XP.together}</b> when you go with a friend</li>
           <li><b>+{XP.save}</b> a place saved</li>
-          <li><b>+{XP.badge}</b> a badge, <b>+{XP.prize}</b> a level prize, when you claim it</li>
+          <li><b>+{XP.badge}</b> a badge (Test Driver is +{badgeXp('demo')}), <b>+{XP.prize}</b> a level prize, when you claim it</li>
+          <li><b>+5 to +15</b> each starter quest, once</li>
         </ul>
 
         <div className="ax-sec">Next up<small>closest to done</small></div>
@@ -183,7 +184,7 @@ export default function AchievementsScreen({ achievements, onClose }) {
                   <div className="ax-eyebrow">Reward</div>
                   <ul className="ax-perks">
                     {perks.map((t) => <li key={t}><Star aria-hidden="true" /> {t}</li>)}
-                    <li><Star aria-hidden="true" /> +{XP.badge} XP when you claim it</li>
+                    <li><Star aria-hidden="true" /> +{badgeXp(b.id)} XP when you claim it</li>
                   </ul>
                   {b.st === 'ready'
                     ? <button type="button" className="step-btn primary ax-gold" onClick={() => { claimBadge(b.id); setSheet(null); }}>Claim reward</button>

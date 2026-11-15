@@ -80,6 +80,14 @@ export function computeActionXp({ places = [], collections = [], userId = null }
   return { visits, saves, total: visits + saves };
 }
 
-export function totalXp(input, claimedBadges = 0, claimedPrizes = 0) {
-  return computeActionXp(input).total + claimedBadges * XP.badge + claimedPrizes * XP.prize;
+// What claiming a badge is worth. Most are 100; Test Driver (finishing the no-login demo) is small, so a new account
+// starts on Level 1 and climbs by doing things (see the starter quests in quests.js).
+export const BADGE_XP = { demo: 20 };
+export const badgeXp = (id) => BADGE_XP[id] ?? XP.badge;
+
+// claimedBadges is the list of claimed badge ids (or just how many, counted at the usual 100 each).
+// extraXp is XP from outside the data, such as the starter quests.
+export function totalXp(input, claimedBadges = [], claimedPrizes = 0, extraXp = 0) {
+  const badgeTotal = Array.isArray(claimedBadges) ? claimedBadges.reduce((sum, id) => sum + badgeXp(id), 0) : claimedBadges * XP.badge;
+  return computeActionXp(input).total + badgeTotal + claimedPrizes * XP.prize + extraXp;
 }

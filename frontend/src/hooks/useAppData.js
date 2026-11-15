@@ -229,7 +229,7 @@ export function useAppData(userId, showToast) {
 
   const refresh = useCallback(async () => {
     // Everything is asked for at once, so opening the app is one round trip instead of four.
-    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, flairRes, demoRes] = await Promise.all([
+    const [profileRes, collectionsRes, placesRes, orderRes, streakRes, entriesRes, bookingsRes, collectionOrderRes, inboxRes, reactionsRes, notesByEntry, flairRes, demoRes, questsRes, shortcutRes] = await Promise.all([
       supabase.from('profiles').select(PROFILE_SELECT).eq('id', userId).single(),
       supabase.rpc('get_user_collections'),
       supabase.rpc('get_user_places'),
@@ -246,6 +246,8 @@ export function useAppData(userId, showToast) {
       // Frame and title for me and the people I share with. Read on its own, so the app still loads before the columns exist.
       supabase.from('profiles').select('id, frame, title'),
       supabase.from('profiles').select('demo_badge').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('quests').eq('id', userId).maybeSingle(),
+      supabase.from('shortcut_keys').select('connected_at').maybeSingle(),
     ]);
     reactionsPerCollection.current = reactionsRes.hasCollections;
     const votes = {};
@@ -316,6 +318,10 @@ export function useAppData(userId, showToast) {
         // False until the database has profiles.demo_badge (see 20261113000100_demo_badge.sql); then the badge stays on this device.
         demoReady: !demoRes.error,
         demoBadge: demoRes.error ? null : demoRes.data?.demo_badge ?? null,
+        // False until the database has profiles.quests (see 20261114000000_profile_quests.sql); then the notes stay on this device.
+        questsReady: !questsRes.error,
+        quests: questsRes.error ? {} : questsRes.data?.quests ?? {},
+        shortcutConnected: Boolean(shortcutRes.data?.connected_at),
         frame: flair[userId]?.frame ?? null,
         title: flair[userId]?.title ?? null,
         current_streak: streakRes.data?.[0]?.current_streak ?? 0,

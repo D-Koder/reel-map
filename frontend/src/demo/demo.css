@@ -159,7 +159,7 @@
 .demo-nextbadge b { font-size: 14px; }
 .demo-nextbadge-ic { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #e4e0d4; display: grid; place-items: center; font-size: 16px; }
 .demo-links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
-@keyframes demo-bar-fill { to { width: 100%; } }
+@keyframes demo-bar-fill { to { width: var(--fill, 100%); } }
 
 /* The main end-card button shines now and then; the chest glows while it waits. */
 .demo-tip.center .demo-foot.center .demo-btn.go { position: relative; overflow: hidden; }
@@ -168,7 +168,7 @@
 .chest-stage::before { content: ''; position: absolute; left: 50%; top: 40%; width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 210, 63, 0.35), transparent 65%); animation: demo-breathe 2.4s ease-in-out infinite; pointer-events: none; }
 .chest-stage.open::before { display: none; }
 @keyframes demo-breathe { 50% { transform: scale(1.25); opacity: 0.6; } }
-@media (prefers-reduced-motion: reduce) { .demo-after, .demo-lvl-bar i, .demo-tip.center .demo-foot.center .demo-btn.go::after, .chest-stage::before { animation: none !important; } .demo-lvl-bar i { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .demo-after, .demo-lvl-bar i, .demo-tip.center .demo-foot.center .demo-btn.go::after, .chest-stage::before { animation: none !important; } .demo-lvl-bar i { width: var(--fill, 100%); } }
 
 /* The end card can be taller than a phone screen once the chest opens: the backdrop scrolls, the card stays centred when it
    fits, and the main button sticks to the bottom so it is always reachable. */

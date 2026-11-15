@@ -550,6 +550,8 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
     }
     setEditMode(false);
     setPickingAvatar(false);
+    // Checking and saving the name counts for the Make it yours quest, even when the name is already right.
+    if (next || profile.display_name) achievements?.markQuest?.('name');
   };
 
   const handleCancel = () => {

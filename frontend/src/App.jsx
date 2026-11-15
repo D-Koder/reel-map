@@ -18,7 +18,7 @@ const MapScreen = lazy(() => import('./components/MapScreen'));
 import ReelInbox from './components/ReelInbox';
 import FridayPickCard from './components/FridayPickCard';
 import PasteReelCard from './components/PasteReelCard';
-import WelcomeSteps from './components/WelcomeSteps';
+import StarterQuests from './components/StarterQuests';
 import Celebration from './components/Celebration';
 import RewardCelebration from './components/RewardCelebration';
 import AchievementsScreen from './components/AchievementsScreen';
@@ -242,7 +242,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
   }, [unreadCount, notificationsLoaded]);
 
   const [tourActive, setTourActive] = useState(false); // the first-run tour is on screen
-  const achievements = useAchievements({ userId, accountCreatedAt, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
+  const achievements = useAchievements({ userId, accountCreatedAt, showToast, ready: !data.loading, places, collections, profile: data.profile, saveFlair: data.updateProfile });
 
   const pinColours = usePinColours(userId);
   // Plain pin colours are for everyone. Each texture needs its badge (Explorer) or its level prize.
@@ -549,7 +549,7 @@ function MainApp({ userId, accountCreatedAt, showToast, sharedPlaceId, onSharedP
             collections={collections}
             banner={
               <>
-                {!tourActive && <WelcomeSteps userId={userId} places={places} collections={collections} onInvite={() => setShareModal(collections[0])} />}
+                {!tourActive && <StarterQuests userId={userId} quests={achievements.quests} onOpenSettings={() => setSettingsOpen(true)} onInvite={() => collections[0] && setShareModal(collections[0])} />}
                 <PasteReelCard onSave={(url) => inbox.enqueue(url, { confirm: true })} showToast={showToast} />
                 <ReelInbox items={inbox.items} onFinish={finishInboxItem} onRetry={inbox.retry} onDismiss={inbox.dismiss} onConfirm={inbox.confirm} onReject={inbox.reject} onSaveListed={inbox.saveListed} />
                 <FridayPickCard userId={userId} placeCount={places.length} showToast={showToast} />

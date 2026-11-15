@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock, Rocket } from 'lucide-react';
-import { BADGES, FRAMES, badgeById } from '../lib/achievements';
-import { PRIZES, XP, levelInfo } from '../lib/levels';
+import { BADGES } from '../lib/achievements';
+import { PRIZES, badgeXp, levelInfo } from '../lib/levels';
+import { QUESTS } from '../lib/quests';
 import { setSound, sfx, soundOn } from './sfx';
 import DemoSignUp from './DemoSignUp';
 import Lantern from '../tour/Lantern';
@@ -46,10 +47,11 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
     dispatch({ type: 'start', name: who, agreed: true });
   };
   // What the badge is worth, read from the same data as the Achievements screen, so the numbers never drift.
-  const afterLevel = levelInfo(XP.badge).level;
-  const afterPrizes = PRIZES.filter((p) => p.level <= afterLevel).map((p) => p.name);
-  const nextBadge = badgeById('explorer');
-  const nextFrame = FRAMES.find((f) => f.id === nextBadge.frame)?.name ?? 'new';
+  // A new account starts on Level 1: Test Driver is a small head start, and the starter quests do the rest.
+  const start = levelInfo(badgeXp('demo'));
+  const nextPrize = PRIZES.find((p) => p.level > start.level);
+  const questCount = QUESTS.length;
+  const questXp = QUESTS.reduce((sum, q) => sum + q.xp, 0);
   const [signing, setSigning] = useState(false); // the inline sign-up form is open
   const [chest, setChest] = useState('closed'); // closed, shaking, open. The badge inside is only kept once there is an account
   const openChest = () => {
@@ -141,7 +143,7 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
                   <span className="chest-reveal">
                     <span className="chest-new">New badge · 1 of {BADGES.length}</span>
                     <span className="chest-name">Test Driver</span>
-                    <span className="chest-xp"><span>+100 XP</span><span>New title</span></span>
+                    <span className="chest-xp"><span>+{badgeXp('demo')} XP</span><span>New title</span></span>
                     <span className="chest-lock"><Lock className="demo-lock" aria-hidden="true" /> Sign up to claim it</span>
                   </span>
                 ) : (
@@ -155,13 +157,13 @@ function DemoTip({ s, d, dispatch, onExit, onSignUp, onLogin }) {
             {booked && chest === 'open' && !signing && (
               <div className="demo-after">
                 <div className="demo-lvl">
-                  <div className="demo-lvl-top"><span>Level 1 → Level {afterLevel}</span><span>+{XP.badge} XP</span></div>
-                  <div className="demo-lvl-bar"><i /></div>
-                  <small>🎁 Ready to claim: {afterPrizes.join(' + ')}</small>
+                  <div className="demo-lvl-top"><span>Level {start.level} · {start.cur} of {start.size} XP</span><span>+{badgeXp('demo')} XP</span></div>
+                  <div className="demo-lvl-bar"><i style={{ '--fill': `${start.pct}%` }} /></div>
+                  <small>🎁 Next: Level {start.level + 1}{nextPrize && nextPrize.level === start.level + 1 ? ` unlocks ${nextPrize.name}` : ''}</small>
                 </div>
                 <div className="demo-nextbadge">
-                  <span className="demo-nextbadge-ic" aria-hidden="true">🔒</span>
-                  <div><b>Next badge: {nextBadge.name}</b><small>{nextBadge.how}: 0 of {nextBadge.target}. Earns a {nextFrame} frame.</small></div>
+                  <span className="demo-nextbadge-ic" aria-hidden="true">🧭</span>
+                  <div><b>{questCount} starter quests</b><small>Learn the app and earn {questXp} more XP.</small></div>
                 </div>
               </div>
             )}

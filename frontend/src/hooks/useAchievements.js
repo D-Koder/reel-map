@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_TITLE, badgeStatus, demoCelebrationPending, computeProgress, earnedTitles, frameById, frameUnlocked, funTitles, titleLadders } from '../lib/achievements';
 import { PRIZES, levelInfo, prizeToken, prizesBetween, totalXp } from '../lib/levels';
+import { isLegacyAccount, planQuestGrants, questProgress, questXp } from '../lib/quests';
+import { isInstalled } from '../lib/platform';
+import { getPushSubscription } from '../lib/push';
 import { clearDemoDone, demoDoneHere } from '../lib/demoHandoff';
 import { readJSON, writeJSON } from '../lib/storage';
 
@@ -11,7 +14,7 @@ const prefsKey = (userId) => `reelmap:achievements:${userId}`;
 // Claims are kept on this device. XP from visits, reviews and saves is worked out from the data, so it follows the person.
 // The frame and title are saved to the profile, so the people you share with see them. Until the database has those
 // columns (profile.flairReady is false) they are kept on this device only.
-export default function useAchievements({ userId, accountCreatedAt, ready, places, collections, profile, saveFlair }) {
+export default function useAchievements({ userId, accountCreatedAt, showToast, ready, places, collections, profile, saveFlair }) {
   const [prefs, setPrefs] = useState(() => readJSON(prefsKey(userId), {}));
 
   // Test Driver (finish the no-login demo, then sign up). Once the database has profiles.demo_badge it belongs to the
@@ -69,7 +72,7 @@ export default function useAchievements({ userId, accountCreatedAt, ready, place
     return set;
   }, [prefs.claimed, prefs.seen, accountBadge, profile?.demoBadge]);
   const claimedPrizes = useMemo(() => new Set(prefs.prizes ?? []), [prefs.prizes]);
-  const claimedBadgeCount = badges.filter((b) => b.earned && claimedBadges.has(b.id)).length;
+  const claimedBadgeIds = useMemo(() => badges.filter((b) => b.earned && claimedBadges.has(b.id)).map((b) => b.id), [badges, claimedBadges]);
 
   // Badge perks (frames, titles, a texture) are yours as soon as the badge is earned. Level prizes need a claim.
   // `earnedIds` holds both: badge ids and a "prize:N" entry for each prize claimed.
@@ -78,12 +81,40 @@ export default function useAchievements({ userId, accountCreatedAt, ready, place
     [earnedBadgeIds, claimedPrizes]
   );
 
+  // Starter quests: small one-time XP for things a new person needs to learn (see lib/quests.js). The done ones are noted
+  // on the account (profiles.quests), or on this device until the database has that column.
+  const questsOnAccount = Boolean(profile?.questsReady);
+  const questNotes = (questsOnAccount ? profile.quests : prefs.quests) ?? {};
+  const quests = useMemo(() => questProgress(questNotes), [questNotes]);
+
   const xp = useMemo(
-    () => (ready ? totalXp({ places, collections, userId }, claimedBadgeCount, claimedPrizes.size) : 0),
-    [ready, places, collections, userId, claimedBadgeCount, claimedPrizes]
+    () => (ready ? totalXp({ places, collections, userId }, claimedBadgeIds, claimedPrizes.size, questXp(questNotes)) : 0),
+    [ready, places, collections, userId, claimedBadgeIds, claimedPrizes, questNotes]
   );
   const level = useMemo(() => levelInfo(xp), [xp]);
   const readyBadges = useMemo(() => badges.filter((b) => b.earned && !claimedBadges.has(b.id)), [badges, claimedBadges]);
+  // The things the app can only see on this device or from the browser: installed, and a push subscription.
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  useEffect(() => {
+    let off = false;
+    getPushSubscription().then((sub) => { if (!off) setPushSubscribed(Boolean(sub)); }, () => {});
+    return () => { off = true; };
+  }, []);
+  const standalone = isInstalled();
+
+  // Notes the app is already writing, so a second pass before the save comes back cannot grant the same quest twice.
+  const inFlight = useRef({});
+  const grant = useCallback((mark = null) => {
+    const ctx = { userId, profile, places, collections, standalone, pushSubscribed, shortcutConnected: Boolean(profile?.shortcutConnected), notes: { ...questNotes, ...inFlight.current } };
+    const plan = planQuestGrants(ctx, { now: new Date().toISOString(), mark, legacy: isLegacyAccount(accountCreatedAt) });
+    if (!plan.granted.length) return;
+    inFlight.current = plan.notes;
+    if (questsOnAccount) saveFlair?.({ quests: plan.notes });
+    else save({ quests: plan.notes });
+    plan.announce.forEach((q) => showToast?.(`+${q.xp} XP · ${q.title}`));
+  }, [userId, profile, places, collections, standalone, pushSubscribed, questNotes, questsOnAccount, accountCreatedAt, saveFlair, save, showToast]);
+  useEffect(() => { if (ready) grant(); }, [ready, grant]);
+
   const prizes = useMemo(() => {
     const next = PRIZES.find((p) => p.level > level.level);
     return PRIZES.map((p) => ({
@@ -149,6 +180,8 @@ export default function useAchievements({ userId, accountCreatedAt, ready, place
   const pendingDemo = demoCelebrationPending({ ready, accountBadge, demoBadge: profile?.demoBadge, deviceDone: demoDoneHere(), isNewAccount, graceOver, demoReady });
 
   return {
+    quests,
+    markQuest: (id) => grant(id),
     pendingDemo,
     badges,
     earnedIds,

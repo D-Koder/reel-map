@@ -3,7 +3,7 @@ import { Frame, Gift, Medal, Sparkles, Star } from 'lucide-react';
 import { BADGE_ICONS } from './AchievementsSection';
 import { PRIZE_ICONS } from './prizeIcons';
 import { frameById } from '../lib/achievements';
-import { PRIZES, XP } from '../lib/levels';
+import { PRIZES, XP, badgeXp } from '../lib/levels';
 import useCountUp from '../hooks/useCountUp';
 
 const COLOURS = ['#e8590c', '#ffd23f', '#e0336a', '#0ea5e9', '#16a34a', '#7c3aed'];
@@ -24,7 +24,7 @@ export default function RewardCelebration({ reward, levelUp, onClose, onWear }) 
   const badge = reward?.badge;
   const prize = reward?.prize;
   const variant = badge?.id === 'spontaneous' ? 'bolt' : badge?.id === 'finally' ? 'years' : 'plain';
-  const gained = kind === 'badge' ? XP.badge : kind === 'prize' ? XP.prize : 0;
+  const gained = kind === 'badge' ? badgeXp(badge?.id) : kind === 'prize' ? XP.prize : 0;
   const xp = useCountUp(gained, { from: 0, delay: 500 });
   const levelNumber = useCountUp(levelUp?.to ?? 0, { from: levelUp?.from ?? 0, delay: 450 });
 
