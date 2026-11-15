@@ -9,7 +9,7 @@ export const BADGE_ICONS = { Building2, Calendar, Camera, Clock, Compass, Flame,
 function Swatch({ frame }) {
   return (
     <FramedAvatar frame={frame}>
-      <span className={`frame-swatch${frame ? '' : ' none'}`} aria-hidden="true" />
+      <span className="frame-swatch" aria-hidden="true" />
     </FramedAvatar>
   );
 }
