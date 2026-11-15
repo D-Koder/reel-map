@@ -1,11 +1,12 @@
 import React from 'react';
 import { frameArt, frameById } from '../lib/achievements';
 
-// Puts a profile frame (a picture, or the CSS ring for the rainbow) around whatever picture it wraps. With no frame it renders the picture unchanged.
+// Puts a profile frame (a picture, or the CSS ring for the rainbow) around whatever picture it wraps. With no frame it gets a light grey ring.
 // `small` is for the little faces beside votes and reviews: a thinner ring that does not push the layout around.
 export default function FramedAvatar({ frame, small = false, children }) {
   const def = frame ? frameById(frame) : null;
-  if (!def) return children;
+  // No frame is a plain, thick light grey ring (drawn outside the picture, so nothing moves).
+  if (!def) return <span className={`framed-none${small ? ' framed-none-sm' : ''}`}>{children}</span>;
   const art = frameArt(def.id);
   // A picture frame: the avatar keeps its own size and the picture is drawn around it, reaching past the edge.
   if (art) {

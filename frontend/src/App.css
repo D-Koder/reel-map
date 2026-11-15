@@ -6292,7 +6292,7 @@ a.step-btn {
 .ach-frame small { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; color: var(--text-muted); }
 .ach-frame small svg { width: 11px; height: 11px; }
 .ach-frame:focus-visible, .ach-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.frame-swatch.none { box-shadow: 0 0 0 3px #d5d8e0, 0 0 0 5px var(--card); }
+.frame-swatch.none { box-shadow: 0 0 0 4px #d5d8e0, 0 0 0 6px var(--card); }
 .frame-swatch { display: block; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ffb38a, #e8590c); box-shadow: 0 0 0 2px var(--card); }
 .ach-titles { display: flex; flex-wrap: wrap; gap: 8px; }
 .ach-chip { padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--card); font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
@@ -7113,3 +7113,7 @@ button { transition: scale 0.12s ease; }
 .vr-hint { align-self: center; color: var(--text-muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .vr, .vr-seq.in, .vr-ring b.pop, .vr-row.in .v, .vr-badge.in .chg { animation: none !important; } .vr-row .v, .vr-badge .chg { opacity: 1 !important; } .vr-ring .v, .vr-bar i, .vr-mini i { transition: none; } }
 .ach-frame .framed { margin: 8px 0 10px; }
+
+/* No frame: a thick light grey ring outside the picture. */
+.framed-none { display: inline-flex; flex: none; border-radius: 50%; box-shadow: 0 0 0 4px #d5d8e0; }
+.framed-none-sm { box-shadow: 0 0 0 3px #d5d8e0; }
