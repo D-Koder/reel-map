@@ -3,11 +3,11 @@ import Lantern from '../tour/Lantern';
 import FramedAvatar from './FramedAvatar';
 
 // The face of a person: their photo, their emoji, or the plain Waylit lantern for 🙂 (everyone starts with it).
-// The plain lantern is symmetrical, so it sits in the middle of its circle (the waving one leans to one side).
+// The waving lantern is drawn a little low in its picture, so the avatar CSS lifts it until its body is in the middle.
 export function AvatarFace({ person, lantern = 22 }) {
   if (person?.avatar_url) return <img src={person.avatar_url} alt="" />;
   const emoji = person?.avatar ?? '🙂';
-  return emoji === '🙂' ? <Lantern size={lantern} /> : emoji;
+  return emoji === '🙂' ? <Lantern size={lantern} pose="hello" /> : emoji;
 }
 
 // A member's photo, their emoji avatar, or the Waylit lantern, in a small circle.

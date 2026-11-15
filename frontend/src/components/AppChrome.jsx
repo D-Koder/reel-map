@@ -21,7 +21,7 @@ export function AppHeader({ unreadCount = 0, bellRinging = false, onBell, onGear
         <button className="header-btn" data-tour="gear" onClick={onGear} aria-label="Settings">
           {profile ? (
             <FramedAvatar frame={profile.frame} small>
-              <span className="header-avatar"><AvatarFace person={profile} lantern={22} /></span>
+              <span className="header-avatar"><AvatarFace person={profile} lantern={24} /></span>
             </FramedAvatar>
           ) : <SlidersHorizontal aria-hidden="true" />}
         </button>

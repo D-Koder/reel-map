@@ -246,7 +246,7 @@ export default function ShareCollectionModal({ collection, userId, places = [], 
               {collection.members.map((member) => (
                 <div className="share-member" key={member.id}>
                   <span className="share-member-avatar">
-                    {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <span className="collection-member-avatar"><Lantern size={26} /></span> : member.avatar}
+                    {member.avatar_url ? <img className="collection-member-avatar" src={member.avatar_url} alt="" /> : member.avatar === '🙂' ? <span className="collection-member-avatar"><Lantern size={22} pose="hello" /></span> : member.avatar}
                   </span>
                   <span className="share-member-name">{member.display_name}</span>
                   {member.role === 'owner' ? (

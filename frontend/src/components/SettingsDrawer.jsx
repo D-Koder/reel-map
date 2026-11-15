@@ -564,8 +564,8 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
     profile.avatar_url ? (
       <img className="profile-avatar-image" src={profile.avatar_url} alt="Profile" />
     ) : profile.avatar === '🙂' ? (
-      // Everyone starts with the Waylit lantern, not a grey silhouette. The plain one sits in the middle of the circle.
-      <Lantern size={40} />
+      // Everyone starts with the Waylit lantern, not a grey silhouette. Sized so the waving arm fits in the circle.
+      <Lantern size={34} pose="hello" />
     ) : (
       profile.avatar
     )
@@ -635,7 +635,7 @@ function ProfileSection({ profile, achievements, email, drawerOpen, onUpdateProf
                         setPickingAvatar(false);
                       }}
                     >
-                      {a === '🙂' ? <Lantern size={28} /> : a}
+                      {a === '🙂' ? <Lantern size={24} pose="hello" /> : a}
                     </button>
                   ))}
                 </div>
