@@ -8,6 +8,7 @@ const { insertRow, selectRows, patchRows } = require('./lookup-cache');
 
 const MAX_CANDIDATES = 20;
 const MAX_RAW_REPLY = 20000;
+const MAX_AI_INPUT = 30000;
 const MAX_LOGS = 50000;
 const MAX_REPORTS = 20;
 
@@ -36,7 +37,7 @@ function traceCandidates(candidates) {
 }
 
 // The row for lookup_traces. `notes` is what the lookup kept on the way (set in api/enrich-reel.js):
-//   notes.ai       { model, raw, answer }  the AI's model, its reply as text and what the server read from it
+//   notes.ai       { model, input, raw, answer }  the AI's model, the post as sent, its reply as text and what the server read from it
 //   notes.pick     { by, reason }          how the place was picked, or why none was
 //   notes.cache    { hit, originTraceId }  whether a saved answer was used, and the lookup that saved it
 //   notes.cacheKey                         the key the saved answer is kept under
@@ -60,6 +61,8 @@ function buildTraceRow({ id, userId = null, entry, reelUrl, cleanUrl, notes = {}
     steps,
     ai: notes.ai ? {
       model: text(notes.ai.model, 100),
+      // The post as it was sent: caption, location tag, creator, tagged accounts and post date.
+      input: text(notes.ai.input, MAX_AI_INPUT),
       raw: text(notes.ai.raw, MAX_RAW_REPLY),
       // Only when the AI was asked again with the page's extras: its first reply.
       earlierRaw: text(notes.ai.earlierRaw, MAX_RAW_REPLY),

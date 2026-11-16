@@ -24,7 +24,7 @@ test('a trace keeps the AI reply, the earlier reply, the candidates and the pick
   const row = buildTraceRow({
     id: ID, userId: ID, entry: 'app', reelUrl: 'https://www.instagram.com/reel/abc/?igsh=x', cleanUrl: 'https://www.instagram.com/reel/abc/',
     notes: {
-      ai: { model: 'claude-haiku-5-5', raw: '{"places":[]}', earlierRaw: '{"places":[{"name":"First"}]}', answer: { kind: 'venue' } },
+      ai: { model: 'claude-haiku-5-5', input: '<post>\n<caption>Lunch at Place 1</caption>\n</post>', raw: '{"places":[]}', earlierRaw: '{"places":[{"name":"First"}]}', answer: { kind: 'venue' } },
       pick: { by: 'app', reason: 'the only result' },
       cache: { hit: false, originTraceId: null },
       cacheKey: 'abc',
@@ -42,6 +42,7 @@ test('a trace keeps the AI reply, the earlier reply, the candidates and the pick
   assert.equal(row.clean_url, 'https://www.instagram.com/reel/abc/');
   assert.equal(row.ai.model, 'claude-haiku-5-5');
   assert.equal(row.ai.raw, '{"places":[]}');
+  assert.equal(row.ai.input, '<post>\n<caption>Lunch at Place 1</caption>\n</post>', 'the post as it was sent is kept');
   assert.equal(row.ai.earlierRaw, '{"places":[{"name":"First"}]}');
   assert.equal(row.search.candidates.length, 20, 'candidates are capped');
   assert.deepEqual(Object.keys(row.search.candidates[0]).sort(), ['address', 'category', 'name', 'url']);
@@ -71,8 +72,9 @@ test('a failed lookup is marked failed and keeps its error', () => {
 });
 
 test('long text is cut to its limit', () => {
-  const row = buildTraceRow({ id: ID, entry: 'app', notes: { ai: { raw: 'x'.repeat(30000) } }, body: { caption: 'c'.repeat(12000) } });
+  const row = buildTraceRow({ id: ID, entry: 'app', notes: { ai: { raw: 'x'.repeat(30000), input: 'i'.repeat(40000) } }, body: { caption: 'c'.repeat(12000) } });
   assert.equal(row.ai.raw.length, 20000);
+  assert.equal(row.ai.input.length, 30000);
   assert.equal(row.caption.length, 10000);
 });
 

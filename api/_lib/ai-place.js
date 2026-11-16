@@ -744,7 +744,8 @@ async function aiPlace(post) {
       kind, places, slidePlace, pickupPlace, postArea: answer.post_area, confidence: answer.confidence,
       postCategory: answer.post_category, temporary, ...dates,
       // What the model sent back, as text, and which model it was: kept in the lookup trace.
-      raw: text, model: MODEL,
+      // `input` is the post as it was sent (caption, location tag, creator, tagged accounts, post date).
+      raw: text, model: MODEL, input: postText(post),
     };
   } catch (error) {
     console.warn('AI place read failed:', error.message);

@@ -498,12 +498,13 @@ function lookupLogs(body, consoleLines) {
     .filter(Boolean).join('\n\n');
 }
 
-// What the trace keeps of an AI answer: which model, its reply as text and the answer the server read from it.
-// earlierRaw is the first reply when it was asked again with the page's extras (the second one is used).
+// What the trace keeps of an AI answer: which model, the post as it was sent (input), its reply as text
+// and the answer the server read from it. earlierRaw is the first reply when it was asked again with the
+// page's extras (the second one is used).
 function aiTrace(ai, earlier) {
   if (!ai) return null;
-  const { raw, model, ...answer } = ai;
-  return { model, raw, answer, earlierRaw: earlier?.raw };
+  const { raw, model, input, ...answer } = ai;
+  return { model, input, raw, answer, earlierRaw: earlier?.raw };
 }
 
 // /api/save-reel also asks for this while the app is closed ({ background: true }). It picks the place
