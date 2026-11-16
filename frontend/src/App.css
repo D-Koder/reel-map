@@ -7118,3 +7118,5 @@ button { transition: scale 0.12s ease; }
 .framed-none { display: inline-flex; flex: none; border-radius: 50%; box-shadow: 0 0 0 4px #d5d8e0; }
 .framed-none-sm { box-shadow: 0 0 0 3px #d5d8e0; }
 .framed-none .frame-swatch { box-shadow: none; }
+/* Frame picker: only the ring shows, so the stand-in picture inside is see-through. */
+.ach-frame .frame-swatch { background: none; box-shadow: none; }
