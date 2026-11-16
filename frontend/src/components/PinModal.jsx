@@ -185,6 +185,8 @@ export default function PinModal({
           placeName: place.name,
           location: place.address || '',
           comment: reportComment,
+          // The place's lookup trace is found from this, so the report is kept with how the place was found.
+          placeId: place.id,
           reason: `Reported from place card (${place.collection_id}:${place.id})`,
         }),
       });

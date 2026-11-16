@@ -77,6 +77,8 @@ function requireUser(handler, { endpoint, perHour } = {}) {
     if (process.env.VERCEL && !isInternal(req)) {
       const user = await requestUser(req);
       if (!user) return res.status(401).json({ error: 'Sign in to look places up' });
+      // The handler can see who asked (e.g. so a lookup trace can be tied to them).
+      req.user = user;
       if (endpoint && perHour && !(await withinLimit(user.id, endpoint, perHour))) {
         return res.status(429).json({ error: 'Too many lookups this hour. Try again later.' });
       }

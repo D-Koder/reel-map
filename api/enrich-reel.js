@@ -5,6 +5,7 @@ const { expandTikTokUrl, isRedNoteUrl, reelLookupKey } = require('./_lib/reel-ur
 const { fetchRedNote } = require('./_lib/rednote-fetch');
 const { readCache, writeCache, insertDebugRow } = require('./_lib/lookup-cache');
 const { captureConsole, capturedLines } = require('./_lib/console-capture');
+const { newTraceId, entryFor, buildTraceRow, saveTrace } = require('./_lib/lookup-trace');
 const { launchBrowser, closeBrowser } = require('./_lib/browser');
 const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_lib/country');
 const { captionMentions, handleToPlace } = require('./_lib/handles');
@@ -228,7 +229,8 @@ async function readReel(reelUrl, cleanUrl, cacheKey, slide, getBrowser) {
       ...(area ? { area } : {}),
       ...(orderOnly ? { orderOnly } : {}),
     };
-    return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true };
+    // originTraceId: the lookup that saved this answer (its trace says where the place came from).
+    return { reel, venue, candidates: cached.data.candidates ?? null, fromCache: true, originTraceId: cached.data.traceId || null };
   }
 
   // The clean link is read, without extras like "?img_index=3&igsh=…" that can make Instagram say no.
@@ -384,17 +386,33 @@ module.exports = requireUser(async function handler(req, res) {
   let launching = null;
   // A Chrome that failed to start isn't kept, so the next step (e.g. the retry search) starts it again.
   const getBrowser = () => (launching ??= launchBrowser().catch((error) => { launching = null; throw error; }));
+  // Every lookup keeps a trace (lookup_traces, see api/_lib/lookup-trace.js). Its id goes back to the app,
+  // and the row is saved before the answer, so a wrong place can be traced back later.
+  const notes = { id: newTraceId() };
+  req.trace = notes;
+  const entry = entryFor({ background: req.body?.background === true, from: req.body?.from });
+  const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
   try {
-    // The reel inbox ({ from: 'inbox' }) shows "We couldn't tell which place this is" when no place
-    // was matched. Those lookups are kept in lookup_debug before the answer goes back.
-    if (req.body?.from !== 'inbox') return await enrich(req, res, getBrowser);
-    const reply = { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-    // The server's console lines for this lookup are kept, so the row shows everything it ran.
+    // The server's console lines for this lookup are kept, so the trace and the lookup_debug row show everything it ran.
     return await captureConsole(async () => {
-      await enrich(req, reply, getBrowser);
-      if (reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
+      let failure = null;
+      try {
+        await enrich(req, reply, getBrowser);
+      } catch (error) {
+        failure = error;
+      }
+      // The reel inbox ({ from: 'inbox' }) shows "We couldn't tell which place this is" when no place
+      // was matched. Those lookups are kept in lookup_debug before the answer goes back.
+      if (!failure && req.body?.from === 'inbox' && reply.code === 200 && reply.body?.success !== false && !reply.body?.maps?.details?.name) {
         await logNoPlace(req.body.reelUrl, reply.body);
       }
+      const body = reply.body || {};
+      await saveTrace(buildTraceRow({
+        id: notes.id, userId: req.user?.id, entry, reelUrl: body.reelUrl || req.body?.reelUrl,
+        cleanUrl: notes.cleanUrl, notes, body, logs: lookupLogs(body, capturedLines()), error: failure?.message,
+      }));
+      if (failure) throw failure;
+      if (reply.body && typeof reply.body === 'object') reply.body.traceId = notes.id;
       return res.status(reply.code).json(reply.body);
     });
   } finally {
@@ -480,13 +498,24 @@ function lookupLogs(body, consoleLines) {
     .filter(Boolean).join('\n\n');
 }
 
+// What the trace keeps of an AI answer: which model, its reply as text and the answer the server read from it.
+// earlierRaw is the first reply when it was asked again with the page's extras (the second one is used).
+function aiTrace(ai, earlier) {
+  if (!ai) return null;
+  const { raw, model, ...answer } = ai;
+  return { model, raw, answer, earlierRaw: earlier?.raw };
+}
+
 // /api/save-reel also asks for this while the app is closed ({ background: true }). It picks the place
 // the same way: a clear match is saved to TBD, anything else waits for the person to pick.
 async function enrich(req, res, getBrowser) {
   const startedAt = Date.now();
+  req.trace ??= {};
   const reelUrl = await expandTikTokUrl(typeof req.body?.reelUrl === 'string' ? req.body.reelUrl.trim() : '');
   // Only Instagram lookups are cached: one link spelling per Reel, and every save goes through it.
   const { cleanUrl, slide, cacheKey } = reelLookupKey(reelUrl, req.body?.slide);
+  req.trace.cleanUrl = cleanUrl;
+  req.trace.cacheKey = cacheKey;
   // How long each step took, for the Add place log and Vercel's logs. A step's work is passed as a function
   // so steps that run together are each timed from their own start.
   const timings = [];
@@ -515,6 +544,7 @@ async function enrich(req, res, getBrowser) {
   }
 
   let { reel, venue } = read;
+  req.trace.cache = { hit: Boolean(read.fromCache), originTraceId: read.originTraceId || null };
   const country = requestCountry(req);
   const timeZone = requestTimeZone(req);
   const language = requestLanguage(req);
@@ -545,6 +575,7 @@ async function enrich(req, res, getBrowser) {
     const gotExtras = withExtras !== reel && (withExtras.locationTag || withExtras.collaborators?.length ||
       withExtras.tagged?.length || (firstAnswer?.temporary && withExtras.date !== reel.date));
     const ai = gotExtras ? await timed('AI again', () => askAi(withExtras)) : firstAnswer;
+    req.trace.ai = aiTrace(ai, gotExtras ? firstAnswer : null);
     reel = withExtras;
     // What the AI was given, for the Add place log: a missing date or a cut-off caption is otherwise invisible.
     steps.postDate = reel.date ? dayIn(timeZone, reel.date) : '';
@@ -607,6 +638,8 @@ async function enrich(req, res, getBrowser) {
   if (!venue && query && addressQuery) steps.address = `no venue, so searched the caption's address: ${addressQuery}`;
   // Only what the lookup needs is kept: the venue it found and the place picked. Not the caption.
   const saveReel = (candidates) => writeCache('reel_lookups', cacheKey, {
+    // The lookup that saved this answer, so a later lookup that reuses it can point back to it.
+    traceId: req.trace.id,
     place: {
       placeName: reel.placeName || '', location: reel.location || '', venue: venue || '',
       ...(reel.category ? { category: reel.category } : {}),
@@ -685,16 +718,22 @@ async function enrich(req, res, getBrowser) {
   let selectedCandidate = null;
   // True only when the app picked the place by itself, not from a person's choice or typed name.
   let autoPicked = false;
+  // How the place was picked (or why none was), for the lookup trace.
+  let pick = null;
   if (mustPick && !req.body?.mapsPlaceUrl && typeof req.selectCandidate !== 'function') {
     selectedCandidate = null;
+    pick = { by: 'none', reason: 'several places in the list, or the AI was unsure: the person picks' };
   } else if (typeof req.selectCandidate === 'function') {
     const choice = await req.selectCandidate(candidates);
     selectedCandidate = candidates.find((candidate) => candidate.url === choice?.url) || null;
+    pick = { by: 'person', reason: 'the person chose it from the results' };
   } else if (req.body?.mapsPlaceUrl) {
     selectedCandidate = candidates.find((candidate) => candidate.url === req.body.mapsPlaceUrl) || null;
+    pick = { by: 'person', reason: 'the person chose it from the results' };
   } else if (requestedName) {
     selectedCandidate = candidates.find((candidate) => normalize(candidate.name) === normalize(requestedName)) || null;
     autoPicked = !typedName;
+    if (selectedCandidate) pick = { by: typedName ? 'typed name' : 'name from the post', reason: 'the result named like it' };
   }
   if (!selectedCandidate && !mustPick && typeof req.selectCandidate !== 'function') {
     // A pop-up's search is its address, so no result is named like it: only a single result, or the one
@@ -707,6 +746,10 @@ async function enrich(req, res, getBrowser) {
       : popup ? atStreetAddress(places, reel.location) : bestCandidate(places, nameHints,
         [...String(reel.location || '').split(',').slice(1), ...String(venue || '').split(',').slice(1), area || ''], reel.location);
     autoPicked = true;
+    pick = selectedCandidate
+      ? { by: 'app', reason: orderOnly ? 'matched by its name (no shop: business only)' : candidates.length === 1 ? 'the only result'
+        : popup ? 'pop-up: the result at its street address' : 'best match by name and area' }
+      : { by: 'none', reason: 'no result matched the venue, name or area' };
   }
 
   // Google doesn't list the business: its public pickup spot (a hall, a market) is pinned instead,
@@ -720,7 +763,9 @@ async function enrich(req, res, getBrowser) {
     selectedCandidate = (found.length === 1 ? spots[0] : null) || atStreetAddress(spots, reel.orderOnly.pickupPlace) ||
       matchByName(spots, [reel.orderOnly.pickupPlace.split(',')[0]]) || null;
     steps.pickup = selectedCandidate ? `pinned the pickup spot: ${selectedCandidate.name}` : `pickup spot not found: ${pickupQuery}`;
+    if (selectedCandidate) pick = { by: 'pickup', reason: 'the business has no shop: its pickup spot is pinned' };
   }
+  req.trace.pick = pick;
   const atPickup = Boolean(pickupQuery && selectedCandidate);
   if (orderOnly && !selectedCandidate) {
     // Results not named like the business are someone else's place: none are offered.

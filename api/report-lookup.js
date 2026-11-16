@@ -1,7 +1,10 @@
 const { requireUser } = require('./_lib/auth');
 const { insertDebugRow } = require('./_lib/lookup-cache');
+const { isUuid, placeTraceId, addReport } = require('./_lib/lookup-trace');
 
 // Saves a manual add's details and the person's comment to lookup_debug, so a missed place can be looked at later.
+// The report also goes on the lookup trace it is about: the trace of the lookup the app showed (traceId),
+// or the trace of a saved place (placeId, read with the person's own sign-in).
 module.exports = requireUser(async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -10,6 +13,17 @@ module.exports = requireUser(async function handler(req, res) {
   const candidates = Array.isArray(body.candidates)
     ? body.candidates.slice(0, 20).map(({ name, address, category, url }) => ({ name, address, category, url }))
     : [];
+
+  const token = String(req.headers?.authorization || '').match(/^Bearer\s+(\S+)$/i)?.[1];
+  const traceId = isUuid(body.traceId) ? body.traceId : await placeTraceId(token, body.placeId);
+  if (traceId) {
+    await addReport(traceId, {
+      at: new Date().toISOString(),
+      by: req.user?.id || null,
+      comment: text(body.comment, 2000),
+      reason: text(body.reason, 200),
+    });
+  }
 
   await insertDebugRow({
     reel_url: text(body.reelUrl) || '',

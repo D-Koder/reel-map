@@ -53,6 +53,8 @@ function placeToSave(data) {
     eventEndDate: popup?.endDate || '',
     // Each day's open and close times, as the post gives them (the same shape the app saves).
     eventRuns: popup?.runs || [],
+    // The lookup that found this place (lookup_traces), so the place can be traced back to it.
+    traceId: data.traceId || null,
   };
 }
 

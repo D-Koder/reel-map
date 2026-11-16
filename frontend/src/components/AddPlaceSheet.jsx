@@ -950,6 +950,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                       venue: scrapedData?.venue || '',
                       query: mapsData?.query || '',
                       candidates: mapsData?.candidates || [],
+                      // The lookup the app showed, so the report is kept on its trace.
+                      traceId: scrapedData?.traceId || null,
                       comment: reportComment,
                       logs: apiLogs.map((log) => `[${log.timestamp}] ${log.message}${log.link ? ` ${log.link}` : ''}`).join('\n'),
                     }),

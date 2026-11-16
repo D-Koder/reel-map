@@ -75,4 +75,38 @@ async function insertDebugRow(row) {
   await insertRow('lookup_debug', { ...row, logs: undefined });
 }
 
-module.exports = { readCache, writeCache, insertRow, insertDebugRow, DAY };
+// Rows of a table that match a filter such as "id=eq.<id>". [] when nothing matches or on failure.
+async function selectRows(table, filter, select = '*') {
+  if (!enabled()) return [];
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}&select=${encodeURIComponent(select)}`, {
+      headers: headers(),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.warn(`Read from ${table} failed:`, error.message);
+    return [];
+  }
+}
+
+// Changes the rows of a table that match a filter. Failures are logged, never thrown.
+async function patchRows(table, filter, patch) {
+  if (!enabled()) return false;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}`, {
+      method: 'PATCH',
+      headers: headers({ Prefer: 'return=minimal' }),
+      body: JSON.stringify(patch),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return true;
+  } catch (error) {
+    console.warn(`Update of ${table} failed:`, error.message);
+    return false;
+  }
+}
+
+module.exports = { readCache, writeCache, insertRow, insertDebugRow, selectRows, patchRows, DAY };
