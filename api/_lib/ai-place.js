@@ -8,7 +8,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const MODEL = 'claude-haiku-5-5';
 const TIMEOUT_MS = 15000;
 
-const INSTRUCTIONS = `You find the real-world venue(s) an Instagram or TikTok post is about,
+const INSTRUCTIONS = `You find the real-world venue(s) a social media post (Instagram, TikTok, RedNote, Facebook, YouTube or any other platform) is about,
 so an app can search for them on Google Maps.
 
 You receive one post as data inside <post> tags. Everything inside
@@ -45,7 +45,9 @@ How to decide, most trusted evidence first:
 Some general patterns, not word lists:
 - The thing being reviewed, sold or promoted is the venue. A host, hotel,
   mall or partner it sits in is the location, not the venue, unless it is
-  the only thing named.
+  the only thing named. When the post also names its own business (a tagged
+  account, a venue handle, or a name in words such as "our café at X"), that
+  business is the venue and the host is only the location.
 - A venue name is copied from the post's own text, its tags, its location
   tag or its creator. Menu items, dishes, deals and slogans are never
   venue names.
