@@ -10,6 +10,46 @@ const { internalHeaders } = require('./_lib/auth');
 const { requestCountry, requestLanguage } = require('./_lib/country');
 const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
 const { cleanName } = require('./_lib/place-name');
+const { lookupListPlaces } = require('./_lib/list-lookup');
+
+// Calls one of this site's endpoints as the server (scrape-location), with the same internal sign-in as
+// enrich-reel. Throws when the endpoint answers with an error.
+async function scrapeCall(host, protocol, body) {
+  const response = await fetch(`${protocol}://${host}/api/scrape-location`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...internalHeaders() },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+  const json = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+  return json;
+}
+
+// A list post: every place is looked up on its own. All of them found → each is saved to TBD in one call.
+// Any place not found (or needing a pick) → nothing is saved here; the whole list goes to the app's picker,
+// as before. The matching is strict for now (one clear Google result only), so most places with several
+// results still go to the picker.
+async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }) {
+  const places = listed.map((item) => ({
+    name: item.name, area: item.area || '', address: item.address || '', category: item.category || 'food',
+  }));
+  const results = await lookupListPlaces(places, {
+    search: async (query, place) => {
+      const json = await scrapeCall(host, protocol, { action: 'search', query, placeName: place.name, location: query });
+      return { candidates: json?.candidates || [] };
+    },
+    details: async (url) => scrapeCall(host, protocol, { action: 'details', query: url, placeUrl: url }),
+    pickBest: (candidates) => (candidates.length === 1 ? candidates[0] : null),
+  });
+  const saved = results.filter((result) => result.status === 'saved').map((result) => result.place);
+  if (saved.length !== results.length) {
+    console.warn(`List post: ${results.length - saved.length} of ${results.length} places need a pick; the app shows the list`);
+    return finish(data, null);
+  }
+  const response = await rpc('finish_shared_reel_list', { p_key: key, p_url: sharedUrl, p_places: saved });
+  console.log('Background list finished:', response.ok ? await response.json() : `HTTP ${response.status}`);
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 // The server key: save_shared_reel and mark_shortcut_connected are only open to it (see migration
@@ -92,6 +132,12 @@ function lookInBackground(req, key, sharedText) {
       if (!response.ok || !data?.success) console.warn(`Background reel lookup returned HTTP ${response.status}`);
     } catch (error) {
       console.warn('Background reel lookup failed:', error.message);
+    }
+    // A list post with several places: each one is looked up and saved on its own (see saveList).
+    if (data?.success && Array.isArray(data.listedPlaces) && data.listedPlaces.length > 1) {
+      // If the list step itself fails, the app shows the list instead, so the reel is never left waiting.
+      return saveList(data.listedPlaces, data, { key, sharedUrl, host, protocol, finish })
+        .catch((error) => { console.warn('List save failed:', error.message); return finish(data, null); });
     }
     // A failed Maps search (Google or Chrome) is tried again by the app, rather than asking to pick.
     if (!data?.success || !data.maps?.success) return finish(null, null);
