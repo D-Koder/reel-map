@@ -40,6 +40,11 @@ function ListedTag({ status }) {
 }
 
 // "2 done · 4 to pick" for a list post, so progress shows at a glance.
+// The reel link without its query, so ".../reel/abc/?igsh=..." and ".../reel/abc/" match.
+const reelPath = (url) => String(url || '').split("?")[0].replace(/\/$/, '').toLowerCase();
+// A place name compared without case, spaces or punctuation.
+const nameKey = (name) => String(name || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
 function ListedSummary({ list, status }) {
   const done = list.filter((item) => status[item.line] === 'found').length;
   const toPick = list.filter((item) => ['pick', 'none'].includes(status[item.line])).length;
@@ -884,6 +889,15 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     }
   };
 
+  // Places from this reel already saved to the user's places (the Shortcut, or an earlier add) show as Done,
+  // so the sheet never asks again for a place that is already saved.
+  const reelKey = reelPath(reelUrl || reelUrlInput);
+  const savedNames = new Set(reelKey ? places.filter((p) => reelPath(p.reel_url) === reelKey).map((p) => nameKey(p.name)) : []);
+  const shownStatus = { ...listedStatus };
+  for (const item of scrapedData?.listedPlaces ?? []) {
+    if (savedNames.has(nameKey(item.name))) shownStatus[item.line] = 'found';
+  }
+
   return (
     <>
     <div className="modal-overlay" onClick={dismiss}>
@@ -1143,7 +1157,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     ? `Pick the place for ${leftToPick.length === 1 ? 'this one' : `these ${leftToPick.length}`}. The rest are saved.`
                     : `This post lists ${scrapedData.listedPlaces.length} places`}
                 </span>
-                <ListedSummary list={leftToPick ?? scrapedData.listedPlaces} status={listedStatus} />
+                <ListedSummary list={leftToPick ?? scrapedData.listedPlaces} status={shownStatus} />
                 <div className="listed-places">
                   {(leftToPick ?? scrapedData.listedPlaces).map((item) => (
                     <div key={item.line} className="listed-row">
@@ -1156,9 +1170,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                       >
                         <strong>{choosingListed === item.line && <span className="spinner" aria-hidden="true" />}{listedNames[item.line] || item.name}</strong>
                         {listedNames[item.line] && !sameName(listedNames[item.line], item.name) && <span>{item.name}</span>}
-                        {listedStatus[item.line] !== 'found' && item.address && <span>{item.address}</span>}
-                        <ListedTag status={listedStatus[item.line]} />
-                        {(listedStatus[item.line] === 'looking' || choosingListed === item.line) && (
+                        {shownStatus[item.line] !== 'found' && item.address && <span>{item.address}</span>}
+                        <ListedTag status={shownStatus[item.line]} />
+                        {(shownStatus[item.line] === 'looking' || choosingListed === item.line) && (
                           <span className="listed-progress" role="progressbar" aria-label={`Looking up ${item.name}`} />
                         )}
                       </button>
@@ -1166,7 +1180,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                         type="button"
                         className="listed-refresh"
                         onClick={() => researchListed(item)}
-                        disabled={saving || addingAllListed || !!loadingCandidateUrl || listedStatus[item.line] === 'looking'}
+                        disabled={saving || addingAllListed || !!loadingCandidateUrl || shownStatus[item.line] === 'looking'}
                         aria-label={`Search ${item.name} on Google Maps again`}
                         title="Search again"
                       >
