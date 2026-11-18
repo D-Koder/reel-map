@@ -7140,3 +7140,7 @@ button { transition: scale 0.12s ease; }
 .place-card { padding: 10px 12px; }
 .place-card .inbox-thumb { width: 36px; height: 36px; }
 @media (prefers-reduced-motion: reduce) { .reel-progress-bar span { transition: none; } }
+
+/* Reel inbox: one card per shared reel. The reel link is its name. */
+.reel-card { display: grid; gap: 10px; }
+.reel-url { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

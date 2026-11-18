@@ -62,30 +62,6 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
   );
 }
 
-const PLACE_STATUS = {
-  looking: { text: 'Looking it up…', dot: 'looking' },
-  saved: { text: 'Saved to TBD', dot: 'saved' },
-  needs_pick: { text: "Needs a pick once the lookup finishes", dot: 'pick' },
-  failed: { text: 'Not found on Google Maps', dot: 'failed' },
-};
-
-// One card per place of a list post that the server is still looking up (from the Shortcut).
-// Each card shows its own status, so the places can be followed one by one.
-function PlaceCard({ place, index }) {
-  const status = PLACE_STATUS[place.status] || PLACE_STATUS.failed;
-  return (
-    <div className={`inbox-card place-card ${place.status}`} role="status" aria-label={place.name}>
-      <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
-      <div className="inbox-info">
-        <div className="inbox-name">{index + 1}. {place.name}</div>
-        <div className="inbox-message">
-          <span className={`places-dot ${status.dot}`} aria-hidden="true" /> {status.text}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Reels shared into the app that are still being saved, or need the user to finish them.
 export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfirm, onReject, onSaveListed }) {
   if (!items.length) return null;
@@ -96,17 +72,14 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
           return <ListConfirm key={item.id} item={item} onSave={onSaveListed} onReject={onReject} onDismiss={onDismiss} />;
         }
         if (item.remote && item.placesProgress?.length) {
-          // The reel's places, one compact card each, under a progress bar that shows how many are saved.
+          // One card for the whole reel: the reel link as its name, and a bar for how many of its places are saved.
           const total = item.placesProgress.length;
           const saved = item.placesProgress.filter((place) => place.status === 'saved').length;
           return (
-            <React.Fragment key={item.id}>
-              <div className="reel-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={saved} aria-label={`${saved} of ${total} places saved`}>
-                <div className="reel-progress-text"><span>This post</span><span>{saved} of {total} saved</span></div>
-                <div className="reel-progress-bar"><span style={{ width: `${total ? (saved / total) * 100 : 0}%` }} /></div>
-              </div>
-              {item.placesProgress.map((place, index) => <PlaceCard key={`${item.id}-${index}`} place={place} index={index} />)}
-            </React.Fragment>
+            <div key={item.id} className="inbox-card reel-card" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={saved} aria-label={`${saved} of ${total} places saved`}>
+              <div className="reel-progress-text"><span className="reel-url">{item.url}</span><span>{saved} of {total} saved</span></div>
+              <div className="reel-progress-bar"><span style={{ width: `${total ? (saved / total) * 100 : 0}%` }} /></div>
+            </div>
           );
         }
         const busy = item.status === 'saving';
