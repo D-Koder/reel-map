@@ -8,7 +8,9 @@
 
 const { internalHeaders } = require('./_lib/auth');
 const { requestCountry, requestLanguage } = require('./_lib/country');
-const { canonicalInstagramUrl, instagramSlide } = require('./_lib/reel-url');
+const { canonicalInstagramUrl, instagramSlide, reelLookupKey } = require('./_lib/reel-url');
+const { writeCache } = require('./_lib/lookup-cache');
+const { squash } = require('./_lib/names');
 const { cleanName } = require('./_lib/place-name');
 const { lookupListPlaces } = require('./_lib/list-lookup');
 
@@ -30,7 +32,7 @@ async function scrapeCall(host, protocol, body) {
 // Any place not found (or needing a pick) → nothing is saved here; the whole list goes to the app's picker,
 // as before. The matching is strict for now (one clear Google result only), so most places with several
 // results still go to the picker.
-async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }) {
+async function saveList(listed, data, { key, sharedUrl, host, protocol, finish, cacheKey }) {
   const places = listed.map((item) => ({
     name: item.name, area: item.area || '', address: item.address || '', category: item.category || 'food',
     startDate: item.startDate || '', endDate: item.endDate || '',
@@ -54,6 +56,17 @@ async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }
       await report();
     },
   });
+  // The results go where the app's picker looks first (the same keys as /api/listed-place), so a place the
+  // picker still has to show is listed from these, without searching Google again.
+  if (cacheKey) {
+    await Promise.all(results.map((result, index) => {
+      const place = places[index];
+      if (!result.candidates?.length) return null;
+      const address = place.address || '';
+      const pickerKey = `${cacheKey}#${squash(place.name)}${address ? `@${squash(address)}` : ''}`;
+      return writeCache('reel_lookups', pickerKey, { query: result.query, candidates: result.candidates, localName: '' });
+    }));
+  }
   const saved = results.filter((result) => result.status === 'saved').map((result) => result.place);
   if (saved.length !== results.length) {
     console.warn(`List post: ${results.length - saved.length} of ${results.length} places need a pick; the app shows the list`);
@@ -148,7 +161,7 @@ function lookInBackground(req, key, sharedText) {
     // A list post with several places: each one is looked up and saved on its own (see saveList).
     if (data?.success && Array.isArray(data.listedPlaces) && data.listedPlaces.length > 1) {
       // If the list step itself fails, the app shows the list instead, so the reel is never left waiting.
-      return saveList(data.listedPlaces, data, { key, sharedUrl, host, protocol, finish })
+      return saveList(data.listedPlaces, data, { key, sharedUrl, host, protocol, finish, cacheKey: reelLookupKey(reelUrl, slide).cacheKey })
         .catch((error) => { console.warn('List save failed:', error.message); return finish(data, null); });
     }
     // A failed Maps search (Google or Chrome) is tried again by the app, rather than asking to pick.

@@ -38,6 +38,7 @@ async function lookupOne(place, { search, details, pickBest }) {
   }
   return {
     status: 'saved',
+    candidates,
     place: {
       name: place.name,
       category: place.category,
@@ -61,7 +62,7 @@ async function lookupOne(place, { search, details, pickBest }) {
 async function lookupListPlaces(places, deps, { onResult } = {}) {
   const results = [];
   for (const [index, place] of places.entries()) {
-    const result = { name: place.name, ...(await lookupOne(place, deps)) };
+    const result = { name: place.name, query: queryFor(place), ...(await lookupOne(place, deps)) };
     results.push(result);
     if (onResult) await onResult(result, index);
   }
