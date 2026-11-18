@@ -73,12 +73,15 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         }
         if (item.remote && item.placesProgress?.length) {
           // One card for the whole reel: the reel link as its name, and a bar for how many of its places are saved.
+          // The bar counts places already checked (saved, needs a pick, or not found); the name is the creator and the count.
           const total = item.placesProgress.length;
-          const saved = item.placesProgress.filter((place) => place.status === 'saved').length;
+          const checked = item.placesProgress.filter((place) => place.status !== 'looking').length;
+          const creator = item.placesProgress.find((place) => place.creator)?.creator;
+          const title = creator ? `@${creator} · ${total} places` : `${total} places in this reel`;
           return (
-            <div key={item.id} className="inbox-card reel-card" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={saved} aria-label={`${saved} of ${total} places saved`}>
-              <div className="reel-progress-text"><span className="reel-url">{item.url}</span><span>{saved} of {total} saved</span></div>
-              <div className="reel-progress-bar"><span style={{ width: `${total ? (saved / total) * 100 : 0}%` }} /></div>
+            <div key={item.id} className="inbox-card reel-card" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={checked} aria-label={`${checked} of ${total} places checked`}>
+              <div className="reel-progress-text"><span className="reel-url">{title}</span><span>{checked} of {total} checked</span></div>
+              <div className="reel-progress-bar"><span style={{ width: `${total ? (checked / total) * 100 : 0}%` }} /></div>
             </div>
           );
         }

@@ -35,7 +35,8 @@ async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }
     name: item.name, area: item.area || '', address: item.address || '', category: item.category || 'food',
   }));
   // Each place's status is kept on the reel as it changes, so the app can show one row per place.
-  const progress = places.map((place) => ({ name: place.name, status: 'looking' }));
+  const creator = typeof data?.creator === 'string' ? data.creator.replace(/^@/, '').slice(0, 60) : '';
+  const progress = places.map((place) => ({ name: place.name, status: 'looking', creator }));
   const report = () => rpc('update_shared_reel_progress', { p_key: key, p_url: sharedUrl, p_progress: progress }).catch(() => {});
   await report();
   const results = await lookupListPlaces(places, {
@@ -48,7 +49,7 @@ async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }
   }, {
     onResult: async (result, index) => {
       const status = { saved: 'saved', needs_pick: 'needs_pick' }[result.status] || 'failed';
-      progress[index] = { name: result.name, status, ...(result.error ? { error: result.error } : {}) };
+      progress[index] = { name: result.name, status, creator, ...(result.error ? { error: result.error } : {}) };
       await report();
     },
   });
