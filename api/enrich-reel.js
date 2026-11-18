@@ -12,6 +12,7 @@ const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { cleanName } = require('./_lib/place-name');
 const { aiPlace } = require('./_lib/ai-place');
 const { nameInPost } = require('./_lib/name-check');
+const { placesFromAi } = require('./_lib/place-list');
 const { squash, letters } = require('./_lib/names');
 
 // How long saved reel lookups are reused (place details: PLACE_CACHE_DAYS in scrape-location.js).
@@ -76,8 +77,11 @@ function applyAi(reel, ai) {
   const name = cleanName(fromHandle ? handleToPlace(pick.name).name : pick.name);
   const where = pick.area || ai.postArea || '';
   const choices = ai.kind === 'list' && ai.places.length > 1 && ai.slidePlace === null
-    ? { listedPlaces: ai.places.map(({ name: listed, otherName, localName, address, area: listedArea, category, evidence }) => ({
-      name: listed, ...(otherName ? { otherName } : {}), ...(localName ? { localName } : {}), ...(listedArea ? { area: listedArea } : {}), address, category, line: evidence,
+    // The list comes from the shared place-list module, the same one the Shortcut save uses.
+    ? { listedPlaces: placesFromAi(ai, reel).map((p) => ({
+      name: p.name, ...(p.otherName ? { otherName: p.otherName } : {}), ...(p.localName ? { localName: p.localName } : {}),
+      ...(p.area ? { area: p.area } : {}), address: p.address, category: p.category, line: p.evidence,
+      ...(p.nameUnchecked ? { nameUnchecked: true } : {}),
     })) }
     : {};
   // A pop-up or stall has no shop to find: only its street is searched, for the pin. Searching its
