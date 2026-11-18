@@ -22,7 +22,10 @@ function postTexts(reel = {}) {
 function placeFrom(pick = {}, ai = {}, texts) {
   const name = String(pick.name ?? '').trim();
   const temporary = Boolean(ai.temporary);
-  const category = temporary ? 'event' : CATEGORIES.includes(pick.category) ? pick.category : 'food';
+  // A list place with its own dates from the post (a market on set days) is an event, like a pop-up.
+  const ownStart = String(pick.start_date ?? pick.startDate ?? '');
+  const ownEnd = String(pick.end_date ?? pick.endDate ?? '');
+  const category = temporary || ownStart ? 'event' : CATEGORIES.includes(pick.category) ? pick.category : 'food';
   return {
     name,
     handle: String(pick.handle ?? ''),
@@ -32,8 +35,8 @@ function placeFrom(pick = {}, ai = {}, texts) {
     address: String(pick.address ?? ''),
     category,
     temporary,
-    startDate: temporary ? String(pick.startDate ?? ai.startDate ?? '') : '',
-    endDate: temporary ? String(pick.endDate ?? ai.endDate ?? '') : '',
+    startDate: ownStart || (temporary ? String(ai.startDate ?? '') : ''),
+    endDate: ownEnd || (temporary ? String(ai.endDate ?? '') : ''),
     runs: temporary && Array.isArray(ai.runs) ? ai.runs : [],
     price: temporary ? String(ai.price ?? '') : '',
     contact: temporary ? String(ai.contact ?? '') : '',

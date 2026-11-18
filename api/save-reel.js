@@ -33,6 +33,7 @@ async function scrapeCall(host, protocol, body) {
 async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }) {
   const places = listed.map((item) => ({
     name: item.name, area: item.area || '', address: item.address || '', category: item.category || 'food',
+    startDate: item.startDate || '', endDate: item.endDate || '',
   }));
   // Each place's status is kept on the reel as it changes, so the app can show one row per place.
   const creator = typeof data?.creator === 'string' ? data.creator.replace(/^@/, '').slice(0, 60) : '';

@@ -109,6 +109,10 @@ Rules:
 - A list post names several places, usually one per slide. If a slide
   number is given, also say which listed place that slide shows. A first
   slide that is a cover or intro does not count as a place.
+- In a list post, each place that is on for set days (a market, festival, pop-up or event) gets its own
+  "start_date" and "end_date" in its entry, worked out the same way as for a temporary venue, and
+  "date_evidence" quotes the words that give them. Leave them "" for a place the caption gives no dates
+  for. A place that is a permanent shop gets "" too.
 - Set "temporary" to true when the venue itself is temporary: a pop-up,
   stall, market, food truck or limited-time event with no permanent shop
   of its own. A permanent shop running a special or a pop-up menu is not

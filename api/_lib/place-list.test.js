@@ -65,3 +65,21 @@ test('no answer gives no places', () => {
   assert.deepEqual(placesFromAi(null, reel), []);
   assert.deepEqual(placesFromAi({ kind: 'none', places: [] }, reel), []);
 });
+
+test('each place in a list post keeps its own dates, and a dated place is an event', () => {
+  const ai = {
+    kind: 'list',
+    places: [
+      { name: 'Swedish Christmas Market', category: 'food', start_date: '2026-11-19', end_date: '2026-12-17' },
+      { name: 'German Christmas Market', category: 'food', start_date: '2026-11-27', end_date: '2026-11-27' },
+      { name: 'Queen Victoria Christmas Night Market', category: 'food' },
+    ],
+  };
+  const [swedish, german, undated] = placesFromAi(ai, reel);
+  assert.equal(swedish.startDate, '2026-11-19');
+  assert.equal(swedish.endDate, '2026-12-17');
+  assert.equal(swedish.category, 'event');
+  assert.equal(german.startDate, '2026-11-27');
+  assert.equal(undated.startDate, '');
+  assert.equal(undated.category, 'food');
+});

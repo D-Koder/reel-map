@@ -81,6 +81,7 @@ function applyAi(reel, ai) {
     ? { listedPlaces: placesFromAi(ai, reel).map((p) => ({
       name: p.name, ...(p.otherName ? { otherName: p.otherName } : {}), ...(p.localName ? { localName: p.localName } : {}),
       ...(p.area ? { area: p.area } : {}), address: p.address, category: p.category, line: p.evidence,
+      ...(p.startDate ? { startDate: p.startDate } : {}), ...(p.endDate ? { endDate: p.endDate } : {}),
       ...(p.nameUnchecked ? { nameUnchecked: true } : {}),
     })) }
     : {};
