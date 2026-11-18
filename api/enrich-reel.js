@@ -11,6 +11,7 @@ const { requestCountry, requestLanguage, requestTimeZone, dayIn } = require('./_
 const { captionMentions, handleToPlace } = require('./_lib/handles');
 const { cleanName } = require('./_lib/place-name');
 const { aiPlace } = require('./_lib/ai-place');
+const { nameInPost } = require('./_lib/name-check');
 const { squash, letters } = require('./_lib/names');
 
 // How long saved reel lookups are reused (place details: PLACE_CACHE_DAYS in scrape-location.js).
@@ -59,6 +60,13 @@ function captionAddress(caption) {
   return { address, suburb: parts.length > 1 ? parts[parts.length - 1] : '' };
 }
 
+// The parts of the post a place name can be copied from: caption, location tag, creator and tagged accounts.
+function postTexts(reel) {
+  const handles = [...(Array.isArray(reel.tagged) ? reel.tagged : []), ...(Array.isArray(reel.collaborators) ? reel.collaborators : [])];
+  return [reel.caption, reel.locationTag, reel.creator, ...handles.map((handle) => String(handle?.handle ?? handle ?? ''))]
+    .filter((text) => typeof text === 'string' && text.trim());
+}
+
 // What the AI found, as the reel fields the rest of the lookup uses. A list post shared without a
 // slide offers every place to pick from.
 // The AI gives a handle's business name in words; a name still written as a handle is split at its dots.
@@ -81,7 +89,8 @@ function applyAi(reel, ai) {
     // Cafe, food, event or other. A pop-up is always an event.
     // otherName: the name in the other Chinese script (人和館 → 人和馆), also matched against Google's names.
     // localName: the name as written locally (Zhapu Road Bridge → 乍浦路桥), searched with and matched against.
-    reel: { ...reel, placeName: name, otherName: fromHandle ? '' : pick.otherName || '',
+    // nameUnchecked: the name isn't written anywhere in the post, so the person is asked to check it.
+    reel: { ...reel, placeName: name, nameUnchecked: !nameInPost(name, postTexts(reel)), otherName: fromHandle ? '' : pick.otherName || '',
       localName: fromHandle ? '' : pick.localName || '', location: popup?.locationNote ? '' : pick.address || where,
       placeSource: pick.source, category: ai.temporary ? 'event' : pick.category, ...choices },
     // A secret location ("sent by DM") is left empty: a brand in the caption isn't where it is.

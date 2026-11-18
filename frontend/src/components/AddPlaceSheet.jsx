@@ -299,6 +299,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
     const locationName = /\d/.test(data.location?.split(',')[0] ?? '') || !data.location?.includes(',')
       ? '' : data.location.split(',')[0].trim();
     setName(data.placeName || locationName || data.caption?.split('\n')[0].substring(0, 80) || '');
+    // The name isn't written anywhere in the post: it may be a guess, so the person checks it.
+    if (data.nameUnchecked && data.placeName) addLog(`Check the name "${data.placeName}": it isn't written in the post.`, 'error');
     setLocation(data.location || '');
     const steps = data.steps;
     if (steps) {
