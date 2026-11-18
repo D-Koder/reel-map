@@ -7130,3 +7130,13 @@ button { transition: scale 0.12s ease; }
 .places-dot.saved { background: var(--success, #2e9e6a); }
 .places-dot.pick { background: var(--warning, #c98a00); }
 .places-dot.failed { background: var(--danger, #c0392b); }
+
+/* Reel inbox: compact place cards under a progress bar (how many places of the post are saved). */
+.reel-progress { margin: 0 0 8px; padding: 10px 12px; border: 1px solid var(--border, #2d3760); border-radius: 12px; background: var(--surface, transparent); }
+.reel-progress-text { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+.reel-progress-text span:last-child { color: var(--text-muted); font-weight: 500; }
+.reel-progress-bar { height: 4px; margin-top: 8px; border-radius: 999px; background: var(--border, #2d3760); overflow: hidden; }
+.reel-progress-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+.place-card { padding: 10px 12px; }
+.place-card .inbox-thumb { width: 36px; height: 36px; }
+@media (prefers-reduced-motion: reduce) { .reel-progress-bar span { transition: none; } }

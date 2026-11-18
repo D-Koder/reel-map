@@ -96,7 +96,18 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
           return <ListConfirm key={item.id} item={item} onSave={onSaveListed} onReject={onReject} onDismiss={onDismiss} />;
         }
         if (item.remote && item.placesProgress?.length) {
-          return <React.Fragment key={item.id}>{item.placesProgress.map((place, index) => <PlaceCard key={`${item.id}-${index}`} place={place} index={index} />)}</React.Fragment>;
+          // The reel's places, one compact card each, under a progress bar that shows how many are saved.
+          const total = item.placesProgress.length;
+          const saved = item.placesProgress.filter((place) => place.status === 'saved').length;
+          return (
+            <React.Fragment key={item.id}>
+              <div className="reel-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={saved} aria-label={`${saved} of ${total} places saved`}>
+                <div className="reel-progress-text"><span>This post</span><span>{saved} of {total} saved</span></div>
+                <div className="reel-progress-bar"><span style={{ width: `${total ? (saved / total) * 100 : 0}%` }} /></div>
+              </div>
+              {item.placesProgress.map((place, index) => <PlaceCard key={`${item.id}-${index}`} place={place} index={index} />)}
+            </React.Fragment>
+          );
         }
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';
