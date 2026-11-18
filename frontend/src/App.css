@@ -7144,3 +7144,20 @@ button { transition: scale 0.12s ease; }
 /* Reel inbox: one card per shared reel. The reel link is its name. */
 .reel-card { display: grid; gap: 10px; }
 .reel-url { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* Reel inbox: the "pick the place" card, compact. Full-width name and message, the actions on a row below,
+   and a quiet card with a thin accent edge instead of a yellow fill. */
+.inbox-card.compact-card {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+  padding: 12px;
+  background: var(--card-bg, transparent);
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.25));
+  border-left: 3px solid var(--accent);
+}
+.compact-card .inbox-info { flex: 1 1 180px; min-width: 0; }
+.compact-card .inbox-name { white-space: normal; overflow-wrap: anywhere; }
+.compact-card .inbox-message { color: var(--text-muted); font-size: 14px; }
+.compact-card .inbox-action { min-height: 40px; }
+.compact-card .inbox-dismiss { margin-left: auto; }

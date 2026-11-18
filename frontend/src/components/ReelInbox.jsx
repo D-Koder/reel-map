@@ -91,7 +91,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         // "Verify place" was tapped: the app did guess, so don't say it couldn't tell.
         const rejected = finish && item.rejected;
         return (
-          <div key={item.id} className={`inbox-card ${item.status}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
+          <div key={item.id} className={`inbox-card ${item.status}${finish ? " compact-card" : ""}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
             <span className="inbox-thumb" aria-hidden="true">
               <Film aria-hidden="true" />
             </span>
