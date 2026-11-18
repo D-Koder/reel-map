@@ -90,16 +90,18 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
         const confirming = item.status === 'confirm';
         // "Verify place" was tapped: the app did guess, so don't say it couldn't tell.
         const rejected = finish && item.rejected;
+        // The pick card is named by the post's creator, as the lookup panel shows it.
+        const creator = finish ? item.reelData?.creator : null;
         return (
           <div key={item.id} className={`inbox-card ${item.status}${finish ? " compact-card" : ""}`} data-tour={item.status === 'confirm' ? 'confirm' : undefined} role="status">
             <span className="inbox-thumb" aria-hidden="true">
               <Film aria-hidden="true" />
             </span>
             <div className="inbox-info">
-              {(rejected || item.name) && <div className="inbox-name">{rejected ? 'Pick the place' : item.name}</div>}
+              {(rejected || item.name || creator) && <div className="inbox-name">{rejected ? 'Pick the place' : creator ? `@${creator.replace(/^@/, '')}` : item.name}</div>}
               <div className="inbox-message">
                 {busy && <span className="spinner" aria-hidden="true" />}
-                {rejected ? (item.name ? `We guessed ${item.name}.` : 'Choose it from the list.') : confirming ? (item.address || 'Is this the right place?') : busy && item.progress ? `Saving ${item.progress}…` : busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
+                {rejected ? (item.name ? `We guessed ${item.name}.` : 'Choose it from the list.') : finish ? 'Pick the place to save it.' : confirming ? (item.address || 'Is this the right place?') : busy && item.progress ? `Saving ${item.progress}…` : busy && item.name ? 'Found it! Saving…' : MESSAGES[item.status]}
               </div>
             </div>
             {confirming && (
@@ -108,27 +110,35 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
                 <button type="button" className="inbox-action secondary" onClick={() => onReject(item)}>Verify place</button>
               </div>
             )}
-            {finish && (
-              <button type="button" className="inbox-action" onClick={() => onFinish(item)}>
-                {rejected ? 'Pick place' : 'Finish'}
-              </button>
-            )}
-            {/* The lookup can fail for a passing reason (Google or the server), so it can run again. */}
-            {finish && !rejected && (
-              <button type="button" className="inbox-dismiss" onClick={() => onRetry(item)} aria-label="Look up this reel again">
-                <RefreshCw aria-hidden="true" />
-              </button>
-            )}
-            {item.status === 'failed' && (
-              <button type="button" className="inbox-action" onClick={() => onRetry(item)}>
-                Retry
-              </button>
-            )}
-            {/* A lookup running here can be cancelled. One the server is saving (from the Shortcut) can't. */}
-            {(!busy || !item.remote) && (
-              <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label={busy ? 'Cancel this import' : 'Remove this reel'}>
-                <X aria-hidden="true" />
-              </button>
+            {finish ? (
+              <div className="compact-actions">
+                <button type="button" className="inbox-action" onClick={() => onFinish(item)}>
+                  {rejected ? 'Pick place' : 'Finish'}
+                </button>
+                {/* The lookup can fail for a passing reason (Google or the server), so it can run again. */}
+                {!rejected && (
+                  <button type="button" className="inbox-dismiss" onClick={() => onRetry(item)} aria-label="Look up this reel again">
+                    <RefreshCw aria-hidden="true" />
+                  </button>
+                )}
+                <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label="Remove this reel">
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <>
+                {item.status === 'failed' && (
+                  <button type="button" className="inbox-action" onClick={() => onRetry(item)}>
+                    Retry
+                  </button>
+                )}
+                                {/* A lookup running here can be cancelled. One the server is saving (from the Shortcut) can't. */}
+                {(!busy || !item.remote) && (
+                  <button type="button" className="inbox-dismiss" onClick={() => onDismiss(item.id)} aria-label={busy ? 'Cancel this import' : 'Remove this reel'}>
+                    <X aria-hidden="true" />
+                  </button>
+                )}
+                </>
             )}
           </div>
         );
