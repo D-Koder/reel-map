@@ -69,33 +69,19 @@ const PLACE_STATUS = {
   failed: { text: 'Not found on Google Maps', dot: 'failed' },
 };
 
-// One row per place of a list post that the server is still looking up (from the Shortcut).
-function PlacesGroup({ item }) {
-  const places = item.placesProgress;
-  const saved = places.filter((place) => place.status === 'saved').length;
+// One card per place of a list post that the server is still looking up (from the Shortcut).
+// Each card shows its own status, so the places can be followed one by one.
+function PlaceCard({ place, index }) {
+  const status = PLACE_STATUS[place.status] || PLACE_STATUS.failed;
   return (
-    <div className="inbox-card places-group" role="group" aria-label={`This post lists ${places.length} places`}>
-      <div className="lc-head">
-        <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
-        <div className="inbox-info">
-          <div className="inbox-name">{places.length} places in this reel</div>
-          <div className="inbox-message">{saved} of {places.length} saved</div>
+    <div className={`inbox-card place-card ${place.status}`} role="status" aria-label={place.name}>
+      <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
+      <div className="inbox-info">
+        <div className="inbox-name">{index + 1}. {place.name}</div>
+        <div className="inbox-message">
+          <span className={`places-dot ${status.dot}`} aria-hidden="true" /> {status.text}
         </div>
       </div>
-      <ul className="places-rows">
-        {places.map((place, index) => {
-          const status = PLACE_STATUS[place.status] || PLACE_STATUS.failed;
-          return (
-            <li key={`${index}-${place.name}`} className="places-row">
-              <span className={`places-dot ${status.dot}`} aria-hidden="true" />
-              <span className="places-text">
-                <span className="lc-name">{place.name}</span>
-                <span className="lc-addr">{status.text}</span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }
@@ -110,7 +96,7 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
           return <ListConfirm key={item.id} item={item} onSave={onSaveListed} onReject={onReject} onDismiss={onDismiss} />;
         }
         if (item.remote && item.placesProgress?.length) {
-          return <PlacesGroup key={item.id} item={item} />;
+          return <React.Fragment key={item.id}>{item.placesProgress.map((place, index) => <PlaceCard key={`${item.id}-${index}`} place={place} index={index} />)}</React.Fragment>;
         }
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';
