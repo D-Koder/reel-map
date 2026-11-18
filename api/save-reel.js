@@ -34,6 +34,10 @@ async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }
   const places = listed.map((item) => ({
     name: item.name, area: item.area || '', address: item.address || '', category: item.category || 'food',
   }));
+  // Each place's status is kept on the reel as it changes, so the app can show one row per place.
+  const progress = places.map((place) => ({ name: place.name, status: 'looking' }));
+  const report = () => rpc('update_shared_reel_progress', { p_key: key, p_url: sharedUrl, p_progress: progress }).catch(() => {});
+  await report();
   const results = await lookupListPlaces(places, {
     search: async (query, place) => {
       const json = await scrapeCall(host, protocol, { action: 'search', query, placeName: place.name, location: query });
@@ -41,6 +45,12 @@ async function saveList(listed, data, { key, sharedUrl, host, protocol, finish }
     },
     details: async (url) => scrapeCall(host, protocol, { action: 'details', query: url, placeUrl: url }),
     pickBest: (candidates) => (candidates.length === 1 ? candidates[0] : null),
+  }, {
+    onResult: async (result, index) => {
+      const status = { saved: 'saved', needs_pick: 'needs_pick' }[result.status] || 'failed';
+      progress[index] = { name: result.name, status, ...(result.error ? { error: result.error } : {}) };
+      await report();
+    },
   });
   const saved = results.filter((result) => result.status === 'saved').map((result) => result.place);
   if (saved.length !== results.length) {

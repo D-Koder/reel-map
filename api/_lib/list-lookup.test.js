@@ -67,6 +67,16 @@ test('a place the search finds nothing for is failed', async () => {
   assert.equal(result.status, 'failed');
 });
 
+test('onResult is called once per place, in order, as each finishes', async () => {
+  const seen = [];
+  await lookupListPlaces([{ name: 'A' }, { name: 'B' }], {
+    search: async () => ({ candidates: [{ url: 'x' }] }),
+    details,
+    pickBest: pickOnlyOne,
+  }, { onResult: (result, index) => seen.push([index, result.name, result.status]) });
+  assert.deepEqual(seen, [[0, 'A', 'saved'], [1, 'B', 'saved']]);
+});
+
 test('the search text is the name, then address and area', () => {
   assert.equal(queryFor({ name: 'Swedish Christmas Market', area: 'Toorak' }), 'Swedish Christmas Market, Toorak');
   assert.equal(queryFor({ name: 'Cafe', address: '1 Main St', area: '' }), 'Cafe, 1 Main St');

@@ -57,10 +57,13 @@ async function lookupOne(place, { search, details, pickBest }) {
 }
 
 // One result per place, in the order given. A failure in one place never stops the others.
-async function lookupListPlaces(places, deps) {
+// onResult(result, index) is called as each place finishes, so progress can be shown while the rest run.
+async function lookupListPlaces(places, deps, { onResult } = {}) {
   const results = [];
-  for (const place of places) {
-    results.push({ name: place.name, ...(await lookupOne(place, deps)) });
+  for (const [index, place] of places.entries()) {
+    const result = { name: place.name, ...(await lookupOne(place, deps)) };
+    results.push(result);
+    if (onResult) await onResult(result, index);
   }
   return results;
 }
