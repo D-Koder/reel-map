@@ -7120,3 +7120,13 @@ button { transition: scale 0.12s ease; }
 .framed-none .frame-swatch { box-shadow: none; }
 /* Frame picker: only the ring shows, so the stand-in picture inside is see-through. */
 .ach-frame .frame-swatch { background: none; box-shadow: none; }
+
+/* Reel inbox: one row per place of a list post, while the server looks each one up. */
+.places-group .places-rows { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.places-row { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.places-text { display: grid; gap: 2px; min-width: 0; }
+.places-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--text-muted); }
+.places-dot.looking { background: var(--text-muted); }
+.places-dot.saved { background: var(--success, #2e9e6a); }
+.places-dot.pick { background: var(--warning, #c98a00); }
+.places-dot.failed { background: var(--danger, #c0392b); }

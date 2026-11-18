@@ -27,17 +27,26 @@ export function useShortcutReels({ userId, ready, inbox }) {
       if (busy || document.visibilityState === 'hidden') return;
       busy = true;
       try {
-        const { data, error } = await supabase
+        // places_progress: each place of a list post, while the server looks it up. If the column isn't
+        // there yet (the migration not run), the reels are still read without it.
+        let { data, error } = await supabase
           .from('shared_reels')
-          .select('id, url, looking_since, lookup')
+          .select('id, url, looking_since, lookup, places_progress')
           .order('created_at', { ascending: true })
           .limit(50);
+        if (error) {
+          ({ data, error } = await supabase
+            .from('shared_reels')
+            .select('id, url, looking_since, lookup')
+            .order('created_at', { ascending: true })
+            .limit(50));
+        }
         if (error) return;
         const { enqueue, watch, unwatch, items } = inboxRef.current;
         const now = Date.now();
         const looking = (data ?? []).filter((row) => !row.lookup && row.looking_since &&
           now - Date.parse(row.looking_since) < LOOKING_STALE_MS);
-        looking.forEach((row) => watch(row.url));
+        looking.forEach((row) => watch(row.url, row.places_progress ?? null));
         // Cards for reels the server finished and removed (saved to TBD, which loads on its own).
         const onServer = new Set((data ?? []).map((row) => row.url));
         items.filter((item) => item.remote && !onServer.has(item.url)).forEach((item) => unwatch(item.url));

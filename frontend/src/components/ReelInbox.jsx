@@ -62,6 +62,44 @@ function ListConfirm({ item, onSave, onReject, onDismiss }) {
   );
 }
 
+const PLACE_STATUS = {
+  looking: { text: 'Looking it up…', dot: 'looking' },
+  saved: { text: 'Saved to TBD', dot: 'saved' },
+  needs_pick: { text: "Needs a pick once the lookup finishes", dot: 'pick' },
+  failed: { text: 'Not found on Google Maps', dot: 'failed' },
+};
+
+// One row per place of a list post that the server is still looking up (from the Shortcut).
+function PlacesGroup({ item }) {
+  const places = item.placesProgress;
+  const saved = places.filter((place) => place.status === 'saved').length;
+  return (
+    <div className="inbox-card places-group" role="group" aria-label={`This post lists ${places.length} places`}>
+      <div className="lc-head">
+        <span className="inbox-thumb" aria-hidden="true"><Film aria-hidden="true" /></span>
+        <div className="inbox-info">
+          <div className="inbox-name">{places.length} places in this reel</div>
+          <div className="inbox-message">{saved} of {places.length} saved</div>
+        </div>
+      </div>
+      <ul className="places-rows">
+        {places.map((place, index) => {
+          const status = PLACE_STATUS[place.status] || PLACE_STATUS.failed;
+          return (
+            <li key={`${index}-${place.name}`} className="places-row">
+              <span className={`places-dot ${status.dot}`} aria-hidden="true" />
+              <span className="places-text">
+                <span className="lc-name">{place.name}</span>
+                <span className="lc-addr">{status.text}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // Reels shared into the app that are still being saved, or need the user to finish them.
 export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfirm, onReject, onSaveListed }) {
   if (!items.length) return null;
@@ -70,6 +108,9 @@ export default function ReelInbox({ items, onFinish, onRetry, onDismiss, onConfi
       {items.map((item) => {
         if (item.status === 'confirm-list') {
           return <ListConfirm key={item.id} item={item} onSave={onSaveListed} onReject={onReject} onDismiss={onDismiss} />;
+        }
+        if (item.remote && item.placesProgress?.length) {
+          return <PlacesGroup key={item.id} item={item} />;
         }
         const busy = item.status === 'saving';
         const finish = item.status === 'needs-place';

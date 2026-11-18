@@ -286,10 +286,11 @@ export function useReelInbox({ userId, collections, places, addPlace, createInbo
   }, [pickCollection, process]);
 
   // A reel the server is looking up shows as "Finding the place…" until it's done.
-  const watch = useCallback((url) => {
+  // placesProgress: a list post's places and their statuses, kept up to date each time the server answers.
+  const watch = useCallback((url, placesProgress = null) => {
     setItems((list) => (list.some((i) => i.url === url)
-      ? list
-      : [...list, { id: newId(), url, collectionId: null, status: 'saving', remote: true, addedAt: Date.now() }]));
+      ? list.map((i) => (i.url === url && i.remote ? { ...i, placesProgress } : i))
+      : [...list, { id: newId(), url, collectionId: null, status: 'saving', remote: true, placesProgress, addedAt: Date.now() }]));
   }, []);
   // The server finished (saved it, or the reel is gone): the card goes.
   const unwatch = useCallback((url) => setItems((list) => list.filter((i) => !(i.remote && i.url === url))), []);
