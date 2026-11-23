@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { bestPlaceMatch, entriesAtSpot, namedLike, reelPlaceAreas, reelPlaceHints, relatedPlaces } from '../lib/places';
 import DuplicateWarning from './DuplicateWarning';
+import ListStepper from './ListStepper';
 import CandidateAddress from './CandidateAddress';
 import { ArrowUpRight, Binoculars, Check, ClipboardPaste, Flag, Heart, MessageCircle, RefreshCw, TriangleAlert, X } from 'lucide-react';
 import useSheetDrag from '../lib/useSheetDrag';
@@ -1176,7 +1177,35 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             )}
 
             {/* A list post shared without a slide: which of its places is this? */}
-            {(leftToPick?.length > 0 || scrapedData?.listedPlaces?.length > 1) && (
+            {scrapedData?.listedPlaces?.length > 1 ? (
+              <ListStepper
+                items={scrapedData.listedPlaces}
+                lookupItem={(item) => lookupListed(item)}
+                searchFor={(q) => searchCandidates(q)}
+                readDetails={(candidate, item) => requestLocationApi({
+                  action: 'details',
+                  query: candidate.searchQuery || candidate.name,
+                  placeUrl: candidate.url,
+                  placeAddress: candidate.address,
+                  placeName: candidate.name,
+                  location: candidate.address || item.area || '',
+                })}
+                buildPlace={(item, details, typed) => ({
+                  name: (details?.name || item.name).trim(),
+                  location: (details?.address || typed || item.address || '').trim(),
+                  category: knownCategory(item.category) || category,
+                  collectionId,
+                  reelUrl: reelUrl.trim(),
+                  venueDetails: details || null,
+                  feeling,
+                  customInfo: customInfo.trim(),
+                  url: null,
+                  eventDate: null,
+                })}
+                onSaveAll={(places) => (collectionId && onAddAll ? onAddAll(places, { more: 0 }) : null)}
+              />
+            ) : (leftToPick?.length > 0) && (
+
               <div className="field">
                 <span className="modal-label">
                   {leftToPick

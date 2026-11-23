@@ -7166,3 +7166,25 @@ button { transition: scale 0.12s ease; }
 .compact-card .compact-actions { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; min-width: 0; }
 .compact-card .compact-actions .inbox-action { flex: 1 1 auto; }
 .compact-card .compact-actions .inbox-dismiss { margin-left: 0; }
+
+/* Add place: the one-place-at-a-time stepper for a list post. */
+.stepper-card { display: grid; gap: 12px; padding: 4px 0 8px; }
+.stepper-bar { height: 6px; background: var(--border, #2d3760); border-radius: 999px; overflow: hidden; }
+.stepper-bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+.stepper-label { color: var(--text-muted); font-size: 13px; }
+.stepper-place { background: var(--surface-2, transparent); border: 1px solid var(--border, #2d3760); border-radius: 16px; padding: 16px; display: grid; gap: 8px; }
+.stepper-name { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.stepper-sub { color: var(--text-muted); font-size: 14px; overflow-wrap: anywhere; }
+.stepper-search { display: grid; gap: 8px; margin-top: 6px; }
+.stepper-search input { font: inherit; font-size: 16px; color: inherit; background: var(--bg); border: 1px solid var(--border, #2d3760); border-radius: 12px; padding: 12px; min-height: 48px; width: 100%; }
+.stepper-opt { text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border, #2d3760); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.stepper-opt span { color: var(--text-muted); font-size: 13px; }
+.stepper-tag { font-size: 13px; font-weight: 700; color: var(--success, #2e9e6a); }
+.stepper-nav { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.stepper-btn { font: inherit; font-size: 15px; font-weight: 700; border-radius: 14px; padding: 14px; min-height: 50px; cursor: pointer; border: 1px solid var(--border, #2d3760); background: var(--chip, #1f2850); color: inherit; }
+.stepper-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stepper-btn:disabled { opacity: .45; cursor: not-allowed; }
+.stepper-later { color: var(--text-muted); font-size: 13px; }
+.stepper-summary { text-align: center; padding: 16px 8px; display: grid; gap: 6px; }
+.stepper-big { font-size: 22px; font-weight: 700; }
+.stepper-small { color: var(--text-muted); font-size: 14px; }
