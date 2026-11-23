@@ -479,6 +479,7 @@ function lookupLogs(body, consoleLines) {
     add(`Read from: ${steps.source}`);
     if (body.tagged?.length) add(`Tagged accounts: ${body.tagged.map((handle) => `@${handle}`).join(', ')}`);
     add(`AI: ${steps.ai}`);
+    if (steps.pictures) add(`Pictures: ${steps.pictures}`);
     if (steps.category) add(`Category: ${steps.category}`);
     if (steps.handles) add(`Handles: ${steps.handles}`);
     if (steps.area) add(`Area added to search: ${steps.area}`);
