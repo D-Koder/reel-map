@@ -188,6 +188,16 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
             aria-label="Search for this place"
             autoComplete="off"
           />
+          {query && (
+            <button
+              type="button"
+              className="stepper-clear"
+              aria-label="Clear the search"
+              onClick={() => { setQuery(""); setCandidates([]); }}
+            >
+              ×
+            </button>
+          )}
           <button type="button" className="stepper-find" onClick={find} disabled={finding || query.trim().length < 2}>{finding ? 'Finding…' : 'Find'}</button>
         </div>
         {finding && (
