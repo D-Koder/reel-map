@@ -573,6 +573,7 @@ async function enrich(req, res, getBrowser) {
     source: read.fromCache ? 'saved lookup' : read.reel.source === 'share' ? 'RedNote share text (caption cut off)' : read.reel.source === 'rednote' ? 'RedNote page' : 'Instagram',
     ...(read.tried ? { redNote: read.tried } : {}),
     ai: read.fromCache ? 'skipped (saved lookup)' : reel.caption ? 'called' : 'skipped (no caption)',
+    pictures: read.fromCache ? 'skipped (saved lookup)' : 'not sent',
   };
   if (!read.fromCache && reel.caption) {
     const askAi = (post) => aiPlace({
