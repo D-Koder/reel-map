@@ -1146,7 +1146,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
                     {scrapedData.likes != null && scrapedData.comments != null && ' · '}
                     {scrapedData.comments != null && <><MessageCircle className="ico" aria-hidden="true" /> {Number(scrapedData.comments).toLocaleString()}</>}
                     {/* The quick lookup has no counts, so the creator is shown instead. */}
-                    {!scrapedData.unreadable && scrapedData.likes == null && scrapedData.comments == null && (scrapedData.creator ? `@${scrapedData.creator}` : 'Counts unavailable')}
+                    {!scrapedData.unreadable && scrapedData.likes == null && scrapedData.comments == null && (scrapedData.creator ? `@${scrapedData.creator}` : null)}
                   </div>
                 </div>
                 <button
@@ -1260,6 +1260,8 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               </div>
             )}
 
+            {/* A list post uses the stepper instead of the single-place fields. */}
+            {!(scrapedData?.listedPlaces?.length > 1) && <>
             {/* Name Field */}
             <label className="field">
               <span className="modal-label">Name *</span>
@@ -1619,6 +1621,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
               </div>
             </div>
 
+            </>}
           </form>
         )}
 
@@ -1667,7 +1670,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         )}
         </div>
 
-        {step === 'details' && (
+        {step === 'details' && !(scrapedData?.listedPlaces?.length > 1) && (
           <div className="sheet-footer">
             <button type="submit" form="add-place-form" className="step-btn primary full-width" disabled={saving || !name.trim()}>
               {saving ? <><span className="spinner" aria-hidden="true" />Adding…</> : 'Add place'}
