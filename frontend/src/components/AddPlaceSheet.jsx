@@ -176,6 +176,13 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
   const [saving, setSaving] = useState(false);
   const [locationCandidates, setLocationCandidates] = useState(draft?.locationCandidates ?? []);
   const [locationSearchDone, setLocationSearchDone] = useState(draft?.locationSearchDone ?? false);
+  // True when the person chose to use the typed address as it is (nothing matched on Google Maps).
+  const [usingTyped, setUsingTyped] = useState(false);
+  // Latest values for the search-as-you-type timer, which must not run once a place is picked.
+  const mapsDataRef = useRef(null);
+  mapsDataRef.current = mapsData;
+  const pinCoordsRef = useRef(null);
+  pinCoordsRef.current = pinCoords;
   const [loadingCandidateUrl, setLoadingCandidateUrl] = useState(null);
   // A list post shared without a slide: the listed place being looked up after the person tapped it.
   const [choosingListed, setChoosingListed] = useState(null);
@@ -645,6 +652,25 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
       throw error;
     }
   };
+
+  // Search as you type: after a pause, the matches are listed for the person to choose. Nothing is picked here.
+  useEffect(() => {
+    setUsingTyped(false);
+    const query = location.trim();
+    if (query.length < 4 || mapsDataRef.current || pinCoordsRef.current?.source === 'mapbox') return undefined;
+    const timer = setTimeout(async () => {
+      if (mapsDataRef.current) return;
+      try {
+        const found = await searchCandidates(query);
+        if (mapsDataRef.current) return;
+        setLocationCandidates(found);
+        setLocationSearchDone(true);
+      } catch {
+        // The binoculars still work; a failed search here stays quiet.
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [location]);
 
   // The last verify: the name and address searched, its results, and whether its match filled the form. The
   // binoculars pressed again with the same text reuse these instead of paying for the same Google searches.
@@ -1319,7 +1345,9 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
             )}
             {locationSearchDone && locationCandidates.length === 0 && (
               <div role="status" style={{ margin: '-8px 0 16px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                No matches. Try editing the address or enter place details manually.
+                {usingTyped
+                  ? 'Using what you typed. The map pin will be approximate.'
+                  : <>No matches. <button type="button" className="step-btn secondary" onClick={() => setUsingTyped(true)}>Use “{location.trim()}”</button> or edit the address.</>}
               </div>
             )}
             {location.trim() && !mapsData && !pinCoords && (
