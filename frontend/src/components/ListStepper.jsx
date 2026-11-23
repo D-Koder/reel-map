@@ -173,15 +173,18 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
       <div className="stepper-place">
         <div className="stepper-name">{row.item.name}</div>
         <div className="stepper-sub">Google didn’t find this one. Search for it, or type the address.</div>
+        <label className="stepper-field-label" htmlFor="stepper-search-input">Search for this place</label>
         <div className="stepper-search">
           <input
+            id="stepper-search-input"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the place or address"
-            aria-label="Search the place or address"
+            placeholder="Type the name or address"
+            aria-label="Search for this place"
             autoComplete="off"
           />
+          {candidates.length > 0 && <div className="stepper-results-label">Google matches · tap one</div>}
           {candidates.map((candidate, i) => (
             <button key={`${candidate.url || i}`} type="button" className="stepper-opt" onClick={() => pickCandidate(candidate)} disabled={busy}>
               <b>{candidate.name}</b><span>{candidate.address || ''}</span>

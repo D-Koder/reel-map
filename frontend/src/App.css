@@ -7200,3 +7200,9 @@ button { transition: scale 0.12s ease; }
 .stepper-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border, #2d3760); font-size: 14px; }
 .stepper-line:first-child { border-top: 0; }
 .stepper-nav-one { grid-template-columns: 1fr; }
+
+/* Add place stepper: clear labels for the search field and for the Google matches. */
+.stepper-field-label { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 4px; }
+.stepper-search input { font-size: 16px; padding-left: 14px; }
+.stepper-search input::placeholder { color: var(--text-muted); }
+.stepper-results-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px 4px; }
