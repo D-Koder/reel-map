@@ -518,8 +518,8 @@ function lookupLogs(body, consoleLines) {
 // page's extras (the second one is used).
 function aiTrace(ai, earlier) {
   if (!ai) return null;
-  const { raw, model, input, ...answer } = ai;
-  return { model, input, raw, answer, earlierRaw: earlier?.raw };
+  const { raw, model, input, pictures, picturesUsed, ...answer } = ai;
+  return { model, input, pictures, picturesUsed, raw, answer, earlierRaw: earlier?.raw };
 }
 
 // /api/save-reel also asks for this while the app is closed ({ background: true }). It picks the place
@@ -597,6 +597,7 @@ async function enrich(req, res, getBrowser) {
     // What the AI was given, for the Add place log: a missing date or a cut-off caption is otherwise invisible.
     steps.postDate = reel.date ? dayIn(timeZone, reel.date) : '';
     steps.caption = reel.caption;
+    steps.pictures = ai ? `${ai.pictures ?? 0} sent, ${ai.picturesUsed ? 'read' : ai.pictures ? 'not read (caption only)' : 'none'}` : 'not sent';
     steps.ai =`called: ${!ai ? 'no answer' : ai.kind === 'order_only'
       ? `order/pickup post${ai.places[0] ? `: ${ai.places[0].name}` : ''}${ai.pickupPlace ? `, pickup at ${ai.pickupPlace}`
         : ai.postArea || ai.places[0]?.area ? `, pickup in ${ai.places[0]?.area || ai.postArea}` : ''}`

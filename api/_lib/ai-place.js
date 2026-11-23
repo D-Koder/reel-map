@@ -714,14 +714,18 @@ async function aiPlace(post) {
     });
     // A picture the model can't fetch must not lose the answer: the caption alone is asked again.
     const content = userContent(post);
+    const pictures = Array.isArray(content) ? content.filter((block) => block.type === 'image').length : 0;
     let response;
+    let picturesUsed = pictures > 0;
     try {
       response = await create(content);
     } catch (error) {
       if (!Array.isArray(content)) throw error;
-      console.warn('AI place read with pictures failed, asking with the caption only:', error.message);
+      picturesUsed = false;
+      console.warn(`AI place read: ${pictures} picture(s) failed, asking with the caption only:`, error.message);
       response = await create(postText(post));
     }
+    console.log(`AI place read: ${pictures} picture(s) sent, ${picturesUsed ? 'used' : pictures ? 'NOT used (fell back to the caption)' : 'none sent'}`);
     if (response.stop_reason !== 'end_turn') {
       console.warn('AI place read stopped early:', response.stop_reason);
       return null;
@@ -780,7 +784,7 @@ async function aiPlace(post) {
       postCategory: answer.post_category, temporary, ...dates,
       // What the model sent back, as text, and which model it was: kept in the lookup trace.
       // `input` is the post as it was sent (caption, location tag, creator, tagged accounts, post date).
-      raw: text, model: MODEL, input: postText(post),
+      raw: text, model: MODEL, input: postText(post), pictures, picturesUsed,
     };
   } catch (error) {
     console.warn('AI place read failed:', error.message);
@@ -788,4 +792,4 @@ async function aiPlace(post) {
   }
 }
 
-module.exports = { aiPlace, postText };
+module.exports = { aiPlace, postText, userContent };

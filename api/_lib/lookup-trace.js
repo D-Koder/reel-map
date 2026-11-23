@@ -63,6 +63,9 @@ function buildTraceRow({ id, userId = null, entry, reelUrl, cleanUrl, notes = {}
       model: text(notes.ai.model, 100),
       // The post as it was sent: caption, location tag, creator, tagged accounts and post date.
       input: text(notes.ai.input, MAX_AI_INPUT),
+      // How many pictures went to the AI, and whether that call was used (false: it fell back to the caption).
+      pictures: Number.isInteger(notes.ai.pictures) ? notes.ai.pictures : 0,
+      picturesUsed: notes.ai.picturesUsed === true,
       raw: text(notes.ai.raw, MAX_RAW_REPLY),
       // Only when the AI was asked again with the page's extras: its first reply.
       earlierRaw: text(notes.ai.earlierRaw, MAX_RAW_REPLY),
