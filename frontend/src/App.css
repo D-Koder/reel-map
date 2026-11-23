@@ -7219,3 +7219,14 @@ button { transition: scale 0.12s ease; }
 .stepper-match b { display: block; }
 .stepper-match-sub { display: block; color: var(--text-muted); font-size: 13px; }
 .stepper-num { width: 24px; height: 24px; border-radius: 50%; background: var(--chip, #1f2850); color: inherit; font-size: 12px; font-weight: 700; display: grid; place-items: center; flex: none; }
+
+/* Add place stepper: neater search row and match list. */
+.stepper-search-row { min-height: 56px; gap: 12px; padding: 6px 6px 6px 16px; margin-top: 10px; }
+.stepper-search-icon { font-size: 18px; line-height: 1; flex: none; }
+.stepper-search-row input { font-size: 16px; min-height: 44px; text-overflow: ellipsis; }
+.stepper-find { min-height: 44px; padding: 10px 16px; border-radius: 12px; flex: none; }
+.stepper-list { gap: 8px; margin-top: 12px; }
+.stepper-match { align-items: center; padding: 12px 14px; min-height: 60px; }
+.stepper-num { width: 28px; height: 28px; font-size: 13px; }
+.stepper-match b { font-size: 15px; line-height: 1.3; }
+.stepper-match-sub { margin-top: 2px; line-height: 1.35; }
