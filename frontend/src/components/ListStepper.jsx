@@ -21,6 +21,22 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
   const [query, setQuery] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [finding, setFinding] = useState(false);
+  // Find: a search for the typed text. Skeleton rows show until its results come back.
+  const find = async () => {
+    const text = query.trim();
+    if (text.length < 2) return;
+    setFinding(true);
+    setCandidates([]);
+    try {
+      const found = await searchFor(text);
+      if (alive.current) setCandidates(found || []);
+    } catch {
+      if (alive.current) setCandidates([]);
+    } finally {
+      if (alive.current) setFinding(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
@@ -71,17 +87,6 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown]);
-
-  // Search as you type (after a pause): matches are listed for the person to choose. Nothing is picked here.
-  useEffect(() => {
-    if (shown < 0 || query.trim().length < 4 || query.trim() === rows[shown]?.query) return undefined;
-    const timer = setTimeout(async () => {
-      const found = await searchFor(query.trim()).catch(() => []);
-      if (alive.current) setCandidates(found);
-    }, SEARCH_PAUSE_MS);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
 
   const pickCandidate = async (candidate) => {
     setBusy(true);
@@ -183,9 +188,19 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
             aria-label="Search for this place"
             autoComplete="off"
           />
-          <button type="button" className="stepper-find" onClick={() => searchFor(query.trim()).then((found) => setCandidates(found)).catch(() => setCandidates([]))} disabled={query.trim().length < 2}>Find</button>
+          <button type="button" className="stepper-find" onClick={find} disabled={finding || query.trim().length < 2}>{finding ? 'Finding…' : 'Find'}</button>
         </div>
-        {candidates.length > 0 && (
+        {finding && (
+          <div className="stepper-list" role="status" aria-label="Finding matches">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="stepper-match stepper-skeleton" aria-hidden="true">
+                <span className="stepper-num stepper-skel-dot" />
+                <span className="stepper-skel-text"><span className="stepper-skel-line long" /><span className="stepper-skel-line" /></span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!finding && candidates.length > 0 && (
           <div className="stepper-list" role="group" aria-label="Google matches">
             {candidates.map((candidate, i) => (
               <button key={`${candidate.url || i}`} type="button" className="stepper-match" onClick={() => pickCandidate(candidate)} disabled={busy}>
@@ -195,7 +210,7 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
             ))}
           </div>
         )}
-        {query.trim().length >= 5 && candidates.length === 0 && (
+        {!finding && query.trim().length >= 5 && candidates.length === 0 && (
           <div className="stepper-list">
             <button type="button" className="stepper-match" onClick={useTyped}>
               <span className="stepper-num">✓</span>

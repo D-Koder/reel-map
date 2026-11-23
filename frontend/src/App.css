@@ -7233,3 +7233,13 @@ button { transition: scale 0.12s ease; }
 
 /* Add place stepper: a larger, clearer search icon. */
 .stepper-search-icon { font-size: 20px; color: var(--text-muted); opacity: 1; font-weight: 700; }
+
+/* Add place stepper: skeleton rows while Find searches. */
+.stepper-skeleton { pointer-events: none; }
+.stepper-skel-dot, .stepper-skel-line { background: linear-gradient(90deg, var(--border, #2d3760) 25%, var(--chip, #1f2850) 50%, var(--border, #2d3760) 75%); background-size: 200% 100%; animation: stepper-shimmer 1.2s linear infinite; }
+.stepper-skel-dot { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.stepper-skel-text { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.stepper-skel-line { display: block; height: 12px; border-radius: 6px; width: 40%; }
+.stepper-skel-line.long { width: 75%; height: 14px; }
+@keyframes stepper-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .stepper-skel-dot, .stepper-skel-line { animation: none; } }
