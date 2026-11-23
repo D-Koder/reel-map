@@ -7188,3 +7188,10 @@ button { transition: scale 0.12s ease; }
 .stepper-summary { text-align: center; padding: 16px 8px; display: grid; gap: 6px; }
 .stepper-big { font-size: 22px; font-weight: 700; }
 .stepper-small { color: var(--text-muted); font-size: 14px; }
+
+/* Add place stepper: one search box. The field and the results sit in the same box, results below a divider. */
+.stepper-search { gap: 0; border: 1px solid var(--border, #2d3760); border-radius: 12px; background: var(--bg); overflow: hidden; }
+.stepper-search input { border: 0; border-bottom: 1px solid var(--border, #2d3760); border-radius: 0; background: transparent; }
+.stepper-search input:focus-visible { outline-offset: -3px; }
+.stepper-search .stepper-opt { border: 0; border-radius: 0; background: transparent; border-top: 1px solid var(--border, #2d3760); padding: 12px 14px; }
+.stepper-search .stepper-opt:first-of-type { border-top: 0; }
