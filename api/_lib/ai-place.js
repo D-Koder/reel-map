@@ -683,15 +683,27 @@ function checkExtras(answer, post) {
 // for one, so a translation or a made-up name never becomes a match hint. Else ''.
 // localName: an English or pinyin name as written locally (Zhapu Road Bridge → 乍浦路桥), searched with
 // instead of the English name, since Google Maps finds Chinese, Japanese and Korean places by it. Else ''.
+// The post's image (its cover photo) is sent with the caption, when it is a web address. The model reads the
+// venue name, address and dates written on the picture, as well as in the caption.
+function userContent(post) {
+  const text = postText(post);
+  const url = typeof post.imageUrl === 'string' && /^https:\/\//.test(post.imageUrl) ? post.imageUrl : '';
+  if (!url) return text;
+  return [
+    { type: 'image', source: { type: 'url', url } },
+    { type: 'text', text: 'The picture above is the post\'s image. Read any venue name, address, dates and times written on it, as well as the post below. Quote what you use from the picture in "evidence", the same as for the caption.\n\n' + text },
+  ];
+}
+
 async function aiPlace(post) {
-  if (!process.env.ANTHROPIC_API_KEY || !post?.caption) return null;
+  if (!process.env.ANTHROPIC_API_KEY || (!post?.caption && !post?.imageUrl)) return null;
   try {
     const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 2000,
       system: [{ type: 'text', text: INSTRUCTIONS, cache_control: { type: 'ephemeral' } }],
       output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: postText(post) }],
+      messages: [{ role: 'user', content: userContent(post) }],
     });
     if (response.stop_reason !== 'end_turn') {
       console.warn('AI place read stopped early:', response.stop_reason);

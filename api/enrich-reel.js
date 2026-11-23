@@ -577,6 +577,7 @@ async function enrich(req, res, getBrowser) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
       collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
+      imageUrl: post.thumbnailUrl || '',
       postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
