@@ -325,6 +325,7 @@ export default function AddPlaceSheet({ collections, places = [], eventDatesRead
         addLog(`Caption (${steps.caption.length} characters): ${steps.caption}`, 'info');
       }
       addLog(`AI: ${steps.ai}`, steps.ai.includes(': found ') ? 'success' : 'info');
+      if (steps.pictures) addLog(`Pictures: ${steps.pictures}`, steps.pictures.includes(' read') ? 'success' : 'info');
       if (steps.category) addLog(`Category: ${steps.category}`, 'info');
       if (steps.handles) addLog(`Handles: ${steps.handles}`, 'info');
       if (steps.area) addLog(`Area added to search: ${steps.area}`, 'info');
