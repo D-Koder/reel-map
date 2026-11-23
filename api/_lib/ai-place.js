@@ -685,18 +685,39 @@ function checkExtras(answer, post) {
 // instead of the English name, since Google Maps finds Chinese, Japanese and Korean places by it. Else ''.
 // The post's image (its cover photo) is sent with the caption, when it is a web address. The model reads the
 // venue name, address and dates written on the picture, as well as in the caption.
+// A picture is downloaded here and sent as its bytes: the AI service refuses to fetch Instagram's picture links
+// itself (robots.txt). A picture that can't be downloaded, or is too big, is left out.
+const PICTURE_MAX_BYTES = 4_500_000;
+const PICTURE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+async function downloadPicture(url) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const type = (response.headers.get('content-type') || '').split(';')[0].trim();
+    if (!PICTURE_TYPES.includes(type)) return null;
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (!bytes.length || bytes.length > PICTURE_MAX_BYTES) return null;
+    return { type: 'image', source: { type: 'base64', media_type: type, data: bytes.toString('base64') } };
+  } catch {
+    return null;
+  }
+}
+
 // The post's pictures (every carousel slide, in order, or the cover), sent with the caption. The model reads the
 // venue names, addresses and dates written on them, as well as in the caption.
-function userContent(post) {
+async function userContent(post) {
   const text = postText(post);
   const urls = [...(Array.isArray(post.imageUrls) ? post.imageUrls : []), post.imageUrl]
     .filter((url, i, all) => typeof url === 'string' && /^https:\/\//.test(url) && all.indexOf(url) === i)
     .slice(0, 10);
   if (!urls.length) return text;
+  const downloaded = (await Promise.all(urls.map(downloadPicture))).filter(Boolean);
+  if (!downloaded.length) return text;
   const content = [];
-  urls.forEach((url, i) => {
-    content.push({ type: 'text', text: `Picture ${i + 1} of ${urls.length}:` });
-    content.push({ type: 'image', source: { type: 'url', url } });
+  downloaded.forEach((image, i) => {
+    content.push({ type: 'text', text: `Picture ${i + 1} of ${downloaded.length}:` });
+    content.push(image);
   });
   content.push({ type: 'text', text: 'Read every picture above, in order, for venue names, addresses and dates written on them, as well as the post below. Give the picture number in "evidence" when you quote from a picture. In a list post, each place says which picture it is on.\n\n' + text });
   return content;
@@ -707,13 +728,13 @@ async function aiPlace(post) {
   try {
     const create = (content) => getClient().messages.create({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 6000,
       system: [{ type: 'text', text: INSTRUCTIONS, cache_control: { type: 'ephemeral' } }],
       output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
       messages: [{ role: 'user', content }],
     });
     // A picture the model can't fetch must not lose the answer: the caption alone is asked again.
-    const content = userContent(post);
+    const content = await userContent(post);
     const pictures = Array.isArray(content) ? content.filter((block) => block.type === 'image').length : 0;
     let response;
     let picturesUsed = pictures > 0;
