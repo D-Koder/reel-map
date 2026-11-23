@@ -685,26 +685,43 @@ function checkExtras(answer, post) {
 // instead of the English name, since Google Maps finds Chinese, Japanese and Korean places by it. Else ''.
 // The post's image (its cover photo) is sent with the caption, when it is a web address. The model reads the
 // venue name, address and dates written on the picture, as well as in the caption.
+// The post's pictures (every carousel slide, in order, or the cover), sent with the caption. The model reads the
+// venue names, addresses and dates written on them, as well as in the caption.
 function userContent(post) {
   const text = postText(post);
-  const url = typeof post.imageUrl === 'string' && /^https:\/\//.test(post.imageUrl) ? post.imageUrl : '';
-  if (!url) return text;
-  return [
-    { type: 'image', source: { type: 'url', url } },
-    { type: 'text', text: 'The picture above is the post\'s image. Read any venue name, address, dates and times written on it, as well as the post below. Quote what you use from the picture in "evidence", the same as for the caption.\n\n' + text },
-  ];
+  const urls = [...(Array.isArray(post.imageUrls) ? post.imageUrls : []), post.imageUrl]
+    .filter((url, i, all) => typeof url === 'string' && /^https:\/\//.test(url) && all.indexOf(url) === i)
+    .slice(0, 10);
+  if (!urls.length) return text;
+  const content = [];
+  urls.forEach((url, i) => {
+    content.push({ type: 'text', text: `Picture ${i + 1} of ${urls.length}:` });
+    content.push({ type: 'image', source: { type: 'url', url } });
+  });
+  content.push({ type: 'text', text: 'Read every picture above, in order, for venue names, addresses and dates written on them, as well as the post below. Give the picture number in "evidence" when you quote from a picture. In a list post, each place says which picture it is on.\n\n' + text });
+  return content;
 }
 
 async function aiPlace(post) {
-  if (!process.env.ANTHROPIC_API_KEY || (!post?.caption && !post?.imageUrl)) return null;
+  if (!process.env.ANTHROPIC_API_KEY || (!post?.caption && !post?.imageUrl && !post?.imageUrls?.length)) return null;
   try {
-    const response = await getClient().messages.create({
+    const create = (content) => getClient().messages.create({
       model: MODEL,
       max_tokens: 2000,
       system: [{ type: 'text', text: INSTRUCTIONS, cache_control: { type: 'ephemeral' } }],
       output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: userContent(post) }],
+      messages: [{ role: 'user', content }],
     });
+    // A picture the model can't fetch must not lose the answer: the caption alone is asked again.
+    const content = userContent(post);
+    let response;
+    try {
+      response = await create(content);
+    } catch (error) {
+      if (!Array.isArray(content)) throw error;
+      console.warn('AI place read with pictures failed, asking with the caption only:', error.message);
+      response = await create(postText(post));
+    }
     if (response.stop_reason !== 'end_turn') {
       console.warn('AI place read stopped early:', response.stop_reason);
       return null;

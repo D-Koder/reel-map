@@ -99,6 +99,36 @@ function readRedNotePage(inputUrl) {
   };
 }
 
+// Each picture of a carousel post, in order, at most 10. The page's Next button is clicked and each new
+// picture kept; a post with one picture gives just that one. The selectors are Instagram's current markup.
+async function readCarouselSlides(page) {
+  const MAX = 10;
+  const currentPicture = () => page.evaluate(() => {
+    const main = document.querySelector('main');
+    const images = [...(main?.querySelectorAll('img') ?? [])]
+      .filter((image) => !/profile picture/i.test(image.alt) && image.naturalWidth > 200 && /^https:/.test(image.currentSrc || image.src));
+    images.sort((a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight);
+    return images[0]?.currentSrc || images[0]?.src || '';
+  }).catch(() => '');
+  const clickNext = () => page.evaluate(() => {
+    const button = document.querySelector('main svg[aria-label="Next"]')?.closest('button');
+    if (!button) return false;
+    button.click();
+    return true;
+  }).catch(() => false);
+  const pictures = [];
+  const keep = (src) => { if (src && !pictures.includes(src) && pictures.length < MAX) pictures.push(src); };
+  keep(await currentPicture());
+  for (let step = 1; step < MAX; step += 1) {
+    if (!(await clickNext())) break;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const before = pictures.length;
+    keep(await currentPicture());
+    if (pictures.length === before) break; // no new picture: the carousel has ended
+  }
+  return pictures;
+}
+
 // Instagram's oEmbed: the caption and creator in one plain request, no browser.
 // Returns null, so Chrome runs, when there's no caption to search with.
 async function readInstagramQuickly(reelUrl) {
@@ -264,6 +294,8 @@ module.exports = async function handler(req, res) {
 
     if (isTikTok && !scraped.caption) throw new Error('TikTok caption was not found on the page');
     if (!isTikTok) scraped.tagged = taggedAccounts(await page.content());
+    // Every picture of a carousel post, in order: the cover first (see readCarouselSlides).
+    if (!isTikTok) scraped.slideImages = await readCarouselSlides(page);
 
 
     // Reels show their platform's own embed, so no cover image is kept.

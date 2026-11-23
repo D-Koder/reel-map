@@ -322,6 +322,7 @@ async function readPageExtras(reel, cleanUrl, getBrowser) {
   if (page.statusCode >= 400 || !page.body?.success) return { ...reel, pageRead: true };
   return {
     ...reel, pageRead: true, collaborators: page.body.collaborators || [], tagged: page.body.tagged || [],
+    slideImages: page.body.slideImages || [],
     locationTag: page.body.locationTag || '', date: reel.date || page.body.date || '',
   };
 }
@@ -577,7 +578,7 @@ async function enrich(req, res, getBrowser) {
     const askAi = (post) => aiPlace({
       caption: post.caption, locationTag: post.locationTag, creator: post.creator,
       collaborators: post.collaborators, tagged: post.tagged, slide, userCountry: country, userLanguage: language,
-      imageUrl: post.thumbnailUrl || '',
+      imageUrls: Array.isArray(post.slideImages) && post.slideImages.length ? post.slideImages : [post.thumbnailUrl || ''],
       postDay: post.date ? dayIn(timeZone, post.date) : '', today: dayIn(timeZone),
     });
     // The page read (Chrome, the slow part) and the AI run at the same time. The AI also weighs what only
