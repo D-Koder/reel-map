@@ -7195,3 +7195,8 @@ button { transition: scale 0.12s ease; }
 .stepper-search input:focus-visible { outline-offset: -3px; }
 .stepper-search .stepper-opt { border: 0; border-radius: 0; background: transparent; border-top: 1px solid var(--border, #2d3760); padding: 12px 14px; }
 .stepper-search .stepper-opt:first-of-type { border-top: 0; }
+
+/* Add place stepper: the search progress list, and a single full-width button. */
+.stepper-line { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border, #2d3760); font-size: 14px; }
+.stepper-line:first-child { border-top: 0; }
+.stepper-nav-one { grid-template-columns: 1fr; }
