@@ -7206,3 +7206,16 @@ button { transition: scale 0.12s ease; }
 .stepper-search input { font-size: 16px; padding-left: 14px; }
 .stepper-search input::placeholder { color: var(--text-muted); }
 .stepper-results-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px 4px; }
+
+/* Add place stepper, option C: a search row with a Find button, and the Google matches as a numbered list. */
+.stepper-search-row { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border, #2d3760); border-radius: 14px; padding: 4px 6px 4px 14px; margin-top: 6px; }
+.stepper-search-icon { color: var(--text-muted); font-size: 16px; }
+.stepper-search-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: inherit; background: transparent; border: 0; padding: 10px 0; min-height: 42px; }
+.stepper-search-row input:focus-visible { outline: none; }
+.stepper-find { font: inherit; font-size: 13px; font-weight: 700; background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.stepper-find:disabled { opacity: .45; cursor: not-allowed; }
+.stepper-list { display: grid; gap: 6px; margin-top: 10px; }
+.stepper-match { display: flex; gap: 12px; align-items: flex-start; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border, #2d3760); border-radius: 12px; padding: 11px 12px; cursor: pointer; }
+.stepper-match b { display: block; }
+.stepper-match-sub { display: block; color: var(--text-muted); font-size: 13px; }
+.stepper-num { width: 24px; height: 24px; border-radius: 50%; background: var(--chip, #1f2850); color: inherit; font-size: 12px; font-weight: 700; display: grid; place-items: center; flex: none; }

@@ -173,29 +173,36 @@ export default function ListStepper({ items, lookupItem, searchFor, readDetails,
       <div className="stepper-place">
         <div className="stepper-name">{row.item.name}</div>
         <div className="stepper-sub">Google didn’t find this one. Search for it, or type the address.</div>
-        <label className="stepper-field-label" htmlFor="stepper-search-input">Search for this place</label>
-        <div className="stepper-search">
+        <div className="stepper-search-row">
+          <span className="stepper-search-icon" aria-hidden="true">⌕</span>
           <input
-            id="stepper-search-input"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type the name or address"
+            placeholder="Search the name or address"
             aria-label="Search for this place"
             autoComplete="off"
           />
-          {candidates.length > 0 && <div className="stepper-results-label">Google matches · tap one</div>}
-          {candidates.map((candidate, i) => (
-            <button key={`${candidate.url || i}`} type="button" className="stepper-opt" onClick={() => pickCandidate(candidate)} disabled={busy}>
-              <b>{candidate.name}</b><span>{candidate.address || ''}</span>
-            </button>
-          ))}
-          {query.trim().length >= 5 && candidates.length === 0 && (
-            <button type="button" className="stepper-opt" onClick={useTyped}>
-              <b>Use “{query.trim()}”</b><span>The map pin will be approximate</span>
-            </button>
-          )}
+          <button type="button" className="stepper-find" onClick={() => searchFor(query.trim()).then((found) => setCandidates(found)).catch(() => setCandidates([]))} disabled={query.trim().length < 2}>Find</button>
         </div>
+        {candidates.length > 0 && (
+          <div className="stepper-list" role="group" aria-label="Google matches">
+            {candidates.map((candidate, i) => (
+              <button key={`${candidate.url || i}`} type="button" className="stepper-match" onClick={() => pickCandidate(candidate)} disabled={busy}>
+                <span className="stepper-num">{i + 1}</span>
+                <span><b>{candidate.name}</b><span className="stepper-match-sub">{candidate.address || ''}</span></span>
+              </button>
+            ))}
+          </div>
+        )}
+        {query.trim().length >= 5 && candidates.length === 0 && (
+          <div className="stepper-list">
+            <button type="button" className="stepper-match" onClick={useTyped}>
+              <span className="stepper-num">✓</span>
+              <span><b>Use “{query.trim()}”</b><span className="stepper-match-sub">The map pin will be approximate</span></span>
+            </button>
+          </div>
+        )}
       </div>
       <div className="stepper-nav stepper-nav-one">
         <button type="button" className="stepper-btn" onClick={skip}>Skip for now</button>
